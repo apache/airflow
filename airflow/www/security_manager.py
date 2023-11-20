@@ -354,10 +354,10 @@ class AirflowSecurityManagerV2(LoggingMixin):
     """
 
     def get_action(self, name: str) -> Action:
-        raise NotImplementedError()
+        raise NotImplementedError("Only available if FAB auth manager is used")
 
     def get_resource(self, name: str) -> Resource:
-        raise NotImplementedError()
+        raise NotImplementedError("Only available if FAB auth manager is used")
 
     def add_permissions_view(self, base_action_names, resource_name):
         pass
