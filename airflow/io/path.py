@@ -89,7 +89,12 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+    def __new__(
+        cls: type[PT],
+        *args: str | os.PathLike,
+        scheme: str | None = None,
+        **kwargs: typing.Any,
+    ) -> PT:
         args_list = list(args)
 
         try:
@@ -128,10 +133,8 @@ class ObjectStoragePath(CloudPath):
         # allow override of protocol
         protocol = kwargs.get("scheme", protocol)
 
-        for key in ["scheme", "url"]:
-            val = kwargs.pop(key, None)
-            if val:
-                parsed_url = parsed_url._replace(**{key: val})
+        if scheme is not None:
+            parsed_url = parsed_url._replace(scheme=scheme)
 
         if not parsed_url.path:
             parsed_url = parsed_url._replace(path="/")  # ensure path has root
