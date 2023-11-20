@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import socket
-from ftplib import FTP_PORT
+from ftplib import FTP_PORT  # nosec: B402
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
@@ -156,7 +156,7 @@ class FTPFileTransmitOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
                 exc_info=True,
             )
 

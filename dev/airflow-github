@@ -25,13 +25,16 @@ from __future__ import annotations
 import re
 import sys
 from collections import Counter, defaultdict
+from typing import TYPE_CHECKING
 
 import git
 import rich_click as click
 from github import Github
-from github.Issue import Issue
-from github.PullRequest import PullRequest
 from packaging import version
+
+if TYPE_CHECKING:
+    from github.Issue import Issue
+    from github.PullRequest import PullRequest
 
 GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
 GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
@@ -252,7 +255,10 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     # :<18 says left align, pad to 18, :>6 says right align, pad to 6
     # :<50.50 truncates after 50 chars
     # !s forces as string
-    formatstr = "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} | {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
+    formatstr = (
+        "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} "
+        "| {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
+    )
 
     print(
         formatstr.format(
@@ -303,7 +309,8 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         )
 
     print(
-        f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} ({dict(num_uncherrypicked)}) yet to be cherry-picked"
+        f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} "
+        f"({dict(num_uncherrypicked)}) yet to be cherry-picked"
     )
 
 

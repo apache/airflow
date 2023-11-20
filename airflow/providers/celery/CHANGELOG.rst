@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix _SECRET and _CMD broker configuration (#34782)``
+* ``Remove sensitive information from Celery executor warning (#34954)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+
 3.4.0
 .....
 

@@ -837,14 +837,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
         error_msg = (
-            "Test failed.\nPass value:{pass_value_conv}\n"
-            "Tolerance:{tolerance_pct_str}\n"
-            "Query:\n{sql}\nResults:\n{records!s}"
-        ).format(
-            pass_value_conv=pass_value_conv,
-            tolerance_pct_str=f"{self.tol:.1%}" if self.tol is not None else None,
-            sql=self.sql,
-            records=records,
+            f"Test failed.\n"
+            f"Pass value:{pass_value_conv}\n"
+            f"Tolerance:{f'{self.tol:.1%}' if self.tol is not None else None}\n"
+            f"Query:\n{self.sql}\n"
+            f"Results:\n{records!s}"
         )
 
         if not is_numeric_value_check:

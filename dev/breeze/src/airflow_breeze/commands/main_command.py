@@ -31,6 +31,7 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_database_isolation,
     option_db_reset,
     option_dry_run,
     option_forward_credentials,
@@ -41,6 +42,7 @@ from airflow_breeze.utils.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_python,
+    option_standalone_dag_processor,
     option_verbose,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
@@ -107,6 +109,8 @@ class MainGroupWithAliases(BreezeGroup):
 @option_mysql_version
 @option_mssql_version
 @option_integration
+@option_database_isolation
+@option_standalone_dag_processor
 @option_forward_credentials
 @option_db_reset
 @option_max_time
@@ -277,7 +281,7 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():

@@ -121,7 +121,8 @@ Advanced configuration
 ----------------------
 
 You can configure :doc:`advanced features </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`
-- including adding your own custom task log handlers (but also log handlers for all airflow components).
+- including adding your own custom task log handlers (but also log handlers for all airflow components), and creating
+custom log handlers per operators, hooks and tasks.
 
 .. _serving-worker-trigger-logs:
 

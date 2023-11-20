@@ -1597,6 +1597,12 @@ export interface components {
       operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
@@ -2201,7 +2207,13 @@ export interface components {
     /**
      * @description Trigger rule.
      *
-     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+     *
+     * *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+     *
+     * *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+     *
+     * *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
      *
      * @enum {string}
      */
@@ -2209,13 +2221,17 @@ export interface components {
       | "all_success"
       | "all_failed"
       | "all_done"
+      | "all_done_setup_success"
       | "one_success"
       | "one_failed"
+      | "one_done"
       | "none_failed"
       | "none_skipped"
       | "none_failed_or_skipped"
       | "none_failed_min_one_success"
-      | "dummy";
+      | "dummy"
+      | "all_skipped"
+      | "always";
     /**
      * @description Weight rule.
      * @enum {string}

@@ -78,7 +78,6 @@ class BatchOperatorTrigger(BaseTrigger):
         return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
             for attempt in range(1, 1 + self.max_retries):

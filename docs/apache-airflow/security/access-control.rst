@@ -51,7 +51,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited read permissions:
 
-.. exampleinclude:: /../../airflow/www/security_manager.py
+.. exampleinclude:: /../../airflow/auth/managers/fab/security_manager/override.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
@@ -60,7 +60,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/www/security_manager.py
+.. exampleinclude:: /../../airflow/auth/managers/fab/security_manager/override.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
@@ -69,7 +69,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/www/security_manager.py
+.. exampleinclude:: /../../airflow/auth/managers/fab/security_manager/override.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]

@@ -32,7 +32,6 @@ class KafkaConsumerHook(KafkaBaseHook):
     """
 
     def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
-
         super().__init__(kafka_config_id=kafka_config_id)
         self.topics = topics
 

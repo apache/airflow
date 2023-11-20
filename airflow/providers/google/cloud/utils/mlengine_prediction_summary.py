@@ -191,7 +191,6 @@ def run(argv=None):
     metric_keys = known_args.metric_keys.split(",")
 
     with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
-
         prediction_result_pattern = os.path.join(known_args.prediction_path, "prediction.results-*-of-*")
         prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
         # This is apache-beam ptransform's convention

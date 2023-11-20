@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
+
+pytestmark = pytest.mark.db_test
 
 
 class TestTriggererCommand:

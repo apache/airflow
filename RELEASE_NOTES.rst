@@ -21,6 +21,70 @@
 
 .. towncrier release notes start
 
+Airflow 2.7.3 (2023-11-04)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Fix pre-mature evaluation of tasks in mapped task group (#34337)
+- Add TriggerRule missing value in rest API (#35194)
+- Fix Scheduler crash looping when dagrun creation fails (#35135)
+- Fix test connection with ``codemirror`` and extra (#35122)
+- Fix usage of cron-descriptor since BC in v1.3.0 (#34836)
+- Fix ``get_plugin_info`` for class based listeners. (#35022)
+- Some improvements/fixes for dag_run and task_instance endpoints (#34942)
+- Fix the dags count filter in webserver home page (#34944)
+- Return only the TIs of the readable dags when ~ is provided as a dag_id (#34939)
+- Fix triggerer thread crash in daemon mode (#34931)
+- Fix wrong plugin schema (#34858)
+- Use DAG timezone in TimeSensorAsync (#33406)
+- Mark tasks with ``all_skipped`` trigger rule as ``skipped`` if any task is in ``upstream_failed`` state (#34392)
+- Add read only validation to read only fields (#33413)
+
+Misc/Internal
+"""""""""""""
+- Improve testing harness to separate DB and non-DB tests (#35160, #35333)
+- Add pytest db_test markers to our tests (#35264)
+- Add pip caching for faster build (#35026)
+- Upper bound ``pendulum`` requirement to ``<3.0`` (#35336)
+- Limit ``sentry_sdk`` to ``1.33.0`` (#35298)
+- Fix subtle bug in mocking processor_agent in our tests (#35221)
+- Bump ``@babel/traverse`` from ``7.16.0 to 7.23.2`` in ``/airflow/www`` (#34988)
+- Bump ``undici`` from ``5.19.1 to 5.26.3`` in ``/airflow/www`` (#34971)
+- Remove unused set from ``SchedulerJobRunner`` (#34810)
+- Remove warning about ``max_tis per query > parallelism`` (#34742)
+- Improve modules import in Airflow core by moving some of them into a type-checking block (#33755)
+- Fix tests to respond to Python 3.12 handling of utcnow in sentry-sdk (#34946)
+- Add ``connexion<3.0`` upper bound (#35218)
+- Limit Airflow to ``< 3.12`` (#35123)
+- update moto version (#34938)
+- Limit WTForms to below ``3.1.0`` (#34943)
+
+Doc Only Changes
+""""""""""""""""
+- Fix variables substitution in Airflow Documentation (#34462)
+- Added example for defaults in ``conn.extras`` (#35165)
+- Update datasets.rst issue with running example code (#35035)
+- Remove ``mysql-connector-python`` from recommended MySQL driver (#34287)
+- Fix syntax error in task dependency ``set_downstream`` example (#35075)
+- Update documentation to enable test connection (#34905)
+- Update docs errors.rst - Mention sentry "transport" configuration option (#34912)
+- Update dags.rst to put SubDag deprecation note right after the SubDag section heading (#34925)
+- Add info on getting variables and config in custom secrets backend (#34834)
+- Document BaseExecutor interface in more detail to help users in writing custom executors (#34324)
+- Fix broken link to ``airflow_local_settings.py`` template (#34826)
+- Fixes python_callable function assignment context kwargs example in params.rst (#34759)
+- Add missing multiple_outputs=True param in the TaskFlow example (#34812)
+- Remove extraneous ``'>'`` in provider section name (#34813)
+- Fix imports in extra link documentation (#34547)
+
+
+
 Airflow 2.7.2 (2023-10-12)
 --------------------------
 
@@ -2137,6 +2201,7 @@ For example, in your ``custom_config.py``:
 
     from airflow.utils.log.timezone_aware import TimezoneAware
 
+
     # before
     class YourCustomFormatter(logging.Formatter):
         ...
@@ -2160,7 +2225,7 @@ Bug Fixes
 - Fix ``pid`` check (#24636)
 - Rotate session id during login (#25771)
 - Fix mapped sensor with reschedule mode (#25594)
-- Cache the custom secrets backend so the same instance gets re-used (#25556)
+- Cache the custom secrets backend so the same instance gets reused (#25556)
 - Add right padding (#25554)
 - Fix reducing mapped length of a mapped task at runtime after a clear (#25531)
 - Fix ``airflow db reset`` when dangling tables exist (#25441)
@@ -3364,7 +3429,7 @@ Note: Upgrading the database to ``2.2.0`` or later can take some time to complet
 ``worker_log_server_port`` configuration has been moved to the ``logging`` section.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The ``worker_log_server_port`` configuration option has been moved from ``[celery]`` section to ``[logging]`` section to allow for re-use between different executors.
+The ``worker_log_server_port`` configuration option has been moved from ``[celery]`` section to ``[logging]`` section to allow for reuse between different executors.
 
 ``pandas`` is now an optional dependency
 """"""""""""""""""""""""""""""""""""""""""""
@@ -4163,7 +4228,7 @@ serve as a DagBag cache burst time.
 ``default_queue`` configuration has been moved to the ``operators`` section.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The ``default_queue`` configuration option has been moved from ``[celery]`` section to ``[operators]`` section to allow for re-use between different executors.
+The ``default_queue`` configuration option has been moved from ``[celery]`` section to ``[operators]`` section to allow for reuse between different executors.
 
 New Features
 ^^^^^^^^^^^^
@@ -4242,7 +4307,7 @@ Improvements
 - Update Tree View date ticks (#14141)
 - Make the tooltip to Pause / Unpause a DAG clearer (#13642)
 - Warn about precedence of env var when getting variables (#13501)
-- Move ``[celery] default_queue`` config to ``[operators] default_queue`` to re-use between executors  (#14699)
+- Move ``[celery] default_queue`` config to ``[operators] default_queue`` to reuse between executors  (#14699)
 
 Bug Fixes
 ^^^^^^^^^
@@ -4662,7 +4727,7 @@ Airflow 2.0.0 (2020-12-18)
 --------------------------
 
 The full changelog is about 3,000 lines long (already excluding everything backported to 1.10)
-so please check `Airflow 2.0.0 Highligths Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
+so please check `Airflow 2.0.0 Highlights Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
 instead.
 
 Significant Changes
@@ -6364,7 +6429,7 @@ Other GCP hooks are unaffected.
 ``airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the ``PubSubPublishOperator`` and ``PubSubHook.publsh`` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
+In the ``PubSubPublishOperator`` and ``PubSubHook.publish`` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
 Due to the normalization of the parameters within GCP operators and hooks a parameters like ``project`` or ``topic_project``
 are deprecated and will be substituted by parameter ``project_id``.
@@ -7783,7 +7848,7 @@ Improvements
 - [AIRFLOW-6871] Optimize tree view for large DAGs (#7492)
 - [AIRFLOW-7063] Fix dag.clear() slowness caused by count (#7723)
 - [AIRFLOW-7023] Remove duplicated package definitions in setup.py (#7675)
-- [AIRFLOW-7001] Time zone removed from MySQL TIMSTAMP field inserts
+- [AIRFLOW-7001] Time zone removed from MySQL TIMESTAMP field inserts
 - [AIRFLOW-7105] Unify Secrets Backend method interfaces (#7830)
 - Make BaseSecretsBackend.build_path generic (#7948)
 - Allow hvac package installation using 'hashicorp' extra (#7915)

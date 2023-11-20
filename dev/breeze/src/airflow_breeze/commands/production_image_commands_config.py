@@ -57,7 +57,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",
-                "--additional-extras",
+                "--additional-airflow-extras",
                 "--additional-pip-install-flags",
                 "--additional-python-deps",
                 "--additional-runtime-apt-deps",
@@ -75,8 +75,9 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             ],
         },
         {
-            "name": "Customization options (for specific customization needs)",
+            "name": "Advanced customization options (for specific customization needs)",
             "options": [
+                "--debian-version",
                 "--install-packages-from-context",
                 "--use-constraints-for-context-packages",
                 "--cleanup-context",

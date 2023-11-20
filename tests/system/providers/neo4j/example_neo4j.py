@@ -35,7 +35,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START run_query_neo4j_operator]
 
     neo4j_task = Neo4jOperator(

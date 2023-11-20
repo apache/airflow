@@ -78,6 +78,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
+from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -470,7 +471,7 @@ class DAG(LoggingMixin):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
-        self.owner_links = owner_links if owner_links else {}
+        self.owner_links = owner_links or {}
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -726,7 +727,7 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
-        self.params.validate()
+        self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
 
@@ -1428,6 +1429,12 @@ class DAG(LoggingMixin):
             dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=dag_run_id, session=session)
             callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
+            # tis from a dagrun may not be a part of dag.partial_subset,
+            # since dag.partial_subset is a subset of the dag.
+            # This ensures that we will only use the accessible TI
+            # context for the callback.
+            if dag.partial:
+                tis = [ti for ti in tis if not ti.state == State.NONE]
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -3131,8 +3138,8 @@ class DAG(LoggingMixin):
         dag_references = collections.defaultdict(set)
         outlet_references = collections.defaultdict(set)
         # We can't use a set here as we want to preserve order
-        outlet_datasets: dict[Dataset, None] = {}
-        input_datasets: dict[Dataset, None] = {}
+        outlet_datasets: dict[DatasetModel, None] = {}
+        input_datasets: dict[DatasetModel, None] = {}
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3165,7 +3172,8 @@ class DAG(LoggingMixin):
         all_datasets.update(input_datasets)
 
         # store datasets
-        stored_datasets = {}
+        stored_datasets: dict[str, DatasetModel] = {}
+        new_datasets: list[DatasetModel] = []
         for dataset in all_datasets:
             stored_dataset = session.scalar(
                 select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1)
@@ -3177,11 +3185,11 @@ class DAG(LoggingMixin):
                 stored_dataset.is_orphaned = expression.false()
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
-                session.add(dataset)
-                stored_datasets[dataset.uri] = dataset
+                new_datasets.append(dataset)
+        dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
+        stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
 
-        session.flush()  # this is required to ensure each dataset has its PK loaded
-
+        del new_datasets
         del all_datasets
 
         # reconcile dag-schedule-on-dataset references
@@ -3618,7 +3626,7 @@ class DagModel(Base):
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
+        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
         return paused_dag_ids
 
     def get_default_view(self) -> str:

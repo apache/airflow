@@ -52,7 +52,7 @@ class TestAirbyteJobSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
-    def test_failed(self, mock_get_job, soft_fail: bool, expected_exception: AirflowException):
+    def test_failed(self, mock_get_job, soft_fail: bool, expected_exception: type[AirflowException]):
         mock_get_job.return_value = self.get_job("failed")
 
         sensor = AirbyteJobSensor(
@@ -85,7 +85,7 @@ class TestAirbyteJobSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
-    def test_cancelled(self, mock_get_job, soft_fail: bool, expected_exception: AirflowException):
+    def test_cancelled(self, mock_get_job, soft_fail: bool, expected_exception: type[AirflowException]):
         mock_get_job.return_value = self.get_job("cancelled")
 
         sensor = AirbyteJobSensor(

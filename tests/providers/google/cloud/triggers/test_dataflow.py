@@ -93,7 +93,7 @@ class TestTemplateJobStartTrigger:
                 "message": "Job completed",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -108,7 +108,7 @@ class TestTemplateJobStartTrigger:
                 "message": f"Dataflow job with id {JOB_ID} has failed its execution",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -122,7 +122,7 @@ class TestTemplateJobStartTrigger:
                 "message": f"Dataflow job with id {JOB_ID} was stopped",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 

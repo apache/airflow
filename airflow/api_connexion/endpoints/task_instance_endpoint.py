@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
@@ -42,11 +42,12 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.security import get_readable_dags
+from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -58,17 +59,12 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement, Select
 
     from airflow.api_connexion.types import APIResponse
+    from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 T = TypeVar("T")
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance(
     *,
@@ -110,13 +106,7 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance(
     *,
@@ -162,13 +152,7 @@ def get_mapped_task_instance(
         "updated_at_lte": format_datetime,
     },
 )
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instances(
     *,
@@ -210,8 +194,9 @@ def get_mapped_task_instances(
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise NotFound(error_message)
-        task = dag.get_task(task_id)
-        if not task:
+        try:
+            task = dag.get_task(task_id)
+        except TaskNotFound:
             error_message = f"Task id {task_id} not found"
             raise NotFound(error_message)
         if not needs_expansion(task):
@@ -306,13 +291,7 @@ def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T,
         "updated_at_lte": format_datetime,
     },
 )
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instances(
     *,
@@ -389,13 +368,7 @@ def get_task_instances(
     )
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     """Get list of task instances."""
@@ -406,14 +379,16 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         raise BadRequest(detail=str(err.messages))
     dag_ids = data["dag_ids"]
     if dag_ids:
-        cannot_access_dag_ids = set()
-        for id in dag_ids:
-            if not get_airflow_app().appbuilder.sm.can_read_dag(id, g.user):
-                cannot_access_dag_ids.add(id)
-        if cannot_access_dag_ids:
-            raise PermissionDenied(
-                detail=f"User not allowed to access these DAGs: {list(cannot_access_dag_ids)}"
-            )
+        requests: Sequence[IsAuthorizedDagRequest] = [
+            {
+                "method": "GET",
+                "details": DagDetails(id=id),
+                "user": g.user,
+            }
+            for id in dag_ids
+        ]
+        if not get_auth_manager().batch_is_authorized_dag(requests):
+            raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
         dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
@@ -464,13 +439,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
@@ -530,13 +499,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     )
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
@@ -603,13 +566,7 @@ def set_mapped_task_instance_note(
     return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def patch_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
@@ -649,13 +606,7 @@ def patch_task_instance(
     return task_instance_reference_schema.dump(ti)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def patch_mapped_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
@@ -666,13 +617,7 @@ def patch_mapped_task_instance(
     )
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def set_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION

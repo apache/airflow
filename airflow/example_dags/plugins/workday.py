@@ -38,7 +38,7 @@ try:
     holiday_calendar = USFederalHolidayCalendar()
 except ImportError:
     log.warning("Could not import pandas. Holidays will not be considered.")
-    holiday_calendar = None
+    holiday_calendar = None  # type: ignore[assignment]
 
 
 class AfterWorkdayTimetable(Timetable):

@@ -38,7 +38,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_tag_sensor_github]
 
     tag_sensor = GithubTagSensor(

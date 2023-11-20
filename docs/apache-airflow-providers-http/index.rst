@@ -77,7 +77,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.6.0
+Release: 4.7.0
 
 Provider package
 ----------------

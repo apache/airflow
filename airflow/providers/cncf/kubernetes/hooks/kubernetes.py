@@ -22,6 +22,7 @@ import tempfile
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
+import aiofiles
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
@@ -502,13 +503,13 @@ class AsyncKubernetesHook(KubernetesHook):
             return async_client.ApiClient()
 
         if kubeconfig is not None:
-            with tempfile.NamedTemporaryFile() as temp_config:
+            async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
-                temp_config.write(kubeconfig.encode())
-                temp_config.flush()
+                await temp_config.write(kubeconfig.encode())
+                await temp_config.flush()
                 self._is_in_cluster = False
                 await async_config.load_kube_config(
                     config_file=temp_config.name,

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -104,6 +104,8 @@ class ShellParams:
     mssql_version: str = ALLOWED_MSSQL_VERSIONS[0]
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
+    run_db_tests_only: bool = False
+    skip_db_tests: bool = False
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
@@ -127,6 +129,12 @@ class ShellParams:
     only_min_version_update: bool = False
     regenerate_missing_docs: bool = False
     skip_provider_dependencies_check: bool = False
+    standalone_dag_processor: bool = False
+    database_isolation: bool = False
+    use_xdist: bool = False
+    enable_coverage: bool = False
+    parallelism: int = 0
+    parallel_test_types_list: list[str] = field(default_factory=list)
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -206,7 +214,7 @@ class ShellParams:
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
         backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
-        if backend == "sqlite" or not self.forward_ports:
+        if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 

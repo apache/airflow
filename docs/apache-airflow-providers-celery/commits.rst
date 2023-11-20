@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.1
+.....
+
+Latest change: 2023-10-17
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`1ae9279346 <https://github.com/apache/airflow/commit/1ae9279346315d99e7f7c546fbcd335aa5a871cd>`_  2023-10-17   ``Init providers before importing Celery (#34782)``
+`f23170c9dd <https://github.com/apache/airflow/commit/f23170c9dd23556a40bd07b5d24f06220eec15c4>`_  2023-10-16   ``D401 Support - A thru Common (Inclusive) (#34934)``
+`dd59e3e63e <https://github.com/apache/airflow/commit/dd59e3e63e0db349f40f8d1c91e7f6ef252caa4b>`_  2023-10-15   ``Remove sensitive information from Celery executor warning (#34954)``
+=================================================================================================  ===========  ======================================================================
+
 3.4.0
 .....
 
-Latest change: 2023-10-05
+Latest change: 2023-10-13
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
 `7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
 `f19e055789 <https://github.com/apache/airflow/commit/f19e0557890a86f7a622bada99f7a054edd3cfe0>`_  2023-09-25   ``respect soft_fail argument when exception is raised for celery sensors (#34474)``

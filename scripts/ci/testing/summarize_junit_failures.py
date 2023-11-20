@@ -108,7 +108,6 @@ def summarize_file(input, test_type, backend):
 if __name__ == "__main__":
     fname_pattern = re.compile("^test_result-(?P<test_type>.*?)-(?P<backend>.*).xml$")
     for fname in sys.argv[1:]:
-
         match = fname_pattern.match(os.path.basename(fname))
 
         if not match:

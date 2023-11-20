@@ -20,11 +20,21 @@
 Package apache-airflow-providers-opensearch
 ------------------------------------------------------
 
-`OpenSearch <https://opensearch.org/>`__
+`Opensearch <https://opensearch.org/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``opensearch``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
+
+
 1.0.0
 .....
+
+Latest change: 2023-10-15
+
+=================================================================================================  ===========  =====================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================
+`94f144196f <https://github.com/apache/airflow/commit/94f144196fbc0c78d615cb6a1ff39300e3f607ae>`_  2023-10-15   ``Add Open Search Provider (#34705)``
+=================================================================================================  ===========  =====================================

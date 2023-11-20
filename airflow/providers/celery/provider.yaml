@@ -22,7 +22,9 @@ description: |
     `Celery <http://www.celeryproject.org/>`__
 
 suspended: false
+source-date-epoch: 1700148056
 versions:
+  - 3.4.1
   - 3.4.0
   - 3.3.4
   - 3.3.3

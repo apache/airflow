@@ -146,6 +146,17 @@ For this Job you should put path to your local training script inside ``script_p
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
 
+Additionally, you can create new version of existing Training Job instead. In this case, the result will be new
+version of existing Model instead of new Model created in Model Registry. This can be done by specifying
+``parent_model`` parameter when running Training Job.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+
+
 You can get a list of Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.ListCustomTrainingJobOperator`.
 
@@ -235,6 +246,16 @@ put dataset id to ``dataset_id`` parameter in operator.
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+
+Additionally, you can create new version of existing AutoML Video Training Job. In this case, the result will be new
+version of existing Model instead of new Model created in Model Registry. This can be done by specifying
+``parent_model`` parameter when running  AutoML Video Training Job.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
 
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
@@ -413,6 +434,100 @@ To get a model list you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_models_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_models_operator]
+
+To retrieve model by its ID you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_model_operator]
+
+To list all model versions you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_model_versions_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_model_versions_operator]
+
+To set a specific version of model as a default one you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_set_version_as_default_operator]
+    :end-before: [END how_to_cloud_vertex_ai_set_version_as_default_operator]
+
+To add aliases to specific version of model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.AddVersionAliasesOnModelOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_add_version_aliases_operator]
+    :end-before: [END how_to_cloud_vertex_ai_add_version_aliases_operator]
+
+To delete aliases from specific version of model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteVersionAliasesOnModelOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_version_aliases_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_version_aliases_operator]
+
+To delete specific version of model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_version_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_version_operator]
+
+Running a Pipeline Jobs
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To run a Google VertexAI Pipeline Job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator`.
+The operator returns pipeline job id in :ref:`XCom <concepts:xcom>` under ``pipeline_job_id`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_pipeline_job_operator]
+
+To delete pipeline job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.DeletePipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_pipeline_job_operator]
+
+To get pipeline job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.GetPipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_pipeline_job_operator]
+
+To get a pipeline job list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.ListPipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
 Reference
 ^^^^^^^^^

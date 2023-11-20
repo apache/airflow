@@ -34,28 +34,15 @@ runs:
     - name: "Build & Push AMD64 CI images ${{ env.IMAGE_TAG }} ${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
-    - name: "Generate source constraints"
+    - name: "Source constraints"
       shell: bash
       run: >
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
-#    - name: "Generate PyPI constraints"
-#      shell: bash
-#      run: >
-#        breeze release-management generate-constraints --run-in-parallel
-#        --airflow-constraints-mode constraints
-#      if: ${{ inputs.build-provider-packages != 'true' }}
-    - name: "Print dependency upgrade summary"
-      shell: bash
-      run: |
-        for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
-          echo "Summarizing Python $PYTHON_VERSION"
-          cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
-        done
     - name: "Upload constraint artifacts"
       uses: actions/upload-artifact@v3
       with:
-        name: constraints
+        name: source-constraints
         path: ./files/constraints-*/constraints-*.txt
         retention-days: 7
     - name: "Fix ownership"

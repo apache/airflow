@@ -87,7 +87,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 10.10.0
+Release: 10.11.1
 
 Provider package
 ----------------
@@ -116,7 +116,8 @@ PIP package                              Version required
 ``gcloud-aio-auth``                      ``>=4.0.0,<5.0.0``
 ``gcloud-aio-bigquery``                  ``>=6.1.2``
 ``gcloud-aio-storage``
-``google-ads``                           ``>=21.2.0``
+``gcsfs``                                ``>=2023.9.2``
+``google-ads``                           ``>=22.1.0``
 ``google-api-core``                      ``>=2.11.0``
 ``google-api-python-client``             ``>=1.6.0``
 ``google-auth``                          ``>=1.0.0``
@@ -132,7 +133,7 @@ PIP package                              Version required
 ``google-cloud-dataflow-client``         ``>=0.8.2``
 ``google-cloud-dataform``                ``>=0.5.0``
 ``google-cloud-dataplex``                ``>=1.4.2``
-``google-cloud-dataproc``                ``>=5.4.0``
+``google-cloud-dataproc``                ``>=5.5.0``
 ``google-cloud-dataproc-metastore``      ``>=1.12.0``
 ``google-cloud-dlp``                     ``>=3.12.0``
 ``google-cloud-kms``                     ``>=2.15.0``
@@ -210,5 +211,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 10.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.10.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 10.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.10.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 10.11.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.11.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.11.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.11.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 10.11.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.11.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.11.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.11.1-py3-none-any.whl.sha512>`__)

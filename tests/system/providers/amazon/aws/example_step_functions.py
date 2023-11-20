@@ -70,7 +70,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # This context contains the ENV_ID and any env variables requested when the
     # task was built above. Access the info as you would any other TaskFlow task.
     test_context = sys_test_context_task()

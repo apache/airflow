@@ -108,7 +108,6 @@ class S3ToSqlOperator(BaseOperator):
         s3_obj = s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
 
         with NamedTemporaryFile() as local_tempfile:
-
             s3_obj.download_fileobj(local_tempfile)
             local_tempfile.flush()
             local_tempfile.seek(0)
