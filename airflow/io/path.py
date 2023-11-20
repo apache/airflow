@@ -40,21 +40,15 @@ if typing.TYPE_CHECKING:
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
-default = "file"
-
 
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
-        store = kwargs.pop("store", None)
-        conn_id = kwargs.pop("conn_id", None)
-        if store:
-            self._store = store
-        elif parsed_url and parsed_url.scheme:
+    def __init__(self, parsed_url: SplitResult | None, conn_id: str, **kwargs: typing.Any) -> None:
+        if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
-            self._store = attach(default, conn_id)
+            self._store = attach("file", conn_id)
 
     @property
     def _fs(self) -> AbstractFileSystem:
