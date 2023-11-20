@@ -86,7 +86,9 @@ class ComputeEngineSSHHook(SSHHook):
     :param gcp_conn_id: The connection id to use when fetching connection information
     :param max_retries: Maximum number of retries the process will try to establish connection to instance.
         Could be decreased/increased by user based on the amount of parallel SSH connections to the instance.
-    :param impersonation_chain: the service account email to impersonate, if any.
+    :param impersonation_chain: Optional. The service account email to impersonate using short-term
+        credentials. The provided service account must grant the originating account
+        the Service Account Token Creator IAM role and have the sufficient rights to perform the request
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -115,7 +117,7 @@ class ComputeEngineSSHHook(SSHHook):
         expire_time: int = 300,
         cmd_timeout: int | ArgNotSet = NOTSET,
         max_retries: int = 10,
-        impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_chain: str | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
@@ -146,7 +148,12 @@ class ComputeEngineSSHHook(SSHHook):
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        if self.impersonation_chain:
+            return ComputeEngineHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            )
+        else:
+            return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):
