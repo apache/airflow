@@ -97,7 +97,7 @@ By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
 
 The images are built with default extras - different extras for CI and production image and you
-can change the extras via the ``--extras`` parameters and add new ones with ``--additional-extras``.
+can change the extras via the ``--extras`` parameters and add new ones with ``--additional-airflow-extras``.
 
 For example if you want to build Python 3.8 version of production image with
 "all" extras installed you should run this command:
@@ -110,7 +110,7 @@ If you just want to add new extras you can add them like that:
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras "all"
+  breeze prod-image build --python 3.8 --additional-airflow-extras "all"
 
 The command that builds the CI image is optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -128,7 +128,7 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras=trino --install-airflow-version=2.0.0
+  breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-airflow-version=2.0.0
 
 This will build the image using command similar to:
 
@@ -170,7 +170,7 @@ You can also skip installing airflow and install it from locally provided files 
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras=trino --install-packages-from-context
+  breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 
@@ -331,7 +331,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  breeze ci-image build --python 3.8 --additional-extras=jdbc --additional-python-deps="pandas" \
+  breeze ci-image build --python 3.8 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
