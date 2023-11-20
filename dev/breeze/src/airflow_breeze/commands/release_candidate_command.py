@@ -96,7 +96,15 @@ def create_artifacts_with_sdist():
 
 def create_artifacts_with_breeze():
     run_command(
-        ["breeze", "release-management", "prepare-airflow-package", "--package-format", "both"], check=True
+        [
+            "breeze",
+            "release-management",
+            "prepare-airflow-package",
+            "--use-container-for-assets-compilation",
+            "--package-format",
+            "both",
+        ],
+        check=True,
     )
     console_print("Artifacts created")
 
