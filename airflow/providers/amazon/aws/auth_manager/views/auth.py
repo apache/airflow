@@ -93,6 +93,11 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
 
         return redirect(url_for("Airflow.index"))
 
+    @csrf.exempt
+    @expose("/logout_callback", methods=("GET", "POST"))
+    def logout_callback(self):
+        raise NotImplementedError("AWS Identity center does not support SLO (Single Logout Service)")
+
     @expose("/login_metadata")
     def login_metadata(self):
         saml_auth = self._init_saml_auth()

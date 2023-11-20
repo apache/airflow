@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
-pytest.importorskip("python3-saml")
+pytest.importorskip("onelogin")
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -149,3 +149,8 @@ class TestAwsAuthManagerAuthenticationViews:
                 with app.test_client() as client:
                     with pytest.raises(AirflowException):
                         client.get("/login_callback")
+
+    def test_logout_callback_raise_not_implemented_error(self, aws_app):
+        with aws_app.test_client() as client:
+            with pytest.raises(NotImplementedError):
+                client.get("/logout_callback")
