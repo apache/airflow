@@ -79,7 +79,8 @@ class TestOdbcHook:
         class UnitTestOdbcHook(OdbcHook):
             conn_name_attr = "test_conn_id"
 
-            def get_connection(self, conn_id: str):
+            @classmethod
+            def get_connection(cls, conn_id: str):
                 return connection
 
             def get_conn(self):
