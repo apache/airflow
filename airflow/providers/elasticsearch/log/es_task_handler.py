@@ -457,8 +457,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+        if not self.mark_end_on_close or self.ctx_task_deferred:
             # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return
