@@ -64,7 +64,7 @@ class HttpOperator(BaseOperator):
         Those keys will be merged and/or override the parameters provided into the HttpOperator declaration.
         Parameters are merged when they are both a dictionary (e.g.: HttpOperator.headers will be merged
         with the `headers` dict provided by this function). When merging, dict items returned by this
-        function will override initial ones (e.g: if both HttpOperator.headers and `headers` has a 'cookie'
+        function will override initial ones (e.g: if both HttpOperator.headers and `headers` have a 'cookie'
         item, the one provided by `headers` is kept). Parameters are simply overridden when any of them are
         string (e.g.: HttpOperator.endpoint is overridden by `endpoint`).
     :param response_check: A check against the 'requests' response object.
@@ -276,10 +276,10 @@ class HttpOperator(BaseOperator):
         :param next_page_params: A dictionary containing the parameters for the next page.
         :return: A dictionary containing the merged parameters.
         """
-
-        next_page_data_param: dict | str | None = next_page_params.get("data")
+        data: str | dict | None = None  # makes mypy happy
+        next_page_data_param = next_page_params.get("data")
         if isinstance(self.data, dict) and isinstance(next_page_data_param, dict):
-            data = merge_dicts(self.data, cast(dict, next_page_data_param)),
+            data = merge_dicts(self.data, next_page_data_param)
         else:
             data = next_page_data_param or self.data
 
