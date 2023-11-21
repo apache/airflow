@@ -24,10 +24,10 @@ Airflow™ is tested with:
 
 * Databases:
 
-  * PostgreSQL: 11, 12, 13, 14, 15
-  * MySQL: 5.7, 8.0, 8.1
+  * PostgreSQL: 12, 13, 14, 15, 16
+  * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
-  * MSSQL(Experimental): 2017, 2019
+  * MSSQL (Experimental, **Discontinued soon**): 2017, 2019
 
 * Kubernetes: 1.25, 1.26, 1.27, 1.28
 
@@ -42,11 +42,6 @@ wildly on the deployment options you have
   MariaDB for Airflow and that cause a lot of operational headache for them so we strongly discourage
   attempts to use MariaDB as a backend and users cannot expect any community support for it
   because the number of users who tried to use MariaDB for Airflow is very small.
-
-.. warning::
-
-  MySQL 5.x versions are unable to or have limitations with
-  running multiple schedulers -- please see: :doc:`/administration-and-deployment/scheduler`.
 
 .. warning::
   SQLite is used in Airflow tests. Do not use it in production. We recommend
