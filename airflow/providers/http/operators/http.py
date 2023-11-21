@@ -20,7 +20,7 @@ from __future__ import annotations
 import base64
 import pickle
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from requests import Response
 
