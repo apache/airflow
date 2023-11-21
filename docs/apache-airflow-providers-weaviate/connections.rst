@@ -46,7 +46,7 @@ Extra (optional)
     * If you'd like to use Vectorizers for your class, configure the API keys to use the corresponding
       embedding API. The extras accepts a key ``additional_headers`` containing the dictionary
       of API keys for the embedding API authentication. They are mentioned in a section here:
-      `addtional_headers <https://weaviate.io/developers/academy/zero_to_mvp/hello_weaviate/hands_on#-client-instantiation>__`
+      `addtional_headers <https://weaviate.io/developers/academy/zero_to_mvp/hello_weaviate/hands_on#-client-instantiation>`__
 
 Weaviate API Token (optional)
     Specify your Weaviate API Key to connect when API Key option is to be used for authentication.
