@@ -25,17 +25,16 @@ import time
 import warnings
 from collections import defaultdict
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Tuple
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
-from typing_extensions import Literal
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
@@ -47,7 +46,8 @@ from airflow.utils.session import create_session
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -83,6 +83,32 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if retry_timeout is not None:
             kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
+
+
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+    """Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    if not isinstance(ti, TaskInstanceKey):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if isinstance(val, TaskInstance):
+        val._try_number = ti.try_number
+        return val
+    else:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -136,7 +162,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)  # type: ignore[attr-defined]
+        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
@@ -183,8 +209,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         return host
 
-    def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        from airflow.models.taskinstance import TaskInstanceKey
+
         with create_session() as session:
+            if isinstance(ti, TaskInstanceKey):
+                ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
@@ -237,12 +267,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _group_logs_by_host(self, logs):
+    def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
-        for log in logs:
-            key = getattr_nested(log, self.host_field, None) or "default_host"
-            grouped_logs[key].append(log)
-
+        for hit in response:
+            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            grouped_logs[key].append(hit)
         return grouped_logs
 
     def _read_grouped_logs(self):
@@ -267,9 +296,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        logs = self._es_read(log_id, offset)
-        logs_by_host = self._group_logs_by_host(logs)
-        next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
+        response = self._es_read(log_id, offset)
+        if response is not None and response.hits:
+            logs_by_host = self._group_logs_by_host(response)
+            next_offset = attrgetter(self.offset_field)(response[-1])
+        else:
+            logs_by_host = None
+            next_offset = offset
+
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
@@ -278,8 +312,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
-        if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
-            metadata["end_of_log"] = True
+        if logs_by_host:
+            if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+                metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
         if "last_log_timestamp" in metadata:
@@ -308,27 +343,30 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
-        def concat_logs(lines):
-            log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark else len(lines)
-            return "\n".join(self._format_msg(lines[i]) for i in range(log_range))
+        def concat_logs(hits: list[Hit]):
+            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
-        message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host.items()]
+        if logs_by_host:
+            message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]
+        else:
+            message = []
         return message, metadata
 
-    def _format_msg(self, log_line):
+    def _format_msg(self, hit: Hit):
         """Format ES Record to match settings.LOG_FORMAT when used with json_format."""
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
             with contextlib.suppress(Exception):
                 return self.formatter._style.format(
-                    logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
+                    logging.makeLogRecord({**LOG_LINE_DEFAULTS, **hit.to_dict()})
                 )
 
         # Just a safe-guard to preserve backwards-compatibility
-        return log_line.message
+        return hit.message
 
-    def _es_read(self, log_id: str, offset: int | str) -> list | ElasticSearchResponse:
+    def _es_read(self, log_id: str, offset: int | str) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -338,46 +376,45 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :meta private:
         """
         query: dict[Any, Any] = {
-            "query": {
-                "bool": {
-                    "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                    "must": [{"match_phrase": {"log_id": log_id}}],
-                }
+            "bool": {
+                "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                "must": [{"match_phrase": {"log_id": log_id}}],
             }
         }
 
         try:
-            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=self.index_patterns, query=query)["count"]  # type: ignore
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", self.index_patterns)
             raise e
 
-        logs: list[Any] | ElasticSearchResponse = []
         if max_log_line != 0:
             try:
-                query.update({"sort": [self.offset_field]})
-                res = self.client.search(  # type: ignore
+                res = self.client.search(
                     index=self.index_patterns,
-                    body=query,
+                    query=query,
+                    sort=[self.offset_field],
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
-                logs = ElasticSearchResponse(self, res)
+                return ElasticSearchResponse(self, res)
             except Exception as err:
                 self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
 
-        return logs
+        return None
 
     def emit(self, record):
         if self.handler:
             setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
+        :param identifier: if set, identifies the Airflow component which is relaying logs from
+            exceptional scenarios related to the task instance
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -406,7 +443,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
-            super().set_context(ti)
+            if getattr(self, "supports_task_context_logging", False):
+                super().set_context(ti, identifier=identifier)
+            else:
+                super().set_context(ti)
         self.context_set = True
 
     def close(self) -> None:

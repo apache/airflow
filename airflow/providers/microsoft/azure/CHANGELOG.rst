@@ -27,6 +27,59 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
+* ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
+* ``feat(provider/azure): add managed identity support to wasb hook (#35326)``
+* ``feat(provider/azure): add managed identity support to asb hook (#35324)``
+* ``feat(provider/azure): add managed identity support to cosmos hook (#35323)``
+* ``feat(provider/azure): add managed identity support to container_volume hook (#35321)``
+* ``feat(provider/azure): add managed identity support to container_instance hook (#35319)``
+* ``feat(provider/azure): add managed identity support to adx hook (#35325)``
+* ``feat(provider/azure): add managed identity support to batch hook (#35327)``
+* ``feat(provider/azure): add managed identity support to data_factory hook (#35328)``
+* ``feat(provider/azure): add managed identity support to synapse hook (#35329)``
+* ``feat(provider/azure): add managed identity support to fileshare hook (#35330)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
+* ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+
+
+Misc
+~~~~
+
+* ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
+* ``Refactor azure managed identity (#35367)``
+* ``Reuse get_default_azure_credential method from Azure utils method (#35318)``
+* `` make DefaultAzureCredential configurable in AzureKeyVaultBackend (#35052)``
+* ``Make DefaultAzureCredential in AzureBaseHook configuration (#35051)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
 8.0.0
 .....
 

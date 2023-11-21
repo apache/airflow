@@ -15,24 +15,23 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:SqlToSlackOperator:
+.. _howto/operator:SqlToSlackApiFileOperator:
 
-SqlToSlackOperator
-==================
+SqlToSlackApiFileOperator
+=========================
 
-Use the :class:`~airflow.providers.slack.transfers.sql_to_slack` to post messages to predefined Slack
-channel.
+Use the :class:`~airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator` to post query result as a file
+to Slack channel(s) through `Slack API <https://api.slack.com/>`__.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-This operator will execute a custom query in the provided SQL connection and publish a Slack message that can be formatted
-and contain the resulting dataset (e.g. ASCII formatted dataframe).
+This operator will execute a custom query in the provided SQL connection and publish a file to Slack channel(s).
 
-An example usage of the SqlToSlackOperator is as follows:
+An example usage of the SqlToSlackApiFileOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_sql_to_slack]
-    :end-before: [END howto_operator_sql_to_slack]
+    :start-after: [START howto_operator_sql_to_slack_api_file]
+    :end-before: [END howto_operator_sql_to_slack_api_file]

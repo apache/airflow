@@ -430,7 +430,6 @@ def main():
     disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
-
     with with_group("Available packages"):
         for pkg in sorted(available_packages):
             console.print(f" - {pkg}")
@@ -438,7 +437,6 @@ def main():
     if package_filters:
         console.print("Current package filters: ", package_filters)
     current_packages = process_package_filters(available_packages, package_filters)
-
     with with_group("Fetching inventories"):
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.

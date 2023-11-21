@@ -275,9 +275,12 @@ class TriggerRuleDep(BaseTIDep):
                         task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                     )
                     if not past_depends_met:
-                        yield self._failing_status(
-                            reason="Task should be skipped but the past depends are not met"
-                        ), changed
+                        yield (
+                            self._failing_status(
+                                reason="Task should be skipped but the past depends are not met"
+                            ),
+                            changed,
+                        )
                         return
                 changed = ti.set_state(new_state, session)
 
@@ -288,13 +291,16 @@ class TriggerRuleDep(BaseTIDep):
             if ti.map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
-                yield self._failing_status(
-                    reason=(
-                        f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
-                        f"upstream_states={upstream_states}, "
-                        f"upstream_task_ids={task.upstream_task_ids}"
+                yield (
+                    self._failing_status(
+                        reason=(
+                            f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        ),
                     ),
-                ), changed
+                    changed,
+                )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
             """Evaluate whether ``ti``'s trigger rule was met.

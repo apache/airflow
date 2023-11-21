@@ -108,5 +108,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.5.0``
-``PyGithub!``       ``=1.58``
+``PyGithub``        ``!=1.58``
 ==================  ==================

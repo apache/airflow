@@ -241,7 +241,7 @@ class TestBatchJobWaiters:
 
         return {"jobs": [{"jobId": job_id, "status": status}]}
 
-    @pytest.mark.parametrize("status", ALL_STATES)
+    @pytest.mark.parametrize("status", sorted(ALL_STATES))
     def test_job_exists_waiter_exists(self, status: str):
         """Test `JobExists` when response return dictionary regardless state."""
         self.mock_describe_jobs.return_value = self.describe_jobs_response(

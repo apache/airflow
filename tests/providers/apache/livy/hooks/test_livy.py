@@ -51,7 +51,8 @@ INVALID_SESSION_ID_TEST_CASES = [
 ]
 
 
-class TestLivyHook:
+@pytest.mark.db_test
+class TestLivyDbHook:
     @classmethod
     def setup_class(cls):
         clear_db_connections(add_default_connections_back=False)
@@ -83,6 +84,7 @@ class TestLivyHook:
     def teardown_class(cls):
         clear_db_connections(add_default_connections_back=True)
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "conn_id, expected",
         [
@@ -649,6 +651,7 @@ class TestLivyAsyncHook:
         db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
         db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
+    @pytest.mark.db_test
     def test_build_get_hook(self):
         self.set_conn()
         connection_url_mapping = {

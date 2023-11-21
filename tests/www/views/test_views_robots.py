@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 def test_robots(viewer_client):

@@ -29,6 +29,34 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add pyspark decorator (#35247)``
+* ``Add use_krb5ccache option to SparkSubmitOperator (#35331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add information about Qubole removal and make it possible to release it (#35492)``
+
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'use_krb5ccache' option to 'SparkSubmitHook' (#34386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 4.2.0
 .....
 
@@ -157,7 +185,7 @@ Breaking changes
 The ``spark-binary`` connection extra could be set to any binary, but with 4.0.0 version only two values
 are allowed for it ``spark-submit`` and ``spark2-submit``.
 
-The ``spark-home`` connection extra is not allowed any more - the binary should be available on the
+The ``spark-home`` connection extra is not allowed anymore - the binary should be available on the
 PATH in order to use SparkSubmitHook and SparkSubmitOperator.
 
 * ``Remove custom spark home and custom binaries for spark (#27646)``

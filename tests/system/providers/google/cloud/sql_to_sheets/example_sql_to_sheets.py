@@ -228,7 +228,7 @@ with DAG(
             schema=DB_NAME,
             port=DB_PORT,
         )
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == DB_CONNECTION_ID).first():
             log.warning("Connection %s already exists", DB_CONNECTION_ID)
             return None
@@ -252,7 +252,7 @@ with DAG(
         conn_extra_json = json.dumps(conn_extra)
         conn.set_extra(conn_extra_json)
 
-        session: Session = Session()
+        session = Session()
         session.add(conn)
         session.commit()
 

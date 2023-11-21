@@ -48,6 +48,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from .elasticmock import elasticmock
 from .elasticmock.utilities import SearchFailedException
 
+pytestmark = pytest.mark.db_test
+
+
 AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
 ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
 

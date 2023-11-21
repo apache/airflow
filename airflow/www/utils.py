@@ -38,6 +38,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
 from airflow.models.dagrun import DagRun
@@ -49,6 +50,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
 from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -60,7 +62,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
-    from airflow.www.fab_security.sqla.manager import SecurityManager
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+
 
 TI = TaskInstance
 
@@ -152,16 +155,16 @@ def get_mapped_summary(parent_instance, task_instances):
 def get_dag_run_conf(
     dag_run_conf: Any, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
 ) -> tuple[str | None, bool]:
-    conf: str | None = None
+    result: str | None = None
 
     conf_is_json: bool = False
     if isinstance(dag_run_conf, str):
-        conf = dag_run_conf
+        result = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
+        result = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
         conf_is_json = True
 
-    return conf, conf_is_json
+    return result, conf_is_json
 
 
 def encode_dag_run(
@@ -170,7 +173,7 @@ def encode_dag_run(
     if not dag_run:
         return None
 
-    conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+    dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
 
     return {
         "run_id": dag_run.run_id,
@@ -184,7 +187,7 @@ def encode_dag_run(
         "run_type": dag_run.run_type,
         "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
         "external_trigger": dag_run.external_trigger,
-        "conf": conf,
+        "conf": dag_run_conf,
         "conf_is_json": conf_is_json,
         "note": dag_run.note,
     }
@@ -611,7 +614,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like")
+    md = MarkdownIt("gfm-like", {"html": conf.getboolean("webserver", "allow_raw_html_descriptions")})
     if s is None:
         return None
     s = textwrap.dedent(s)
@@ -927,7 +930,7 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, securitymanager: SecurityManager) -> bool:
+    def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
         """Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
@@ -935,12 +938,15 @@ class UIAlert:
         ``AUTH_ROLE_PUBLIC`` role.
         """
         if self.roles:
-            current_user = securitymanager.current_user
+            current_user = get_auth_manager().get_user()
             if current_user is not None:
-                user_roles = {r.name for r in securitymanager.current_user.roles}
-            elif "AUTH_ROLE_PUBLIC" in securitymanager.appbuilder.get_app.config:
+                if not hasattr(current_user, "roles"):
+                    # If the user does not contain "roles" in its model, return False
+                    return False
+                user_roles = {r.name for r in current_user.roles}
+            elif "AUTH_ROLE_PUBLIC" in appbuilder.get_app.config:
                 # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
-                user_roles = {securitymanager.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
+                user_roles = {appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
             else:
                 # Unable to obtain user role - default to not showing
                 return False

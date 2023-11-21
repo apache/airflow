@@ -417,7 +417,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._provider_dict: dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
-
+        self._fs_set: set[str] = set()
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -448,7 +448,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         core_dummy_hooks = {
             "generic": "Generic",
             "email": "Email",
-            "mesos_framework-id": "Mesos Framework ID",
         }
         for key, display in core_dummy_hooks.items():
             self._hooks_lazy_dict[key] = HookInfo(
@@ -507,6 +506,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_hooks()
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("filesystems")
+    def initialize_providers_filesystems(self):
+        """Lazy initialization of providers filesystems."""
+        self.initialize_providers_list()
+        self._discover_filesystems()
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -842,6 +847,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # It is not possible to recover original ordering after sorting,
         # that the main reason why original sorting moved to cli part:
         # self._connection_form_widgets = dict(sorted(self._connection_form_widgets.items()))
+
+    def _discover_filesystems(self) -> None:
+        """Retrieve all filesystems defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for fs_module_name in provider.data.get("filesystems", []):
+                if _correctness_check(provider_package, fs_module_name + ".get_fs", provider):
+                    self._fs_set.add(fs_module_name)
+        self._fs_set = set(sorted(self._fs_set))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1210,6 +1223,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def executor_class_names(self) -> list[str]:
         self.initialize_providers_executors()
         return sorted(self._executor_class_name_set)
+
+    @property
+    def filesystem_module_names(self) -> list[str]:
+        self.initialize_providers_filesystems()
+        return sorted(self._fs_set)
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:

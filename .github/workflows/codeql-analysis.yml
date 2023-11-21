@@ -39,7 +39,7 @@ jobs:
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -69,7 +69,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
         if: |

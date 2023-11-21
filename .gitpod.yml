@@ -19,6 +19,9 @@
 # Reference: https://www.gitpod.io/docs/references/gitpod-yml
 # Docs: https://www.gitpod.io/docs/config-gitpod-file/
 
+# default "gitpod/workspace-full" python version > 3.11
+image: gitpod/workspace-python-3.11
+
 tasks:
   - init: ./scripts/ci/install_breeze.sh
   - name: Install pre-commit

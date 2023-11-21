@@ -26,6 +26,8 @@ from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestAirbyteHook:
     """

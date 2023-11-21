@@ -96,12 +96,11 @@ class AirflowAppBuilder:
         app = Flask(__name__)
         app.config.from_object('config')
         dbmongo = MongoEngine(app)
-        appbuilder = AppBuilder(app, security_manager_class=SecurityManager)
+        appbuilder = AppBuilder(app)
     You can also create everything as an application factory.
     """
 
     baseviews: list[BaseView | Session] = []
-    security_manager_class = None
     # Flask app
     app = None
     # Database Session
@@ -132,7 +131,6 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        security_manager_class=None,
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
         auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
         auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
@@ -152,8 +150,6 @@ class AirflowAppBuilder:
             optional, your override for the global static folder
         :param static_url_path:
             optional, your override for the global static url path
-        :param security_manager_class:
-            optional, pass your own security manager class
         :param update_perms:
             optional, update permissions flag (Boolean) you can use
             FAB_UPDATE_PERMS config key also
@@ -167,7 +163,6 @@ class AirflowAppBuilder:
         self.addon_managers = {}
         self.menu = menu
         self.base_template = base_template
-        self.security_manager_class = security_manager_class
         self.indexview = indexview
         self.static_folder = static_folder
         self.static_url_path = static_url_path
@@ -219,9 +214,8 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        self.sm = self.security_manager_class(self)
-        auth_manager = get_auth_manager()
-        auth_manager.security_manager = self.sm
+        auth_manager = init_auth_manager(app, self)
+        self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()
         self._add_global_filters()
@@ -572,6 +566,8 @@ class AirflowAppBuilder:
             This deletes any permission that is no longer part of any registered
             view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
@@ -659,11 +655,9 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    auth_manager = init_auth_manager(app)
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
-        security_manager_class=auth_manager.get_security_manager_override_class(),
         base_template="airflow/main.html",
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
         auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),

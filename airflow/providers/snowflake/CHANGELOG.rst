@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
+* ``Bump min 'snowflake-connector-python' version (#35440)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
 5.1.0
 .....
 

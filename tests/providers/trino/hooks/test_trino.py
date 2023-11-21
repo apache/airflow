@@ -18,9 +18,7 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import patch
 
@@ -40,16 +38,10 @@ CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.Certificat
 
 
 @pytest.fixture()
-def jwt_token_file():
-    # Couldn't get this working with TemporaryFile, using TemporaryDirectory instead
-    # Save a phony jwt to a temporary file for the trino hook to read from
-    with TemporaryDirectory() as tmp_dir:
-        tmp_jwt_file = os.path.join(tmp_dir, "jwt.json")
-
-        with open(tmp_jwt_file, "w") as tmp_file:
-            tmp_file.write('{"phony":"jwt"}')
-
-        yield tmp_jwt_file
+def jwt_token_file(tmp_path):
+    jwt_file = tmp_path / "jwt.json"
+    jwt_file.write_text('{"phony":"jwt"}')
+    yield jwt_file.__fspath__()
 
 
 class TestTrinoHookConn:
@@ -139,6 +131,28 @@ class TestTrinoHookConn:
         )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
+
+    @pytest.mark.parametrize(
+        "jwt_file, jwt_token, error_suffix",
+        [
+            pytest.param(True, True, "provided both", id="provided-both-params"),
+            pytest.param(False, False, "none of them provided", id="no-jwt-provided"),
+        ],
+    )
+    @patch(HOOK_GET_CONNECTION)
+    def test_exactly_one_jwt_token(
+        self, mock_get_connection, jwt_file, jwt_token, error_suffix, jwt_token_file
+    ):
+        error_match = f"When auth set to 'jwt'.*{error_suffix}"
+        extras = {"auth": "jwt"}
+        if jwt_file:
+            extras["jwt__file"] = jwt_token_file
+        if jwt_token:
+            extras["jwt__token"] = "TEST_JWT_TOKEN"
+
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        with pytest.raises(ValueError, match=error_match):
+            TrinoHook().get_conn()
 
     @patch(CERT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)

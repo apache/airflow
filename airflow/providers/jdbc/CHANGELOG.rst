@@ -74,9 +74,9 @@ Breaking changes
 To configure driver parameters (driver path and driver class), you can use the following methods:
 
 1. Supply them as constructor arguments when instantiating the hook.
-2. Set the "driver_path" and/or "driver_class" parameters in the "hook_params" dictionary when creating the hook using SQL operators.
-3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the "providers.jdbc" section of the Airflow configuration.
-4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the "local_settings.py" file.
+2. Set the ``driver_path`` and/or ``driver_class`` parameters in the ``hook_params`` dictionary when creating the hook using SQL operators.
+3. Set the ``driver_path`` and/or ``driver_class`` extra in the connection and correspondingly enable the ``allow_driver_path_in_extra`` and/or ``allow_driver_class_in_extra`` options in the ``providers.jdbc`` section of the Airflow configuration.
+4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the ``local_settings.py`` file.
 
 * ``Restrict direct usage of driver params via extras for JDBC connection (#31849)``
 

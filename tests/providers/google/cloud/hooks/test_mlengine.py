@@ -41,6 +41,7 @@ pytest.PROJECT_ID = "test-project"
 pytest.JOB_ID = "test-job-id"
 
 
+@pytest.mark.db_test
 class TestMLEngineHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):

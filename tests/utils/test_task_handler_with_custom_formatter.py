@@ -32,6 +32,9 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_HANDLER = "task"
 TASK_HANDLER_CLASS = "airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter"

@@ -26,6 +26,76 @@
 Changelog
 ---------
 
+8.11.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+* ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+* ``ECS Executor Health Check (#35412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS RDS hook's DB instance state check (#34773)``
+* ``Fix parameter syntax in Amazon docstrings (#35349)``
+* ``Improve error handling in AWS Links (#35518)``
+* ``Update ECS executor healthcheck with a catchall except (#35512)``
+
+Misc
+~~~~
+
+* ``Move ECS Executor to its own file (#35418)``
+* ``Clarify "task" in ECS Executor log messages (#35304)``
+* ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add verificationy that provider docs are as expected (#35424)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Improve docs on objectstorage (#35294)``
+
+
+8.10.0
+......
+
+.. note::
+  This release introduce experimental feature: AWS ECS Executor.
+
+Features
+~~~~~~~~
+
+* ``Add AWS ECS Executor (#34381)``
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Add Http to s3 operator (#35176)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable encryption in S3 download_files() hook. (#35037)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+* ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+* ``Use base aws classes in Amazon Lambda Operators/Sensors (#34890)``
+* ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+* ``Expose catalog parameter in 'AthenaOperator' (#35103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor string splitting (#34185)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 8.9.0
 .....
 

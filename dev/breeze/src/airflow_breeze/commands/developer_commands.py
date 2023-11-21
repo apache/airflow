@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_short_doc_packages_with_providers_index,
+    argument_doc_packages,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -50,6 +50,7 @@ from airflow_breeze.utils.common_options import (
     option_builder,
     option_celery_broker,
     option_celery_flower,
+    option_database_isolation,
     option_db_reset,
     option_downgrade_sqlalchemy,
     option_dry_run,
@@ -71,6 +72,9 @@ from airflow_breeze.utils.common_options import (
     option_platform_single,
     option_postgres_version,
     option_python,
+    option_run_db_tests_only,
+    option_skip_db_tests,
+    option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_packages_from_dist,
@@ -80,11 +84,12 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.general_utils import expand_all_providers
+from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
@@ -166,6 +171,8 @@ class TimerThread(threading.Thread):
 @option_include_mypy_volume
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_run_db_tests_only
+@option_skip_db_tests
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -173,6 +180,8 @@ class TimerThread(threading.Thread):
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
@@ -203,6 +212,10 @@ def shell(
     extra_args: tuple,
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
+    run_db_tests_only: bool,
+    skip_db_tests: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run():
@@ -242,7 +255,12 @@ def shell(
         celery_flower=celery_flower,
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
+        run_db_tests_only=run_db_tests_only,
+        skip_db_tests=skip_db_tests,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
@@ -287,6 +305,8 @@ def shell(
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 def start_airflow(
     python: str,
     backend: str,
@@ -315,6 +335,8 @@ def start_airflow(
     executor: str,
     celery_broker: str,
     celery_flower: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -326,7 +348,7 @@ def start_airflow(
         )
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
-        run_compile_www_assets(dev=dev_mode, run_in_background=True)
+        run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -359,14 +381,16 @@ def start_airflow(
         executor=executor,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_short_doc_packages_with_providers_index
 @option_builder
 @click.option(
     "--package-filter",
@@ -387,11 +411,12 @@ def start_airflow(
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
     is_flag=True,
 )
+@argument_doc_packages
 @option_github_repository
 @option_verbose
 @option_dry_run
 def build_docs(
-    short_doc_packages: tuple[str, ...],
+    doc_packages: tuple[str, ...],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
@@ -404,6 +429,7 @@ def build_docs(
     Build documents.
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
@@ -422,7 +448,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        short_doc_packages=expand_all_providers(short_doc_packages),
+        short_doc_packages=expand_all_provider_packages(doc_packages),
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -438,6 +464,11 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    fix_ownership_using_docker()
+    if process.returncode == 0:
+        get_console().print(
+            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+        )
     sys.exit(process.returncode)
 
 
@@ -599,6 +630,11 @@ def static_checks(
         command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
+    skip_checks = os.environ.get("SKIP")
+    if skip_checks and skip_checks != "identity":
+        get_console().print("\nThis static check run skips those checks:\n")
+        get_console().print(skip_checks.split(","))
+        get_console().print()
     env = os.environ.copy()
     env["GITHUB_REPOSITORY"] = github_repository
     static_checks_result = run_command(
@@ -608,6 +644,7 @@ def static_checks(
         text=True,
         env=env,
     )
+    fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
             get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
@@ -638,12 +675,19 @@ def static_checks(
     "recompile assets on-the-fly when they are changed.",
     is_flag=True,
 )
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
 @option_verbose
 @option_dry_run
-def compile_www_assets(dev: bool):
+def compile_www_assets(dev: bool, force_clean: bool):
     perform_environment_checks()
     assert_pre_commit_installed()
-    compile_www_assets_result = run_compile_www_assets(dev=dev, run_in_background=False)
+    compile_www_assets_result = run_compile_www_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)
@@ -718,6 +762,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
@@ -758,15 +803,8 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            if not shell_params.mysql_version.startswith("5"):
-                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-            else:
-                get_console().print(
-                    f"\n[error]Only MySQL 8.x is supported on ARM architecture, "
-                    f"but got {shell_params.mysql_version}[/]\n"
-                )
-                sys.exit(1)
-        if shell_params.backend == "mssql":
+            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+        elif shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)
 

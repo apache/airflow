@@ -22,7 +22,9 @@ description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 suspended: false
+source-date-epoch: 1700148074
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1

@@ -761,6 +761,7 @@ class TestDataprocAsyncHook:
             metadata=(),
         )
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
     async def test_get_operation(self, mock_client):
