@@ -127,7 +127,7 @@ class TestHttpOperator:
                 iterations += 1
                 return dict(
                     endpoint=response.json()["endpoint"],
-                    data={},
+                    data="",
                     headers={},
                     extra_options={},
                 )
