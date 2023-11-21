@@ -211,6 +211,7 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
 
+
 class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
         ec2_operator = EC2HibernateInstanceOperator(
@@ -233,11 +234,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         create_instance = EC2CreateInstanceOperator(
             image_id=self._get_image_id(ec2_hook),
             task_id="test_create_instance",
-            config={
-                "HibernationOptions": {
-                    "Configured": True
-                }
-            },
+            config={"HibernationOptions": {"Configured": True}},
         )
         instance_id = create_instance.execute(None)
 
@@ -247,9 +244,9 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
             instance_id=instance_id[0],
         )
         hibernate_test.execute(None)
-        # assert instance state is running
+        # assert instance state is stopped
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
-    
+
     @mock_ec2
     def test_cannot_hibernate_instance(self):
         # create instance
@@ -275,6 +272,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
 
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
+
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
     def test_init(self):

@@ -86,6 +86,8 @@ To terminate an Amazon EC2 instance you can use
     :start-after: [START howto_operator_ec2_terminate_instance]
     :end-before: [END howto_operator_ec2_terminate_instance]
 
+.. _howto/operator:EC2RebootInstanceOperator:
+
 Reboot an Amazon EC2 instance
 ================================
 
@@ -97,6 +99,8 @@ To reboot an Amazon EC2 instance you can use
     :dedent: 4
     :start-after: [START howto_operator_ec2_reboot_instance]
     :end-before: [END howto_operator_ec2_reboot_instance]
+
+_howto/operator:EC2HibernateInstanceOperator
 
 Hibernate an Amazon EC2 instance
 ================================

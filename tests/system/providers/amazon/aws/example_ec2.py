@@ -145,14 +145,13 @@ with DAG(
     )
     # [END howto_sensor_ec2_instance_state]
 
-    # [START howto_operator_ec2_terminate_instance]
-    terminate_instance = EC2TerminateInstanceOperator(
-        task_id="terminate_instance",
-        instance_ids=instance_id,
-        wait_for_completion=True,
+    # [START howto_operator_ec2_reboot_instance]
+    reboot_instance = EC2RebootInstanceOperator(
+        task_id="reboot_instace",
+        instance_id=instance_id,
     )
-    # [END howto_operator_ec2_terminate_instance]
-    terminate_instance.trigger_rule = TriggerRule.ALL_DONE
+    # [END howto_operator_ec2_reboot_instance]
+    reboot_instance.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_ec2_hibernate_instance]
     hibernate_instance = EC2HibernateInstanceOperator(
@@ -161,14 +160,15 @@ with DAG(
     )
     # [END howto_operator_ec2_hibernate_instance]
     hibernate_instance.trigger_rule = TriggerRule.ALL_DONE
-    
-    # [START howto_operator_ec2_reboot_instance]
-    reboot_instance = EC2RebootInstanceOperator(
-        task_id="reboot_instace",
-        instance_id=instance_id,
+
+    # [START howto_operator_ec2_terminate_instance]
+    terminate_instance = EC2TerminateInstanceOperator(
+        task_id="terminate_instance",
+        instance_ids=instance_id,
+        wait_for_completion=True,
     )
-    # [END howto_operator_ec2_reboot_instance]
-    reboot_instance.trigger_rule = TriggerRule.ALL_DONE
+    # [END howto_operator_ec2_terminate_instance]
+    terminate_instance.trigger_rule = TriggerRule.ALL_DONE
     chain(
         # TEST SETUP
         test_context,

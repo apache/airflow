@@ -45,6 +45,7 @@ class EcsOperatorError(Exception):
     def __reduce__(self):
         return EcsOperatorError, (self.failures, self.message)
 
+
 class EC2HibernationError(Exception):
     """Raises when EC2 is not enabled for hibernation."""
 

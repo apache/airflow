@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
-from unittest.mock import Base
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.exceptions import EC2HibernationError
@@ -257,6 +256,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
                     },
                 )
 
+
 class EC2RebootInstanceOperator(BaseOperator):
     """
     Reboot AWS EC2 instance using boto3.
@@ -302,6 +302,7 @@ class EC2RebootInstanceOperator(BaseOperator):
             check_interval=self.check_interval,
         )
 
+
 class EC2HibernateInstanceOperator(BaseOperator):
     """
     Hibernate AWS EC2 instance using boto3.
@@ -340,14 +341,12 @@ class EC2HibernateInstanceOperator(BaseOperator):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Hibernating EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
-        
+
         hibernation_options = instance.hibernation_options
         if not hibernation_options or not hibernation_options["Configured"]:
             raise EC2HibernationError(f"Instance {self.instance_id} is not configured for hibernation")
-        
-        instance.stop(
-            Hibernate = True
-        )
+
+        instance.stop(Hibernate=True)
         ec2_hook.wait_for_state(
             instance_id=self.instance_id,
             target_state="stopped",
