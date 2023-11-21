@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,20 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+import pytest
+
+from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 
 
-class BaseUser:
-    """User model interface."""
+@pytest.fixture()
+def user():
+    return AwsAuthManagerUser(user_id="user_id", groups=[])
 
-    @property
-    def is_active(self) -> bool:
-        return True
 
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+class TestAwsAuthManagerUser:
+    def test_get_id(self, user):
+        assert user.get_id() == "user_id"
 
-    @abstractmethod
-    def get_name(self) -> str:
-        ...
+    def test_get_name_with_username(self, user):
+        user.username = "username"
+        assert user.get_name() == "username"
+
+    def test_get_name_with_email(self, user):
+        user.email = "email"
+        assert user.get_name() == "email"
+
+    def test_get_name_with_user_id(self, user):
+        user.user_id = "user_id"
+        assert user.get_name() == "user_id"

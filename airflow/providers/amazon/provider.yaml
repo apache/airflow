@@ -746,6 +746,9 @@ additional-extras:
   - name: s3fs
     dependencies:
       - s3fs>=2023.9.2
+  - name: python3-saml
+    dependencies:
+      - python3-saml>=1.16.0
 
 config:
   aws:
@@ -897,6 +900,28 @@ config:
         type: boolean
         example: "True"
         default: "True"
+  aws_auth_manager:
+    description: |
+      This section only applies if you are using the AwsAuthManager. In other words, if you set
+      ``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in
+      Airflow's configuration.
+    options:
+      enable:
+        description: |
+          AWS auth manager is not ready to be used. Turn on this flag to use it anyway.
+          Do that at your own risk since the AWS auth manager is not in an usable state.
+        version_added: 8.12.0
+        type: boolean
+        example: "True"
+        default: "False"
+      saml_metadata_url:
+        description: |
+          SAML metadata XML file provided by AWS Identity Center.
+          This URL can be found in the AWS Identity Center console. Required.
+        version_added: 8.12.0
+        type: string
+        example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
+        default: ~
 
 executors:
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

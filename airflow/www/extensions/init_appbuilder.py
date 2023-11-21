@@ -214,7 +214,7 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(app, self)
+        auth_manager = init_auth_manager(self)
         self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()

@@ -112,6 +112,10 @@ class AirflowSecurityManagerV2(LoggingMixin):
         limiter.init_app(self.appbuilder.get_app)
         return limiter
 
+    def register_views(self):
+        """Allow auth managers to register their own views. By default, do nothing."""
+        pass
+
     def has_access(
         self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
     ) -> bool:
@@ -167,18 +171,6 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 on_breach=limit.on_breach,
                 cost=limit.cost,
             )(baseview.blueprint)
-
-    def add_permissions_view(self, base_action_names, resource_name):
-        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
-
-    def add_permissions_menu(self, resource_name):
-        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
-
-    def get_action(self, name: str) -> Action:
-        raise NotImplementedError("Only available when FAB auth manager is used")
-
-    def get_resource(self, name: str) -> Resource:
-        raise NotImplementedError("Only available when FAB auth manager is used")
 
     @cached_property
     @provide_session
@@ -355,3 +347,20 @@ class AirflowSecurityManagerV2(LoggingMixin):
         return lambda action, resource_pk, user: any(
             self._get_auth_manager_is_authorized_method(fab_resource_name=item) for item in items
         )
+
+    """
+    The following methods are specific to FAB auth manager. They still need to be "present" in the main
+    security manager class, but they do nothing.
+    """
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        pass
+
+    def add_permissions_menu(self, resource_name):
+        pass

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,20 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from airflow.providers.amazon.aws.auth_manager.constants import (
+    CONF_ENABLE_KEY,
+    CONF_SAML_METADATA_URL_KEY,
+    CONF_SECTION_NAME,
+)
 
 
-class BaseUser:
-    """User model interface."""
+class TestAwsAuthManagerConstants:
+    def test_conf_section_name(self):
+        assert CONF_SECTION_NAME == "aws_auth_manager"
 
-    @property
-    def is_active(self) -> bool:
-        return True
+    def test_conf_saml_metadata_url_key(self):
+        assert CONF_SAML_METADATA_URL_KEY == "saml_metadata_url"
 
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
-
-    @abstractmethod
-    def get_name(self) -> str:
-        ...
+    def test_conf_enable_key(self):
+        assert CONF_ENABLE_KEY == "enable"

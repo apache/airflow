@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,20 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.www.security_manager import AirflowSecurityManagerV2
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import AirflowSecurityManagerV2. This feature is only available in Airflow versions >= 2.8.0"
+    )
 
 
-class BaseUser:
-    """User model interface."""
+class AwsSecurityManagerOverride(AirflowSecurityManagerV2):
+    """The security manager override specific to AWS auth manager."""
 
-    @property
-    def is_active(self) -> bool:
-        return True
+    def register_views(self):
+        """Register views specific to AWS auth manager."""
+        from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
-
-    @abstractmethod
-    def get_name(self) -> str:
-        ...
+        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
