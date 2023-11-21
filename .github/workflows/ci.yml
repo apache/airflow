@@ -260,11 +260,6 @@ jobs:
         if: >
           matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
           && needs.build-info.outputs.default-branch == 'main'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: >
-          always() && needs.build-info.outputs.canary-run == 'true'
-          && needs.build-info.outputs.default-branch == 'main'
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
     timeout-minutes: 5
@@ -291,9 +286,6 @@ jobs:
         uses: ./.github/actions/breeze
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   build-ci-images:
     timeout-minutes: 80
@@ -385,9 +377,6 @@ jobs:
           name: constraints
           path: ./files/constraints-*/constraints-*.txt
           retention-days: 7
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   build-prod-images:
     timeout-minutes: 80
@@ -603,9 +592,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   static-checks:
     timeout-minutes: 45
@@ -645,9 +631,6 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -701,9 +684,6 @@ jobs:
           SKIP_IMAGE_PRE_COMMITS: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   build-docs:
     timeout-minutes: 60
@@ -768,9 +748,6 @@ jobs:
       - name: "Upload documentation to AWS S3"
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   spellcheck-docs:
     timeout-minutes: 60
@@ -802,9 +779,6 @@ jobs:
       - name: "Spellcheck docs"
         run: >
           breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }} --spellcheck-only
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   prepare-test-provider-packages-wheel:
     timeout-minutes: 80
@@ -857,9 +831,6 @@ jobs:
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   provider-airflow-compatibility-check:
     timeout-minutes: 80
@@ -925,9 +896,6 @@ jobs:
         if: >
           needs.build-info.outputs.affected-providers-list-as-string != '' &&
           needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -974,9 +942,6 @@ jobs:
           breeze release-management install-provider-packages
           --package-format sdist --use-airflow-version sdist --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
 
   test-airflow-release-commands:
@@ -1012,9 +977,6 @@ jobs:
       - name: "Check Airflow release process command"
         run: |
           breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   tests-helm:
     timeout-minutes: 80
@@ -1717,9 +1679,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
 
   test-docker-compose-quick-start:
@@ -1746,9 +1705,6 @@ jobs:
           pull-image-type: 'PROD'
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   tests-kubernetes:
     timeout-minutes: 240
@@ -1815,9 +1771,6 @@ jobs:
           retention-days: 7
       - name: "Delete clusters just in case they are left"
         run: breeze k8s delete-cluster --all
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()
 
   update-constraints:
@@ -1974,9 +1927,6 @@ jobs:
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && matrix.platform == 'linux/arm64'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # This is only a check if ARM images are successfully building when committer runs PR from
   # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
@@ -2032,7 +1982,4 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()

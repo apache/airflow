@@ -84,6 +84,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
@@ -259,6 +260,7 @@ def shell(
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
@@ -382,6 +384,7 @@ def start_airflow(
         standalone_dag_processor=standalone_dag_processor,
         database_isolation=database_isolation,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
@@ -426,6 +429,7 @@ def build_docs(
     Build documents.
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
@@ -460,6 +464,7 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    fix_ownership_using_docker()
     if process.returncode == 0:
         get_console().print(
             "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
@@ -639,6 +644,7 @@ def static_checks(
         text=True,
         env=env,
     )
+    fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
             get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
@@ -756,6 +762,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
