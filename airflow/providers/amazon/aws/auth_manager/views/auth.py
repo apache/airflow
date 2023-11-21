@@ -70,7 +70,11 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
     @csrf.exempt
     @expose("/login_callback", methods=("GET", "POST"))
     def login_callback(self):
-        """Callback where the user is redirected to after successful login."""
+        """
+        Callback where the user is redirected to after successful login.
+
+        CSRF protection needs to be disabled otherwise the callback won't work.
+        """
         saml_auth = self._init_saml_auth()
         saml_auth.process_response()
         errors = saml_auth.get_errors()
