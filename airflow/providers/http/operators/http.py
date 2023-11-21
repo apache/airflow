@@ -101,7 +101,7 @@ class HttpOperator(BaseOperator):
         *,
         endpoint: str | None = None,
         method: str = "POST",
-        data: Any = None,
+        data: dict[str, Any] | str | None = None,
         headers: dict[str, str] | None = None,
         pagination_function: Callable[..., Any] | None = None,
         response_check: Callable[..., bool] | None = None,
