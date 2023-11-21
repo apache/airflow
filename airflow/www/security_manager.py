@@ -137,15 +137,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             user = g.user
 
         is_authorized_method = self._get_auth_manager_is_authorized_method(resource_name)
-        if is_authorized_method:
-            return is_authorized_method(action_name, resource_pk, user)
-        else:
-            # This means the page the user is trying to access is specific to the auth manager used
-            # Example: the user list view in FabAuthManager
-            action_name = ACTION_CAN_READ if action_name == ACTION_CAN_ACCESS_MENU else action_name
-            return get_auth_manager().is_authorized_custom_view(
-                fab_action_name=action_name, fab_resource_name=resource_name, user=user
-            )
+        return is_authorized_method(action_name, resource_pk, user)
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Perform the required steps when initializing airflow for standalone mode.
@@ -331,7 +323,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             ),
         }
 
-    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable | None:
+    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable:
         is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
         if is_authorized_method:
             return is_authorized_method
@@ -340,12 +332,19 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
-            return None
+            # This means the page the user is trying to access is specific to the auth manager used
+            # Example: the user list view in FabAuthManager
+            return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
+                fab_action_name=ACTION_CAN_READ if action == ACTION_CAN_ACCESS_MENU else action,
+                fab_resource_name=fab_resource_name,
+                user=user,
+            )
 
     def _is_authorized_category_menu(self, category: str) -> Callable:
         items = {item.name for item in self.appbuilder.menu.find(category).childs}
         return lambda action, resource_pk, user: any(
-            self._get_auth_manager_is_authorized_method(fab_resource_name=item) for item in items
+            self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
+            for item in items
         )
 
     """
