@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-20T23:17:19Z
+# This constraints file was automatically generated on 2023-11-21T09:47:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -54,7 +54,7 @@ aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.12.1
-alibabacloud-adb20211201==1.0.0
+alibabacloud-adb20211201==1.1.0
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
 alibabacloud-gateway-spi==0.0.1
@@ -98,7 +98,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.3.0
-azure-mgmt-datafactory==3.1.0
+azure-mgmt-datafactory==4.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -178,7 +178,7 @@ entrypoints==0.4
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
 eventlet==0.33.3
-exceptiongroup==1.1.3
+exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
 facebook-business==18.0.4
@@ -404,7 +404,7 @@ pprintpp==0.4.0
 pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus-client==0.18.0
+prometheus-client==0.19.0
 prompt-toolkit==3.0.41
 proto-plus==1.22.3
 protobuf==4.25.1
@@ -502,7 +502,7 @@ setproctitle==1.3.3
 shapely==2.0.2
 simple-salesforce==1.12.5
 six==1.16.0
-slack-sdk==3.24.0
+slack-sdk==3.25.0
 smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
@@ -593,13 +593,13 @@ vertica-python==1.3.6
 vine==5.1.0
 virtualenv==20.24.6
 watchtower==3.0.1
-wcwidth==0.2.10
+wcwidth==0.2.11
 weaviate-client==3.25.3
 websocket-client==1.6.4
 wrapt==1.16.0
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.243.0
+yandexcloud==0.244.0
 yarl==1.9.3
 zeep==4.2.1
 zenpy==2.0.41
