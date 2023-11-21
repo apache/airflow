@@ -21,6 +21,7 @@ import pytest
 
 from moto import mock_ec2
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
@@ -30,7 +31,6 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2RebootInstanceOperator,
     EC2TerminateInstanceOperator,
 )
-from airflow.providers.amazon.aws.exceptions import EC2HibernationError
 
 
 class BaseEc2TestClass:
@@ -265,7 +265,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
 
         # assert hibernating an instance not configured for hibernation raises an error
         with pytest.raises(
-            EC2HibernationError,
+            AirflowException,
             match="Instance .* is not configured for hibernation",
         ):
             hibernate_test.execute(None)

@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.exceptions import EC2HibernationError
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 
 if TYPE_CHECKING:
@@ -344,7 +344,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
 
         hibernation_options = instance.hibernation_options
         if not hibernation_options or not hibernation_options["Configured"]:
-            raise EC2HibernationError(f"Instance {self.instance_id} is not configured for hibernation")
+            raise AirflowException(f"Instance {self.instance_id} is not configured for hibernation")
 
         instance.stop(Hibernate=True)
         ec2_hook.wait_for_state(
