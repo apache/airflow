@@ -659,7 +659,7 @@ logging:
         Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
         they are uploaded to the remote location.
         If you are deploying Airflow with Helm Chart this setting won't work. Instead, you should
-        enable logGroomerSidecar.
+        enable ``logGroomerSidecar``.
       version_added: 2.6.0
       type: string
       example: ~
