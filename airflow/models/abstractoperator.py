@@ -48,7 +48,8 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator

@@ -26,7 +26,6 @@ import functools
 import logging
 import sys
 import warnings
-from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
 from types import FunctionType
@@ -34,7 +33,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ClassVar,
     Collection,
     Iterable,
     Sequence,
@@ -101,12 +99,10 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.abstractoperator import (
-        TaskStateChangeCallback,
-    )
+    from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger
@@ -1896,31 +1892,30 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
         raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
-@attr.s(auto_attribs=True)
-class BaseOperatorLink(metaclass=ABCMeta):
-    """Abstract base class that defines how we get an operator link."""
-
-    operators: ClassVar[list[type[BaseOperator]]] = []
+def __getattr__(name):
     """
-    This property will be used by Airflow Plugins to find the Operators to which you want
-    to assign this Operator Link
+    PEP-562: Lazy loaded attributes on python modules.
 
-    :return: List of Operator classes used by task for which you want to create extra link
+    :meta private:
     """
+    path = __deprecated_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Name of the link. This will be the button name on the task UI."""
+    from airflow.utils.module_loading import import_string
 
-    @abstractmethod
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        """Link to external system.
+    warnings.warn(
+        f"Import `{__name__}.{name}` is deprecated. Please use `{path}.{name}`.",
+        RemovedInAirflow3Warning,
+        stacklevel=2,
+    )
+    val = import_string(f"{path}.{name}")
 
-        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
-        supported at runtime but is deprecated.
+    # Store for next time
+    globals()[name] = val
+    return val
 
-        :param operator: The Airflow operator object this link is associated to.
-        :param ti_key: TaskInstance ID to return link for.
-        :return: link to external system
-        """
+
+__deprecated_imports = {
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
+}
