@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import Any
 
 import boto3
 
@@ -68,7 +69,7 @@ SPARK_STEPS = [
     }
 ]
 
-JOB_FLOW_OVERRIDES = {
+JOB_FLOW_OVERRIDES: dict[str, Any] = {
     "Name": "PiCalc",
     "ReleaseLabel": "emr-6.7.0",
     "Applications": [{"Name": "Spark"}],

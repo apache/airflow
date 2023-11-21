@@ -45,11 +45,6 @@ class KubernetesResourceBaseOperator(BaseOperator):
         this parameter has no effect.
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
-    :param in_cluster: run kubernetes client with in_cluster configuration.
-    :param cluster_context: context that points to kubernetes cluster.
-        Ignored when in_cluster is True. If None, current-context is used.
-    :param config_file: The path to the Kubernetes config file. (templated)
-        If not specified, default value is ``~/.kube/config``
     """
 
     template_fields = ("yaml_conf",)

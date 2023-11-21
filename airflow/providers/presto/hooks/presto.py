@@ -171,7 +171,7 @@ class PrestoHook(DbApiHook):
         column_descriptions = cursor.description
         if data:
             df = pd.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
             df = pd.DataFrame(**kwargs)
         return df

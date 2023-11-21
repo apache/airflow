@@ -429,6 +429,20 @@ class TestPatchPool(TestBasePoolEndpoints):
             "type": EXCEPTIONS_LINK_MAP[400],
         } == response.json
 
+    def test_not_found_when_no_pool_available(self):
+        response = self.client.patch(
+            "api/v1/pools/test_pool",
+            json={"name": "test_pool_a", "slots": 3},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert {
+            "detail": "Pool with name:'test_pool' not found",
+            "status": 404,
+            "title": "Not Found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
     def test_should_raises_401_unauthenticated(self, session):
         pool = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool)

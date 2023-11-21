@@ -422,7 +422,9 @@ class TestSalesforceHook:
     )
     @patch(
         "pandas.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03"]}),
+        return_value=pd.DataFrame(
+            {"test": [1, 2, 3, 4], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"]}
+        ),
     )
     def test_object_to_df_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
         obj_name = "obj_name"
@@ -434,7 +436,8 @@ class TestSalesforceHook:
 
         mock_describe_object.assert_called_once_with(obj_name)
         pd.testing.assert_frame_equal(
-            data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
+            data_frame,
+            pd.DataFrame({"test": [1, 2, 3, 4], "field_1": [1.546301e09, 1.546387e09, 1.546474e09, np.nan]}),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.time.time", return_value=1.23)

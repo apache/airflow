@@ -41,7 +41,7 @@ from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
-from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     AwsGenericHook,
@@ -114,14 +114,12 @@ SAML_ASSERTION = """
       </AuthnContext>
     </AuthnStatement>
   </Assertion>
-</samlp:Response>""".format(  # noqa: E501
+</samlp:Response>""".format(
     account_id=DEFAULT_ACCOUNT_ID,
     role_name="test-role",
     provider_name="TestProvFed",
     username="testuser",
-).replace(
-    "\n", ""
-)
+).replace("\n", "")
 
 
 class CustomSessionFactory(BaseSessionFactory):
@@ -413,7 +411,7 @@ class TestAwsBaseHook:
             assert key.lower() in result_user_agent_tag_keys
 
     @staticmethod
-    def fetch_tags() -> dict[str:str]:
+    def fetch_tags() -> dict[str, str]:
         """Helper method which creates an AwsBaseHook and returns the user agent string split into a dict."""
         user_agent_string = AwsBaseHook(client_type="s3").get_client_type().meta.config.user_agent
         # Split the list of {Key}/{Value} into a dict
@@ -590,40 +588,40 @@ class TestAwsBaseHook:
             [mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")]
         )
 
-    @mock.patch.object(
-        AwsBaseHook,
-        "get_connection",
-        return_value=Connection(
-            conn_id="aws_default",
-            conn_type="aws",
-            extra=json.dumps(
-                {
-                    "role_arn": "arn:aws:iam::123456:role/role_arn",
-                    "assume_role_method": "assume_role_with_web_identity",
-                    "assume_role_with_web_identity_token_file": "/my-token-path",
-                    "assume_role_with_web_identity_federation": "file",
-                }
-            ),
-        ),
-    )
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.base_aws.botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher"
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.botocore.session.Session")
-    def test_get_credentials_from_token_file(
-        self, mock_session, mock_credentials_fetcher, mock_get_connection
-    ):
-        mock_open_ = mock_open(read_data="TOKEN")
-        with mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
-            new=(mock_open_,),
+    def test_get_credentials_from_token_file(self, mock_session, mock_credentials_fetcher):
+        with mock.patch.object(
+            AwsBaseHook,
+            "get_connection",
+            return_value=Connection(
+                conn_id="aws_default",
+                conn_type="aws",
+                extra=json.dumps(
+                    {
+                        "role_arn": "arn:aws:iam::123456:role/role_arn",
+                        "assume_role_method": "assume_role_with_web_identity",
+                        "assume_role_with_web_identity_token_file": "/my-token-path",
+                        "assume_role_with_web_identity_federation": "file",
+                    }
+                ),
+            ),
         ):
-            AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
+            mock_open_ = mock_open(read_data="TOKEN")
+            with mock.patch(
+                "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
+                new=(mock_open_,),
+            ):
+                AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
 
-        _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
-        assert isinstance(mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader)
-        assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
-        assert mock_open_.call_args.args[0] == "/my-token-path"
+            _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
+            assert isinstance(
+                mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader
+            )
+            assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
+            assert mock_open_.call_args.args[0] == "/my-token-path"
 
     @pytest.mark.parametrize(
         "sts_endpoint",

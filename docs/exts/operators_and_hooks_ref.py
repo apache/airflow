@@ -314,7 +314,9 @@ class AuthConfigurations(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         tabular_data = [
-            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("config") is not None
         ]
         return _render_template(
             "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator

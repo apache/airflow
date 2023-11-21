@@ -43,6 +43,7 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
     "QueryExecution": {
         "QueryExecutionId": MOCK_DATA["query_execution_id"],
         "ResultConfiguration": {"OutputLocation": "s3://test_bucket/test.csv"},
+        "Status": {"StateChangeReason": "Terminated by user."},
     }
 }
 
@@ -195,3 +196,21 @@ class TestAthenaHook:
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_query_info_caching(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
+        self.athena.get_state_change_reason(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert not self.athena._AthenaHook__query_results
+        # get_output_location uses cache
+        self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert MOCK_DATA["query_execution_id"] in self.athena._AthenaHook__query_results
+        mock_conn.return_value.get_query_execution.assert_called_with(
+            QueryExecutionId=MOCK_DATA["query_execution_id"]
+        )
+        self.athena.get_state_change_reason(
+            query_execution_id=MOCK_DATA["query_execution_id"], use_cache=False
+        )
+        mock_conn.return_value.get_query_execution.assert_called_with(
+            QueryExecutionId=MOCK_DATA["query_execution_id"]
+        )

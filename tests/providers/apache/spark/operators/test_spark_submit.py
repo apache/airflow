@@ -65,6 +65,7 @@ class TestSparkSubmitOperator:
             "--with-spaces",
             "args should keep embedded spaces",
         ],
+        "use_krb5ccache": True,
     }
 
     def setup_method(self):
@@ -75,7 +76,10 @@ class TestSparkSubmitOperator:
         # Given / When
         conn_id = "spark_default"
         operator = SparkSubmitOperator(
-            task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **self._config
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            **self._config,
         )
 
         # Then expected results
@@ -115,6 +119,7 @@ class TestSparkSubmitOperator:
                 "args should keep embedded spaces",
             ],
             "spark_binary": "sparky",
+            "use_krb5ccache": True,
         }
 
         assert conn_id == operator._conn_id
@@ -142,6 +147,7 @@ class TestSparkSubmitOperator:
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["application_args"] == operator._application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
+        assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
     @pytest.mark.db_test
     def test_render_template(self):

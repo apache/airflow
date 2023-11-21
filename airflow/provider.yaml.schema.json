@@ -25,6 +25,10 @@
             "description": "If set to true, the provider is suspended and it's not a candidate for release nor contributes dependencies to constraint calculations/CI image. Tests are excluded.",
             "type:": "boolean"
         },
+        "removed": {
+            "description": "If set to true, the provider is also removed and will be soon removed from the code",
+            "type:": "boolean"
+        },
         "dependencies": {
             "description": "Dependencies that should be added to the provider",
             "type": "array",
@@ -376,6 +380,16 @@
                     "type": "string"
                 }
             }
+        },
+        "source-date-epoch": {
+            "type": "integer",
+            "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",
+
+            "minimum": 0,
+            "default": 0,
+            "examples": [
+                1609459200
+            ]
         }
     },
     "additionalProperties": false,
@@ -438,6 +452,7 @@
         "package-name",
         "description",
         "suspended",
+        "source-date-epoch",
         "dependencies",
         "versions"
     ]

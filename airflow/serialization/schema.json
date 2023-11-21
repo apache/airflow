@@ -253,6 +253,8 @@
         "doc_json":  { "type": "string" },
         "doc_yaml":  { "type": "string" },
         "doc_rst":  { "type": "string" },
+        "_logger_name": { "type": "string" },
+        "_log_config_logger_name": { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" }

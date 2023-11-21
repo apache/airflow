@@ -46,7 +46,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
@@ -103,7 +102,8 @@ jobs:
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
-      image-build: ${{ steps.selective-checks.outputs.image-build }}
+      ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+      prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
@@ -132,12 +132,11 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -215,7 +214,7 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -285,7 +284,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -314,11 +313,10 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build CI Images
@@ -345,15 +343,14 @@ jobs:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.ci-image-build == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
@@ -398,7 +395,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -413,11 +410,13 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build PROD Images
@@ -432,6 +431,50 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
+  build-prod-images-bullseye:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.build-job-description}} Bullseye PROD images
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: >
+          Build Bullseye PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          DEBIAN_VERSION: "bullseye"
+          # Do not override the "bookworm" image - just push a new bullseye image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
+
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
@@ -440,7 +483,7 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-python@v4
@@ -448,11 +491,7 @@ jobs:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
-      - run: >
-          breeze setup version ||
-          (echo "\033[0;31mERROR: Breeze version check failed\033[0m" &&
-           echo "Please run 'breeze setup version' and commit the changes." && false)
+      - run: pip install --editable ./dev/breeze/
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
 
@@ -466,7 +505,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Setup node"
@@ -494,7 +533,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -506,12 +545,12 @@ jobs:
     name: "Test examples of production image building"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.ci-image-build == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -534,17 +573,16 @@ jobs:
     needs: [build-info]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
-
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
     runs-on: "ubuntu-22.04"
     needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.ci-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
@@ -554,7 +592,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -583,7 +621,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -595,9 +633,9 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-full-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
@@ -626,7 +664,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Setup python"
@@ -643,14 +681,13 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: "\
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-\
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
             ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-\n
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-"
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -668,8 +705,8 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
-  docs:
-    timeout-minutes: 90
+  build-docs:
+    timeout-minutes: 60
     name: "Build docs"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -681,10 +718,9 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -698,38 +734,74 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }} --docs-only
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: Configure AWS credentials
-        uses: ./.github/actions/configure-aws-credentials
-        if: >
-          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-          github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
-        if: >
-          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-          github.event_name == 'push'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
+  spellcheck-docs:
+    timeout-minutes: 60
+    name: "Spellcheck docs"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.docs-build == 'true'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - uses: actions/cache@v3
+        id: cache-doc-inventories
+        with:
+          path: ./docs/_inventory_cache/
+          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          restore-keys: |
+            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-
+      - name: "Spellcheck docs"
+        run: >
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }} --spellcheck-only
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -747,7 +819,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -757,7 +829,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
         run: >
-          breeze release-management prepare-provider-documentation
+          breeze release-management prepare-provider-documentation --non-interactive
           ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
@@ -802,7 +874,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -873,7 +945,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -922,7 +994,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -956,11 +1028,11 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Helm"
-      BACKEND: ""
+      BACKEND: "none"
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "helm-tests"
-      COVERAGE: "false"  # We do not need to run coverage on Helm tests
+      USE_XDIST: "true"
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
@@ -969,7 +1041,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -977,19 +1049,11 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-      - name: >
-          Post Tests success: Helm"
-        uses: ./.github/actions/post_tests_success
-        if: success()
-      - name: >
-          Post Tests failure: Helm"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
 
   tests-postgres:
     timeout-minutes: 130
     name: >
-      Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
+      DB:Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1010,14 +1074,14 @@ jobs:
       POSTGRES_VERSION: "${{matrix.postgres-version}}"
       BACKEND_VERSION: "${{matrix.postgres-version}}"
       JOB_ID: "postgres-${{matrix.postgres-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
@@ -1028,9 +1092,11 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+        run: breeze testing db-tests --collect-only --remove-arm-packages
         if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: >
           Post Tests success: Postgres"
@@ -1044,7 +1110,7 @@ jobs:
   tests-postgres-boto:
     timeout-minutes: 130
     name: >
-      LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
+      DB:LatestBoto${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1056,6 +1122,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1064,23 +1131,23 @@ jobs:
       JOB_ID: >
         postgres-boto-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
         uses: ./.github/actions/post_tests_success
@@ -1093,7 +1160,7 @@ jobs:
   tests-postgres-min-sqlalchemy:
     timeout-minutes: 130
     name: >
-      MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
+      DB:MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1105,6 +1172,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1113,23 +1181,23 @@ jobs:
       JOB_ID: >
         postgres-min-sqlalchemy-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
         uses: ./.github/actions/post_tests_success
@@ -1142,7 +1210,7 @@ jobs:
   tests-postgres-in-progress-features-disabled:
     timeout-minutes: 130
     name: >
-      InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
+      DB:InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1154,6 +1222,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1162,23 +1231,23 @@ jobs:
       JOB_ID: >
         postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
         uses: ./.github/actions/post_tests_success
@@ -1191,7 +1260,7 @@ jobs:
   tests-mysql:
     timeout-minutes: 130
     name: >
-      MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
+      DB:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1208,18 +1277,18 @@ jobs:
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       MYSQL_VERSION: "${{matrix.mysql-version}}"
       BACKEND_VERSION: "${{matrix.mysql-version}}"
       JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
@@ -1230,7 +1299,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: MySQL"
         uses: ./.github/actions/post_tests_success
@@ -1244,7 +1315,7 @@ jobs:
   tests-mssql:
     timeout-minutes: 130
     name: >
-      MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
+      DB:MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1261,11 +1332,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mssql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       MSSQL_VERSION: "${{matrix.mssql-version}}"
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       # The below (and corresponding selective checks code) can be removed once
       # https://github.com/apache/airflow/issues/31575 is fixed.
       # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
@@ -1281,7 +1352,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
@@ -1292,7 +1363,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: MsSQL"
         uses: ./.github/actions/post_tests_success
@@ -1305,7 +1378,7 @@ jobs:
   tests-sqlite:
     timeout-minutes: 130
     name: >
-      Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+      DB:Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
@@ -1322,15 +1395,15 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "sqlite"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       BACKEND_VERSION: ""
       JOB_ID: "sqlite-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
@@ -1341,7 +1414,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: Sqlite"
         uses: ./.github/actions/post_tests_success
@@ -1363,11 +1438,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       JOB_ID: "integration"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1375,7 +1450,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
@@ -1435,11 +1510,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       JOB_ID: "integration"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1448,7 +1523,7 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
         if: needs.build-info.outputs.is-airflow-runner == 'true'
@@ -1476,19 +1551,19 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPE: "Quarantined"
+      TEST_TYPE: "All-Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.is-airflow-runner == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -1531,6 +1606,45 @@ jobs:
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
+  tests-no-db:
+    timeout-minutes: 60
+    name: >
+      Non-DB: Py${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Tests: ${{matrix.python-version}}:Non-DB"
+        run: >
+          breeze testing non-db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: "Post Tests success: Non-DB"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: "Post Tests failure: Non-DB"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   summarize-warnings:
     timeout-minutes: 15
@@ -1544,16 +1658,16 @@ jobs:
       - tests-quarantined
       - tests-integration-postgres
       - tests-integration-mysql
+      - tests-no-db
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v3
         with:
@@ -1571,7 +1685,7 @@ jobs:
     name: "Wait for & verify PROD images"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images, build-prod-images]
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
@@ -1582,7 +1696,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -1613,14 +1727,14 @@ jobs:
     name: "Test docker-compose quick start"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -1653,13 +1767,12 @@ jobs:
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true' ) &&
-      needs.build-info.outputs.default-branch == 'main'
+      needs.build-info.outputs.needs-helm-tests == 'true')
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -1684,7 +1797,7 @@ jobs:
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
-          VERBOSE: true
+          VERBOSE: "false"
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
@@ -1716,13 +1829,15 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - docs
+      - build-docs
+      - spellcheck-docs
       - wait-for-ci-images
       - wait-for-prod-images
       - static-checks
       - tests-sqlite
       - tests-mysql
       - tests-postgres
+      - tests-no-db
       - tests-integration-postgres
       - tests-integration-mysql
       # Skip when generate constraints fails
@@ -1736,19 +1851,20 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
+          # Needed to perform push action
           persist-credentials: false
-          submodules: recursive
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          path: "repo"
+          path: "constraints"
           ref: ${{ steps.constraints-branch.outputs.branch }}
-          persist-credentials: false
+          persist-credentials: true
+          fetch-depth: 0
       - name: "Download constraints from the constraints preview"
         uses: actions/download-artifact@v3
         with:
@@ -1761,12 +1877,10 @@ jobs:
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
         if: needs.build-info.outputs.canary-run == 'true'
       - name: "Push changes"
-        uses: ./.github/actions/github-push-action
         if: needs.build-info.outputs.canary-run == 'true'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.constraints-branch.outputs.branch }}
-          directory: "repo"
+        working-directory: "constraints"
+        run:
+          git push
 
   # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
   # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
@@ -1791,7 +1905,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
@@ -1836,14 +1950,15 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           COMMIT_SHA: ${{ github.sha }}
         if: matrix.platform == 'linux/amd64'
-      - name: "Move dist packages to docker-context files"
-        run: mv -v ./dist/*.whl ./docker-context-files
+      - name: "Copy dist packages to docker-context files"
+        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze prod-image build
           --builder airflow_cache
           --install-packages-from-context
           --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
         env:
@@ -1875,12 +1990,13 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - generate-constraints
-      - docs
+      - build-docs
+      - spellcheck-docs
       - static-checks
       - tests-sqlite
       - tests-mysql
       - tests-postgres
+      - tests-no-db
       - tests-integration-postgres
       - tests-integration-mysql
     env:
@@ -1895,11 +2011,10 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Start ARM instance"

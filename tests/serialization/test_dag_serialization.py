@@ -184,6 +184,7 @@ serialized_simple_dag_ground_truth = {
                     },
                 },
                 "doc_md": "### Task Tutorial Documentation",
+                "_log_config_logger_name": "airflow.task.operators",
             },
             {
                 "task_id": "custom_task",
@@ -206,6 +207,7 @@ serialized_simple_dag_ground_truth = {
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
+                "_log_config_logger_name": "airflow.task.operators",
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -1208,7 +1210,8 @@ class TestStringifiedDAGs:
         base_operator = BaseOperator(task_id="10")
         fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
-            "_log": base_operator.log,
+            "_logger_name": None,
+            "_log_config_logger_name": "airflow.task.operators",
             "_post_execute_hook": None,
             "_pre_execute_hook": None,
             "depends_on_past": False,
@@ -2032,20 +2035,33 @@ class TestStringifiedDAGs:
         assert param.description == "hello"
         assert param.schema == {"type": "string"}
 
-    def test_not_templateable_fields_in_serialized_dag(
-        self,
-    ):
+    @pytest.mark.db_test
+    def test_not_templateable_fields_in_serialized_dag(self):
         """
-        Test that when we use  not templateable fields, an Airflow exception is raised.
+        Test that when we use not templateable fields, an Airflow exception is raised.
         """
 
         class TestOperator(BaseOperator):
-            template_fields = ("execution_timeout",)
+            template_fields = (
+                "email",  # templateable
+                "execution_timeout",  # not templateable
+            )
 
-        dag = DAG("test_not_templateable_fields", start_date=datetime(2019, 8, 1))
+            def execute(self, context: Context):
+                pass
+
+        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
+
         with dag:
-            TestOperator(task_id="test", execution_timeout=timedelta(seconds=10))
-        with pytest.raises(AirflowException, match="Cannot template BaseOperator fields: execution_timeout"):
+            task = TestOperator(
+                task_id="test_task",
+                email="{{ ','.join(test_email_list) }}",
+                execution_timeout=timedelta(seconds=10),
+            )
+            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
+            assert task.email == "foo@test.com,bar@test.com"
+
+        with pytest.raises(AirflowException, match="Cannot template BaseOperator field: 'execution_timeout'"):
             SerializedDAG.to_dict(dag)
 
 
