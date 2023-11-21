@@ -49,3 +49,6 @@ class AwsAuthManagerUser(BaseUser):
 
     def get_name(self) -> str:
         return self.username or self.email or self.user_id
+
+    def get_groups(self):
+        return self.groups

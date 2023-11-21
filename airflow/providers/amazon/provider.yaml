@@ -562,6 +562,9 @@ hooks:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue_databrew
+  - integration-name: Amazon Verified Permissions
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.verified_permissions
 
 triggers:
   - integration-name: Amazon Web Services
@@ -914,6 +917,14 @@ config:
         type: boolean
         example: "True"
         default: "False"
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS
+          Identity Center and Amazon Verified Permissions.
+        version_added: 8.12.0
+        type: string
+        example: "aws_default"
+        default: "aws_default"
       saml_metadata_url:
         description: |
           SAML metadata XML file provided by AWS Identity Center.
@@ -921,6 +932,14 @@ config:
         version_added: 8.12.0
         type: string
         example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
+        default: ~
+      avp_policy_store_id:
+        description: |
+          Amazon Verified Permissions' policy store ID where all the policies defining user permissions
+          in Airflow are stored. Required.
+        version_added: 8.12.0
+        type: string
+        example: ~
         default: ~
 
 executors:
