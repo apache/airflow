@@ -65,3 +65,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook
     connection-type: opsgenie
+
+notifications:
+  - airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier

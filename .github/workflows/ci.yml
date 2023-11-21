@@ -419,14 +419,6 @@ jobs:
         uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
@@ -467,13 +459,6 @@ jobs:
           submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
       - name: >
           Build Bullseye PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}

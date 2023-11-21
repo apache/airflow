@@ -71,6 +71,9 @@ github:
     v2-7-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+    v2-8-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
 
   collaborators:
     - mhenc

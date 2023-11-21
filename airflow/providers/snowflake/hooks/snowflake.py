@@ -480,7 +480,7 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_database_info(connection))
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
 
         if self.query_ids:
             return OperatorLineage(
