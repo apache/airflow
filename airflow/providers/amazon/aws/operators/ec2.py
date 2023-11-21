@@ -265,11 +265,15 @@ class EC2RebootInstanceOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EC2RebootInstanceOperator`
 
-    :param instance_id: id of the AWS EC2 instance
-    :param aws_conn_id: aws connection to use
-    :param region_name: (optional) aws region name associated with the client
-    :param check_interval: time in seconds that the job should wait in
-        between each instance state checks until operation is completed
+    :param instance_ids: ID of the instance to be terminated.
+    :param aws_conn_id: AWS connection to use
+    :param region_name: AWS region name associated with the client.
+    :param poll_interval: Number of seconds to wait before attempting to
+        check state of instance. Only used if wait_for_completion is True. Default is 20.
+    :param max_attempts: Maximum number of attempts when checking state of instance.
+        Only used if wait_for_completion is True. Default is 20.
+    :param wait_for_completion: If True, the operator will wait for the instance to be
+        in the `terminated` state before returning.
     """
 
     template_fields: Sequence[str] = ("instance_id", "region_name")
@@ -279,28 +283,37 @@ class EC2RebootInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        instance_id: str,
+        instance_ids: str | list[str],
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        check_interval: float = 15,
+        poll_interval: int = 20,
+        max_attempts: int = 20,
+        wait_for_completion: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.instance_id = instance_id
+        self.instance_ids = instance_ids
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.check_interval = check_interval
+        self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context):
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        self.log.info("Rebooting EC2 instance %s", self.instance_id)
-        instance = ec2_hook.get_instance(instance_id=self.instance_id)
-        instance.reboot()
-        ec2_hook.wait_for_state(
-            instance_id=self.instance_id,
-            target_state="running",
-            check_interval=self.check_interval,
-        )
+        if isinstance(self.instance_ids, str):
+            self.instance_ids = [self.instance_ids]
+        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        self.log.info("Rebooting EC2 instances %s", ", ".join(self.instance_ids))
+        ec2_hook.conn.reboot_instances(InstanceIds=self.instance_ids)
+
+        if self.wait_for_completion:
+            ec2_hook.get_waiter("instance_terminated").wait(
+                InstanceIds=self.instance_ids,
+                WaiterConfig={
+                    "Delay": self.poll_interval,
+                    "MaxAttempts": self.max_attempts,
+                },
+            )
 
 
 class EC2HibernateInstanceOperator(BaseOperator):
@@ -311,11 +324,15 @@ class EC2HibernateInstanceOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EC2HibernateInstanceOperator`
 
-    :param instance_id: id of the AWS EC2 instance
-    :param aws_conn_id: aws connection to use
-    :param region_name: (optional) aws region name associated with the client
-    :param check_interval: time in seconds that the job should wait in
-        between each instance state checks until operation is completed
+    :param instance_ids: ID of the instance to be terminated.
+    :param aws_conn_id: AWS connection to use
+    :param region_name: AWS region name associated with the client.
+    :param poll_interval: Number of seconds to wait before attempting to
+        check state of instance. Only used if wait_for_completion is True. Default is 20.
+    :param max_attempts: Maximum number of attempts when checking state of instance.
+        Only used if wait_for_completion is True. Default is 20.
+    :param wait_for_completion: If True, the operator will wait for the instance to be
+        in the `terminated` state before returning.
     """
 
     template_fields: Sequence[str] = ("instance_id", "region_name")
@@ -325,30 +342,41 @@ class EC2HibernateInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        instance_id: str,
+        instance_ids: str | list[str],
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        check_interval: float = 15,
+        poll_interval: int = 20,
+        max_attempts: int = 20,
+        wait_for_completion: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.instance_id = instance_id
+        self.instance_ids = instance_ids
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.check_interval = check_interval
+        self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context):
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        self.log.info("Hibernating EC2 instance %s", self.instance_id)
-        instance = ec2_hook.get_instance(instance_id=self.instance_id)
+        if isinstance(self.instance_ids, str):
+            self.instance_ids = [self.instance_ids]
+        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        self.log.info("Hibernating EC2 instances %s", ", ".join(self.instance_ids))
+        instances = ec2_hook.get_instances(instance_ids=self.instance_ids)
 
-        hibernation_options = instance.hibernation_options
-        if not hibernation_options or not hibernation_options["Configured"]:
-            raise AirflowException(f"Instance {self.instance_id} is not configured for hibernation")
+        for instance in instances:
+            hibernation_options = instance.get("HibernationOptions")
+            if not hibernation_options or not hibernation_options["Configured"]:
+                raise AirflowException(f"Instance {instance['InstanceId']} is not configured for hibernation")
 
-        instance.stop(Hibernate=True)
-        ec2_hook.wait_for_state(
-            instance_id=self.instance_id,
-            target_state="stopped",
-            check_interval=self.check_interval,
-        )
+        ec2_hook.conn.stop_instances(InstanceIds=self.instance_ids, Hibernate=True)
+
+        if self.wait_for_completion:
+            ec2_hook.get_waiter("instance_stopped").wait(
+                InstanceIds=self.instance_ids,
+                WaiterConfig={
+                    "Delay": self.poll_interval,
+                    "MaxAttempts": self.max_attempts,
+                },
+            )

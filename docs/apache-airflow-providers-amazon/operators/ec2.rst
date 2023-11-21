@@ -100,7 +100,7 @@ To reboot an Amazon EC2 instance you can use
     :start-after: [START howto_operator_ec2_reboot_instance]
     :end-before: [END howto_operator_ec2_reboot_instance]
 
-_howto/operator:EC2HibernateInstanceOperator
+.. _howto/operator:EC2HibernateInstanceOperator:
 
 Hibernate an Amazon EC2 instance
 ================================

@@ -216,16 +216,10 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
         ec2_operator = EC2HibernateInstanceOperator(
             task_id="task_test",
-            instance_id="i-123abc",
-            aws_conn_id="aws_conn_test",
-            region_name="region-test",
-            check_interval=3,
+            instance_ids="i-123abc",
         )
         assert ec2_operator.task_id == "task_test"
-        assert ec2_operator.instance_id == "i-123abc"
-        assert ec2_operator.aws_conn_id == "aws_conn_test"
-        assert ec2_operator.region_name == "region-test"
-        assert ec2_operator.check_interval == 3
+        assert ec2_operator.instance_ids == "i-123abc"
 
     @mock_ec2
     def test_hibernate_instance(self):
@@ -241,11 +235,34 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         # hibernate instance
         hibernate_test = EC2HibernateInstanceOperator(
             task_id="hibernate_test",
-            instance_id=instance_id[0],
+            instance_ids=instance_id[0],
         )
         hibernate_test.execute(None)
         # assert instance state is stopped
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
+
+    @mock_ec2
+    def test_hibernate_multiple_instances(self):
+        ec2_hook = EC2Hook()
+        create_instances = EC2CreateInstanceOperator(
+            task_id="test_create_multiple_instances",
+            image_id=self._get_image_id(hook=ec2_hook),
+            config={"HibernationOptions": {"Configured": True}},
+            min_count=5,
+            max_count=5,
+        )
+        instance_ids = create_instances.execute(None)
+        assert len(instance_ids) == 5
+
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
+        hibernate_instance = EC2HibernateInstanceOperator(
+            task_id="test_hibernate_instance", instance_ids=instance_ids
+        )
+        hibernate_instance.execute(None)
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "stopped"
 
     @mock_ec2
     def test_cannot_hibernate_instance(self):
@@ -260,7 +277,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         # hibernate instance
         hibernate_test = EC2HibernateInstanceOperator(
             task_id="hibernate_test",
-            instance_id=instance_id[0],
+            instance_ids=instance_id[0],
         )
 
         # assert hibernating an instance not configured for hibernation raises an error
@@ -273,21 +290,48 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
+    @mock_ec2
+    def test_cannot_hibernate_some_instances(self):
+        # create instance
+        ec2_hook = EC2Hook()
+        create_instance_hibernate = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+            config={"HibernationOptions": {"Configured": True}},
+        )
+        instance_id_hibernate = create_instance_hibernate.execute(None)
+        create_instance_cannot_hibernate = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+        )
+        instance_id_cannot_hibernate = create_instance_cannot_hibernate.execute(None)
+        instance_ids = [instance_id_hibernate[0], instance_id_cannot_hibernate[0]]
+
+        # hibernate instance
+        hibernate_test = EC2HibernateInstanceOperator(
+            task_id="hibernate_test",
+            instance_ids=instance_ids,
+        )
+        # assert hibernating an instance not configured for hibernation raises an error
+        with pytest.raises(
+            AirflowException,
+            match="Instance .* is not configured for hibernation",
+        ):
+            hibernate_test.execute(None)
+
+        # assert instance state is running
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
     def test_init(self):
         ec2_operator = EC2RebootInstanceOperator(
             task_id="task_test",
-            instance_id="i-123abc",
-            aws_conn_id="aws_conn_test",
-            region_name="region-test",
-            check_interval=3,
+            instance_ids="i-123abc",
         )
         assert ec2_operator.task_id == "task_test"
-        assert ec2_operator.instance_id == "i-123abc"
-        assert ec2_operator.aws_conn_id == "aws_conn_test"
-        assert ec2_operator.region_name == "region-test"
-        assert ec2_operator.check_interval == 3
+        assert ec2_operator.instance_ids == "i-123abc"
 
     @mock_ec2
     def test_reboot_instance(self):
@@ -302,8 +346,30 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         # reboot instance
         reboot_test = EC2RebootInstanceOperator(
             task_id="reboot_test",
-            instance_id=instance_id[0],
+            instance_ids=instance_id[0],
         )
         reboot_test.execute(None)
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
+
+    @mock_ec2
+    def test_reboot_multiple_instances(self):
+        ec2_hook = EC2Hook()
+        create_instances = EC2CreateInstanceOperator(
+            task_id="test_create_multiple_instances",
+            image_id=self._get_image_id(hook=ec2_hook),
+            min_count=5,
+            max_count=5,
+        )
+        instance_ids = create_instances.execute(None)
+        assert len(instance_ids) == 5
+
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
+        terminate_instance = EC2RebootInstanceOperator(
+            task_id="test_reboot_instance", instance_ids=instance_ids
+        )
+        terminate_instance.execute(None)
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
