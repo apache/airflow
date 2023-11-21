@@ -78,6 +78,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
         if getattr(super(), "supports_task_context_logging", False):
             super().set_context(ti, identifier=identifier)
         else:
