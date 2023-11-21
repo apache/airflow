@@ -2,7 +2,7 @@
 
 import time
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import boto3
 from airflow.configuration import conf
@@ -10,39 +10,13 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
-from marshmallow import EXCLUDE, Schema, ValidationError, fields, post_load
+from airflow.providers.amazon.aws.executors.batch.boto_schema import BatchDescribeJobsResponseSchema, BatchSubmitJobResponseSchema
+from airflow.providers.amazon.aws.executors.batch.utils import BatchJob, BatchExecutorException, BatchJobCollection
+from marshmallow import ValidationError
+
 
 CommandType = List[str]
 ExecutorConfigType = Dict[str, Any]
-
-
-class BatchJob:
-    """
-    Data Transfer Object for an AWS Batch Job
-    """
-    STATE_MAPPINGS = {
-        'SUBMITTED': State.QUEUED,
-        'PENDING': State.QUEUED,
-        'RUNNABLE': State.QUEUED,
-        'STARTING': State.QUEUED,
-        'RUNNING': State.RUNNING,
-        'SUCCEEDED': State.SUCCESS,
-        'FAILED': State.FAILED
-    }
-
-    def __init__(self, job_id: str, status: str, status_reason: Optional[str] = None):
-        self.job_id = job_id
-        self.status = status
-        self.status_reason = status_reason
-
-    def get_job_state(self) -> str:
-        """
-        This is the primary logic that handles state in an AWS Batch Job
-        """
-        return self.STATE_MAPPINGS.get(self.status, State.QUEUED)
-
-    def __repr__(self):
-        return '({} -> {}, {})'.format(self.job_id, self.status, self.get_job_state())
 
 
 class AwsBatchExecutor(BaseExecutor):
@@ -110,7 +84,7 @@ class AwsBatchExecutor(BaseExecutor):
                 describe_tasks_response = BatchDescribeJobsResponseSchema().load(boto_describe_tasks)
             except ValidationError as err:
                 self.log.error('Batch DescribeJobs API Response: %s', boto_describe_tasks)
-                raise BatchError(
+                raise BatchExecutorException(
                     'DescribeJobs API call does not match expected JSON shape. '
                     'Are you sure that the correct version of Boto3 is installed? {}'.format(
                         err
@@ -144,7 +118,7 @@ class AwsBatchExecutor(BaseExecutor):
             submit_job_response = BatchSubmitJobResponseSchema().load(boto_run_task)
         except ValidationError as err:
             self.log.error('Batch SubmitJob Response: %s', err)
-            raise BatchError(
+            raise BatchExecutorException(
                 'RunTask API call does not match expected JSON shape. '
                 'Are you sure that the correct version of Boto3 is installed? {}'.format(
                     err
@@ -208,73 +182,3 @@ class AwsBatchExecutor(BaseExecutor):
             raise KeyError('SubmitJob API needs kwargs["containerOverrides"]["command"] field,'
                            ' and value should be NULL or empty.')
         return submit_kwargs
-
-
-class BatchJobCollection:
-    """
-    A Two-way dictionary between Airflow task ids and Batch Job IDs
-    """
-    def __init__(self):
-        self.key_to_id: Dict[TaskInstanceKey, str] = {}
-        self.id_to_key: Dict[str, TaskInstanceKey] = {}
-
-    def add_job(self, job_id: str, airflow_task_key: TaskInstanceKey):
-        """Adds a task to the collection"""
-        self.key_to_id[airflow_task_key] = job_id
-        self.id_to_key[job_id] = airflow_task_key
-
-    def pop_by_id(self, job_id: str) -> TaskInstanceKey:
-        """Deletes task from collection based off of Batch Job ID"""
-        task_key = self.id_to_key[job_id]
-        del self.key_to_id[task_key]
-        del self.id_to_key[job_id]
-        return task_key
-
-    def get_all_jobs(self) -> List[str]:
-        """Get all AWS ARNs in collection"""
-        return list(self.id_to_key.keys())
-
-    def __len__(self):
-        """Determines the number of jobs in collection"""
-        return len(self.key_to_id)
-
-
-class BatchSubmitJobResponseSchema(Schema):
-    """API Response for SubmitJob"""
-    # The unique identifier for the job.
-    job_id = fields.String(data_key='jobId', required=True)
-
-    class Meta:
-        unknown = EXCLUDE
-
-
-class BatchJobDetailSchema(Schema):
-    """API Response for Describe Jobs"""
-    # The unique identifier for the job.
-    job_id = fields.String(data_key='jobId', required=True)
-    # The current status for the job:
-    # 'SUBMITTED', 'PENDING', 'RUNNABLE', 'STARTING', 'RUNNING', 'SUCCEEDED', 'FAILED'
-    status = fields.String(required=True)
-    # A short, human-readable string to provide additional details about the current status of the job.
-    status_reason = fields.String(data_key='statusReason')
-
-    @post_load
-    def make_job(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of BatchJob instead of a dictionary"""
-        return BatchJob(**data)
-
-    class Meta:
-        unknown = EXCLUDE
-
-
-class BatchDescribeJobsResponseSchema(Schema):
-    """API Response for Describe Jobs"""
-    # The list of jobs
-    jobs = fields.List(fields.Nested(BatchJobDetailSchema), required=True)
-
-    class Meta:
-        unknown = EXCLUDE
-
-
-class BatchError(Exception):
-    """Thrown when something unexpected has occurred within the AWS Batch ecosystem"""

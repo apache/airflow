@@ -2,12 +2,12 @@ import datetime as dt
 import os
 from unittest import TestCase, mock
 
-from airflow.providers.amazon.aws.executors.batch_executor import (
+from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor, BatchJobDetailSchema, BatchJob, BatchJobCollection
 )
 from airflow.utils.state import State
 
-from .botocore_helper import get_botocore_model, assert_botocore_call
+from ..botocore_helper import get_botocore_model, assert_botocore_call
 
 
 def set_conf():
