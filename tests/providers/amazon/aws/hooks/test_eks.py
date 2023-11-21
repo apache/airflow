@@ -52,7 +52,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -1199,25 +1199,6 @@ class TestEksHooks:
 
 class TestEksHook:
     python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
-    COMMAND = """
-            output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
-                --cluster-name {eks_cluster_name} {args} 2>&1)
-
-            if [ $? -ne 0 ]; then
-                echo "Error running the script"
-                exit 1
-            fi
-
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
-
-            json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
-                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
-                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
-            echo $json_string
-
-
-            """
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(

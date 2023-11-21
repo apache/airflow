@@ -75,6 +75,25 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
+COMMAND = """
+            output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
+                --cluster-name {eks_cluster_name} {args} 2>&1)
+
+            if [ $? -ne 0 ]; then
+                echo "Error running the script"
+                exit 1
+            fi
+
+            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
+            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
+
+            json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
+                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
+                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
+            echo $json_string
+            """
+
+
 class EksHook(AwsBaseHook):
     """
     Interact with Amazon Elastic Kubernetes Service (EKS).
@@ -529,25 +548,6 @@ class EksHook(AwsBaseHook):
             args = args + f" --aws-conn-id {self.aws_conn_id}"
 
         python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
-        COMMAND = f"""
-            output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
-                --cluster-name {eks_cluster_name} {args} 2>&1)
-
-            if [ $? -ne 0 ]; then
-                echo "Error running the script"
-                exit 1
-            fi
-
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
-
-            json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
-                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
-                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
-            echo $json_string
-
-
-            """
         # Set up the client
         eks_client = self.conn
 
@@ -586,7 +586,11 @@ class EksHook(AwsBaseHook):
                             "command": "sh",
                             "args": [
                                 "-c",
-                                COMMAND,
+                                COMMAND.format(
+                                    python_executable=python_executable,
+                                    eks_cluster_name=eks_cluster_name,
+                                    args=args,
+                                ),
                             ],
                             "interactiveMode": "Never",
                         }
