@@ -58,7 +58,6 @@ def main():
     access_token = eks_hook.fetch_access_token_for_cluster(args.cluster_name)
     access_token_expiration = get_expiration_time()
     print(f"expirationTimestamp: {access_token_expiration}, token: {access_token}")
-    
 
 
 if __name__ == "__main__":

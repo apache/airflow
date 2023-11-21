@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 import tempfile
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
 from typing import Callable, Generator
-import sys
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -38,6 +38,7 @@ STS_TOKEN_EXPIRES_IN = 60
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
+
 
 class ClusterStates(Enum):
     """Contains the possible State values of an EKS Cluster."""
@@ -523,7 +524,7 @@ class EksHook(AwsBaseHook):
         args = ""
         if self.region_name is not None:
             args = args + f" --region-name {self.region_name}"
-        
+
         if self.aws_conn_id is not None:
             args = args + f" --aws-conn-id {self.aws_conn_id}"
 
@@ -544,6 +545,7 @@ class EksHook(AwsBaseHook):
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
                 {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
             echo $json_string
+
 
             """
         # Set up the client
