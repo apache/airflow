@@ -90,3 +90,8 @@ See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsea
       --set elasticsearch.enabled=true \
       --set elasticsearch.secretName=my-es-secret
       # Other choices exist. Please refer to values.yaml for details.
+
+Cleaning logs
+-------------
+
+You can enable ``logGroomerSidecar`` to periodically clean the logs from local disk
