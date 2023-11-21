@@ -20,7 +20,7 @@ from __future__ import annotations
 import base64
 import pickle
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from requests import Response
 
@@ -271,9 +271,16 @@ class HttpOperator(BaseOperator):
         :param next_page_params: A dictionary containing the parameters for the next page.
         :return: A dictionary containing the merged parameters.
         """
+
+        next_page_data_param: dict | str | None = next_page_params.get("data")
+        if isinstance(self.data, dict) and isinstance(next_page_data_param, dict):
+            data = merge_dicts(self.data, cast(dict, next_page_data_param)),
+        else:
+            data = next_page_data_param or self.data
+
         return dict(
             endpoint=next_page_params.get("endpoint") or self.endpoint,
-            data=merge_dicts(self.data, next_page_params.get("data", {})),
+            data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
             extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
         )
