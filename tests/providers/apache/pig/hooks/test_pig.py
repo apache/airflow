@@ -85,6 +85,7 @@ class TestPigCliHook:
         for pig_prop in test_properties.split():
             assert pig_prop in popen_first_arg
 
+    @pytest.mark.db_test
     def test_runtime_exception_not_raised_by_default(self):
         PigCliHook()
 

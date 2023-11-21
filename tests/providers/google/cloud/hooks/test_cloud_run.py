@@ -34,7 +34,8 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook, Cl
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 
-class TestCloudBathHook:
+@pytest.mark.db_test
+class TestCloudRunHook:
     def dummy_get_credentials(self):
         pass
 
@@ -111,9 +112,18 @@ class TestCloudBathHook:
         job_name = "job1"
         region = "region1"
         project_id = "projectid"
-        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        overrides = {
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60s",
+        }
+        run_job_request = RunJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
+        )
 
-        cloud_run_hook.execute_job(job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook.execute_job(
+            job_name=job_name, region=region, project_id=project_id, overrides=overrides
+        )
         cloud_run_hook._client.run_job.assert_called_once_with(request=run_job_request)
 
     @mock.patch(

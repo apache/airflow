@@ -51,7 +51,10 @@ class OpenLineageListener:
 
     @hookimpl
     def on_task_instance_running(
-        self, previous_state, task_instance: TaskInstance, session: Session  # This will always be QUEUED
+        self,
+        previous_state,
+        task_instance: TaskInstance,
+        session: Session,  # This will always be QUEUED
     ):
         if not hasattr(task_instance, "task"):
             self.log.warning(

@@ -103,7 +103,15 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
-If additional parameters for package installation are needed pass them in ``requirements.txt`` as in the example below:
+.. warning::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.PythonVirtualenvOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+If additional parameters for package installation are needed pass them in via the ``pip_install_options`` parameter or use a
+``requirements.txt`` as in the example below:
 
 .. code-block::
 
@@ -195,6 +203,102 @@ of the virtualenv environment in the same version as the Airflow version the tas
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy`` to your virtual environment.
+
+.. warning::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+.. _howto/operator:PythonBranchOperator:
+
+PythonBranchOperator
+====================
+
+Use the ``@task.branch`` decorator to execute Python :ref:`branching <concepts:branching>` tasks.
+
+.. warning::
+    The ``@task.branch`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonBranchOperator`
+    to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_python]
+    :end-before: [END howto_operator_branch_python]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_python]
+    :end-before: [END howto_operator_branch_python]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
+
+.. _howto/operator:BranchPythonVirtualenvOperator:
+
+BranchPythonVirtualenvOperator
+==============================
+
+Use the ``@task.branch_virtualenv`` decorator to execute Python :ref:`branching <concepts:branching>` tasks and is a hybrid of
+the branch decorator with execution in a virtual environment.
+
+.. warning::
+    The ``@task.branch_virtualenv`` decorator is recommended over the classic
+    :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_virtualenv]
+    :end-before: [END howto_operator_branch_virtualenv]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_virtualenv]
+    :end-before: [END howto_operator_branch_virtualenv]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+
+.. _howto/operator:BranchExternalPythonOperator:
+
+BranchExternalPythonOperator
+============================
+
+Use the ``@task.branch_external_python`` decorator to execute Python :ref:`branching <concepts:branching>` tasks and is a hybrid of
+the branch decorator with execution in an external Python environment.
+
+.. warning::
+    The ``@task.branch_external_python`` decorator is recommended over the classic
+    :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_ext_py]
+    :end-before: [END howto_operator_branch_ext_py]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_ext_py]
+    :end-before: [END howto_operator_branch_ext_py]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 

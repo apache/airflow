@@ -78,6 +78,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+        on keytab for Kerberos login
     """
 
     conn_name_attr = "conn_id"
@@ -120,6 +122,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
         spark_binary: str | None = None,
+        *,
+        use_krb5ccache: bool = False,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -138,7 +142,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._executor_memory = executor_memory
         self._driver_memory = driver_memory
         self._keytab = keytab
-        self._principal = principal
+        self._principal = self._resolve_kerberos_principal(principal) if use_krb5ccache else principal
+        self._use_krb5ccache = use_krb5ccache
         self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
@@ -317,6 +322,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
+        if self._use_krb5ccache:
+            if not os.getenv("KRB5CCNAME"):
+                raise AirflowException(
+                    "KRB5CCNAME environment variable required to use ticket ccache is missing."
+                )
+            connection_cmd += ["--conf", "spark.kerberos.renewal.credentials=ccache"]
         if self._proxy_user:
             connection_cmd += ["--proxy-user", self._proxy_user]
         if self._name:
@@ -382,6 +393,26 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
 
         return connection_cmd
+
+    def _resolve_kerberos_principal(self, principal: str | None) -> str:
+        """Resolve kerberos principal if airflow > 2.8.
+
+        TODO: delete when min airflow version >= 2.8 and import directly from airflow.security.kerberos
+        """
+        from packaging.version import Version
+
+        from airflow.version import version
+
+        if Version(version) < Version("2.8"):
+            from airflow.utils.net import get_hostname
+
+            return principal or airflow_conf.get_mandatory_value("kerberos", "principal").replace(
+                "_HOST", get_hostname()
+            )
+        else:
+            from airflow.security.kerberos import get_kerberos_principle
+
+            return get_kerberos_principle(principal)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """

@@ -91,7 +91,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("constraints", "/opt/airflow/constraints"),
-    ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
@@ -568,7 +567,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
-    set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENV", "development")
+    set_value_to_default_if_not_set(env, "ANSWER", answer or "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
     set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
@@ -584,7 +584,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
-    set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
     set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
     set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
@@ -602,11 +601,9 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
-    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "SUSPENDED_PROVIDERS_FOLDERS", "")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
-    set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
     set_value_to_default_if_not_set(env, "DOWNGRADE_SQLALCHEMY", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
@@ -614,10 +611,11 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
     set_value_to_default_if_not_set(env, "VERBOSE_COMMANDS", "false")
     set_value_to_default_if_not_set(env, "VERSION_SUFFIX_FOR_PYPI", "")
-    set_value_to_default_if_not_set(env, "WHEEL_VERSION", "0.36.2")
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
+    "_AIRFLOW_RUN_DB_TESTS_ONLY": "run_db_tests_only",
+    "_AIRFLOW_SKIP_DB_TESTS": "skip_db_tests",
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
@@ -631,6 +629,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
+    "DATABASE_ISOLATION": "database_isolation",
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
@@ -646,22 +645,24 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
-    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
-    "SKIP_PROVIDER_TESTS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "UPGRADE_BOTO": "upgrade_boto",
+    "USE_XDIST": "use_xdist",
     "DOWNGRADE_SQLALCHEMY": "downgrade_sqlalchemy",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
     "CELERY_FLOWER": "celery_flower",
+    "STANDALONE_DAG_PROCESSOR": "standalone_dag_processor",
 }
+
 
 DOCKER_VARIABLE_CONSTANTS = {
     "FLOWER_HOST_PORT": FLOWER_HOST_PORT,

@@ -21,7 +21,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
@@ -46,8 +45,6 @@ def mocked_hook_client():
 
 class TestEmrContainerOperator:
     def setup_method(self):
-        conf.load_test_config()
-
         self.emr_container = EmrContainerOperator(
             task_id="start_job",
             name="test_emr_job",
@@ -150,8 +147,6 @@ class TestEmrContainerOperator:
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):
-        conf.load_test_config()
-
         self.emr_container = EmrEksCreateClusterOperator(
             task_id="start_cluster",
             virtual_cluster_name="test_virtual_cluster",

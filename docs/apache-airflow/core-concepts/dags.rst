@@ -105,7 +105,7 @@ There are two main ways to declare individual task dependencies. The recommended
 
 Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` methods::
 
-    first_task.set_downstream(second_task, third_task)
+    first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
 There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
@@ -370,6 +370,8 @@ As with the callable for ``@task.branch``, this method can return the ID of a do
                 return 'daily_task_id'
             else:
                 return None
+
+Similar like ``@task.branch`` decorator for regular Python code there are also branch decorators which use a virtual environment called ``@task.branch_virtualenv`` or external python called ``@task.branch_external_python``.
 
 
 .. _concepts:latest-only:
@@ -799,6 +801,10 @@ specifies a regular expression pattern, and directories or files whose names (no
 match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.
+
+As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
+doesn't support many advanced features, please check its
+`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
 
 With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
 

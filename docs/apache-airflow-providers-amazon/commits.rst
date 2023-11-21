@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-amazon
 ------------------------------------------------------
@@ -28,14 +28,61 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.11.0
+......
+
+Latest change: 2023-11-08
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`16ffc87ff4 <https://github.com/apache/airflow/commit/16ffc87ff42f702221f6cb7e42e08bc208183cf1>`_  2023-11-08   ``Improve error handling in AWS Links (#35518)``
+`b67a4f78e5 <https://github.com/apache/airflow/commit/b67a4f78e57a85ce2891e72edcc760285cefad35>`_  2023-11-07   ``Update ECS executor healthcheck with a catchall except (#35512)``
+`11bdfe4c12 <https://github.com/apache/airflow/commit/11bdfe4c12efa2f5d256cc49916a20beaa5487eb>`_  2023-11-07   ``Work around typing issue in examples and providers (#35494)``
+`f24e5199c7 <https://github.com/apache/airflow/commit/f24e5199c793c48a2f8cf5fe6bb2699cd8283196>`_  2023-11-06   ``Fix AWS RDS hook's DB instance state check (#34773)``
+`a61da3cc87 <https://github.com/apache/airflow/commit/a61da3cc8792db9944721874bbc172c2e96b27c0>`_  2023-11-04   ``Add verificationy that provider docs are as expected (#35424)``
+`ae9a7b8188 <https://github.com/apache/airflow/commit/ae9a7b8188514987bc6ae2aaf1f0332b680f384a>`_  2023-11-03   ``ECS Executor Health Check (#35412)``
+`92d1e8c447 <https://github.com/apache/airflow/commit/92d1e8c447b682dd1e4ecefbe06fe0e335479d0b>`_  2023-11-03   ``Move ECS Executor to its own file (#35418)``
+`9782ee3bbc <https://github.com/apache/airflow/commit/9782ee3bbc32384d4563831b84dc1fa889317fe8>`_  2023-11-01   ``Fix parameter syntax in Amazon docstrings (#35349)``
+`69bac3fba8 <https://github.com/apache/airflow/commit/69bac3fba897f9e7b0af642c97f9af0987a875de>`_  2023-10-31   ``Improve docs on objectstorage (#35294)``
+`651b32606c <https://github.com/apache/airflow/commit/651b32606c7b1f72a228b1d5beb6303aaf8ebf9b>`_  2023-10-31   ``Clarify "task" in ECS Executor log messages (#35304)``
+`55b015f995 <https://github.com/apache/airflow/commit/55b015f995def3bc8a3a9eef6abd7bcad49888f7>`_  2023-10-31   ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+`ba4b55a194 <https://github.com/apache/airflow/commit/ba4b55a1941d886b752025d3fc89bf1e7902b262>`_  2023-10-30   ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+=================================================================================================  ===========  =============================================================================
+
+8.10.0
+......
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`86640d166c <https://github.com/apache/airflow/commit/86640d166c8d5b3c840bf98e5c6db0d91392fde3>`_  2023-10-26   ``Add Http to s3 operator (#35176)``
+`5f4d2b5dee <https://github.com/apache/airflow/commit/5f4d2b5dee2e98a05124865c6fa855bc26d0af26>`_  2023-10-25   ``Add AWS ECS Executor (#34381)``
+`95980a9bc5 <https://github.com/apache/airflow/commit/95980a9bc50c1accd34166ba608bbe2b4ebd6d52>`_  2023-10-25   ``Enable encryption in S3 download_files() hook. (#35037)``
+`3721c9a441 <https://github.com/apache/airflow/commit/3721c9a4413d3f5002b46589beeff490827cd9cb>`_  2023-10-24   ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+`da456065df <https://github.com/apache/airflow/commit/da456065dff1c55a1cce61299cbfdb91d3583eed>`_  2023-10-24   ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+`bc4a22c6bd <https://github.com/apache/airflow/commit/bc4a22c6bd8096e7b62147031035cb14896fe934>`_  2023-10-23   ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+`78187ca863 <https://github.com/apache/airflow/commit/78187ca86361b96a7c9565da130d9b9b42e93509>`_  2023-10-23   ``Expose catalog parameter in 'AthenaOpeartor' (#35103)``
+`f816237196 <https://github.com/apache/airflow/commit/f816237196f69b70a9b628858148dcde91febf5b>`_  2023-10-20   ``Refactor string splitting (#34185)``
+`a66437222b <https://github.com/apache/airflow/commit/a66437222b5f8250fd9dfd26925c8ba9017eebb2>`_  2023-10-20   ``Use base classes for AWS Lambda Operators/Sensors (#34890)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  =============================================================================
+
 8.9.0
 .....
 
-Latest change: 2023-10-16
+Latest change: 2023-10-18
 
 =================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================
+`39e611b43b <https://github.com/apache/airflow/commit/39e611b43b06df0582f0c69de824c4657c3423eb>`_  2023-10-18   ``Prepare docs 2nd wave of Providers in October 2023 (#35020)``
 `4a37777567 <https://github.com/apache/airflow/commit/4a377775672b7148e8935e20844e7a0ba491bdd8>`_  2023-10-16   ``Glue 'DataBrew' operator (#34807)``
 `b392f66c42 <https://github.com/apache/airflow/commit/b392f66c424fc3b8cbc957e02c67847409551cab>`_  2023-10-16   ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
 `b1196460db <https://github.com/apache/airflow/commit/b1196460db1a21b2c6c3ef2e841fc6d0c22afe97>`_  2023-10-16   ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``

@@ -50,6 +50,9 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
@@ -87,9 +90,7 @@ class TestDagRun:
         session: Session,
     ):
         now = timezone.utcnow()
-        if execution_date is None:
-            execution_date = now
-        execution_date = pendulum.instance(execution_date)
+        execution_date = pendulum.instance(execution_date or now)
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(execution_date)
@@ -2617,3 +2618,17 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
         else:
             with pytest.raises(AirflowException):
                 dag_maker.create_dagrun(run_id=run_id)
+
+
+def test_dagrun_conf():
+    dag_run = DagRun(conf={"test": 1234})
+    assert dag_run.conf == {"test": 1234}
+
+    with pytest.raises(AirflowException) as err:
+        dag_run.conf["non_json"] = timezone.utcnow()
+    assert str(err.value) == "Cannot assign non JSON Serializable value"
+
+    with pytest.raises(AirflowException) as err:
+        value = 1
+        dag_run.conf = value
+    assert str(err.value) == f"Object of type {type(value)} must be a dict"

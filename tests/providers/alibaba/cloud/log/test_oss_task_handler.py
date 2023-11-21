@@ -29,6 +29,8 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 OSS_TASK_HANDLER_STRING = "airflow.providers.alibaba.cloud.log.oss_task_handler.{}"
 MOCK_OSS_CONN_ID = "mock_id"
 MOCK_BUCKET_NAME = "mock_bucket_name"

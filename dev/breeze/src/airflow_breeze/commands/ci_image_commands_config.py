@@ -53,13 +53,14 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced options (for power users)",
             "options": [
+                "--debian-version",
                 "--install-providers-from-sources",
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",
                 "--additional-python-deps",
-                "--additional-extras",
+                "--additional-airflow-extras",
                 "--additional-pip-install-flags",
                 "--additional-dev-apt-deps",
                 "--additional-dev-apt-env",

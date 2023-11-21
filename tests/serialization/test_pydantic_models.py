@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+
 import pytest
+from dateutil import relativedelta
 
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
@@ -38,6 +41,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
@@ -78,23 +83,31 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
-def test_serializing_pydantic_dagmodel():
+@pytest.mark.parametrize(
+    "schedule_interval",
+    [
+        None,
+        "*/10 * * *",
+        datetime.timedelta(days=1),
+        relativedelta.relativedelta(days=+12),
+    ],
+)
+def test_serializing_pydantic_dagmodel(schedule_interval):
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        schedule_interval="2 2 * * *",
+        schedule_interval=schedule_interval,
         is_active=True,
         is_paused=False,
     )
 
     pydantic_dag_model = DagModelPydantic.model_validate(dag_model)
     json_string = pydantic_dag_model.model_dump_json()
-    print(json_string)
 
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.schedule_interval == "2 2 * * *"
+    assert deserialized_model.schedule_interval == schedule_interval
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 
@@ -109,7 +122,6 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     pydantic_job = JobPydantic.model_validate(ltj)
 
     json_string = pydantic_job.model_dump_json()
-    print(json_string)
 
     deserialized_model = JobPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == dag_id

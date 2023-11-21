@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPTIONAL_VERBOSE_FLAG=()
-PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
-
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -88,7 +85,7 @@ function in_container_fix_ownership() {
             echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
             echo
             find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
             echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
             echo
         fi
@@ -106,29 +103,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-}
-
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
-function start_output_heartbeat() {
-    MESSAGE=${1:-"Still working!"}
-    INTERVAL=${2:=10}
-    echo
-    echo "Starting output heartbeat"
-    echo
-
-    bash 2>/dev/null <<EOF &
-while true; do
-  echo "\$(date): ${MESSAGE} "
-  sleep ${INTERVAL}
-done
-EOF
-    export HEARTBEAT_PID=$!
-}
-
-function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}" || true
-    wait "${HEARTBEAT_PID}" || true 2>/dev/null
 }
 
 function dump_airflow_logs() {
@@ -185,9 +159,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -224,9 +198,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -301,16 +275,11 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local res
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
-        # Until we release "yandex" provider with protobuf support we need to remove it from the list of providers
-        # to install, because it is impossible to find common requirements for already released yandex provider
-        # and current airflow
-        if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
-            continue
-        fi
-        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
-        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
-        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
-            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
+        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
+        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
+        # the provider from PyPI
+        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
             continue
         fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
@@ -339,63 +308,6 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     set +x
 }
 
-function install_all_provider_packages_from_wheels() {
-    echo
-    echo "Installing all provider packages from wheels"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache_airflow_providers_*.whl
-}
-
-function install_all_provider_packages_from_sdist() {
-    echo
-    echo "Installing all provider packages from .tar.gz"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache-airflow-providers-*.tar.gz
-}
-
-function twine_check_provider_packages_from_wheels() {
-    echo
-    echo "Twine check of all provider packages from wheels"
-    echo
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    twine check /dist/apache_airflow_providers_*.whl
-}
-
-function twine_check_provider_packages_from_sdist() {
-    echo
-    echo "Twine check all provider packages from sdist"
-    echo
-    twine check /dist/apache-airflow-providers-*.tar.gz
-}
-
-function setup_provider_packages() {
-    export PACKAGE_TYPE="regular"
-    export PACKAGE_PREFIX_UPPERCASE=""
-    export PACKAGE_PREFIX_LOWERCASE=""
-    export PACKAGE_PREFIX_HYPHEN=""
-    if [[ ${VERBOSE:="false"} == "true" ||  ${VERBOSE} == "True" ]]; then
-        OPTIONAL_VERBOSE_FLAG+=("--verbose")
-    fi
-    if [[ ${ANSWER:=""} != "" ]]; then
-        OPTIONAL_ANSWER_FLAG+=("--answer" "${ANSWER}")
-    fi
-    readonly PACKAGE_TYPE
-    readonly PACKAGE_PREFIX_UPPERCASE
-    readonly PACKAGE_PREFIX_LOWERCASE
-    readonly PACKAGE_PREFIX_HYPHEN
-}
-
-
 function install_supported_pip_version() {
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
         pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
@@ -404,16 +316,6 @@ function install_supported_pip_version() {
     fi
 
 }
-
-function filename_to_python_module() {
-    # Turn the file name into a python package name
-    file="$1"
-    no_leading_dotslash="${file#./}"
-    no_py="${no_leading_dotslash/.py/}"
-    no_init="${no_py/\/__init__/}"
-    echo "${no_init//\//.}"
-}
-
 
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
@@ -428,71 +330,6 @@ function in_container_set_colors() {
     export COLOR_YELLOW
 }
 
-
-function check_missing_providers() {
-    PACKAGE_ERROR="false"
-
-    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null 2>&1 || exit 1
-
-    LIST_OF_DIRS_FILE=$(mktemp)
-    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
-        > "${LIST_OF_DIRS_FILE}"
-
-    popd >/dev/null 2>&1 || exit 1
-
-    # Check if all providers are included
-    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
-    do
-        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
-            echo "The package ${PACKAGE} is not available in providers dir"
-            PACKAGE_ERROR="true"
-        fi
-        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
-    done
-
-    if [[ ${PACKAGE_ERROR} == "true" ]]; then
-        echo
-        echo "ERROR! Some packages from ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py are missing in providers dir"
-        exit 1
-    fi
-
-    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
-        echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py:"
-        echo
-        cat "${LIST_OF_DIRS_FILE}"
-        echo
-
-        rm "$LIST_OF_DIRS_FILE"
-        exit 1
-    fi
-    rm "$LIST_OF_DIRS_FILE"
-}
-
-function get_providers_to_act_on() {
-    group_start "Get all providers"
-    if [[ -z "$*" ]]; then
-        while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages
-        )
-    else
-        if [[ "${1}" == "--help" ]]; then
-            echo
-            echo "Builds all provider packages."
-            echo
-            echo "You can provide list of packages to build out of:"
-            echo
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages \
-                | tr '\n ' ' ' | fold -w 100 -s
-            echo
-            echo
-            exit
-        fi
-    fi
-    group_end
-}
 
 # Starts group for GitHub Actions - makes logs much more readable
 function group_start {

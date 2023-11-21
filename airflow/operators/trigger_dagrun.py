@@ -22,6 +22,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
@@ -173,15 +174,14 @@ class TriggerDagRunOperator(BaseOperator):
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
 
                 # Get target dag object and call clear()
-
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
                 dag_run = e.dag_run
+                dag.clear(start_date=dag_run.execution_date, end_date=dag_run.execution_date)
             else:
                 raise e
         if dag_run is None:
@@ -227,14 +227,11 @@ class TriggerDagRunOperator(BaseOperator):
         # This execution date is parsed from the return trigger event
         provided_execution_date = event[1]["execution_dates"][0]
         try:
-            dag_run = (
-                session.query(DagRun)
-                .filter(
+            dag_run = session.execute(
+                select(DagRun).where(
                     DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_execution_date
                 )
-                .one()
-            )
-
+            ).scalar_one()
         except NoResultFound:
             raise AirflowException(
                 f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"

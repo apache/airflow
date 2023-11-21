@@ -3833,6 +3833,21 @@ components:
           type: string
           description: The plugin source
           nullable: true
+        ti_deps:
+          type: array
+          items:
+              type: string
+          description: The plugin task instance dependencies
+        listeners:
+          type: array
+          items:
+              type: string
+          description: The plugin listeners
+        timetables:
+          type: array
+          items:
+              type: string
+          description: The plugin timetables
 
     PluginCollection:
       type: object
@@ -4742,19 +4757,29 @@ components:
       description: |
         Trigger rule.
 
-        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+
+        *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+
+        *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+
+        *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
       type: string
       enum:
         - all_success
         - all_failed
         - all_done
+        - all_done_setup_success
         - one_success
         - one_failed
+        - one_done
         - none_failed
         - none_skipped
         - none_failed_or_skipped
         - none_failed_min_one_success
         - dummy
+        - all_skipped
+        - always
 
     WeightRule:
       description: Weight rule.

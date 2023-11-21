@@ -17,21 +17,17 @@
 """Triggerer command."""
 from __future__ import annotations
 
-import signal
 from contextlib import contextmanager
 from functools import partial
 from multiprocessing import Process
 from typing import Generator
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
 from airflow import settings
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
@@ -51,6 +47,12 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
             sub_proc.terminate()
 
 
+def triggerer_run(skip_serve_logs: bool, capacity: int, triggerer_heartrate: float):
+    with _serve_logs(skip_serve_logs):
+        triggerer_job_runner = TriggererJobRunner(job=Job(heartrate=triggerer_heartrate), capacity=capacity)
+        run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 def triggerer(args):
@@ -59,33 +61,9 @@ def triggerer(args):
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations(
-            "triggerer", args.pid, args.stdout, args.stderr, args.log_file
-        )
-        handle = setup_logging(log_file)
-        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
-            stdout_handle.truncate(0)
-            stderr_handle.truncate(0)
-
-            daemon_context = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(pid, -1),
-                files_preserve=[handle],
-                stdout=stdout_handle,
-                stderr=stderr_handle,
-                umask=int(settings.DAEMON_UMASK, 8),
-            )
-            with daemon_context, _serve_logs(args.skip_serve_logs):
-                triggerer_job_runner = TriggererJobRunner(
-                    job=Job(heartrate=triggerer_heartrate), capacity=args.capacity
-                )
-                run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        with _serve_logs(args.skip_serve_logs):
-            triggerer_job_runner = TriggererJobRunner(
-                job=Job(heartrate=triggerer_heartrate), capacity=args.capacity
-            )
-            run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
+    run_command_with_daemon_option(
+        args=args,
+        process_name="triggerer",
+        callback=lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+        should_setup_logging=True,
+    )

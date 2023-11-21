@@ -281,7 +281,7 @@ class TestParamsDict:
 
         # Validate the ParamsDict
         plain_dict = pd.validate()
-        assert type(plain_dict) == dict
+        assert isinstance(plain_dict, dict)
         pd2.validate()
         pd3.validate()
 
@@ -323,6 +323,7 @@ class TestDagParamRuntime:
     def teardown_method(self):
         self.clean_db()
 
+    @pytest.mark.db_test
     def test_dag_param_resolves(self, dag_maker):
         """Test dagparam resolves on operator execution"""
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
@@ -344,6 +345,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
+    @pytest.mark.db_test
     def test_dag_param_overwrite(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
@@ -368,6 +370,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
+    @pytest.mark.db_test
     def test_dag_param_default(self, dag_maker):
         """Test dag param is retrieved from default config"""
         with dag_maker(dag_id="test_xcom_pass_to_op", params={"value": "test"}) as dag:
@@ -386,6 +389,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == "test"
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "default, should_warn",
         [

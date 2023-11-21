@@ -22,6 +22,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     Iterable,
     Mapping,
     Protocol,
@@ -41,6 +42,8 @@ from airflow.hooks.base import BaseHook
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from pandas import DataFrame
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -135,6 +138,11 @@ class DbApiHook(BaseForDbApiHook):
     """
     Abstract base class for sql hooks.
 
+    When subclassing, maintainers can override the `_make_serializable` method:
+    This method transforms the result of the handler method (typically `cursor.fetchall()`) into
+    JSON-serializable objects. Most of the time, the underlying SQL library already returns tuples from
+    its cursor, and the `_make_serializable` method can be ignored.
+
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
@@ -198,7 +206,12 @@ class DbApiHook(BaseForDbApiHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -218,14 +231,19 @@ class DbApiHook(BaseForDbApiHook):
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def get_pandas_df_by_chunks(
-        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
-    ):
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
         """
         Execute the sql and return a generator.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with
-        :param chunksize: number of rows to include in  each chunk
+        :param chunksize: number of rows to include in each chunk
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
         try:
@@ -390,7 +408,7 @@ class DbApiHook(BaseForDbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_serializable(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -409,6 +427,20 @@ class DbApiHook(BaseForDbApiHook):
             return _last_result
         else:
             return results
+
+    @staticmethod
+    def _make_serializable(result: Any) -> Any:
+        """Ensure the data returned from an SQL command is JSON-serializable.
+
+        This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
+        transform the result of an SQL command (typically returned by cursor methods) into a
+        JSON-serializable format.
+
+        If this method is not overridden, the result data is returned as-is.
+        If the output of the cursor is already JSON-serializable, this method
+        should be ignored.
+        """
+        return result
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""

@@ -27,6 +27,9 @@ from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 TELEGRAM_TOKEN = "dummy token"
 
 

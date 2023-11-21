@@ -108,7 +108,7 @@ Misc
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-You cannot use ``pig_properties`` any more as connection extras. If you want to add extra parameters
+You cannot use ``pig_properties`` anymore as connection extras. If you want to add extra parameters
 to ``pig`` command, you need to do it via ``pig_properties`` (string list) of the PigCliHook (new parameter)
 or via ``pig_opts`` (string with options separated by spaces) or ``pig_properties`` (string list) in
 the PigOperator . Any use of ``pig_properties`` extras in connection will raise an exception,

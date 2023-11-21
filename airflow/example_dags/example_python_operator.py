@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import tempfile
 import time
 from pprint import pprint
 
@@ -36,8 +35,6 @@ from airflow.operators.python import ExternalPythonOperator, PythonVirtualenvOpe
 log = logging.getLogger(__name__)
 
 PATH_TO_PYTHON_BINARY = sys.executable
-
-BASE_DIR = tempfile.gettempdir()
 
 
 def x():
