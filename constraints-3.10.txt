@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-22T10:49:32Z
+# This constraints file was automatically generated on 2023-11-22T14:58:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -531,8 +531,8 @@ pyasn1==0.5.1
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.19.0
-pydantic==2.5.1
-pydantic_core==2.14.3
+pydantic==2.5.2
+pydantic_core==2.14.5
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.5
@@ -555,7 +555,7 @@ pytest-httpx==0.21.3
 pytest-icdiff==0.8
 pytest-instafail==0.5.0
 pytest-mock==3.12.0
-pytest-rerunfailures==12.0
+pytest-rerunfailures==13.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
 pytest==7.4.3
