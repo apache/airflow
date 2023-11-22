@@ -547,6 +547,8 @@ class EksHook(AwsBaseHook):
         if self.aws_conn_id is not None:
             args = args + f" --aws-conn-id {self.aws_conn_id}"
 
+        # We need to determine which python executable the host is running in order to correctly
+        # call the eks_get_token.py script.
         python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
         # Set up the client
         eks_client = self.conn
