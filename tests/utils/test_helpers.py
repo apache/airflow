@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
-    at_least_one,
     at_most_one,
     build_airflow_url_with_query,
     exactly_one,
@@ -303,34 +302,6 @@ class TestHelpers:
         for row in itertools.product(range(4), repeat=4):
             print(row)
             assert_at_most_one(*row)
-
-    def test_at_least_one(self):
-        """
-        Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
-        we get the expected return.
-        We check for both True / False, and truthy / falsy values 'a' and '', and verify that
-        they can safely be used in any combination.
-        NOTSET values should be ignored.
-        """
-
-        def assert_at_least_one(true=0, truthy=0, false=0, falsy=0, notset=0):
-            sample = []
-            for truth_value, num in [
-                (True, true),
-                (False, false),
-                ("a", truthy),
-                ("", falsy),
-                (NOTSET, notset),
-            ]:
-                if num:
-                    sample.extend([truth_value] * num)
-            if sample:
-                expected = True if true + truthy > 0 else False
-                assert at_least_one(*sample) is expected
-
-        for row in itertools.product(range(4), repeat=4):
-            print(row)
-            assert_at_least_one(*row)
 
     @pytest.mark.parametrize(
         "mode, expected",

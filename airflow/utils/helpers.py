@@ -325,24 +325,6 @@ def at_most_one(*args) -> bool:
     return sum(map(is_set, args)) in (0, 1)
 
 
-def at_least_one(*args) -> bool:
-    """
-    Return True if at least one of *args is "truthy", and False otherwise.
-
-    NOTSET is treated the same as None.
-
-    If user supplies an iterable, we raise ValueError and force them to unpack.
-    """
-
-    def is_set(val):
-        if val is NOTSET:
-            return False
-        else:
-            return bool(val)
-
-    return sum(map(is_set, args)) > 0
-
-
 def prune_dict(val: Any, mode="strict"):
     """
     Given dict ``val``, returns new dict based on ``val`` with all empty elements removed.
