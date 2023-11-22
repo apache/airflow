@@ -276,7 +276,7 @@ class EC2RebootInstanceOperator(BaseOperator):
         in the `terminated` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields: Sequence[str] = ("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
