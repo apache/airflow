@@ -60,10 +60,6 @@ def verify_all_commands_described_in_docs():
 
 
 def is_regeneration_needed() -> bool:
-    env = os.environ.copy()
-    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
-    # needed to keep consistent output
-    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
     return_code = call(
         [
             sys.executable,
@@ -72,12 +68,15 @@ def is_regeneration_needed() -> bool:
             "regenerate-command-images",
             "--check-only",
         ],
-        env=env,
     )
     return return_code != 0
 
 
 if __name__ == "__main__":
+    os.environ["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
+    # needed to keep consistent output
+    os.environ["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
+    os.environ["SKIP_UPGRADE_CHECK"] = "true"
     return_code = 0
     verify_all_commands_described_in_docs()
     if is_regeneration_needed():

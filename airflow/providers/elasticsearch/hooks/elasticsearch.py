@@ -108,9 +108,7 @@ class ElasticsearchSQLHook(DbApiHook):
         if conn.extra_dejson.get("timeout", False):
             conn_args["timeout"] = conn.extra_dejson["timeout"]
 
-        conn = connect(**conn_args)
-
-        return conn
+        return connect(**conn_args)
 
     def get_uri(self) -> str:
         conn_id = getattr(self, self.conn_name_attr)

@@ -44,6 +44,10 @@ from tests.test_utils.config import conf_vars
 @pytest.fixture()
 def recalculate_patterns():
     _get_patterns.cache_clear()
+    try:
+        yield
+    finally:
+        _get_patterns.cache_clear()
 
 
 class Z:

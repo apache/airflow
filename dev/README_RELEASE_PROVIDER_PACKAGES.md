@@ -136,13 +136,12 @@ breeze release-management prepare-provider-documentation [packages]
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), documentation for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-documentation qubole
+breeze release-management prepare-provider-documentation removed.provider
 ```
-
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
@@ -175,6 +174,27 @@ branch should be prepared like this:
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
+
+In case you want to **just** regenerate the documentation because you fixed something in the templates, add
+`--reapply-templates` flag to the command above. This refreshes the content of:
+
+* `__init__.py` in provider's package
+* Provider Commits
+* Provider index for the documentation
+* Provider README file used when publishing package in PyPI
+
+If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
+command with the `--only-min-version-update` flag. This will only update the min version in
+the `__init__.py` files and package documentation without bumping the provider versions.
+
+```shell script
+breeze release-management prepare-provider-documentation --only-min-version-update
+```
+
+Note: that this command will only bump the min airflow versions for those providers that do not have it set to
+a higher version. You do not have to skip specific providers - run it for all providers and it will
+handle everything automatically.
 
 ## Open PR with suggested version releases
 
@@ -220,11 +240,11 @@ breeze release-management prepare-provider-packages --package-format both PACKAG
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), package for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both qubole
+breeze release-management prepare-provider-packages --package-format both removed.provider
 ```
 
 
@@ -300,11 +320,11 @@ breeze release-management prepare-provider-packages --version-suffix-for-pypi rc
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), package for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both qubole
+breeze release-management prepare-provider-packages --package-format both removed.provider
 ```
 
 
@@ -405,11 +425,11 @@ breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), doc for the provider will not be built when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze build-docs qubole
+breeze build-docs removed.provider
 ```
 
 
@@ -452,11 +472,11 @@ breeze release-management add-back-references all-providers
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), docs for the provider will not be published when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management publish-docs qubole
+breeze release-management publish-docs removed.provider
 breeze release-management add-back-references all-providers
 ```
 
@@ -994,9 +1014,11 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ## Update providers metadata
 
+Make sure you create the following branch from the git tag (steps before) and not from main!
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata
 git add -p .

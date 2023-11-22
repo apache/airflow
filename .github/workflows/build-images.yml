@@ -237,20 +237,6 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
           BUILD_TIMEOUT_MINUTES: 70
-      - name: "Source constraints"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-        env:
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
 
   build-prod-images:
     permissions:
@@ -301,13 +287,6 @@ jobs:
           mv -v "target-airflow/.github/actions" ".github"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -382,7 +361,4 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()

@@ -22,6 +22,7 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 suspended: false
+source-date-epoch: 1700148082
 versions:
   - 5.2.1
   - 5.2.0

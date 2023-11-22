@@ -27,7 +27,7 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun

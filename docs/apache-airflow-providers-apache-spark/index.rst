@@ -61,6 +61,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -100,6 +102,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.5.0``
 ``pyspark``
+``grpcio-status``
 ==================  ==================
 
 Cross provider package dependencies

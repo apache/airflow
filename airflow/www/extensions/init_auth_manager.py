@@ -22,8 +22,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
-    from flask import Flask
-
     from airflow.auth.managers.base_auth_manager import BaseAuthManager
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
@@ -47,7 +45,7 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
     return auth_manager_cls
 
 
-def init_auth_manager(app: Flask, appbuilder: AirflowAppBuilder) -> BaseAuthManager:
+def init_auth_manager(appbuilder: AirflowAppBuilder) -> BaseAuthManager:
     """
     Initialize the auth manager.
 
@@ -55,7 +53,7 @@ def init_auth_manager(app: Flask, appbuilder: AirflowAppBuilder) -> BaseAuthMana
     """
     global auth_manager
     auth_manager_cls = get_auth_manager_cls()
-    auth_manager = auth_manager_cls(app, appbuilder)
+    auth_manager = auth_manager_cls(appbuilder)
     return auth_manager
 
 

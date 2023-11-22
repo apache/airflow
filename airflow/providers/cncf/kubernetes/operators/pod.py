@@ -191,7 +191,7 @@ class KubernetesPodOperator(BaseOperator):
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
-        that are not permitted by labels.
+        that are not permitted by labels. (templated)
     :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
@@ -261,6 +261,7 @@ class KubernetesPodOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "image",
         "cmds",
+        "annotations",
         "arguments",
         "env_vars",
         "labels",

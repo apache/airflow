@@ -112,6 +112,7 @@ class BatchOperator(BaseOperator):
         "array_properties",
         "node_overrides",
         "parameters",
+        "retry_strategy",
         "waiters",
         "tags",
         "wait_for_completion",
@@ -122,6 +123,7 @@ class BatchOperator(BaseOperator):
         "container_overrides": "json",
         "parameters": "json",
         "node_overrides": "json",
+        "retry_strategy": "json",
     }
 
     @property
@@ -160,6 +162,7 @@ class BatchOperator(BaseOperator):
         share_identifier: str | None = None,
         scheduling_priority_override: int | None = None,
         parameters: dict | None = None,
+        retry_strategy: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
         max_retries: int = 4200,
@@ -201,6 +204,7 @@ class BatchOperator(BaseOperator):
         self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
+        self.retry_strategy = retry_strategy or {}
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
@@ -287,6 +291,7 @@ class BatchOperator(BaseOperator):
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
             "nodeOverrides": self.node_overrides,
+            "retryStrategy": self.retry_strategy,
             "shareIdentifier": self.share_identifier,
             "schedulingPriorityOverride": self.scheduling_priority_override,
         }

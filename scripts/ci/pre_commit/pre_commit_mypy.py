@@ -34,6 +34,8 @@ os.environ["SKIP_GROUP_OUTPUT"] = "true"
 
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+
+    os.environ["SKIP_UPGRADE_CHECK"] = "true"
     from common_precommit_utils import filter_out_providers_on_non_main_branch
 
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
@@ -41,13 +43,13 @@ if __name__ == "__main__":
     from airflow_breeze.utils.console import get_console  # isort: skip
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags  # isort: skip
     from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed  # isort: skip
+    from airflow_breeze.utils.packages import get_suspended_provider_folders
     from airflow_breeze.utils.run_utils import (
         get_ci_image_for_pre_commits,
         run_command,
     )
-    from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
-    suspended_providers_folders = get_suspended_providers_folders()
+    suspended_providers_folders = get_suspended_provider_folders()
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:
