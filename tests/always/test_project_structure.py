@@ -105,7 +105,6 @@ class TestProjectStructure:
             "tests/providers/cncf/kubernetes/triggers/test_kubernetes_pod.py",
             "tests/providers/cncf/kubernetes/utils/test_delete_from.py",
             "tests/providers/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "tests/providers/cncf/kubernetes/utils/test_k8s_resource_iterator.py",
             "tests/providers/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "tests/providers/daskexecutor/executors/test_dask_executor.py",
             "tests/providers/databricks/hooks/test_databricks_base.py",
