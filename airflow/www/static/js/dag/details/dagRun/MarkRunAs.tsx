@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Flex,
   Button,
@@ -65,7 +65,28 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     markSuccess({ confirmed: true });
   };
 
+  useEffect(() => {
+    const storedSuccessValue = localStorage.getItem("doNotShowAgainSuccess");
+    const storedFailedValue = localStorage.getItem("doNotShowAgainFailed");
+
+    if (storedSuccessValue) {
+      setDoNotShowAgainSuccess(JSON.parse(storedSuccessValue));
+    }
+    if (storedFailedValue) {
+      setDoNotShowAgainFailed(JSON.parse(storedFailedValue));
+    }
+  }, []);
+
   const confirmAction = () => {
+    localStorage.setItem(
+      "doNotShowAgainSuccess",
+      JSON.stringify(doNotShowAgainSuccess)
+    );
+    localStorage.setItem(
+      "doNotShowAgainFailed",
+      JSON.stringify(doNotShowAgainFailed)
+    );
+
     if (confirmingAction === "failed") {
       markAsFailed();
     } else if (confirmingAction === "success") {
