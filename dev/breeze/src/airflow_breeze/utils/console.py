@@ -43,6 +43,7 @@ def get_theme() -> Theme:
                     "info": "bold",
                     "warning": "italic",
                     "error": "italic underline",
+                    "special": "bold italic underline",
                 }
             )
     except ImportError:
@@ -56,6 +57,7 @@ def get_theme() -> Theme:
             "info": "bright_blue",
             "warning": "bright_yellow",
             "error": "red",
+            "special": "magenta",
         }
     )
 
@@ -65,6 +67,7 @@ class MessageType(Enum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
+    SPECIAL = "special"
 
 
 def message_type_from_return_code(return_code: int) -> MessageType:

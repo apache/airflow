@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_short_doc_packages_with_providers_index,
+    argument_doc_packages,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -84,11 +84,12 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.general_utils import expand_all_providers
+from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
@@ -259,6 +260,7 @@ def shell(
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
@@ -346,7 +348,7 @@ def start_airflow(
         )
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
-        run_compile_www_assets(dev=dev_mode, run_in_background=True)
+        run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -382,13 +384,13 @@ def start_airflow(
         standalone_dag_processor=standalone_dag_processor,
         database_isolation=database_isolation,
     )
+    fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_short_doc_packages_with_providers_index
 @option_builder
 @click.option(
     "--package-filter",
@@ -409,11 +411,12 @@ def start_airflow(
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
     is_flag=True,
 )
+@argument_doc_packages
 @option_github_repository
 @option_verbose
 @option_dry_run
 def build_docs(
-    short_doc_packages: tuple[str, ...],
+    doc_packages: tuple[str, ...],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
@@ -426,6 +429,7 @@ def build_docs(
     Build documents.
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
@@ -444,7 +448,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        short_doc_packages=expand_all_providers(short_doc_packages),
+        short_doc_packages=expand_all_provider_packages(doc_packages),
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -460,6 +464,7 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    fix_ownership_using_docker()
     if process.returncode == 0:
         get_console().print(
             "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
@@ -625,6 +630,11 @@ def static_checks(
         command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
+    skip_checks = os.environ.get("SKIP")
+    if skip_checks and skip_checks != "identity":
+        get_console().print("\nThis static check run skips those checks:\n")
+        get_console().print(skip_checks.split(","))
+        get_console().print()
     env = os.environ.copy()
     env["GITHUB_REPOSITORY"] = github_repository
     static_checks_result = run_command(
@@ -634,6 +644,7 @@ def static_checks(
         text=True,
         env=env,
     )
+    fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
             get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
@@ -664,12 +675,19 @@ def static_checks(
     "recompile assets on-the-fly when they are changed.",
     is_flag=True,
 )
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
 @option_verbose
 @option_dry_run
-def compile_www_assets(dev: bool):
+def compile_www_assets(dev: bool, force_clean: bool):
     perform_environment_checks()
     assert_pre_commit_installed()
-    compile_www_assets_result = run_compile_www_assets(dev=dev, run_in_background=False)
+    compile_www_assets_result = run_compile_www_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)
@@ -744,6 +762,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     """
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)

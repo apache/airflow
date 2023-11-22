@@ -90,15 +90,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.1) |
-|-------------|------------------------|------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11   |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15     |
-| MySQL       | 8.0, Innovation        | 5.7, 8.0               |
-| SQLite      | 3.15.0+                | 3.15.0+                |
-| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*) |
+|             | Main version (dev)     | Stable version (2.7.3)       |
+|-------------|------------------------|------------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
+| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
+| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
+| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
+| SQLite      | 3.15.0+                | 3.15.0+                      |
+| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
 
 \* Experimental
 
@@ -175,15 +175,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.1' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
+pip install 'apache-airflow==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.1' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -269,22 +269,15 @@ packages:
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
   there will sometimes be breaking changes that might make some, or all
-  providers, have minimum Airflow version specified. Change of that minimum supported Airflow version
-  is a breaking change for provider because installing the new provider might automatically
-  upgrade Airflow (which might be an undesired side effect of upgrading provider).
+  providers, have minimum Airflow version specified.
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent of the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
   only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
-* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
-  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
-  if this PATCH is relevant to the clients.
-  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
-  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
-  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
-  independently of their Airflow PATCH version.
+* **Airflow API clients**: Their versioning is independent from Airflow versions. They follow their own
+  SemVer rules for breaking changes and new features - which for example allows to change the way we generate
+  the clients.
 
 ## Version Life Cycle
 
@@ -295,7 +288,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.2                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.7.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -475,7 +468,7 @@ branch, etc.
 
 Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
 PRs merged to `main` (unless they get reverted), will find their way to the next `MINOR` release. For example
-if the last release is `2.7.0` or `2.7.1` and `v2-8-stable` branch is not created yet, the next `MINOR` release
+if the last release is `2.7.0` or `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
 is `2.8.0` and all PRs merged to main will be released in `2.8.0`. There is a brief period of time when we
 cut a new `MINOR` release branch and prepare alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
 where PRs merged to main will only be released in the following `MINOR` release.

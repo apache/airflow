@@ -386,6 +386,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build docs                      | Builds and tests publishing of the documentation         | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Spellcheck docs                 | Spellcheck docs                                          | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests wheel provider packages   | Tests if provider packages can be built and released     | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests Airflow compatibility     | Compatibility of provider packages with older Airflow    | Yes      | Yes      | Yes       | -                 |

@@ -70,10 +70,12 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
     remove_docker_networks,
 )
+from airflow_breeze.utils.packages import get_suspended_provider_folders
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -87,7 +89,6 @@ from airflow_breeze.utils.run_tests import (
     run_docker_compose_tests,
 )
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
@@ -161,7 +162,7 @@ def _run_test(
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
     env_variables["COLLECT_ONLY"] = str(exec_shell_params.collect_only).lower()
     env_variables["REMOVE_ARM_PACKAGES"] = str(exec_shell_params.remove_arm_packages).lower()
-    env_variables["SUSPENDED_PROVIDERS_FOLDERS"] = " ".join(get_suspended_providers_folders()).strip()
+    env_variables["SUSPENDED_PROVIDERS_FOLDERS"] = " ".join(get_suspended_provider_folders()).strip()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
@@ -592,6 +593,7 @@ def _run_test_command(
         parallel_test_types_list=test_list,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
     if run_in_parallel:
@@ -695,6 +697,7 @@ def integration_tests(
         github_repository=github_repository,
         enable_coverage=enable_coverage,
     )
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
     returncode, _ = _run_test(
@@ -752,6 +755,7 @@ def helm_tests(
     if helm_test_package != "all":
         env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     pytest_args = generate_args_for_pytest(
         test_type="Helm",
@@ -769,4 +773,5 @@ def helm_tests(
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
+    fix_ownership_using_docker()
     sys.exit(result.returncode)

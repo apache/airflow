@@ -214,7 +214,7 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(app, self)
+        auth_manager = init_auth_manager(self)
         self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()
@@ -566,6 +566,8 @@ class AirflowAppBuilder:
             This deletes any permission that is no longer part of any registered
             view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:

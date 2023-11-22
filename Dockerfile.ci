@@ -57,7 +57,7 @@ function get_dev_apt_deps() {
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
+libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
@@ -83,7 +83,7 @@ function get_runtime_apt_deps() {
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
 curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
-ldap-utils libsasl2-2 libsasl2-modules locales ${debian_version_apt_deps} \
+ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
     fi
@@ -569,7 +569,7 @@ function install_pipx_tools() {
     echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
     echo
     # Make sure PIPX is installed in latest version
-    pip install --root-user-action ignore  --upgrade pipx
+    pip install --root-user-action ignore  --upgrade "pipx>=1.2.1"
     if [[ $(uname -m) != "aarch64" ]]; then
         # Do not install mssql-cli for ARM
         # Install all the tools we need available in command line but without impacting the current environment
@@ -997,8 +997,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
-
-    in_container_fix_ownership
 
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
         # Set up ssh keys

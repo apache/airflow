@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.io.store.path import ObjectStoragePath
+from airflow.io.path import ObjectStoragePath
 from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
@@ -68,12 +68,12 @@ class FileTransferOperator(BaseOperator):
         dst: ObjectStoragePath
 
         if isinstance(self.src, str):
-            src = ObjectStoragePath(self.src, self.source_conn_id)
+            src = ObjectStoragePath(self.src, conn_id=self.source_conn_id)
         else:
             src = self.src
 
         if isinstance(self.dst, str):
-            dst = ObjectStoragePath(self.dst, self.dst_conn_id)
+            dst = ObjectStoragePath(self.dst, conn_id=self.dst_conn_id)
         else:
             dst = self.dst
 

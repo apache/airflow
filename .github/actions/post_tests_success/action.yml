@@ -40,6 +40,3 @@ runs:
         name: coverage-${{env.JOB_ID}}
         flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}
         directory: "./files/coverage-reposts/"
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership

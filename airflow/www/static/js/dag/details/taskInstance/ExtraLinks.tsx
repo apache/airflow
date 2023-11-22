@@ -28,6 +28,7 @@ interface Props {
   executionDate: string;
   mapIndex?: number | undefined;
   extraLinks: string[];
+  tryNumber?: number | undefined;
 }
 
 const ExtraLinks = ({
@@ -36,6 +37,7 @@ const ExtraLinks = ({
   executionDate,
   mapIndex,
   extraLinks,
+  tryNumber,
 }: Props) => {
   const { data: links } = useExtraLinks({
     dagId,
@@ -43,6 +45,7 @@ const ExtraLinks = ({
     executionDate,
     mapIndex,
     extraLinks,
+    tryNumber,
   });
 
   if (!links?.length) return null;

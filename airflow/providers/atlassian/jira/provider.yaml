@@ -22,6 +22,7 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 suspended: false
+source-date-epoch: 1700148055
 versions:
   - 2.2.0
   - 2.1.1
@@ -59,3 +60,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.atlassian.jira.hooks.jira.JiraHook
     connection-type: jira
+
+notifications:
+  - airflow.providers.atlassian.jira.notifications.jira.JiraNotifier

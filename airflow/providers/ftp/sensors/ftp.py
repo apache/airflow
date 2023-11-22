@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import ftplib
+import ftplib  # nosec: B402
 import re
 from typing import TYPE_CHECKING, Sequence
 

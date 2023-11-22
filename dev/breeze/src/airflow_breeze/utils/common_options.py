@@ -45,11 +45,9 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
-    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
-    get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -62,6 +60,7 @@ from airflow_breeze.utils.custom_param_types import (
     UseAirflowVersionType,
     VerboseOption,
 )
+from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
@@ -294,8 +293,8 @@ option_upgrade_on_failure = click.option(
     help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
     envvar="UPGRADE_ON_FAILURE",
 )
-option_additional_extras = click.option(
-    "--additional-extras",
+option_additional_airflow_extras = click.option(
+    "--additional-airflow-extras",
     help="Additional extra package while installing Airflow in the image.",
     envvar="ADDITIONAL_AIRFLOW_EXTRAS",
 )
@@ -414,7 +413,13 @@ option_load_default_connection = click.option(
 option_version_suffix_for_pypi = click.option(
     "--version-suffix-for-pypi",
     help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
-    default="",
+    envvar="VERSION_SUFFIX_FOR_PYPI",
+)
+option_version_suffix_for_pypi_ci = click.option(
+    "--version-suffix-for-pypi",
+    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
+    default="dev0",
+    show_default=True,
     envvar="VERSION_SUFFIX_FOR_PYPI",
 )
 option_package_format = click.option(
@@ -454,25 +459,18 @@ option_parallelism = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
-argument_packages = click.argument(
-    "packages",
+argument_provider_packages = click.argument(
+    "provider_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=NotVerifiedBetterChoice(get_available_packages()),
 )
-argument_short_doc_packages = click.argument(
-    "short_doc_packages",
+argument_doc_packages = click.argument(
+    "doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
-)
-
-argument_short_doc_packages_with_providers_index = click.argument(
-    "short_doc_packages",
-    nargs=-1,
-    required=False,
-    type=BetterChoice(
-        ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
+    type=NotVerifiedBetterChoice(
+        get_available_packages(include_non_provider_doc_packages=True, include_all_providers=True)
     ),
 )
 
@@ -486,7 +484,6 @@ option_airflow_constraints_reference = click.option(
 option_airflow_constraints_location = click.option(
     "--airflow-constraints-location",
     type=str,
-    default="",
     help="If specified, it is used instead of calculating reference to the constraint file. "
     "It could be full remote URL to the location file, or local file placed in `docker-context-files` "
     "(in this case it has to start with /opt/airflow/docker-context-files).",
@@ -623,7 +620,6 @@ option_historical_python_version = click.option(
 )
 option_commit_sha = click.option(
     "--commit-sha",
-    default=None,
     show_default=True,
     envvar="COMMIT_SHA",
     help="Commit SHA that is used to build the images.",
