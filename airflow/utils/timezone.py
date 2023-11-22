@@ -28,12 +28,10 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 
-# UTC time zone as a Timezone instance (subclass of tzinfo)
-# This type uses for compatibility between pendulum v2 and v3
-# - in pendulum 2.x ``pendulum.tz.timezone`` returns FixedTimezone
-# - in pendulum 3.x ``pendulum.timezone`` returns Timezone
-# Same is valid for pendulum.tz.UTC
-utc = Timezone("UTC")
+# UTC time zone as a FixedTimezone instance (subclass of tzinfo)
+# This type uses for compatibility with type provided by pendulum 2.x,
+#  some of the components might not work correctly with `pendulum.tz.timezone.Timezone` in pendulum 2.x
+utc = FixedTimezone(offset=0, name="UTC")
 
 
 def is_localized(value):
