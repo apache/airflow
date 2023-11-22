@@ -486,7 +486,7 @@ class Connection(Base, LoggingMixin):
         Convert Connection to json-serializable dictionary.
 
         :param prune_empty: Whether or not remove empty values.
-        :param validate: Validate is dictionary is JSON-serializable
+        :param validate: Validate dictionary is JSON-serializable
 
         :meta private:
         """

@@ -90,7 +90,7 @@ convenience property :py:meth:`~airflow.models.connection.Connection.as_json`. I
     >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.as_json()}'")
     AIRFLOW_CONN_SOME_CONN='{"conn_type": "mysql", "description": "connection description", "host": "myhost.com", "login": "myname", "password": "mypassword", "extra": {"this_param": "some val", "that_param": "other val*"}}'
 
-In additional same approach could be use for convert from URI Connection format to JSON
+In addition, same approach could be used to convert Connection from URI format to JSON format
 
 .. code-block:: pycon
 
