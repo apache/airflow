@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Flex,
   Button,
@@ -62,10 +62,20 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
 
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+
+  useEffect(() => {
+    const storedValue = localStorage.getItem("doNotShowAgain");
+    if (storedValue) {
+      setDoNotShowAgain(JSON.parse(storedValue));
+    }
+  }, []);
+
   const confirmAction = () => {
+    localStorage.setItem("doNotShowAgain", JSON.stringify(doNotShowAgain));
     clearExistingTasks();
     setShowConfirmationModal(false);
   };
+
   useKeysPress(keyboardShortcutIdentifier.dagRunClear, () => {
     if (!doNotShowAgain) {
       setShowConfirmationModal(true);
