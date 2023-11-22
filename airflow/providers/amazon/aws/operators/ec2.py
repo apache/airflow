@@ -324,7 +324,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EC2HibernateInstanceOperator`
 
-    :param instance_ids: ID of the instance to be terminated.
+    :param instance_ids: ID of the instance(s) to be terminated.
     :param aws_conn_id: AWS connection to use
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
