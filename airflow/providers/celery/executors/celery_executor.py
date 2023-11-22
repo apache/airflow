@@ -289,6 +289,10 @@ class CeleryExecutor(BaseExecutor):
                 retries = self.task_publish_retries[key]
                 if retries < self.task_publish_max_retries:
                     Stats.incr("celery.task_timeout_error")
+                    # Adding 1 second sleep time between retries will help
+                    # for any temporary connection loss during task publish.
+                    time.sleep(1)
+                    self.log.info("Retrying Task publish to message queue- sleeping for a second")
                     self.log.info(
                         "[Try %s of %s] Task Timeout Error for Task: (%s).",
                         self.task_publish_retries[key] + 1,
