@@ -93,7 +93,6 @@ services:
       - VERBOSE=${VERBOSE}
       - VERBOSE_COMMANDS=${VERBOSE_COMMANDS}
       - VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-      - WHEEL_VERSION=${WHEEL_VERSION}
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       # NOTE! Even if we are using "desktop-linux" context where "/var/run/docker.sock" is not used,

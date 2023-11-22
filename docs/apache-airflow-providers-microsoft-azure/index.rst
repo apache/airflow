@@ -66,6 +66,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -118,6 +120,7 @@ PIP package                       Version required
 ``azure-storage-file-share``
 ``azure-servicebus``              ``>=7.6.1``
 ``azure-synapse-spark``
+``azure-synapse-artifacts``       ``>=0.17.0``
 ``adal``                          ``>=1.2.7``
 ``azure-storage-file-datalake``   ``>=12.9.1``
 ``azure-kusto-data``              ``>=4.1.0``

@@ -21,6 +21,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
 from flask import g
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
@@ -67,7 +69,6 @@ from airflow.security.permissions import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
-from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = FAB_EXISTING_ROLES
@@ -75,17 +76,22 @@ EXISTING_ROLES = FAB_EXISTING_ROLES
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
 
 
-class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
+class AirflowSecurityManagerV2(LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
     """
 
     def __init__(self, appbuilder) -> None:
-        super().__init__(appbuilder=appbuilder)
+        super().__init__()
+        self.appbuilder = appbuilder
+
+        # Setup Flask-Limiter
+        self.limiter = self.create_limiter()
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
@@ -95,6 +101,20 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
                 view = getattr(self, attr, None)
                 if view and getattr(view, "datamodel", None):
                     view.datamodel = CustomSQLAInterface(view.datamodel.obj)
+
+    @staticmethod
+    def before_request():
+        """Run hook before request."""
+        g.user = get_auth_manager().get_user()
+
+    def create_limiter(self) -> Limiter:
+        limiter = Limiter(key_func=get_remote_address)
+        limiter.init_app(self.appbuilder.get_app)
+        return limiter
+
+    def register_views(self):
+        """Allow auth managers to register their own views. By default, do nothing."""
+        pass
 
     def has_access(
         self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
@@ -117,15 +137,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             user = g.user
 
         is_authorized_method = self._get_auth_manager_is_authorized_method(resource_name)
-        if is_authorized_method:
-            return is_authorized_method(action_name, resource_pk, user)
-        else:
-            # This means the page the user is trying to access is specific to the auth manager used
-            # Example: the user list view in FabAuthManager
-            action_name = ACTION_CAN_READ if action_name == ACTION_CAN_ACCESS_MENU else action_name
-            return get_auth_manager().is_authorized_custom_view(
-                fab_action_name=action_name, fab_resource_name=resource_name, user=user
-            )
+        return is_authorized_method(action_name, resource_pk, user)
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Perform the required steps when initializing airflow for standalone mode.
@@ -133,6 +145,24 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         If necessary, returns the username and password to be printed in the console for users to log in.
         """
         return None, None
+
+    def add_limit_view(self, baseview):
+        if not baseview.limits:
+            return
+
+        for limit in baseview.limits:
+            self.limiter.limit(
+                limit_value=limit.limit_value,
+                key_func=limit.key_func,
+                per_method=limit.per_method,
+                methods=limit.methods,
+                error_message=limit.error_message,
+                exempt_when=limit.exempt_when,
+                override_defaults=limit.override_defaults,
+                deduct_when=limit.deduct_when,
+                on_breach=limit.on_breach,
+                cost=limit.cost,
+            )(baseview.blueprint)
 
     @cached_property
     @provide_session
@@ -293,7 +323,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             ),
         }
 
-    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable | None:
+    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable:
         is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
         if is_authorized_method:
             return is_authorized_method
@@ -302,10 +332,34 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
-            return None
+            # This means the page the user is trying to access is specific to the auth manager used
+            # Example: the user list view in FabAuthManager
+            return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
+                fab_action_name=ACTION_CAN_READ if action == ACTION_CAN_ACCESS_MENU else action,
+                fab_resource_name=fab_resource_name,
+                user=user,
+            )
 
     def _is_authorized_category_menu(self, category: str) -> Callable:
         items = {item.name for item in self.appbuilder.menu.find(category).childs}
         return lambda action, resource_pk, user: any(
-            self._get_auth_manager_is_authorized_method(fab_resource_name=item) for item in items
+            self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
+            for item in items
         )
+
+    """
+    The following methods are specific to FAB auth manager. They still need to be "present" in the main
+    security manager class, but they do nothing.
+    """
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        pass
+
+    def add_permissions_menu(self, resource_name):
+        pass

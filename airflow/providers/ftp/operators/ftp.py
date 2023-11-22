@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import socket
-from ftplib import FTP_PORT
+from ftplib import FTP_PORT  # nosec: B402
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence

@@ -38,9 +38,9 @@ class BuildProdParams(CommonBuildParams):
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    additional_runtime_apt_command: str = ""
-    additional_runtime_apt_deps: str = ""
-    additional_runtime_apt_env: str = ""
+    additional_runtime_apt_command: str | None = None
+    additional_runtime_apt_deps: str | None = None
+    additional_runtime_apt_env: str | None = None
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
@@ -49,13 +49,13 @@ class BuildProdParams(CommonBuildParams):
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_airflow_reference: str = ""
-    install_airflow_version: str = ""
+    install_airflow_reference: str | None = None
+    install_airflow_version: str | None = None
     install_packages_from_context: bool = False
     use_constraints_for_context_packages: bool = False
     installation_method: str = "."
-    runtime_apt_command: str = ""
-    runtime_apt_deps: str = ""
+    runtime_apt_command: str | None = None
+    runtime_apt_deps: str | None = None
 
     @property
     def airflow_version(self) -> str:
@@ -110,24 +110,20 @@ class BuildProdParams(CommonBuildParams):
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
         return build_args
 
-    @property
-    def extra_docker_build_flags(self) -> list[str]:
+    def _extra_prod_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
         if self.install_airflow_reference:
-            AIRFLOW_INSTALLATION_METHOD = (
-                "https://github.com/apache/airflow/archive/"
-                + self.install_airflow_reference
-                + ".tar.gz#egg=apache-airflow"
-            )
             extra_build_flags.extend(
                 [
                     "--build-arg",
-                    AIRFLOW_INSTALLATION_METHOD,
+                    "https://github.com/apache/airflow/archive/"
+                    + self.install_airflow_reference
+                    + ".tar.gz#egg=apache-airflow",
                 ]
             )
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_airflow_version:
-            if not re.match(r"^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
+            if not re.match(r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
                 get_console().print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
@@ -175,7 +171,7 @@ class BuildProdParams(CommonBuildParams):
                 f"io.artifacthub.package.logo-url={logo_url}",
             ]
         )
-        return super().extra_docker_build_flags + extra_build_flags
+        return extra_build_flags
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
@@ -201,46 +197,45 @@ class BuildProdParams(CommonBuildParams):
     def airflow_image_kubernetes(self) -> str:
         return f"{self.airflow_image_name}-kubernetes"
 
-    @property
-    def required_image_args(self) -> list[str]:
-        return [
-            "airflow_branch",
-            "airflow_constraints_mode",
-            "airflow_extras",
-            "airflow_image_date_created",
-            "airflow_image_readme_url",
-            "airflow_image_repository",
-            "airflow_pre_cached_pip_packages",
-            "airflow_version",
-            "build_id",
-            "constraints_github_repository",
-            "docker_context_files",
-            "install_mssql_client",
-            "install_mysql_client",
-            "install_packages_from_context",
-            "install_postgres_client",
-            "install_providers_from_sources",
-            "python_base_image",
-        ]
-
-    @property
-    def optional_image_args(self) -> list[str]:
-        return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_pip_install_flags",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
-            "dev_apt_command",
-            "dev_apt_deps",
-            "runtime_apt_command",
-            "runtime_apt_deps",
-            "version_suffix_for_pypi",
-            "commit_sha",
-            "build_progress",
-            "use_constraints_for_context_packages",
-        ]
+    def prepare_arguments_for_docker_build_command(self) -> list[str]:
+        self.build_arg_values: list[str] = []
+        # Required build args
+        self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._req_arg("AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
+        self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
+        self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
+        self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
+        self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
+        self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._req_arg("AIRFLOW_VERSION", self.airflow_version)
+        self._req_arg("BUILD_ID", self.build_id)
+        self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
+        self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
+        self._req_arg("INSTALL_MSSQL_CLIENT", self.install_mssql_client)
+        self._req_arg("INSTALL_MYSQL_CLIENT", self.install_mysql_client)
+        self._req_arg("INSTALL_PACKAGES_FROM_CONTEXT", self.install_packages_from_context)
+        self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
+        self._req_arg("INSTALL_PROVIDERS_FROM_SOURCES", self.install_providers_from_sources)
+        self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        # optional build args
+        self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
+        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
+        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
+        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
+        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
+        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
+        self._opt_arg("ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command)
+        self._opt_arg("ADDITIONAL_RUNTIME_APT_DEPS", self.additional_runtime_apt_deps)
+        self._opt_arg("ADDITIONAL_RUNTIME_APT_ENV", self.additional_runtime_apt_env)
+        self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
+        self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
+        self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
+        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        self._opt_arg("COMMIT_SHA", self.commit_sha)
+        self._opt_arg("BUILD_PROGRESS", self.build_progress)
+        self._opt_arg("USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES", self.use_constraints_for_context_packages)
+        build_args = self._to_build_args()
+        build_args.extend(self._extra_prod_docker_build_flags())
+        return build_args

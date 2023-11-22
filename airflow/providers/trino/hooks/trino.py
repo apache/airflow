@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import trino
@@ -28,6 +29,7 @@ from trino.transaction import IsolationLevel
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.utils.helpers import exactly_one
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
 if TYPE_CHECKING:
@@ -99,11 +101,20 @@ class TrinoHook(DbApiHook):
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
-            if "jwt__file" in extra:
-                with open(extra.get("jwt__file")) as jwt_file:
-                    token = jwt_file.read()
+            if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
+                msg = (
+                    "When auth set to 'jwt' then expected exactly one parameter 'jwt__file' or 'jwt__token'"
+                    " in connection extra, but "
+                )
+                if jwt_file and jwt_token:
+                    msg += "provided both."
+                else:
+                    msg += "none of them provided."
+                raise ValueError(msg)
+            elif jwt_file:
+                token = Path(extra["jwt__file"]).read_text()
             else:
-                token = extra.get("jwt__token")
+                token = extra["jwt__token"]
             auth = trino.auth.JWTAuthentication(token=token)
         elif extra.get("auth") == "certs":
             auth = trino.auth.CertificateAuthentication(

@@ -61,43 +61,18 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 
 @pytest.fixture
 def auth_manager():
-    return FabAuthManager(None, None)
+    return FabAuthManager(None)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return FabAuthManager(flask_app, appbuilder)
+    return FabAuthManager(appbuilder)
 
 
 @pytest.mark.db_test
 class TestFabAuthManager:
-    @pytest.mark.parametrize(
-        "id,first_name,last_name,username,email,expected",
-        [
-            (1, "First", "Last", None, None, "1"),
-            (1, None, None, None, None, "1"),
-            (1, "First", "Last", "user", None, "user"),
-            (1, "First", "Last", "user", "email", "user"),
-            (1, None, None, None, "email", "email"),
-            (1, "First", "Last", None, "email", "email"),
-        ],
-    )
-    @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_name(
-        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
-    ):
-        user = User()
-        user.id = id
-        user.first_name = first_name
-        user.last_name = last_name
-        user.username = username
-        user.email = email
-        mock_get_user.return_value = user
-
-        assert auth_manager.get_user_name() == expected
-
     @pytest.mark.parametrize(
         "id,first_name,last_name,username,email,expected",
         [
@@ -129,15 +104,6 @@ class TestFabAuthManager:
         mock_current_user.return_value = user
 
         assert auth_manager.get_user() == user
-
-    @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_id(self, mock_get_user, auth_manager):
-        user_id = "test"
-        user = Mock()
-        user.get_id.return_value = user_id
-        mock_get_user.return_value = user
-
-        assert auth_manager.get_user_id() == user_id
 
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager):

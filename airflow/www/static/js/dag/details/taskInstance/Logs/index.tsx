@@ -22,7 +22,6 @@ import {
   Text,
   Box,
   Flex,
-  Divider,
   Button,
   Checkbox,
   Icon,
@@ -175,6 +174,22 @@ const Logs = ({
 
   return (
     <>
+      {externalLogName && externalIndexes.length > 0 && (
+        <Box my={1}>
+          <Text>View Logs in {externalLogName} (by attempts):</Text>
+          <Flex flexWrap="wrap">
+            {externalIndexes.map((index) => (
+              <LogLink
+                key={index}
+                dagId={dagId}
+                taskId={taskId}
+                executionDate={executionDate}
+                tryNumber={index}
+              />
+            ))}
+          </Flex>
+        </Box>
+      )}
       {tryNumber !== undefined && (
         <>
           <Box>
@@ -278,25 +293,6 @@ const Logs = ({
               />
             )
           )}
-        </>
-      )}
-      {externalLogName && externalIndexes.length > 0 && (
-        <>
-          <Box>
-            <Text>View Logs in {externalLogName} (by attempts):</Text>
-            <Flex flexWrap="wrap">
-              {externalIndexes.map((index) => (
-                <LogLink
-                  key={index}
-                  dagId={dagId}
-                  taskId={taskId}
-                  executionDate={executionDate}
-                  tryNumber={index}
-                />
-              ))}
-            </Flex>
-          </Box>
-          <Divider my={2} />
         </>
       )}
     </>

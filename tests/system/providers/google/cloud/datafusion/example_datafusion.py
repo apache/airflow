@@ -215,7 +215,7 @@ with DAG(
     # [END howto_cloud_data_fusion_update_instance_operator]
 
     @task(task_id="get_artifacts_versions")
-    def get_artifacts_versions(ti) -> dict:
+    def get_artifacts_versions(ti=None):
         hook = DataFusionHook()
         instance_url = ti.xcom_pull(task_ids="get_instance", key="return_value")["apiEndpoint"]
         artifacts = hook.get_instance_artifacts(instance_url=instance_url, namespace="default")
@@ -319,7 +319,7 @@ with DAG(
         # TEST BODY
         >> create_instance
         >> get_instance
-        >> get_artifacts_versions()  # type: ignore[call-arg]
+        >> get_artifacts_versions()
         >> restart_instance
         >> update_instance
         >> create_pipeline

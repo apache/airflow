@@ -419,7 +419,9 @@ class _DataflowJobsController(LoggingMixin):
                     "JOB_STATE_DRAINED while it is a batch job"
                 )
 
-        if not self._wait_until_finished and current_state == self._expected_terminal_state:
+        if current_state == self._expected_terminal_state:
+            if self._expected_terminal_state == DataflowJobStatus.JOB_STATE_RUNNING:
+                return not self._wait_until_finished
             return True
 
         if current_state in DataflowJobStatus.AWAITING_STATES:
