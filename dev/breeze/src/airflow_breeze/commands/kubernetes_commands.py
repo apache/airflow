@@ -1052,6 +1052,31 @@ def _deploy_airflow(
         multi_namespace_mode=multi_namespace_mode,
     )
     if result.returncode == 0:
+        if multi_namespace_mode:
+            # duplicate Airflow configmaps, secrets and service accounts to test namespace
+            run_command_with_k8s_env(
+                [
+                    "kubectl",
+                    "get",
+                    "configmap,secret,serviceaccount",
+                    "-n",
+                    HELM_AIRFLOW_NAMESPACE,
+                    "-o",
+                    "yaml",
+                    "|",
+                    "kubectl",
+                    "apply",
+                    "-n",
+                    TEST_NAMESPACE,
+                    "-f",
+                    "-",
+                ],
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+            )
+
         get_console(output=output).print(
             f"\n[success]Airflow for Python {python} and "
             f"K8S version {kubernetes_version} has been successfully deployed."
