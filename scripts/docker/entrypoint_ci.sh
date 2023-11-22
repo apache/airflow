@@ -359,7 +359,8 @@ if [[ -n ${USE_PENDULUM_PRERELEASE:=} ]]; then
     echo "${COLOR_BLUE}Replace pendulum by pre-release version: ${USE_PENDULUM_PRERELEASE}${COLOR_RESET}"
     echo
     pip install --root-user-action ignore "pendulum==${USE_PENDULUM_PRERELEASE}"
-    pip check
+    # We have an upper bound limitation <3, and better keep this limitation it until pendulum 3.0 officially released.
+    pip check || true
 fi
 
 # Just in case uninstall the pytest-capture-warning which we vendored-in
