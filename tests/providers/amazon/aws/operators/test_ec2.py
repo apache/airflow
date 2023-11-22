@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import pytest
-
 from moto import mock_ec2
 
 from airflow.exceptions import AirflowException
@@ -26,9 +25,9 @@ from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
     EC2HibernateInstanceOperator,
+    EC2RebootInstanceOperator,
     EC2StartInstanceOperator,
     EC2StopInstanceOperator,
-    EC2RebootInstanceOperator,
     EC2TerminateInstanceOperator,
 )
 

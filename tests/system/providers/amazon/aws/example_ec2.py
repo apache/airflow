@@ -27,9 +27,9 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
     EC2HibernateInstanceOperator,
+    EC2RebootInstanceOperator,
     EC2StartInstanceOperator,
     EC2StopInstanceOperator,
-    EC2RebootInstanceOperator,
     EC2TerminateInstanceOperator,
 )
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
