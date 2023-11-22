@@ -335,7 +335,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
         in the `stopped` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields: Sequence[str] = ("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
