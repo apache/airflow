@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-21T22:01:06Z
+# This constraints file was automatically generated on 2023-11-22T10:41:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -37,7 +37,7 @@ PyJWT==2.8.0
 PyNaCl==1.5.0
 PyYAML==6.0.1
 Pygments==2.17.2
-SQLAlchemy-JSONField==1.0.1.post0
+SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.1
 SQLAlchemy==1.4.50
 SecretStorage==3.3.3
@@ -271,7 +271,7 @@ ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.8.0
 importlib-resources==6.1.1
-impyla==0.18.0
+impyla==0.19.0
 incremental==22.10.0
 inflection==0.5.1
 influxdb-client==1.38.0
