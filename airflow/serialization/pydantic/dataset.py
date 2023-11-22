@@ -17,7 +17,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
@@ -28,11 +28,7 @@ class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
@@ -44,11 +40,7 @@ class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DatasetPydantic(BaseModelPydantic):
@@ -64,11 +56,7 @@ class DatasetPydantic(BaseModelPydantic):
     consuming_dags: List[DagScheduleDatasetReferencePydantic]
     producing_tasks: List[TaskOutletDatasetReferencePydantic]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DatasetEventPydantic(BaseModelPydantic):
@@ -84,9 +72,4 @@ class DatasetEventPydantic(BaseModelPydantic):
     timestamp: datetime
     dataset: Optional[DatasetPydantic]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

@@ -502,10 +502,7 @@ class BaseSerialization:
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
-                try:
-                    return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
-                except AttributeError:  # Pydantic 1.x compatibility.
-                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
+                return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
             if isinstance(var, Job):
                 return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)

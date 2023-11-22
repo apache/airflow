@@ -21,7 +21,13 @@ from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
 from dateutil import relativedelta
-from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
+from pydantic import (
+    BaseModel as BaseModelPydantic,
+    ConfigDict,
+    PlainSerializer,
+    PlainValidator,
+    ValidationInfo,
+)
 from typing_extensions import Annotated
 
 from airflow import DAG, settings
@@ -86,12 +92,7 @@ class DagOwnerAttributesPydantic(BaseModelPydantic):
     owner: str
     link: str
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class DagTagPydantic(BaseModelPydantic):
@@ -100,12 +101,7 @@ class DagTagPydantic(BaseModelPydantic):
     name: str
     dag_id: str
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class DagModelPydantic(BaseModelPydantic):
@@ -141,12 +137,7 @@ class DagModelPydantic(BaseModelPydantic):
 
     _processor_dags_folder: Optional[str] = None
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property
     def relative_fileloc(self) -> pathlib.Path:
