@@ -38,7 +38,7 @@ class TestKubernetesExecutor(BaseK8STest):
             dag_id=dag_id,
             task_id="start_task",
             expected_final_state="success",
-            timeout=600,
+            timeout=300,
         )
 
         self.ensure_dag_expected_state(
@@ -46,7 +46,7 @@ class TestKubernetesExecutor(BaseK8STest):
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state="success",
-            timeout=600,
+            timeout=300,
         )
 
     @pytest.mark.execution_timeout(300)
@@ -66,7 +66,7 @@ class TestKubernetesExecutor(BaseK8STest):
             dag_id=dag_id,
             task_id="start_task",
             expected_final_state="success",
-            timeout=600,
+            timeout=300,
         )
 
         self.monitor_task(
@@ -75,7 +75,7 @@ class TestKubernetesExecutor(BaseK8STest):
             dag_id=dag_id,
             task_id="other_namespace_task",
             expected_final_state="success",
-            timeout=600,
+            timeout=300,
         )
 
         self.ensure_dag_expected_state(
@@ -83,7 +83,7 @@ class TestKubernetesExecutor(BaseK8STest):
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state="success",
-            timeout=600,
+            timeout=300,
         )
 
         assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"

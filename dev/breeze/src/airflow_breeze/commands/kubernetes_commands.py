@@ -83,7 +83,7 @@ PARALLEL_PYTEST_ARGS = [
     "--timeouts-order",
     "moi",
     "--setup-timeout=300",
-    "--execution-timeout=600",
+    "--execution-timeout=300",
     "--teardown-timeout=300",
     # Only display summary for non-expected case
     # f - failed
