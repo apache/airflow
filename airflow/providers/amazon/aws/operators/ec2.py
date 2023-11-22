@@ -307,7 +307,7 @@ class EC2RebootInstanceOperator(BaseOperator):
         ec2_hook.conn.reboot_instances(InstanceIds=self.instance_ids)
 
         if self.wait_for_completion:
-            ec2_hook.get_waiter("instance_terminated").wait(
+            ec2_hook.get_waiter("instance_running").wait(
                 InstanceIds=self.instance_ids,
                 WaiterConfig={
                     "Delay": self.poll_interval,
