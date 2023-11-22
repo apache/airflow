@@ -388,35 +388,6 @@ def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParam
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> list[str]:
-    """
-    Constructs docker compose command arguments list based on parameters passed. Maps arguments to
-    argument values.
-
-    It maps:
-    * all the truthy/falsy values are converted to "true" / "false" respectively
-    * if upgrade_to_newer_dependencies is set to True, it is replaced by a random string to account
-      for the need of always triggering upgrade for docker build.
-
-    :param image_params: parameters of the image
-    :return: list of `--build-arg` commands to use for the parameters passed
-    """
-
-    args_command = []
-    for required_arg in image_params.required_image_args:
-        args_command.append("--build-arg")
-        args_command.append(
-            required_arg.upper() + "=" + get_env_variable_value(arg_name=required_arg, params=image_params)
-        )
-    for optional_arg in image_params.optional_image_args:
-        param_value = get_env_variable_value(optional_arg, params=image_params)
-        if param_value:
-            args_command.append("--build-arg")
-            args_command.append(optional_arg.upper() + "=" + param_value)
-    args_command.extend(image_params.docker_cache_directive)
-    return args_command
-
-
 def prepare_docker_build_cache_command(
     image_params: CommonBuildParams,
 ) -> list[str]:
@@ -427,16 +398,14 @@ def prepare_docker_build_cache_command(
 
     :return: Command to run as list of string
     """
-    arguments = prepare_arguments_for_docker_build_command(image_params)
-    build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
     final_command.extend(
         ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
     )
-    final_command.extend(build_flags)
+    final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
-    final_command.extend(arguments)
+    final_command.extend(image_params.prepare_arguments_for_docker_build_command())
     final_command.extend(["--target", "main", "."])
     final_command.extend(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
@@ -470,7 +439,6 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "build",
                 "--builder",
                 get_and_use_docker_context(image_params.builder),
-                "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
         )
@@ -488,17 +456,15 @@ def prepare_docker_build_command(
 
     :return: Command to run as list of string
     """
-    arguments = prepare_arguments_for_docker_build_command(image_params)
     build_command = prepare_base_build_command(
         image_params=image_params,
     )
-    build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
     final_command.extend(build_command)
-    final_command.extend(build_flags)
+    final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
-    final_command.extend(arguments)
+    final_command.extend(image_params.prepare_arguments_for_docker_build_command())
     final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
     final_command.extend(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]

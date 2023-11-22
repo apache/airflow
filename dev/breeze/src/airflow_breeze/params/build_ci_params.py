@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,7 +39,7 @@ class BuildCiParams(CommonBuildParams):
     force_build: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
-    eager_upgrade_additional_requirements: str = ""
+    eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
 
     @property
@@ -50,71 +51,51 @@ class BuildCiParams(CommonBuildParams):
         return "CI"
 
     @property
-    def extra_docker_build_flags(self) -> list[str]:
-        extra_ci_flags = []
-        extra_ci_flags.extend(
-            ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
-        )
-        if self.airflow_constraints_location:
-            extra_ci_flags.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
-            )
-        if self.upgrade_to_newer_dependencies:
-            eager_upgrade_arg = self.eager_upgrade_additional_requirements.strip().replace("\n", "")
-            if eager_upgrade_arg:
-                extra_ci_flags.extend(
-                    [
-                        "--build-arg",
-                        f"EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS={eager_upgrade_arg}",
-                    ]
-                )
-        return super().extra_docker_build_flags + extra_ci_flags
-
-    @property
     def md5sum_cache_dir(self) -> Path:
         return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
 
-    @property
-    def required_image_args(self) -> list[str]:
-        return [
-            "airflow_branch",
-            "airflow_constraints_mode",
-            "airflow_constraints_reference",
-            "airflow_extras",
-            "airflow_image_date_created",
-            "airflow_image_repository",
-            "airflow_pre_cached_pip_packages",
-            "airflow_version",
-            "build_id",
-            "constraints_github_repository",
-            "python_base_image",
-            "upgrade_to_newer_dependencies",
-        ]
-
-    @property
-    def optional_image_args(self) -> list[str]:
-        return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_pip_install_flags",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
-            "dev_apt_command",
-            "dev_apt_deps",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_airflow_extras",
-            "additional_pip_install_flags",
-            "additional_python_deps",
-            "version_suffix_for_pypi",
-            "commit_sha",
-            "build_progress",
-        ]
-
-    def __post_init__(self):
-        pass
+    def prepare_arguments_for_docker_build_command(self) -> list[str]:
+        self.build_arg_values: list[str] = []
+        # Required build args
+        self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._req_arg("AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
+        self._req_arg("AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
+        self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
+        self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
+        self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
+        self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._req_arg("AIRFLOW_VERSION", self.airflow_version)
+        self._req_arg("BUILD_ID", self.build_id)
+        self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
+        self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        if self.upgrade_to_newer_dependencies:
+            self._opt_arg("UPGRADE_TO_NEWER_DEPENDENCIES", f"{random.randrange(2**32):x}")
+            if self.eager_upgrade_additional_requirements:
+                # in case eager upgrade additional requirements have EOL, connect them together
+                self._opt_arg(
+                    "EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+                    self.eager_upgrade_additional_requirements.replace("\n", ""),
+                )
+        # optional build args
+        self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
+        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
+        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
+        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
+        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
+        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
+        self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
+        self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
+        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
+        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
+        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
+        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
+        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        self._opt_arg("COMMIT_SHA", self.commit_sha)
+        self._opt_arg("BUILD_PROGRESS", self.build_progress)
+        # Convert to build args
+        build_args = self._to_build_args()
+        # Add cache directive
+        return build_args
