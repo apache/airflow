@@ -70,7 +70,7 @@ class ObjectStoragePath(CloudPath):
 
     __version__: typing.ClassVar[int] = 1
 
-    _default_accessor = _AirflowCloudAccessor
+    _default_accessor: type[_CloudAccessor] = _AirflowCloudAccessor
 
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
