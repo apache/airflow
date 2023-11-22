@@ -273,7 +273,7 @@ class EC2RebootInstanceOperator(BaseOperator):
     :param max_attempts: Maximum number of attempts when checking state of instance.
         Only used if wait_for_completion is True. Default is 20.
     :param wait_for_completion: If True, the operator will wait for the instance to be
-        in the `terminated` state before returning.
+        in the `running` state before returning.
     """
 
     template_fields: Sequence[str] = ("instance_ids", "region_name")
