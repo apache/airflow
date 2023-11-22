@@ -279,7 +279,7 @@ class SecretsMasker(logging.Filter):
         # but it caused infinite recursion, to avoid this we mark the log as already filtered.
         except Exception as exc:
             log.warning(
-                "Unable to redact type %s, please report this via "
+                "Unable to redact value of type %s, please report this via "
                 "<https://github.com/apache/airflow/issues>. Error was: %s: %s",
                 item,
                 type(exc).__name__,
