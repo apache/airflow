@@ -250,7 +250,10 @@ def get_filesystem_type(filepath: str):
     :return: type of filesystem
     """
     # We import it locally so that click autocomplete works
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
