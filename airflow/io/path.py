@@ -44,7 +44,12 @@ PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(self, parsed_url: SplitResult | None, conn_id: str, **kwargs: typing.Any) -> None:
+    def __init__(
+        self,
+        parsed_url: SplitResult | None,
+        conn_id: str | None = None,
+        **kwargs: typing.Any,
+    ) -> None:
         if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
