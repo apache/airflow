@@ -457,7 +457,7 @@ def clean_www_assets():
     WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
     shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
     shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
-    get_console().print("[info]Cleaned www assets[/]")
+    get_console().print("[success]Cleaned www assets[/]")
 
 
 def run_compile_www_assets(

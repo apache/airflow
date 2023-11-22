@@ -23,7 +23,7 @@ from flask import Blueprint
 from flask_appbuilder import BaseView
 
 from airflow.hooks.base import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep

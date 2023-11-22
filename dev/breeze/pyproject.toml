@@ -54,7 +54,6 @@ dependencies = [
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
     "packaging>=23.2",
-    "pendulum>=2.1.2,<3",
     "pre-commit>=3.5.0",
     "psutil>=5.9.6",
     "pygithub>=2.1.1",

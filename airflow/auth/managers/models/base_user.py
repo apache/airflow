@@ -24,10 +24,13 @@ class BaseUser:
     """User model interface."""
 
     @property
-    @abstractmethod
     def is_active(self) -> bool:
-        ...
+        return True
 
     @abstractmethod
     def get_id(self) -> str:
+        ...
+
+    @abstractmethod
+    def get_name(self) -> str:
         ...
