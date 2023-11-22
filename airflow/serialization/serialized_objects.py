@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode

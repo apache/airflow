@@ -108,7 +108,6 @@ class TestProjectStructure:
             "tests/providers/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "tests/providers/daskexecutor/executors/test_dask_executor.py",
             "tests/providers/databricks/hooks/test_databricks_base.py",
-            "tests/providers/docker/test_exceptions.py",
             "tests/providers/google/cloud/fs/test_gcs.py",
             "tests/providers/google/cloud/links/test_automl.py",
             "tests/providers/google/cloud/links/test_base.py",

@@ -39,6 +39,9 @@ Airflow 2.8
 
 * 2.8.0
 
+   * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
+     image as it is required by ``python3-saml`` library.
+
    * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
      problems when building custom images. You are advised to make sure your system level dependencies are
      working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,

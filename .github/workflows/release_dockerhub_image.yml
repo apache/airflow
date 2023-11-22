@@ -150,6 +150,3 @@ jobs:
       - name: "Docker logout"
         run: docker logout
         if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()

@@ -70,6 +70,7 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
     remove_docker_networks,
@@ -592,6 +593,7 @@ def _run_test_command(
         parallel_test_types_list=test_list,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
     if run_in_parallel:
@@ -695,6 +697,7 @@ def integration_tests(
         github_repository=github_repository,
         enable_coverage=enable_coverage,
     )
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
     returncode, _ = _run_test(
@@ -752,6 +755,7 @@ def helm_tests(
     if helm_test_package != "all":
         env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     pytest_args = generate_args_for_pytest(
         test_type="Helm",
@@ -769,4 +773,5 @@ def helm_tests(
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
+    fix_ownership_using_docker()
     sys.exit(result.returncode)

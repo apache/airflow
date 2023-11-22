@@ -527,6 +527,11 @@ s3fs = [
     "s3fs>=2023.9.2",
 ]
 
+saml = [
+    # This is required for support of SAML which might be used by some providers (e.g. Amazon)
+    "python3-saml>=1.16.0",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     if provider_name not in PROVIDER_DEPENDENCIES:
@@ -554,6 +559,7 @@ devel = get_unique_dependency_list(
         pandas,
         password,
         s3fs,
+        saml,
     ]
 )
 
@@ -600,6 +606,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "password": password,
     "rabbitmq": rabbitmq,
     "s3fs": s3fs,
+    "saml": saml,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,

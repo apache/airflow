@@ -44,8 +44,6 @@ def process_summary(success_message: str, error_message: str, completed_process:
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 WWW_DIRECTORY = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 
-rich.print("[green]Installed packages\n")
-
 rich.print("[bright_blue]Cleaning build directories\n")
 
 for egg_info_file in AIRFLOW_SOURCES_ROOT.glob("*egg-info*"):
@@ -53,7 +51,7 @@ for egg_info_file in AIRFLOW_SOURCES_ROOT.glob("*egg-info*"):
 
 rmtree(AIRFLOW_SOURCES_ROOT / "build", ignore_errors=True)
 
-rich.print("[bright_blue]Cleaned build directories\n")
+rich.print("[green]Cleaned build directories\n\n")
 
 version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI", "")
 package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
@@ -76,7 +74,7 @@ subprocess.run(
     check=True,
 )
 
-rich.print(f"[bright_blue]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
+rich.print(f"[green]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
 
 rich.print("[bright_blue]Checking airflow version\n")
 
@@ -84,7 +82,7 @@ airflow_version = subprocess.check_output(
     [sys.executable, "setup.py", "--version"], text=True, cwd=AIRFLOW_SOURCES_ROOT
 ).strip()
 
-rich.print(f"[bright_blue]Airflow version: {airflow_version}\n")
+rich.print(f"[green]Airflow version: {airflow_version}\n")
 
 RELEASED_VERSION_MATCHER = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -92,7 +90,7 @@ command = [sys.executable, "setup.py"]
 
 if version_suffix:
     if RELEASED_VERSION_MATCHER.match(airflow_version):
-        rich.print(f"[bright_blue]Adding {version_suffix} suffix to the {airflow_version}")
+        rich.print(f"[warning]Adding {version_suffix} suffix to the {airflow_version}")
         command.extend(["egg_info", "--tag-build", version_suffix])
     elif not airflow_version.endswith(version_suffix):
         rich.print(f"[red]Version {airflow_version} does not end with {version_suffix}. Using !")
@@ -112,7 +110,7 @@ process_summary("Airflow packages built successfully", "Error building Airflow p
 if os.environ.get("GITHUB_ACTIONS", "") != "":
     print("::endgroup::")
 
-rich.print("[bright_blue]Packages built successfully:\n")
+rich.print("[green]Packages built successfully:\n")
 for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache*"):
     rich.print(file.name)
 rich.print()

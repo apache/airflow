@@ -96,6 +96,7 @@ from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
+    fix_ownership_using_docker,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
@@ -220,6 +221,7 @@ NODE_BUILD_IMAGE_TAG = "node:21.2.0-bookworm-slim"
 
 def _compile_assets_in_docker():
     clean_www_assets()
+    get_console().print("[info]Compiling assets in docker container\n")
     result = run_command(
         [
             "docker",
@@ -242,7 +244,13 @@ def _compile_assets_in_docker():
         get_console().print("[error]Error compiling assets[/]")
         get_console().print(result.stdout)
         get_console().print(result.stderr)
+        fix_ownership_using_docker()
         sys.exit(result.returncode)
+
+    get_console().print("[success]compiled assets in docker container\n")
+    get_console().print("[info]Fixing ownership of compiled assets\n")
+    fix_ownership_using_docker()
+    get_console().print("[success]Fixing ownership of compiled assets\n")
 
 
 @release_management.command(
@@ -267,6 +275,7 @@ def prepare_airflow_packages(
     use_container_for_assets_compilation: bool,
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     get_console().print("[info]Compiling assets\n")
     from sys import platform
@@ -303,6 +312,9 @@ def prepare_airflow_packages(
         check=True,
     )
     get_console().print("[success]Successfully prepared Airflow package!\n\n")
+    get_console().print("\n[info]Cleaning ownership of generated files\n")
+    fix_ownership_using_docker()
+    get_console().print("\n[success]Cleaned ownership of generated files\n")
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -371,6 +383,8 @@ def prepare_provider_documentation(
         update_release_notes,
     )
 
+    perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if not provider_packages:
         provider_packages = get_available_packages()
@@ -516,6 +530,7 @@ def prepare_provider_packages(
     provider_packages: tuple[str, ...],
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     packages_list = get_packages_list_to_act_on(package_list_file, provider_packages)
     if not skip_tag_check:
@@ -601,6 +616,7 @@ def run_generate_constraints(
         output=output,
         output_outside_the_group=True,
     )
+    fix_ownership_using_docker()
     return (
         generate_constraints_result.returncode,
         f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
@@ -687,6 +703,7 @@ def generate_constraints(
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
@@ -854,6 +871,7 @@ def install_provider_packages(
     include_success_outputs: bool,
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
@@ -944,6 +962,7 @@ def install_provider_packages(
             debug=debug,
             output_outside_the_group=True,
         )
+        fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
 
@@ -977,6 +996,7 @@ def verify_provider_packages(
         get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
         use_packages_from_dist = True
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
@@ -1000,6 +1020,7 @@ def verify_provider_packages(
         debug=debug,
         output_outside_the_group=True,
     )
+    fix_ownership_using_docker()
     sys.exit(result_command.returncode)
 
 

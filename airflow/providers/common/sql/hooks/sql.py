@@ -34,12 +34,10 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from packaging.version import Version
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.version import version
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -120,21 +118,7 @@ class ConnectorProtocol(Protocol):
         """
 
 
-# In case we are running it on Airflow 2.4+, we should use BaseHook, but on Airflow 2.3 and below
-# We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
-# SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
-# accept the new Hooks as not derived from the original DbApiHook
-if Version(version) < Version("2.4"):
-    try:
-        from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
-    except ImportError:
-        # just in case we have a problem with circular import
-        BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
-else:
-    BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
-
-
-class DbApiHook(BaseForDbApiHook):
+class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
 
