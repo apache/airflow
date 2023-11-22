@@ -259,7 +259,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
 
 class EC2RebootInstanceOperator(BaseOperator):
     """
-    Reboot AWS EC2 instance using boto3.
+    Reboot Amazon EC2 instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
