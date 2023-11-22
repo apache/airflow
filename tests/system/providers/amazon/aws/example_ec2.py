@@ -180,8 +180,8 @@ with DAG(
         stop_instance,
         start_instance,
         await_instance,
-        hibernate_instance,
         reboot_instance,
+        hibernate_instance,
         terminate_instance,
         # TEST TEARDOWN
         delete_key_pair(key_name),
