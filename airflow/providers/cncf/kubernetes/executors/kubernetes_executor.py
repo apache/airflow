@@ -559,7 +559,6 @@ class KubernetesExecutor(BaseExecutor):
                 pod_list = self._list_pods(query_kwargs)
                 for pod in pod_list:
                     self.adopt_launched_task(kube_client, pod, tis_to_flush_by_key)
-            self._adopt_completed_pods(kube_client)
             tis_to_flush.extend(tis_to_flush_by_key.values())
             return tis_to_flush
 
@@ -641,39 +640,6 @@ class KubernetesExecutor(BaseExecutor):
 
         del tis_to_flush_by_key[ti_key]
         self.running.add(ti_key)
-
-    def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
-        """
-        Patch completed pods so that the KubernetesJobWatcher can delete them.
-
-        :param kube_client: kubernetes client for speaking to kube API
-        """
-        if TYPE_CHECKING:
-            assert self.scheduler_job_id
-
-        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
-        query_kwargs = {
-            "field_selector": "status.phase=Succeeded",
-            "label_selector": (
-                "kubernetes_executor=True,"
-                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
-            ),
-        }
-        pod_list = self._list_pods(query_kwargs)
-        for pod in pod_list:
-            self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            from kubernetes.client.rest import ApiException
-
-            try:
-                kube_client.patch_namespaced_pod(
-                    name=pod.metadata.name,
-                    namespace=pod.metadata.namespace,
-                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
-                )
-            except ApiException as e:
-                self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
-            ti_id = annotations_to_key(pod.metadata.annotations)
-            self.running.add(ti_id)
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:

@@ -724,10 +724,7 @@ class TestKubernetesExecutor:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task"
     )
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
-    )
-    def test_try_adopt_task_instances(self, mock_adopt_completed_pods, mock_adopt_launched_task):
+    def test_try_adopt_task_instances(self, mock_adopt_launched_task):
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "10"
         ti_key = annotations_to_key(
@@ -752,13 +749,11 @@ class TestKubernetesExecutor:
             label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
-        mock_adopt_completed_pods.assert_called_once()
         assert reset_tis == [mock_ti]  # assume failure adopting when checking return
 
         # Second adoption (queued_by_job_id and external_executor_id no longer match)
         mock_kube_client.reset_mock()
         mock_adopt_launched_task.reset_mock()
-        mock_adopt_completed_pods.reset_mock()
 
         mock_ti.queued_by_job_id = "10"  # scheduler_job would have updated this after the first adoption
         executor.scheduler_job_id = "20"
@@ -774,13 +769,9 @@ class TestKubernetesExecutor:
             label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
-        mock_adopt_completed_pods.assert_called_once()
         assert reset_tis == []  # This time our return is empty - no TIs to reset
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
-    )
-    def test_try_adopt_task_instances_multiple_scheduler_ids(self, mock_adopt_completed_pods):
+    def test_try_adopt_task_instances_multiple_scheduler_ids(self):
         """We try to find pods only once per scheduler id"""
         executor = self.kubernetes_executor
         mock_kube_client = mock.MagicMock()
@@ -813,12 +804,7 @@ class TestKubernetesExecutor:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task"
     )
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
-    )
-    def test_try_adopt_task_instances_no_matching_pods(
-        self, mock_adopt_completed_pods, mock_adopt_launched_task
-    ):
+    def test_try_adopt_task_instances_no_matching_pods(self, mock_adopt_launched_task):
         executor = self.kubernetes_executor
         mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", dag_id="dag", task_id="task")
         mock_kube_client = mock.MagicMock()
@@ -828,7 +814,6 @@ class TestKubernetesExecutor:
         tis_to_flush = executor.try_adopt_task_instances([mock_ti])
         assert tis_to_flush == [mock_ti]
         mock_adopt_launched_task.assert_not_called()
-        mock_adopt_completed_pods.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_adopt_launched_task(self, mock_kube_client):
@@ -879,56 +864,6 @@ class TestKubernetesExecutor:
         )
         assert tis_to_flush_by_key == {ti_key: {}}
         assert executor.running == set()
-
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_adopt_completed_pods(self, mock_kube_client):
-        """We should adopt all completed pods from other schedulers"""
-        executor = self.kubernetes_executor
-        executor.scheduler_job_id = "modified"
-        executor.kube_client = mock_kube_client
-        executor.kube_config.kube_namespace = "somens"
-        pod_names = ["one", "two"]
-
-        def get_annotations(pod_name):
-            return {
-                "dag_id": "dag",
-                "run_id": "run_id",
-                "task_id": pod_name,
-                "try_number": "1",
-            }
-
-        mock_kube_client.list_namespaced_pod.return_value.items = [
-            k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(
-                    name=pod_name,
-                    labels={"airflow-worker": pod_name},
-                    annotations=get_annotations(pod_name),
-                    namespace="somens",
-                )
-            )
-            for pod_name in pod_names
-        ]
-        expected_running_ti_keys = {annotations_to_key(get_annotations(pod_name)) for pod_name in pod_names}
-
-        executor._adopt_completed_pods(mock_kube_client)
-        mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="somens",
-            field_selector="status.phase=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
-        )
-        assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
-        mock_kube_client.patch_namespaced_pod.assert_has_calls(
-            [
-                mock.call(
-                    body={"metadata": {"labels": {"airflow-worker": "modified"}}},
-                    name=pod_name,
-                    namespace="somens",
-                )
-                for pod_name in pod_names
-            ],
-            any_order=True,
-        )
-        assert executor.running == expected_running_ti_keys
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
