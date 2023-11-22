@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-22T14:59:06Z
+# This constraints file was automatically generated on 2023-11-22T19:18:54Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -232,7 +232,7 @@ cachelib==0.9.0
 cachetools==5.3.2
 cassandra-driver==3.28.0
 cattrs==23.2.2
-celery==5.3.5
+celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
@@ -421,7 +421,7 @@ linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==23.16.0
+looker-sdk==23.18.0
 lxml==4.9.3
 lz4==4.3.2
 markdown-it-py==3.0.0
