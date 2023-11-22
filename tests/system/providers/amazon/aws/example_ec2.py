@@ -148,7 +148,7 @@ with DAG(
     # [START howto_operator_ec2_reboot_instance]
     reboot_instance = EC2RebootInstanceOperator(
         task_id="reboot_instace",
-        instance_id=instance_id,
+        instance_ids=instance_id,
     )
     # [END howto_operator_ec2_reboot_instance]
     reboot_instance.trigger_rule = TriggerRule.ALL_DONE
@@ -156,7 +156,7 @@ with DAG(
     # [START howto_operator_ec2_hibernate_instance]
     hibernate_instance = EC2HibernateInstanceOperator(
         task_id="hibernate_instace",
-        instance_id=instance_id,
+        instance_ids=instance_id,
     )
     # [END howto_operator_ec2_hibernate_instance]
     hibernate_instance.trigger_rule = TriggerRule.ALL_DONE
