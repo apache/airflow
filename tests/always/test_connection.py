@@ -834,8 +834,8 @@ class TestConnection:
             ),
         ],
     )
-    def test_json_repr_from_connection(self, conn: Connection, expected_json):
-        result = conn.json_repr
+    def test_as_json_from_connection(self, conn: Connection, expected_json):
+        result = conn.as_json()
         assert result == expected_json
         restored_conn = Connection.from_json(result)
 

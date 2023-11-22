@@ -73,7 +73,7 @@ Generating a JSON connection representation
 
 
 To make connection JSON generation easier, the :py:class:`~airflow.models.connection.Connection` class has a
-convenience property :py:attr:`~airflow.models.connection.Connection.json_repr`. It can be used like so:
+convenience property :py:meth:`~airflow.models.connection.Connection.as_json`. It can be used like so:
 
 .. code-block:: pycon
 
@@ -87,7 +87,7 @@ convenience property :py:attr:`~airflow.models.connection.Connection.json_repr`.
     ...     password="mypassword",
     ...     extra={"this_param": "some val", "that_param": "other val*"},
     ... )
-    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.json_repr}'")
+    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.as_json()}'")
     AIRFLOW_CONN_SOME_CONN='{"conn_type": "mysql", "description": "connection description", "host": "myhost.com", "login": "myname", "password": "mypassword", "extra": {"this_param": "some val", "that_param": "other val*"}}'
 
 In additional same approach could be use for convert from URI Connection format to JSON
@@ -100,7 +100,7 @@ In additional same approach could be use for convert from URI Connection format 
     ...     description="Example Connection",
     ...     uri="aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?__extra__=%7B%22region_name%22%3A+%22eu-central-1%22%2C+%22config_kwargs%22%3A+%7B%22retries%22%3A+%7B%22mode%22%3A+%22standard%22%2C+%22max_attempts%22%3A+10%7D%7D%7D",
     ... )
-    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.json_repr}'")
+    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.as_json()}'")
     AIRFLOW_CONN_AWESOME_CONN='{"conn_type": "aws", "description": "Example Connection", "host": "", "login": "AKIAIOSFODNN7EXAMPLE", "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "schema": "", "extra": {"region_name": "eu-central-1", "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}}}}'
 
 

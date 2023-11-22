@@ -526,9 +526,8 @@ class Connection(Base, LoggingMixin):
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
         return Connection(conn_id=conn_id, **kwargs)
 
-    @property
-    def json_repr(self) -> str:
-        """JSON-string representation of Connection."""
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
         conn = self.to_json_dict(prune_empty=True, validate=False)
         conn.pop("conn_id", None)
         return json.dumps(conn)
