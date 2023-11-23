@@ -39,7 +39,6 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install Breeze"
         run: pip install --user "pipx>=1.2.1"
-             pipx ensurepath
       - name: "Install Breeze"
         run: pwd
              pipx install -e ./dev/breeze 
