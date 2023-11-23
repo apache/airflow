@@ -30,9 +30,9 @@ pytestmark = pytest.mark.db_test
 class TestBasicAuth:
     @pytest.fixture(autouse=True)
     def set_attrs(self, minimal_app_for_experimental_api):
-        self.app = minimal_app_for_experimental_api
+        self.connexion_app = minimal_app_for_experimental_api
 
-        self.appbuilder = self.app.appbuilder
+        self.appbuilder = self.connexion_app.app.appbuilder
         role_admin = self.appbuilder.sm.find_role("Admin")
         tester = self.appbuilder.sm.find_user(username="test")
         if not tester:
@@ -49,7 +49,7 @@ class TestBasicAuth:
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
-        with self.app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             with pytest.warns(RemovedInAirflow3Warning, match=r"Use Pool.get_pools\(\) instead"):
                 # Experimental client itself deprecated, no reason to change to actual methods
                 # It should be removed in the same time: Airflow 3.0
@@ -72,7 +72,7 @@ class TestBasicAuth:
         ],
     )
     def test_malformed_headers(self, token):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"
@@ -87,14 +87,14 @@ class TestBasicAuth:
         ],
     )
     def test_invalid_auth_header(self, token):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_experimental_api(self):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": "Basic"})
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"

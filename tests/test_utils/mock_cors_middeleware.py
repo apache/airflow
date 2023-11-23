@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,25 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import connexion
 
-from tests.test_utils.config import conf_vars
-
-pytestmark = pytest.mark.db_test
+from airflow.configuration import conf
 
 
-def test_robots(viewer_client):
-    resp = viewer_client.get("/robots.txt", follow_redirects=True)
-    assert resp.text == "User-agent: *\nDisallow: /\n"
+def init_mock_cors_middleware(connexion_app: connexion.FlaskApp, allow_origins: list):
+    from starlette.middleware.cors import CORSMiddleware
 
-
-def test_deployment_warning_config(admin_client):
-    warn_text = "webserver.warn_deployment_exposure"
-    admin_client.get("/robots.txt", follow_redirects=True)
-    resp = admin_client.get("", follow_redirects=True)
-    assert warn_text in resp.text
-
-    with conf_vars({("webserver", "warn_deployment_exposure"): "False"}):
-        admin_client.get("/robots.txt", follow_redirects=True)
-        resp = admin_client.get("/robots.txt", follow_redirects=True)
-        assert warn_text not in resp.text
+    connexion_app.add_middleware(
+        CORSMiddleware,
+        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
+        allow_origins=allow_origins,
+        allow_credentials=True,
+        allow_methods=conf.get("api", "access_control_allow_methods"),
+        allow_headers=conf.get("api", "access_control_allow_headers"),
+    )

@@ -19,7 +19,8 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Sequence
 
-from flask import Response, current_app
+from connexion import NoContent
+from flask import current_app
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy import exc, select
 
@@ -39,7 +40,9 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("PUT")
 @provide_session
-def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Response:
+def reparse_dag_file(
+    *, file_token: str, session: Session = NEW_SESSION
+) -> tuple[str | NoContent, HTTPStatus]:
     """Request re-parsing a DAG file."""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
@@ -65,5 +68,5 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
         session.commit()
     except exc.IntegrityError:
         session.rollback()
-        return Response("Duplicate request", HTTPStatus.CREATED)
-    return Response(status=HTTPStatus.CREATED)
+        return "Duplicate request", HTTPStatus.CREATED
+    return NoContent, HTTPStatus.CREATED

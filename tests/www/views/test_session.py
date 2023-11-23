@@ -29,7 +29,7 @@ pytestmark = pytest.mark.db_test
 
 
 def get_session_cookie(client):
-    return next((cookie for cookie in client.cookie_jar if cookie.name == "session"), None)
+    return next((cookie for cookie in client.cookies.jar if cookie.name == "session"), None)
 
 
 def test_session_cookie_created_on_login(user_client):
@@ -40,13 +40,25 @@ def test_session_inaccessible_after_logout(user_client):
     session_cookie = get_session_cookie(user_client)
     assert session_cookie is not None
 
-    resp = user_client.post("/logout/")
-    assert resp.status_code == 302
+    # correctly logs in
+    resp = user_client.get("/home")
+    assert resp.status_code == 200
+    assert resp.url.raw_path == b"/home"
 
-    # Try to access /home with the session cookie from earlier
-    user_client.set_cookie("session", session_cookie.value)
-    user_client.get("/home/")
-    assert resp.status_code == 302
+    # Same with cookies overwritten
+    user_client.get("/home", cookies={"session": session_cookie.value})
+    assert resp.status_code == 200
+    assert resp.url.raw_path == b"/home"
+
+    # logs out
+    resp = user_client.post("/logout/")
+    assert resp.status_code == 200
+    assert resp.url.raw_path == b"/login/?next=http://testserver/home"
+
+    # Try to access /home with the session cookie from earlier call
+    user_client.get("/home", cookies={"session": session_cookie.value})
+    assert resp.status_code == 200
+    assert resp.url.raw_path == b"/login/?next=http://testserver/home"
 
 
 def test_invalid_session_backend_option():
@@ -64,7 +76,7 @@ def test_invalid_session_backend_option():
     )
     def poorly_configured_app_factory():
         with conf_vars({("webserver", "session_backend"): "invalid_value_for_session_backend"}):
-            return app.create_app(testing=True)
+            return app.create_connexion_app(testing=True)
 
     expected_exc_regex = (
         "^Unrecognized session backend specified in web_server_session_backend: "
@@ -78,14 +90,16 @@ def test_session_id_rotates(app, user_client):
     old_session_cookie = get_session_cookie(user_client)
     assert old_session_cookie is not None
 
-    resp = user_client.post("/logout/")
-    assert resp.status_code == 302
+    resp = user_client.post("/logout/", follow_redirects=True)
+    assert resp.status_code == 200
 
     patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
-        resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})
-    assert resp.status_code == 302
+        resp = user_client.post(
+            "/login/", data={"username": "test_user", "password": "test_user"}, follow_redirects=True
+        )
+    assert resp.status_code == 200
 
     new_session_cookie = get_session_cookie(user_client)
     assert new_session_cookie is not None
@@ -93,17 +107,16 @@ def test_session_id_rotates(app, user_client):
 
 
 def test_check_active_user(app, user_client):
-    user = app.appbuilder.sm.find_user(username="test_user")
+    user = app.app.appbuilder.sm.find_user(username="test_user")
     user.active = False
     resp = user_client.get("/home")
-    assert resp.status_code == 302
-    assert "/login/?next=http%3A%2F%2Flocalhost%2Fhome" in resp.headers.get("Location")
+    assert resp.url.raw_path == b"/home"
 
 
-def test_check_deactivated_user_redirected_to_login(app, user_client):
-    with app.test_request_context():
-        user = app.appbuilder.sm.find_user(username="test_user")
+def test_check_deactivated_user_redirected_to_login(app, flask_user_client):
+    with app.app.test_request_context():
+        user = app.app.appbuilder.sm.find_user(username="test_user")
         user.active = False
-        resp = user_client.get("/home", follow_redirects=True)
+        resp = flask_user_client.get("/home", follow_redirects=True)
         assert resp.status_code == 200
         assert "/login" in resp.request.url

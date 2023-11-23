@@ -38,6 +38,6 @@ def minimal_app_for_experimental_api():
         def factory():
             # Make sure we don't issue a warning in the test summary about deprecation
             with pytest.deprecated_call():
-                return app.create_app(testing=True)  # type:ignore
+                return app.create_connexion_app(testing=True)  # type:ignore
 
         yield factory()

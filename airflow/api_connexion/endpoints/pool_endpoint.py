@@ -68,7 +68,7 @@ def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def get_pools(
     *,
-    limit: int,
+    limit: int | None = None,
     order_by: str = "id",
     offset: int | None = None,
     session: Session = NEW_SESSION,

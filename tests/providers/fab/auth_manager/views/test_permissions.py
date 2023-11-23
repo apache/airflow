@@ -32,13 +32,13 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def fab_app():
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.fixture(scope="module")
 def user_permissions_reader(fab_app):
     yield create_user(
-        fab_app,
+        fab_app.app,
         username="user_permissions",
         role_name="role_permissions",
         permissions=[
@@ -49,12 +49,12 @@ def user_permissions_reader(fab_app):
         ],
     )
 
-    delete_user(fab_app, "user_permissions")
+    delete_user(fab_app.app, "user_permissions")
 
 
 @pytest.fixture
 def client_permissions_reader(fab_app, user_permissions_reader):
-    fab_app.config["WTF_CSRF_ENABLED"] = False
+    fab_app.app.config["WTF_CSRF_ENABLED"] = False
     return client_with_login(
         fab_app,
         username="user_permissions",

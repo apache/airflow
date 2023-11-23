@@ -26,11 +26,16 @@ import pytest
 
 from airflow import settings
 from airflow.models import DagBag
-from airflow.www.app import create_app
+from airflow.www.app import create_connexion_app
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login, client_without_login, client_without_login_as_admin
+from tests.test_utils.www import (
+    client_with_login,
+    client_without_login,
+    client_without_login_as_admin,
+    flask_client_with_login,
+)
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -52,6 +57,7 @@ def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_api_connexion",
+            "init_api_error_handlers",
             "init_appbuilder",
             "init_appbuilder_links",
             "init_appbuilder_views",
@@ -64,14 +70,14 @@ def app(examples_dag_bag):
     )
     def factory():
         with conf_vars({("fab", "auth_rate_limited"): "False"}):
-            return create_app(testing=True)
+            return create_connexion_app(testing=True)
 
     app = factory()
-    app.config["WTF_CSRF_ENABLED"] = False
-    app.dag_bag = examples_dag_bag
-    app.jinja_env.undefined = jinja2.StrictUndefined
+    app.app.config["WTF_CSRF_ENABLED"] = False
+    app.app.dag_bag = examples_dag_bag
+    app.app.jinja_env.undefined = jinja2.StrictUndefined
 
-    security_manager = app.appbuilder.sm
+    security_manager = app.app.appbuilder.sm
 
     test_users = [
         {
@@ -107,12 +113,17 @@ def app(examples_dag_bag):
     yield app
 
     for user_dict in test_users:
-        delete_user(app, user_dict["username"])
+        delete_user(app.app, user_dict["username"])
 
 
 @pytest.fixture
 def admin_client(app):
     return client_with_login(app, username="test_admin", password="test_admin")
+
+
+@pytest.fixture
+def flask_admin_client(app):
+    return flask_client_with_login(app, username="test_admin", password="test_admin")
 
 
 @pytest.fixture
@@ -126,13 +137,23 @@ def user_client(app):
 
 
 @pytest.fixture
+def flask_user_client(app):
+    return flask_client_with_login(app, username="test_user", password="test_user")
+
+
+@pytest.fixture
 def anonymous_client(app):
     return client_without_login(app)
 
 
 @pytest.fixture
 def anonymous_client_as_admin(app):
-    return client_without_login_as_admin(app)
+    return client_without_login_as_admin(app.app)
+
+
+@pytest.fixture
+def admin_flask_client(app):
+    return flask_client_with_login(app, username="test_admin", password="test_admin")
 
 
 class _TemplateWithContext(NamedTuple):
@@ -198,11 +219,11 @@ def capture_templates(app):
         def record(sender, template, context, **extra):
             recorded.append(_TemplateWithContext(template, context))
 
-        flask.template_rendered.connect(record, app)  # type: ignore
+        flask.template_rendered.connect(record, app.app)  # type: ignore
         try:
             yield recorded
         finally:
-            flask.template_rendered.disconnect(record, app)  # type: ignore
+            flask.template_rendered.disconnect(record, app.app)  # type: ignore
 
         assert recorded, "Failed to catch the templates"
 

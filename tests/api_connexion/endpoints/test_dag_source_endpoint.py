@@ -24,7 +24,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -42,38 +42,38 @@ TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)],  # type: ignore
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         TEST_DAG_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         EXAMPLE_DAG_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         TEST_MULTIPLE_DAGS_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestGetSource:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
         self.clear_db()
 
     def teardown_method(self) -> None:
@@ -100,12 +100,9 @@ class TestGetSource:
         dag_docstring = self._get_dag_file_docstring(test_dag.fileloc)
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(
-            url, headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
-        )
-
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert 200 == response.status_code
-        assert dag_docstring in response.data.decode()
+        assert dag_docstring in response.text
         assert "text/plain" == response.headers["Content-Type"]
 
     def test_should_respond_200_json(self, url_safe_serializer):
@@ -115,12 +112,10 @@ class TestGetSource:
         dag_docstring = self._get_dag_file_docstring(test_dag.fileloc)
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
 
         assert 200 == response.status_code
-        assert dag_docstring in response.json["content"]
+        assert dag_docstring in response.json()["content"]
         assert "application/json" == response.headers["Content-Type"]
 
     def test_should_respond_406(self, url_safe_serializer):
@@ -129,18 +124,14 @@ class TestGetSource:
         test_dag: DAG = dagbag.dags[TEST_DAG_ID]
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(
-            url, headers={"Accept": "image/webp"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(url, headers={"Accept": "image/webp", "REMOTE_USER": "test"})
 
         assert 406 == response.status_code
 
     def test_should_respond_404(self):
         wrong_fileloc = "abcd1234"
         url = f"/api/v1/dagSources/{wrong_fileloc}"
-        response = self.client.get(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
 
         assert 404 == response.status_code
 
@@ -154,7 +145,7 @@ class TestGetSource:
             headers={"Accept": "text/plain"},
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
@@ -163,8 +154,7 @@ class TestGetSource:
 
         response = self.client.get(
             f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -175,12 +165,11 @@ class TestGetSource:
 
         response = self.client.get(
             f"/api/v1/dagSources/{url_safe_serializer.dumps(dag.fileloc)}",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         read_dag = self.client.get(
             f"/api/v1/dags/{NOT_READABLE_DAG_ID}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 403
         assert read_dag.status_code == 403
@@ -192,13 +181,12 @@ class TestGetSource:
 
         response = self.client.get(
             f"/api/v1/dagSources/{url_safe_serializer.dumps(dag.fileloc)}",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
 
         read_dag = self.client.get(
             f"/api/v1/dags/{TEST_MULTIPLE_DAGS_ID}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 403
         assert read_dag.status_code == 200

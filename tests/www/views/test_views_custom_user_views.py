@@ -28,7 +28,11 @@ from airflow import settings
 from airflow.security import permissions
 from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_role
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -67,23 +71,24 @@ class TestSecurity:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(testing=True)
-        self.appbuilder = self.app.appbuilder
-        self.app.config["WTF_CSRF_ENABLED"] = False
+        self.connexion_app = application.create_connexion_app(testing=True)
+        self.flask_app = self.connexion_app.app
+        self.appbuilder = self.flask_app.appbuilder
+        self.flask_app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
         self.delete_roles()
-        self.db = SQLA(self.app)
+        self.db = SQLA(self.flask_app)
 
-        self.client = self.app.test_client()  # type:ignore
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def delete_roles(self):
         for role_name in ["role_edit_one_dag"]:
-            delete_role(self.app, role_name)
+            delete_role(self.flask_app, role_name)
 
     @pytest.mark.parametrize("url, _, expected_text", PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_with_access(self, url, expected_text, _):
         user_without_access = create_user(
-            self.app,
+            self.flask_app,
             username="no_access",
             role_name="role_no_access",
             permissions=[
@@ -91,7 +96,7 @@ class TestSecurity:
             ],
         )
         client = client_with_login(
-            self.app,
+            self.connexion_app,
             username="no_access",
             password="no_access",
         )
@@ -101,14 +106,14 @@ class TestSecurity:
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, permission, expected_text):
         user_with_access = create_user(
-            self.app,
+            self.flask_app,
             username="has_access",
             role_name="role_has_access",
             permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE), permission],
         )
 
         client = client_with_login(
-            self.app,
+            self.connexion_app,
             username="has_access",
             password="has_access",
         )
@@ -117,22 +122,23 @@ class TestSecurity:
 
     def test_user_model_view_without_delete_access(self):
         user_to_delete = create_user(
-            self.app,
+            self.flask_app,
             username="user_to_delete",
             role_name="user_to_delete",
         )
 
         create_user(
-            self.app,
+            self.flask_app,
             username="no_access",
             role_name="role_no_access",
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
             ],
         )
 
         client = client_with_login(
-            self.app,
+            self.connexion_app,
             username="no_access",
             password="no_access",
         )
@@ -140,27 +146,29 @@ class TestSecurity:
         response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
 
         check_content_not_in_response("Deleted Row", response)
-        assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
+        response = client.get(f"/users/show/{user_to_delete.id}", follow_redirects=True)
+        assert response.status_code == 200
 
     def test_user_model_view_with_delete_access(self):
         user_to_delete = create_user(
-            self.app,
+            self.flask_app,
             username="user_to_delete",
             role_name="user_to_delete",
         )
 
         create_user(
-            self.app,
+            self.flask_app,
             username="has_access",
             role_name="role_has_access",
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
             ],
         )
 
         client = client_with_login(
-            self.app,
+            self.connexion_app,
             username="has_access",
             password="has_access",
         )
@@ -168,7 +176,8 @@ class TestSecurity:
         response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
         check_content_in_response("Deleted Row", response)
         check_content_not_in_response(user_to_delete.username, response)
-        assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
+        response = client.get(f"/users/show/{user_to_delete.id}", follow_redirects=True)
+        assert response.status_code == 404
 
 
 # type: ignore[attr-defined]
@@ -184,11 +193,12 @@ class TestResetUserSessions:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(testing=True)
-        self.appbuilder = self.app.appbuilder
-        self.app.config["WTF_CSRF_ENABLED"] = False
+        self.connexion_app = application.create_connexion_app(testing=True)
+        self.flask_app = self.connexion_app.app
+        self.appbuilder = self.flask_app.appbuilder
+        self.flask_app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
-        self.interface = self.app.session_interface
+        self.interface = self.flask_app.session_interface
         self.model = self.interface.sql_session_model
         self.serializer = self.interface.serializer
         self.db = self.interface.db
@@ -196,12 +206,12 @@ class TestResetUserSessions:
         self.db.session.commit()
         self.db.session.flush()
         self.user_1 = create_user(
-            self.app,
+            self.flask_app,
             username="user_to_delete_1",
             role_name="user_to_delete",
         )
         self.user_2 = create_user(
-            self.app,
+            self.flask_app,
             username="user_to_delete_2",
             role_name="user_to_delete",
         )
@@ -277,7 +287,7 @@ class TestResetUserSessions:
         "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
     )
     def test_warn_securecookie(self, _mock_has_context, flash_mock):
-        self.app.session_interface = SecureCookieSessionInterface()
+        self.flask_app.session_interface = SecureCookieSessionInterface()
         self.security_manager.reset_password(self.user_1.id, "new_password")
         assert flash_mock.called
         assert (
@@ -309,7 +319,7 @@ class TestResetUserSessions:
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_warn_securecookie_cli(self, log_mock):
-        self.app.session_interface = SecureCookieSessionInterface()
+        self.flask_app.session_interface = SecureCookieSessionInterface()
         self.security_manager.reset_password(self.user_1.id, "new_password")
         assert log_mock.warning.called
         assert (

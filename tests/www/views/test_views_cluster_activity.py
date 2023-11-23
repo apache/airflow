@@ -96,7 +96,9 @@ def make_dag_runs(dag_maker, session, time_machine):
 
     time_machine.move_to("2023-07-02T00:00:00+00:00", tick=False)
 
+    session.commit()
     session.flush()
+    session.close()
 
 
 @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
@@ -106,7 +108,7 @@ def test_historical_metrics_data(admin_client, session, time_machine):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
         "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 2},
         "task_instance_states": {
@@ -135,7 +137,7 @@ def test_historical_metrics_data_date_filters(admin_client, session):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
         "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 0},
         "task_instance_states": {

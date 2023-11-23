@@ -20,9 +20,8 @@ from __future__ import annotations
 import argparse
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Container
+from typing import TYPE_CHECKING, Any, Container
 
-from connexion import FlaskApi
 from flask import Blueprint, url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -83,7 +82,8 @@ from airflow.security.permissions import (
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+
+FAB_API_MOUNT_POINT = "/auth/fab/v1"
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
@@ -148,18 +148,47 @@ class FabAuthManager(BaseAuthManager):
         ]
 
     def get_api_endpoints(self) -> None | Blueprint:
+        """
+        Airflow 2.9 compatible way of initializing Auth Manager API.
+
+        This method is back-compatibility for Airflow 2.9 - this is the way API endpoints were
+        added in Connexion 2 for Airflow 2.9 and we want to keep that option to make FAB provider
+        continue working for Airflow 2.9. We should remove that method when min airflow version for
+        FAB providers is 2.10.
+        """
+        # Legacy endpoint for Airflow 2.9
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
             specification = safe_load(f)
+        from connexion import FlaskApi
+
+        # This import is only available in Airflow 2.9
+        from airflow.www.extensions.init_views import (  # type: ignore[attr-defined]
+            _CustomErrorRequestBodyValidator,
+            _LazyResolver,
+        )
+
         return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
-            base_path="/auth/fab/v1",
+            base_path=FAB_API_MOUNT_POINT,
             options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
         ).blueprint
+
+    def get_auth_manager_api_specification(self) -> tuple[str, dict[Any, Any]]:
+        """
+        Get mount point for the Auth Manager contributed API.
+
+        This method is a new method of retrieving mount point and specification
+        is used by Airflow 2.10 to register API endpoints for Auth managers.
+        """
+        folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
+        with folder.joinpath("openapi", "v1.yaml").open() as f:
+            specification = safe_load(f)
+        return FAB_API_MOUNT_POINT, specification
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""

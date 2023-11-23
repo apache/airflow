@@ -33,7 +33,7 @@ pytestmark = [
 
 @pytest.fixture
 def app():
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ class TestBasicAuth:
         mock_call.reset_mock()
 
     def test_requires_authentication_with_no_header(self, app):
-        with app.test_request_context() as mock_context:
+        with app.app.test_request_context() as mock_context:
             mock_context.request.authorization = None
             result = function_decorated()
 
@@ -87,7 +87,7 @@ class TestBasicAuth:
         user = Mock()
         mock_sm.auth_user_ldap.return_value = user
 
-        with app.test_request_context() as mock_context:
+        with app.app.test_request_context() as mock_context:
             mock_context.request.authorization = mock_authorization
             function_decorated()
 
@@ -106,7 +106,7 @@ class TestBasicAuth:
         user = Mock()
         mock_sm.auth_user_db.return_value = user
 
-        with app.test_request_context() as mock_context:
+        with app.app.test_request_context() as mock_context:
             mock_context.request.authorization = mock_authorization
             function_decorated()
 

@@ -130,6 +130,6 @@ else:
 
 if "airflow.www.app" in sys.modules:
     # Already imported, make sure we clear out any cached app
-    from airflow.www.app import purge_cached_app
+    from airflow.www.app import purge_cached_connexion_app
 
-    purge_cached_app()
+    purge_cached_connexion_app()

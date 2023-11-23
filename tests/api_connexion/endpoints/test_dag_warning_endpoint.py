@@ -24,7 +24,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.security import permissions
 from airflow.utils.session import create_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
 pytestmark = pytest.mark.db_test
@@ -32,9 +32,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -42,9 +42,9 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         ],  # type: ignore
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test_with_dag2_read",
         role_name="TestWithDag2Read",
         permissions=[
@@ -53,11 +53,11 @@ def configured_app(minimal_app_for_api):
         ],  # type: ignore
     )
 
-    yield minimal_app_for_api
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_with_dag2_read")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_with_dag2_read")  # type: ignore
 
 
 class TestBaseDagWarning:
@@ -65,8 +65,8 @@ class TestBaseDagWarning:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self) -> None:
         clear_db_dag_warnings()
@@ -95,11 +95,11 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_response_one(self):
         response = self.client.get(
             "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test"},
-            query_string={"dag_id": "dag1", "warning_type": "non-existent pool"},
+            headers={"REMOTE_USER": "test"},
+            params={"dag_id": "dag1", "warning_type": "non-existent pool"},
         )
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "dag_warnings": [
                 {
@@ -115,11 +115,11 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_response_some(self):
         response = self.client.get(
             "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test"},
-            query_string={"warning_type": "non-existent pool"},
+            headers={"REMOTE_USER": "test"},
+            params={"warning_type": "non-existent pool"},
         )
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert len(response_data["dag_warnings"]) == 2
         assert response_data == {
             "dag_warnings": ANY,
@@ -129,11 +129,11 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_response_none(self, session):
         response = self.client.get(
             "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test"},
-            query_string={"dag_id": "missing_dag"},
+            headers={"REMOTE_USER": "test"},
+            params={"dag_id": "missing_dag"},
         )
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "dag_warnings": [],
             "total_entries": 0,
@@ -142,11 +142,11 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_response_all(self):
         response = self.client.get(
             "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert len(response_data["dag_warnings"]) == 2
         assert response_data == {
             "dag_warnings": ANY,
@@ -155,19 +155,17 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/dagWarnings")
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "/api/v1/dagWarnings", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
+        response = self.client.get("/api/v1/dagWarnings", headers={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
     def test_should_raise_403_forbidden_when_user_has_no_dag_read_permission(self):
         response = self.client.get(
             "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test_with_dag2_read"},
-            query_string={"dag_id": "dag1"},
+            headers={"REMOTE_USER": "test_with_dag2_read"},
+            params={"dag_id": "dag1"},
         )
         assert response.status_code == 403
 
@@ -178,7 +176,6 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         response = self.client.get(
-            "/api/v1/dagWarnings",
-            query_string={"dag_id": "dag1", "warning_type": "non-existent pool"},
+            "/api/v1/dagWarnings?dag_id=dag1&warning_type=non-existent+pool",
         )
         assert response.status_code == expected_status_code

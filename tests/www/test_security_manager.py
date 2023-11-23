@@ -35,12 +35,12 @@ from airflow.www import app as application
 
 @pytest.fixture
 def app():
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.fixture
 def app_builder(app):
-    return app.appbuilder
+    return app.app.appbuilder
 
 
 @pytest.fixture

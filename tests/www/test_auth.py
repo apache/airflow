@@ -101,7 +101,7 @@ class TestHasAccessNoDetails:
         auth_manager.get_url_login.return_value = "login_url"
         mock_get_auth_manager.return_value = auth_manager
 
-        with app.test_request_context():
+        with app.app.test_request_context():
             result = getattr(auth, decorator_name)("GET")(self.method_test)()
 
         mock_call.assert_not_called()
@@ -171,7 +171,7 @@ class TestHasAccessWithDetails:
         setattr(auth_manager, is_authorized_method_name, is_authorized_method)
         mock_get_auth_manager.return_value = auth_manager
 
-        with app.test_request_context():
+        with app.app.test_request_context():
             result = getattr(auth, decorator_name)("GET")(self.method_test)(None, items)
 
         mock_call.assert_not_called()
@@ -215,7 +215,7 @@ class TestHasAccessDagEntities:
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
-        with app.test_request_context():
+        with app.app.test_request_context():
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()
@@ -231,7 +231,7 @@ class TestHasAccessDagEntities:
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
-        with app.test_request_context():
+        with app.app.test_request_context():
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()

@@ -94,7 +94,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
         "config_test_connection": "Disabled",
-        "openapi_spec_url": "/api/v1/openapi.yaml",
+        "openapi_spec_url": "api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
         "excluded_events_raw": "",
@@ -229,7 +229,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
 @mock.patch("airflow.www.views.url_for")
 def test_get_safe_url(mock_url_for, app, test_url, expected_url):
     mock_url_for.return_value = "/home"
-    with app.test_request_context(base_url="http://localhost:8080"):
+    with app.app.test_request_context(base_url="http://localhost:8080"):
         assert get_safe_url(test_url) == expected_url
 
 
@@ -237,7 +237,7 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
 def test_app():
     from airflow.www import app
 
-    return app.create_app(testing=True)
+    return app.create_connexion_app(testing=True)
 
 
 def test_mark_task_instance_state(test_app):
@@ -297,10 +297,10 @@ def test_mark_task_instance_state(test_app):
 
         session.commit()
 
-    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.app.dag_bag.bag_dag(dag=dag, root_dag=dag)
 
-    with test_app.test_request_context():
+    with test_app.app.test_request_context():
         view = Airflow()
 
         view._mark_task_instance_state(
@@ -399,10 +399,10 @@ def test_mark_task_group_state(test_app):
 
         session.commit()
 
-    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.app.dag_bag.bag_dag(dag=dag, root_dag=dag)
 
-    with test_app.test_request_context():
+    with test_app.app.test_request_context():
         view = Airflow()
 
         view._mark_task_group_state(
@@ -486,7 +486,9 @@ def test_get_task_stats_from_query():
     assert data == expected_data
 
 
-INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d+;")
+# After upgrading to connexion v3, test client returns JSON response instead of HTML response.
+# Returned JSON does not contain the previous pattern.
+INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: 'invalid'")
 
 
 @pytest.mark.parametrize(
@@ -525,9 +527,8 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
 def test_invalid_dates(app, admin_client, url, content):
     """Test invalid date format doesn't crash page."""
     resp = admin_client.get(url, follow_redirects=True)
-
     assert resp.status_code == 400
-    assert re.search(content, resp.get_data().decode())
+    assert re.search(content, resp.json()["detail"])
 
 
 @pytest.mark.parametrize("enabled, dags_count", [(False, 5), (True, 5)])

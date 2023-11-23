@@ -29,8 +29,8 @@ class TestGetHealthTest:
         """
         Setup For XCom endpoint TC
         """
-        self.app = minimal_app_for_api
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = minimal_app_for_api
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
     @mock.patch(
@@ -40,5 +40,5 @@ class TestGetHealthTest:
         response = self.client.get("/api/v1/version")
 
         assert 200 == response.status_code
-        assert {"git_version": "GIT_COMMIT", "version": "MOCK_VERSION"} == response.json
+        assert {"git_version": "GIT_COMMIT", "version": "MOCK_VERSION"} == response.json()
         mock_get_airflow_get_commit.assert_called_once_with()

@@ -41,7 +41,7 @@ def test_task_view_no_task_instance(admin_client):
     url = f"/task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    html = resp.data.decode("utf-8")
+    html = resp.text
     assert "<h5>No Task Instance Available</h5>" in html
     assert "<h5>Task Instance Attributes</h5>" not in html
 
@@ -50,5 +50,5 @@ def test_rendered_templates_view_no_task_instance(admin_client):
     url = f"/rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    html = resp.data.decode("utf-8")
+    html = resp.text
     assert "Rendered Template" in html

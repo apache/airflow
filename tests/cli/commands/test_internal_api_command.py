@@ -152,7 +152,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
 
     def test_cli_internal_api_debug(self, app):
         with mock.patch(
-            "airflow.cli.commands.internal_api_command.create_app", return_value=app
+            "airflow.cli.commands.internal_api_command.create_connexion_app", return_value=app
         ), mock.patch.object(app, "run") as app_run:
             args = self.parser.parse_args(
                 [
@@ -163,8 +163,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
             internal_api_command.internal_api(args)
 
             app_run.assert_called_with(
-                debug=True,
-                use_reloader=False,
+                log_level="debug",
                 port=9080,
                 host="0.0.0.0",
             )
@@ -192,7 +191,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     "--workers",
                     "4",
                     "--worker-class",
-                    "sync",
+                    "uvicorn.workers.UvicornWorker",
                     "--timeout",
                     "120",
                     "--bind",
@@ -209,7 +208,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     "python:airflow.api_internal.gunicorn_config",
                     "--access-logformat",
                     "custom_log_format",
-                    "airflow.cli.commands.internal_api_command:cached_app()",
+                    "airflow.cli.commands.internal_api_command:cached_connexion_app()",
                     "--preload",
                 ],
                 close_fds=True,

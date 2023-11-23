@@ -85,13 +85,15 @@ def test_home_dags_count(render_template_mock, admin_client, working_dags, sessi
 
     update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
     session.execute(update_stmt)
+    session.commit()
+    session.close()
 
     admin_client.get("home", follow_redirects=True)
     assert call_kwargs()["status_count_all"] == 3
 
 
-def test_home_status_filter_cookie(admin_client):
-    with admin_client:
+def test_home_status_filter_cookie(admin_flask_client):
+    with admin_flask_client as admin_client:
         admin_client.get("home", follow_redirects=True)
         assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
@@ -118,7 +120,7 @@ def test_home_status_filter_cookie(admin_client):
 def user_no_importerror(app):
     """Create User that cannot access Import Errors"""
     return create_user(
-        app,
+        app.app,
         username="user_no_importerrors",
         role_name="role_no_importerrors",
         permissions=[
@@ -142,7 +144,7 @@ def client_no_importerror(app, user_no_importerror):
 def user_single_dag(app):
     """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return create_user(
-        app,
+        app.app,
         username="user_single_dag",
         role_name="role_single_dag",
         permissions=[
@@ -167,7 +169,7 @@ def client_single_dag(app, user_single_dag):
 def user_single_dag_edit(app):
     """Create User that can edit DAG resource only a single DAG"""
     return create_user(
-        app,
+        app.app,
         username="user_single_dag_edit",
         role_name="role_single_dag",
         permissions=[
@@ -278,8 +280,8 @@ def broken_dags_after_working(tmp_path):
         _process_file(path, session)
 
 
-def test_home_filter_tags(working_dags, admin_client):
-    with admin_client:
+def test_home_filter_tags(working_dags, admin_flask_client):
+    with admin_flask_client as admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
         assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
 
@@ -451,7 +453,7 @@ def test_dashboard_flash_messages_type(user_client):
 )
 def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
     resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index

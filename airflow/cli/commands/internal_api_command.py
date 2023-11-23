@@ -28,9 +28,10 @@ from contextlib import suppress
 from pathlib import Path
 from tempfile import gettempdir
 from time import sleep
+from typing import TYPE_CHECKING
 
+import connexion
 import psutil
-from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -54,7 +55,12 @@ from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_xframe_protection
 from airflow.www.extensions.init_views import init_api_internal, init_error_handlers
 
+if TYPE_CHECKING:
+    from flask import Flask
+
+
 log = logging.getLogger(__name__)
+connexion_app: connexion.FlaskApp | None = None
 app: Flask | None = None
 
 
@@ -72,10 +78,10 @@ def internal_api(args):
 
     if args.debug:
         log.info("Starting the Internal API server on port %s and host %s.", args.port, args.hostname)
-        app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
+        app = create_connexion_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,  # nosec
-            use_reloader=not app.config["TESTING"],
+            log_level="debug",
+            # reload=not app.app.config["TESTING"],
             port=args.port,
             host=args.hostname,
         )
@@ -102,7 +108,7 @@ def internal_api(args):
             "--workers",
             str(num_workers),
             "--worker-class",
-            str(args.workerclass),
+            "uvicorn.workers.UvicornWorker",
             "--timeout",
             str(worker_timeout),
             "--bind",
@@ -125,7 +131,7 @@ def internal_api(args):
         if args.daemon:
             run_args += ["--daemon"]
 
-        run_args += ["airflow.cli.commands.internal_api_command:cached_app()"]
+        run_args += ["airflow.cli.commands.internal_api_command:cached_connexion_app()"]
 
         # To prevent different workers creating the web app and
         # all writing to the database at the same time, we use the --preload option.
@@ -182,7 +188,7 @@ def internal_api(args):
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            create_app(None)
+            create_connexion_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)
@@ -196,9 +202,10 @@ def internal_api(args):
         )
 
 
-def create_app(config=None, testing=False):
+def create_connexion_app(config=None, testing=False):
     """Create a new instance of Airflow Internal API app."""
-    flask_app = Flask(__name__)
+    connexion_app = connexion.FlaskApp(__name__)
+    flask_app = connexion_app.app
 
     flask_app.config["APP_NAME"] = "Airflow Internal API"
     flask_app.config["TESTING"] = testing
@@ -243,16 +250,31 @@ def create_app(config=None, testing=False):
 
     with flask_app.app_context():
         init_error_handlers(flask_app)
-        init_api_internal(flask_app, standalone_api=True)
+        init_api_internal(connexion_app, standalone_api=True)
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
-    return flask_app
+    return connexion_app
 
 
-def cached_app(config=None, testing=False):
-    """Return cached instance of Airflow Internal API app."""
+def cached_connexion_app(config=None, testing=False) -> connexion.FlaskApp:
+    """Return cached instance of Airflow WWW app."""
+    global connexion_app
     global app
-    if not app:
-        app = create_app(config=config, testing=testing)
-    return app
+    if not connexion_app:
+        connexion_app = create_connexion_app(config=config, testing=testing)
+        app = connexion_app.app
+    return connexion_app
+
+
+def purge_cached_connexion_app():
+    """Remove the cached version of the app in global state."""
+    global connexion_app
+    global app
+    connexion_app = None
+    app = None
+
+
+def cached_app(config=None, testing=False) -> Flask:
+    """Return flask app from connexion_app."""
+    return cached_connexion_app(config=config, testing=testing).app

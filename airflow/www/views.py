@@ -3373,7 +3373,6 @@ class Airflow(AirflowBaseView):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
-
         with create_session() as session:
             # DagRuns
             dag_run_types = session.execute(
@@ -3685,14 +3684,14 @@ class Airflow(AirflowBaseView):
         from airflow.api_connexion.endpoints.dag_parsing import reparse_dag_file
 
         with create_session() as session:
-            response = reparse_dag_file(file_token=file_token, session=session)
+            api_response = reparse_dag_file(file_token=file_token, session=session)
             response_messages = {
                 201: ["Reparsing request submitted successfully", "info"],
                 401: ["Unauthenticated request", "error"],
                 403: ["Permission Denied", "error"],
                 404: ["DAG not found", "error"],
             }
-            flash(response_messages[response.status_code][0], response_messages[response.status_code][1])
+            flash(response_messages[api_response[1]][0], response_messages[api_response[1]][1])
         redirect_url = get_safe_url(request.values.get("redirect_url"))
         return redirect(redirect_url)
 
@@ -3775,8 +3774,19 @@ class RedocView(AirflowBaseView):
     @expose("/redoc")
     def redoc(self):
         """Redoc API documentation."""
-        openapi_spec_url = url_for("/api/v1./api/v1_openapi_yaml")
+        openapi_spec_url = "api/v1/openapi.yaml"
         return self.render_template("airflow/redoc.html", openapi_spec_url=openapi_spec_url)
+
+
+class SwaggerView(AirflowBaseView):
+    """Swagger UI View."""
+
+    default_view = "swagger"
+
+    @expose("/swagger")
+    def swagger(self):
+        """Redoc API documentation."""
+        return redirect("api/v1/ui/")
 
 
 ######################################################################################

@@ -21,7 +21,8 @@ import warnings
 from datetime import timedelta
 from os.path import isabs
 
-from flask import Flask
+import connexion
+from flask import Flask, request
 from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
@@ -51,12 +52,13 @@ from airflow.www.extensions.init_security import (
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
-    init_api_auth_provider,
+    init_api_auth_manager,
     init_api_connexion,
     init_api_error_handlers,
     init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
+    init_cors_middleware,
     init_error_handlers,
     init_flash_views,
     init_plugins,
@@ -64,15 +66,28 @@ from airflow.www.extensions.init_views import (
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
 app: Flask | None = None
-
+connexion_app: connexion.FlaskApp | None = None
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
 
 
-def create_app(config=None, testing=False):
+def create_connexion_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
-    flask_app = Flask(__name__)
+    conn_app = connexion.FlaskApp(__name__)
+
+    @conn_app.app.before_request
+    def before_request():
+        """Exempts the view function associated with '/api/v1' requests from CSRF protection."""
+        if request.path.startswith("/api/v1"):  # TODO: make sure this path is correct
+            view_function = conn_app.app.view_functions.get(request.endpoint)
+            if view_function:
+                # Exempt the view function from CSRF protection
+                conn_app.app.extensions["csrf"].exempt(view_function)
+
+    init_cors_middleware(conn_app)
+
+    flask_app = conn_app.app
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
@@ -80,6 +95,7 @@ def create_app(config=None, testing=False):
     flask_app.config["MAX_CONTENT_LENGTH"] = conf.getfloat("webserver", "allowed_payload_size") * 1024 * 1024
 
     webserver_config = conf.get_mandatory_value("webserver", "config_file")
+
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():
         flask_app.config.from_pyfile(webserver_config, silent=True)
@@ -169,34 +185,44 @@ def create_app(config=None, testing=False):
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
         init_error_handlers(flask_app)
-        init_api_connexion(flask_app)
+        init_api_connexion(conn_app)
         if conf.getboolean("webserver", "run_internal_api", fallback=False):
             if not _ENABLE_AIP_44:
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
-            init_api_internal(flask_app)
+            init_api_internal(conn_app)
         init_api_experimental(flask_app)
-        init_api_auth_provider(flask_app)
-        init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
 
         get_auth_manager().init()
+        init_api_auth_manager(conn_app)
+
+        init_api_error_handlers(conn_app)  # needs to be after all api inits to let them add their path first
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
-    return flask_app
+    return conn_app
 
 
-def cached_app(config=None, testing=False):
+def cached_connexion_app(config=None, testing=False) -> connexion.FlaskApp:
     """Return cached instance of Airflow WWW app."""
+    global connexion_app
     global app
-    if not app:
-        app = create_app(config=config, testing=testing)
-    return app
+    if not connexion_app:
+        connexion_app = create_connexion_app(config=config, testing=testing)
+        app = connexion_app.app
+    return connexion_app
 
 
-def purge_cached_app():
+def purge_cached_connexion_app():
     """Remove the cached version of the app in global state."""
+    global connexion_app
     global app
+    connexion_app = None
     app = None
+
+
+def cached_app(config=None, testing=False) -> Flask:
+    """Return flask app from connexion_app."""
+    return cached_connexion_app(config=config, testing=testing).app

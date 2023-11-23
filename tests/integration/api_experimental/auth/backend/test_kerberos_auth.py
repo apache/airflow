@@ -43,7 +43,7 @@ def app_for_kerberos():
             ("api", "enable_experimental_api"): "true",
         }
     ):
-        yield app.create_app(testing=True)
+        yield app.create_connexion_app(testing=True)
 
 
 @pytest.fixture(scope="module")
@@ -57,16 +57,16 @@ def dagbag_to_db():
 class TestApiKerberos:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app_for_kerberos, dagbag_to_db):
-        self.app = app_for_kerberos
+        self.connexion_app = app_for_kerberos
 
     def test_trigger_dag(self):
-        with self.app.test_client() as client:
+        with self.connexion_app.app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             url_path = url_template.format("example_bash_operator")
             response = client.post(
                 url_path,
                 data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
-                content_type="application/json",
+                headers={"Content-Type": "application/json"},
             )
             assert 401 == response.status_code
 
@@ -89,21 +89,22 @@ class TestApiKerberos:
             CLIENT_AUTH.handle_response(response)
             assert "Authorization" in response.request.headers
 
+            headers = response.request.headers
+            headers.update({"Content-Type": "application/json"})
             response2 = client.post(
                 url_template.format("example_bash_operator"),
                 data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
-                content_type="application/json",
-                headers=response.request.headers,
+                headers=headers,
             )
             assert 200 == response2.status_code
 
     def test_unauthorized(self):
-        with self.app.test_client() as client:
+        with self.connexion_app.app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
                 url_template.format("example_bash_operator"),
                 data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
-                content_type="application/json",
+                headers={"Content-Type": "application/json"},
             )
 
             assert 401 == response.status_code

@@ -33,7 +33,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -41,10 +41,10 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,
+        connexion_app.app,
         username="test",
         role_name="Test",
         permissions=[
@@ -52,12 +52,12 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
+    delete_user(connexion_app.app, username="test")
+    delete_user(connexion_app.app, username="test_no_permissions")
 
 
 class TestGetLog:
@@ -71,8 +71,9 @@ class TestGetLog:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, configure_loggers, dag_maker, session) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
@@ -92,7 +93,7 @@ class TestGetLog:
             start_date=timezone.parse(self.default_time),
         )
 
-        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
@@ -105,13 +106,15 @@ class TestGetLog:
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
-        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+        self.flask_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
 
         for ti in dr.task_instances:
             ti.try_number = 1
             ti.hostname = "localhost"
 
         self.ti = dr.task_instances[0]
+        session.commit()
+        session.close()
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -145,6 +148,11 @@ class TestGetLog:
 
         logging.config.dictConfig(logging_config)
 
+        create_log_template(
+            "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/"
+            "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+            "attempt={{ try_number }}.log"
+        )
         yield
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -153,23 +161,22 @@ class TestGetLog:
         clear_db_runs()
 
     def test_should_respond_200_json(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         expected_filename = (
             f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
         )
         assert (
-            response.json["content"]
+            response.json()["content"]
             == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.')]"
         )
-        info = serializer.loads(response.json["continuation_token"])
+        info = serializer.loads(response.json()["continuation_token"])
         assert info == {"end_of_log": True, "log_pos": 16}
         assert 200 == response.status_code
 
@@ -191,19 +198,18 @@ class TestGetLog:
     def test_should_respond_200_text_plain(self, request_url, expected_filename, extra_query_string):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             request_url,
-            query_string={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, **extra_query_string},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert 200 == response.status_code
         assert (
-            response.data.decode("utf-8")
+            response.text
             == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
         )
 
@@ -226,40 +232,39 @@ class TestGetLog:
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
-        dagbag = self.app.dag_bag
+        dagbag = self.flask_app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             request_url,
-            query_string={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, **extra_query_string},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
         assert (
-            response.data.decode("utf-8")
+            response.text
             == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/1",
-            query_string={"token": token},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 404,
             "title": "TaskInstance not found",
@@ -277,43 +282,40 @@ class TestGetLog:
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
-                headers={"Accept": "text/plain"},
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"Accept": "text/plain", "REMOTE_USER": "test"},
             )
 
-            assert "1st line" in response.data.decode("utf-8")
-            assert "2nd line" in response.data.decode("utf-8")
-            assert "3rd line" in response.data.decode("utf-8")
-            assert "should never be read" not in response.data.decode("utf-8")
+            assert "1st line" in response.text
+            assert "2nd line" in response.text
+            assert "3rd line" in response.text
+            assert "should never be read" not in response.text
 
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
         type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
 
         # check guessing
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Content-Type": "application/jso"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Content-Type": "application/json", "REMOTE_USER": "test"},
         )
         assert 400 == response.status_code
-        assert "Task log handler does not support read logs." in response.data.decode("utf-8")
+        assert "Task log handler does not support read logs." in response.text
 
     def test_bad_signature_raises(self):
         token = {"download_logs": False}
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 400,
             "title": "Bad Signature. Please use only the tokens provided by the API.",
@@ -324,11 +326,10 @@ class TestGetLog:
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 404,
             "title": "TaskInstance not found",
@@ -336,55 +337,52 @@ class TestGetLog:
         }
 
     def test_should_raises_401_unauthenticated(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
+            params={"token": token},
             headers={"Accept": "application/json"},
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            params={"token": token},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
     def test_should_raise_404_when_missing_map_index_param_for_mapped_task(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json["title"] == "TaskInstance not found"
+        assert response.json()["title"] == "TaskInstance not found"
 
     def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token, "map_index": 0},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, "map_index": 0},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json["title"] == "TaskInstance not found"
+        assert response.json()["title"] == "TaskInstance not found"

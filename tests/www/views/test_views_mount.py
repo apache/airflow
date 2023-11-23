@@ -21,7 +21,7 @@ import pytest
 import werkzeug.test
 import werkzeug.wrappers
 
-from airflow.www.app import create_app
+from airflow.www.app import create_connexion_app
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -31,16 +31,16 @@ pytestmark = pytest.mark.db_test
 def app():
     @conf_vars({("webserver", "base_url"): "http://localhost/test"})
     def factory():
-        return create_app(testing=True)
+        return create_connexion_app(testing=True)
 
     app = factory()
-    app.config["WTF_CSRF_ENABLED"] = False
+    app.app.config["WTF_CSRF_ENABLED"] = False
     return app
 
 
 @pytest.fixture
 def client(app):
-    return werkzeug.test.Client(app, werkzeug.wrappers.response.Response)
+    return werkzeug.test.Client(app.app, werkzeug.wrappers.response.Response)
 
 
 def test_mount(client):

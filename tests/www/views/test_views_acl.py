@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 import urllib.parse
 
 import pytest
@@ -32,7 +31,12 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+    flask_client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -81,7 +85,7 @@ USER_DATA = {
 
 @pytest.fixture(scope="module")
 def acl_app(app):
-    security_manager = app.appbuilder.sm
+    security_manager = app.app.appbuilder.sm
     for username, (role_name, kwargs) in USER_DATA.items():
         if not security_manager.find_user(username=username):
             role = security_manager.add_role(role_name)
@@ -138,7 +142,7 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(acl_app, reset_dagruns):
-    acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+    acl_app.app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -146,7 +150,7 @@ def init_dagruns(acl_app, reset_dagruns):
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
-    acl_app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+    acl_app.app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         start_date=timezone.utcnow(),
@@ -159,7 +163,9 @@ def init_dagruns(acl_app, reset_dagruns):
 
 @pytest.fixture
 def dag_test_client(acl_app):
-    return client_with_login(acl_app, username="dag_test", password="dag_test")
+    return client_with_login(
+        acl_app, expected_path=b"/login/?next=/home", username="dag_test", password="dag_test"
+    )
 
 
 @pytest.fixture
@@ -179,7 +185,7 @@ def all_dag_user_client(acl_app):
 @pytest.fixture(scope="module")
 def user_edit_one_dag(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_edit_one_dag",
         role_name="role_edit_one_dag",
         permissions=[
@@ -192,8 +198,8 @@ def user_edit_one_dag(acl_app):
 
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_permission_exist(acl_app):
-    perms_views = acl_app.appbuilder.sm.get_resource_permissions(
-        acl_app.appbuilder.sm.get_resource("DAG:example_bash_operator"),
+    perms_views = acl_app.app.appbuilder.sm.get_resource_permissions(
+        acl_app.app.appbuilder.sm.get_resource("DAG:example_bash_operator"),
     )
     assert len(perms_views) == 3
 
@@ -205,7 +211,7 @@ def test_permission_exist(acl_app):
 
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_role_permission_associate(acl_app):
-    test_role = acl_app.appbuilder.sm.find_role("role_edit_one_dag")
+    test_role = acl_app.app.appbuilder.sm.find_role("role_edit_one_dag")
     perms = {str(perm) for perm in test_role.permissions}
     assert "can edit on DAG:example_bash_operator" in perms
     assert "can read on DAG:example_bash_operator" in perms
@@ -214,7 +220,7 @@ def test_role_permission_associate(acl_app):
 @pytest.fixture(scope="module")
 def user_all_dags(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags",
         role_name="role_all_dags",
         permissions=[
@@ -228,6 +234,15 @@ def user_all_dags(acl_app):
 @pytest.fixture
 def client_all_dags(acl_app, user_all_dags):
     return client_with_login(
+        acl_app,
+        username="user_all_dags",
+        password="user_all_dags",
+    )
+
+
+@pytest.fixture
+def flask_client_all_dags(acl_app, user_all_dags):
+    return flask_client_with_login(
         acl_app,
         username="user_all_dags",
         password="user_all_dags",
@@ -265,7 +280,7 @@ def test_dag_autocomplete_success(client_all_dags):
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
     ]
 
-    assert resp.json == expected
+    assert resp.json() == expected
 
 
 @pytest.mark.parametrize(
@@ -282,13 +297,13 @@ def test_dag_autocomplete_empty(client_all_dags, query, expected):
     if query is not None:
         url = f"{url}?query={query}"
     resp = client_all_dags.get(url, follow_redirects=False)
-    assert resp.json == expected
+    assert resp.json() == expected
 
 
 def test_dag_autocomplete_dag_display_name(client_all_dags):
     url = "dagmodel/autocomplete?query=Sample"
     resp = client_all_dags.get(url, follow_redirects=False)
-    assert resp.json == [
+    assert resp.json() == [
         {"name": "example_display_name", "type": "dag", "dag_display_name": "Sample DAG with Display Name"}
     ]
 
@@ -312,10 +327,11 @@ def setup_paused_dag():
     ],
 )
 @pytest.mark.usefixtures("setup_paused_dag")
-def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
-    with client_all_dags.session_transaction() as flask_session:
+def test_dag_autocomplete_status(flask_client_all_dags, status, expected, unexpected):
+    with flask_client_all_dags.session_transaction() as flask_session:
         flask_session[FILTER_STATUS_COOKIE] = status
-    resp = client_all_dags.get(
+
+    resp = flask_client_all_dags.get(
         "dagmodel/autocomplete?query=example_branch_",
         follow_redirects=False,
     )
@@ -326,7 +342,7 @@ def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_dagruns",
         role_name="role_all_dags_dagruns",
         permissions=[
@@ -350,7 +366,7 @@ def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
 def test_dag_stats_success(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("dag_stats", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-    assert set(next(iter(resp.json.items()))[1][0].keys()) == {"state", "count"}
+    assert set(next(iter(resp.json().items()))[1][0].keys()) == {"state", "count"}
 
 
 def test_task_stats_failure(dag_test_client):
@@ -367,7 +383,7 @@ def test_dag_stats_success_for_all_dag_user(client_all_dags_dagruns):
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns_tis(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_dagruns_tis",
         role_name="role_all_dags_dagruns_tis",
         permissions=[
@@ -420,7 +436,7 @@ def test_task_stats_success(
     assert resp.status_code == 200
     for dag_id in unexpected_dag_ids:
         check_content_not_in_response(dag_id, resp)
-    stats = json.loads(resp.data.decode())
+    stats = resp.json()
     for dag_id in dags_to_run:
         assert dag_id in stats
 
@@ -428,7 +444,7 @@ def test_task_stats_success(
 @pytest.fixture(scope="module")
 def user_all_dags_codes(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_codes",
         role_name="role_all_dags_codes",
         permissions=[
@@ -484,7 +500,7 @@ def test_dag_details_success_for_all_dag_user(client_all_dags_dagruns, dag_id):
 @pytest.fixture(scope="module")
 def user_all_dags_tis(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_tis",
         role_name="role_all_dags_tis",
         permissions=[
@@ -509,7 +525,7 @@ def client_all_dags_tis(acl_app, user_all_dags_tis):
 @pytest.fixture(scope="module")
 def user_all_dags_tis_xcom(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_tis_xcom",
         role_name="role_all_dags_tis_xcom",
         permissions=[
@@ -534,7 +550,7 @@ def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):
 @pytest.fixture(scope="module")
 def user_dags_tis_logs(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_dags_tis_logs",
         role_name="role_dags_tis_logs",
         permissions=[
@@ -683,7 +699,7 @@ def test_blocked_success_when_selecting_dags(
     assert resp.status_code == 200
     for dag_id in unexpected_dag_ids:
         check_content_not_in_response(dag_id, resp)
-    blocked_dags = {blocked["dag_id"] for blocked in json.loads(resp.data.decode())}
+    blocked_dags = {blocked["dag_id"] for blocked in resp.json()}
     for dag_id in dags_to_block:
         assert dag_id in blocked_dags
 
@@ -691,7 +707,7 @@ def test_blocked_success_when_selecting_dags(
 @pytest.fixture(scope="module")
 def user_all_dags_edit_tis(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_all_dags_edit_tis",
         role_name="role_all_dags_edit_tis",
         permissions=[
@@ -735,7 +751,7 @@ def test_paused_post_success(dag_test_client):
 @pytest.fixture(scope="module")
 def user_only_dags_tis(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_only_dags_tis",
         role_name="role_only_dags_tis",
         permissions=[
@@ -767,7 +783,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
         past="false",
     )
     resp = client_only_dags_tis.post("success", data=form)
-    check_content_not_in_response("Wait a minute", resp, resp_code=302)
+    check_content_not_in_response("Wait a minute", resp, resp_code=200)
 
 
 GET_LOGS_WITH_METADATA_URL = (
@@ -798,7 +814,7 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
 
 @pytest.fixture(scope="module")
 def user_no_roles(acl_app):
-    with create_user_scope(acl_app, username="no_roles_user", role_name="no_roles_user_role") as user:
+    with create_user_scope(acl_app.app, username="no_roles_user", role_name="no_roles_user_role") as user:
         user.roles = []
         yield user
 
@@ -815,7 +831,7 @@ def client_no_roles(acl_app, user_no_roles):
 @pytest.fixture(scope="module")
 def user_no_permissions(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="no_permissions_user",
         role_name="no_permissions_role",
     ) as user:
@@ -853,7 +869,7 @@ def test_no_roles_permissions(request, client, url, status_code, expected_conten
 @pytest.fixture(scope="module")
 def user_dag_level_access_with_ti_edit(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_dag_level_access_with_ti_edit",
         role_name="role_dag_level_access_with_ti_edit",
         permissions=[
@@ -895,7 +911,7 @@ def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with
 @pytest.fixture(scope="module")
 def user_ti_edit_without_dag_level_access(acl_app):
     with create_user_scope(
-        acl_app,
+        acl_app.app,
         username="user_ti_edit_without_dag_level_access",
         role_name="role_ti_edit_without_dag_level_access",
         permissions=[

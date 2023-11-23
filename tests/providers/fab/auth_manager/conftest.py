@@ -29,14 +29,16 @@ def minimal_app_for_auth_api():
         skip_all_except=[
             "init_appbuilder",
             "init_api_experimental_auth",
-            "init_api_auth_provider",
+            "init_api_auth_manager",
             "init_api_error_handlers",
         ]
     )
     def factory():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
-            _app.config["AUTH_ROLE_PUBLIC"] = None
+            _app = app.create_connexion_app(
+                testing=True,
+                config={"WTF_CSRF_ENABLED": False, "AUTH_ROLE_PUBLIC": None},
+            )  # type:ignore
             return _app
 
     return factory()
@@ -45,9 +47,9 @@ def minimal_app_for_auth_api():
 @pytest.fixture
 def set_auto_role_public(request):
     app = request.getfixturevalue("minimal_app_for_auth_api")
-    auto_role_public = app.config["AUTH_ROLE_PUBLIC"]
-    app.config["AUTH_ROLE_PUBLIC"] = request.param
+    auto_role_public = app.app.config["AUTH_ROLE_PUBLIC"]
+    app.app.config["AUTH_ROLE_PUBLIC"] = request.param
 
     yield
 
-    app.config["AUTH_ROLE_PUBLIC"] = auto_role_public
+    app.app.config["AUTH_ROLE_PUBLIC"] = auto_role_public

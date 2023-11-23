@@ -18,24 +18,29 @@ from __future__ import annotations
 
 import logging
 import warnings
-from functools import cached_property
+from enum import Enum
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
-from connexion import FlaskApi, ProblemException, Resolver
-from connexion.decorators.validation import RequestBodyValidator
-from connexion.exceptions import BadRequestProblem
-from flask import request
+import connexion
+import starlette.exceptions
+from connexion import ProblemException, Resolver
+from connexion.options import SwaggerUIOptions
+from connexion.problem import problem
 
-from airflow.api_connexion.exceptions import common_error_handler
+from airflow.api_connexion.exceptions import problem_error_handler
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
+    import starlette.exceptions
+    from connexion.lifecycle import ConnexionRequest, ConnexionResponse
     from flask import Flask
 
 log = logging.getLogger(__name__)
@@ -128,6 +133,8 @@ def init_appbuilder_views(app):
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)
+    if conf.getboolean("webserver", "enable_swagger_ui", fallback=True):
+        appbuilder.add_view_no_menu(views.SwaggerView)
     # Development views
     appbuilder.add_view_no_menu(views.DevView)
     appbuilder.add_view_no_menu(views.DocsView)
@@ -172,26 +179,6 @@ def init_error_handlers(app: Flask):
     from airflow.www import views
 
     app.register_error_handler(500, views.show_traceback)
-    app.register_error_handler(404, views.not_found)
-
-
-def set_cors_headers_on_response(response):
-    """Add response headers."""
-    allow_headers = conf.get("api", "access_control_allow_headers")
-    allow_methods = conf.get("api", "access_control_allow_methods")
-    allow_origins = conf.get("api", "access_control_allow_origins")
-    if allow_headers:
-        response.headers["Access-Control-Allow-Headers"] = allow_headers
-    if allow_methods:
-        response.headers["Access-Control-Allow-Methods"] = allow_methods
-    if allow_origins == "*":
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    elif allow_origins:
-        allowed_origins = allow_origins.split(" ")
-        origin = request.environ.get("HTTP_ORIGIN", allowed_origins[0])
-        if origin in allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = origin
-    return response
 
 
 class _LazyResolution:
@@ -225,90 +212,135 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
-class _CustomErrorRequestBodyValidator(RequestBodyValidator):
-    """Custom request body validator that overrides error messages.
-
-    By default, Connextion emits a very generic *None is not of type 'object'*
-    error when receiving an empty request body (with the view specifying the
-    body as non-nullable). We overrides it to provide a more useful message.
-    """
-
-    def validate_schema(self, data, url):
-        if not self.is_null_value_valid and data is None:
-            raise BadRequestProblem(detail="Request body must not be empty")
-        return super().validate_schema(data, url)
+# contains map of base paths that have api endpoints
 
 
-base_paths: list[str] = []  # contains the list of base paths that have api endpoints
+class BaseAPIPaths(Enum):
+    """Known Airflow API paths."""
+
+    REST_API = "/api/v1"
+    INTERNAL_API = "/internal_api/v1"
+    EXPERIMENTAL_API = "/api/experimental"
 
 
-def init_api_error_handlers(app: Flask) -> None:
+def get_base_url() -> str:
+    """Return base url to prepend to all API routes."""
+    webserver_base_url = conf.get_mandatory_value("webserver", "BASE_URL", fallback="")
+    if webserver_base_url.endswith("/"):
+        raise AirflowConfigException("webserver.base_url conf cannot have a trailing slash.")
+    base_url = urlsplit(webserver_base_url)[2]
+    if not base_url or base_url == "/":
+        base_url = ""
+    return base_url
+
+
+BASE_URL = get_base_url()
+
+auth_mgr_mount_point: str | None = None
+
+
+@lru_cache(maxsize=1)
+def get_enabled_api_paths() -> list[str]:
+    enabled_apis = []
+    enabled_apis.append(BaseAPIPaths.REST_API.value)
+    if conf.getboolean("webserver", "run_internal_api", fallback=False):
+        enabled_apis.append(BaseAPIPaths.INTERNAL_API.value)
+    if conf.getboolean("api", "enable_experimental_api", fallback=False):
+        enabled_apis.append(BaseAPIPaths.EXPERIMENTAL_API.value)
+    if auth_mgr_mount_point:
+        enabled_apis.append(auth_mgr_mount_point)
+    return enabled_apis
+
+
+def is_current_request_on_api_path() -> bool:
+    from flask.globals import request
+
+    return any([request.path.startswith(BASE_URL + p) for p in get_enabled_api_paths()])
+
+
+def init_api_error_handlers(connexion_app: connexion.FlaskApp) -> None:
     """Add error handlers for 404 and 405 errors for existing API paths."""
     from airflow.www import views
 
-    @app.errorhandler(404)
-    def _handle_api_not_found(ex):
-        if any([request.path.startswith(p) for p in base_paths]):
+    def _handle_api_not_found(error) -> ConnexionResponse | str:
+        if is_current_request_on_api_path():
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
             # i.e. "no route for it" defined, need to be handled
             # here on the application level
-            return common_error_handler(ex)
-        else:
-            return views.not_found(ex)
+            return connexion_app._http_exception(error)
+        return views.not_found(error)
 
-    @app.errorhandler(405)
-    def _handle_method_not_allowed(ex):
-        if any([request.path.startswith(p) for p in base_paths]):
-            return common_error_handler(ex)
-        else:
-            return views.method_not_allowed(ex)
+    def _handle_api_method_not_allowed(error) -> ConnexionResponse | str:
+        if is_current_request_on_api_path():
+            return connexion_app._http_exception(error)
+        return views.method_not_allowed(error)
 
-    app.register_error_handler(ProblemException, common_error_handler)
+    def _handle_redirect(
+        request: ConnexionRequest, ex: starlette.exceptions.HTTPException
+    ) -> ConnexionResponse:
+        return problem(
+            title=connexion.http_facts.HTTP_STATUS_CODES.get(ex.status_code),
+            detail=ex.detail,
+            headers={"Location": ex.detail},
+            status=ex.status_code,
+        )
+
+    # in case of 404 and 405 we handle errors at the Flask APP level in order to have access to
+    # context and be able to render the error page for the UI
+    connexion_app.app.register_error_handler(404, _handle_api_not_found)
+    connexion_app.app.register_error_handler(405, _handle_api_method_not_allowed)
+
+    # We should handle redirects at connexion_app level - the requests will be redirected to the target
+    # location - so they can return application/problem+json response with the Location header regardless
+    # ot the request path - does not matter if it is API or UI request
+    connexion_app.add_error_handler(301, _handle_redirect)
+    connexion_app.add_error_handler(302, _handle_redirect)
+    connexion_app.add_error_handler(307, _handle_redirect)
+    connexion_app.add_error_handler(308, _handle_redirect)
+
+    # Everything else we handle at the connexion_app level by default error handler
+    connexion_app.add_error_handler(ProblemException, problem_error_handler)
 
 
-def init_api_connexion(app: Flask) -> None:
+def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
     """Initialize Stable API."""
-    base_path = "/api/v1"
-    base_paths.append(base_path)
-
     with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
         specification = safe_load(f)
-    api_bp = FlaskApi(
+    swagger_ui_options = SwaggerUIOptions(
+        swagger_ui=SWAGGER_ENABLED,
+        swagger_ui_template_dir=SWAGGER_BUNDLE,
+    )
+
+    connexion_app.add_api(
         specification=specification,
         resolver=_LazyResolver(),
-        base_path=base_path,
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        base_path=BASE_URL + BaseAPIPaths.REST_API.value,
+        swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
-        validator_map={"body": _CustomErrorRequestBodyValidator},
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
-
-    app.register_blueprint(api_bp)
-    app.extensions["csrf"].exempt(api_bp)
+    )
 
 
-def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
+def init_api_internal(connexion_app: connexion.FlaskApp, standalone_api: bool = False) -> None:
     """Initialize Internal API."""
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
 
-    base_paths.append("/internal_api/v1")
     with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
         specification = safe_load(f)
-    api_bp = FlaskApi(
+    swagger_ui_options = SwaggerUIOptions(
+        swagger_ui=SWAGGER_ENABLED,
+        swagger_ui_template_dir=SWAGGER_BUNDLE,
+    )
+
+    connexion_app.add_api(
         specification=specification,
-        base_path="/internal_api/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        base_path=BASE_URL + BaseAPIPaths.INTERNAL_API.value,
+        swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
-
-    app.register_blueprint(api_bp)
-    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
-    app.extensions["csrf"].exempt(api_bp)
+    )
 
 
 def init_api_experimental(app):
@@ -324,16 +356,50 @@ def init_api_experimental(app):
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    base_paths.append("/api/experimental")
-    app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")
+    app.register_blueprint(
+        endpoints.api_experimental, url_prefix=BASE_URL + BaseAPIPaths.EXPERIMENTAL_API.value
+    )
     app.extensions["csrf"].exempt(endpoints.api_experimental)
 
 
-def init_api_auth_provider(app):
+def init_api_auth_manager(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
-    auth_mgr = get_auth_manager()
-    blueprint = auth_mgr.get_api_endpoints()
-    if blueprint:
-        base_paths.append(blueprint.url_prefix)
-        app.register_blueprint(blueprint)
-        app.extensions["csrf"].exempt(blueprint)
+    global auth_mgr_mount_point
+    try:
+        auth_mgr_mount_point, specification = get_auth_manager().get_auth_manager_api_specification()
+    except NotImplementedError:
+        log.warning(
+            "Your Auth manager does not have a `get_auth_manager_api_specification` method which"
+            "means that it does not provide additional API. You can implement this method and "
+            "return None, {} tuple to get rid of this warning."
+        )
+        return
+    if not auth_mgr_mount_point:
+        return
+    swagger_ui_options = SwaggerUIOptions(
+        swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+        swagger_ui_template_dir=SWAGGER_BUNDLE,
+    )
+    from airflow.www.extensions.init_views import BASE_URL, _LazyResolver
+
+    connexion_app.add_api(
+        specification=specification,
+        resolver=_LazyResolver(),
+        base_path=BASE_URL + auth_mgr_mount_point,
+        swagger_ui_options=swagger_ui_options,
+        strict_validation=True,
+        validate_responses=True,
+    )
+
+
+def init_cors_middleware(connexion_app: connexion.FlaskApp):
+    from starlette.middleware.cors import CORSMiddleware
+
+    connexion_app.add_middleware(
+        CORSMiddleware,
+        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
+        allow_origins=conf.get("api", "access_control_allow_origins"),
+        allow_credentials=True,
+        allow_methods=conf.get("api", "access_control_allow_methods"),
+        allow_headers=conf.get("api", "access_control_allow_headers"),
+    )

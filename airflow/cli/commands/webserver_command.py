@@ -350,17 +350,17 @@ def webserver(args):
     if ssl_cert and not ssl_key:
         raise AirflowException("An SSL key must also be provided for use with " + ssl_cert)
 
-    from airflow.www.app import create_app
+    from airflow.www.app import create_connexion_app
 
     if args.debug:
         print(f"Starting the web server on port {args.port} and host {args.hostname}.")
-        app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
+        app = create_connexion_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,
-            use_reloader=not app.config["TESTING"],
+            log_level="debug",
             port=args.port,
             host=args.hostname,
-            ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
+            ssl_keyfile=ssl_key if ssl_cert and ssl_key else None,
+            ssl_certfile=ssl_cert if ssl_cert and ssl_key else None,
         )
     else:
         print(
@@ -384,7 +384,7 @@ def webserver(args):
             "--workers",
             str(num_workers),
             "--worker-class",
-            str(args.workerclass),
+            "uvicorn.workers.UvicornWorker",
             "--timeout",
             str(worker_timeout),
             "--bind",
@@ -412,7 +412,7 @@ def webserver(args):
         if ssl_cert:
             run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
 
-        run_args += ["airflow.www.app:cached_app()"]
+        run_args += ["airflow.www.app:cached_connexion_app()"]
 
         if conf.getboolean("webserver", "reload_on_plugin_change", fallback=False):
             log.warning(
@@ -477,7 +477,7 @@ def webserver(args):
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            create_app(None)
+            create_connexion_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)

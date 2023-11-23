@@ -79,13 +79,17 @@ def dag():
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
     def _create_dag_run(*, execution_date, session):
-        return dag.create_dagrun(
-            state=DagRunState.RUNNING,
-            execution_date=execution_date,
-            data_interval=(execution_date, execution_date),
-            run_type=DagRunType.MANUAL,
-            session=session,
-        )
+        try:
+            return dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=execution_date,
+                data_interval=(execution_date, execution_date),
+                run_type=DagRunType.MANUAL,
+                session=session,
+            )
+        finally:
+            session.commit()
+            session.close()
 
     return _create_dag_run
 
@@ -97,7 +101,7 @@ def dag_run(create_dag_run, session):
 
 @pytest.fixture(scope="module", autouse=True)
 def patched_app(app, dag):
-    with mock.patch.object(app, "dag_bag") as mock_dag_bag:
+    with mock.patch.object(app.app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = dag
         yield
 
@@ -140,7 +144,7 @@ def test_extra_links_works(dag_run, task_1, viewer_client, session):
     )
 
     assert response.status_code == 200
-    assert json.loads(response.data.decode()) == {
+    assert json.loads(response.text) == {
         "url": "http://www.example.com/some_dummy_task/foo-bar/manual__2017-01-01T00:00:00+00:00",
         "error": None,
     }
@@ -154,7 +158,7 @@ def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
     )
 
     assert response.status_code == 200
-    assert json.loads(response.data.decode()) == {
+    assert json.loads(response.text) == {
         "url": "https://github.com/apache/airflow",
         "error": None,
     }
@@ -168,10 +172,7 @@ def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org", "error": None}
+    assert json.loads(response.text) == {"url": "https://airflow.apache.org", "error": None}
 
 
 def test_extra_links_error_raised(dag_run, task_1, viewer_client):
@@ -182,10 +183,7 @@ def test_extra_links_error_raised(dag_run, task_1, viewer_client):
     )
 
     assert 404 == response.status_code
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": None, "error": "This is an error"}
+    assert json.loads(response.text) == {"url": None, "error": "This is an error"}
 
 
 def test_extra_links_no_response(dag_run, task_1, viewer_client):
@@ -196,10 +194,7 @@ def test_extra_links_no_response(dag_run, task_1, viewer_client):
     )
 
     assert response.status_code == 404
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": None, "error": "No URL found for no_response"}
+    assert json.loads(response.text) == {"url": None, "error": "No URL found for no_response"}
 
 
 def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
@@ -217,10 +212,8 @@ def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+
+    assert json.loads(response.text) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
 
 
 def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_client):
@@ -239,10 +232,8 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+
+    assert json.loads(response.text) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
 
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
@@ -251,10 +242,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+    assert json.loads(response.text) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
 
     # Also check that the other Operator Link defined for this operator exists
     response = viewer_client.get(
@@ -264,7 +252,4 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://www.google.com", "error": None}
+    assert json.loads(response.text) == {"url": "https://www.google.com", "error": None}

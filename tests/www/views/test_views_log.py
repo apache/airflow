@@ -39,11 +39,11 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
-from airflow.www.app import create_app
+from airflow.www.app import create_connexion_app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import client_with_login, flask_client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -83,10 +83,10 @@ def log_app(backup_modules, log_path):
         }
     )
     def factory():
-        app = create_app(testing=True)
-        app.config["WTF_CSRF_ENABLED"] = False
+        app = create_connexion_app(testing=True)
+        app.app.config["WTF_CSRF_ENABLED"] = False
         settings.configure_orm()
-        security_manager = app.appbuilder.sm
+        security_manager = app.app.appbuilder.sm
         if not security_manager.find_user(username="test"):
             security_manager.add_user(
                 username="test",
@@ -142,7 +142,7 @@ def dags(log_app, create_dummy_dag, session):
     bag.bag_dag(dag=dag, root_dag=dag)
     bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
     bag.sync_to_db(session=session)
-    log_app.dag_bag = bag
+    log_app.app.dag_bag = bag
 
     yield dag, dag_removed
 
@@ -174,6 +174,9 @@ def tis(dags, session):
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1
 
+    session.commit()
+    session.close()
+
     yield ti, ti_removed_dag
 
     clear_db_runs()
@@ -196,6 +199,11 @@ def create_expected_log_file(log_path, tis):
     # We delete created log files manually to make sure tests do not reuse logs created by other tests
     for sub_path in log_path.iterdir():
         shutil.rmtree(sub_path)
+
+
+@pytest.fixture
+def flask_log_admin_client(log_app):
+    return flask_client_with_login(log_app, username="test", password="test")
 
 
 @pytest.fixture
@@ -233,12 +241,12 @@ def test_get_file_task_log(log_admin_client, tis, state, try_number, num_logs):
 
     response = log_admin_client.get(
         ENDPOINT,
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert response.status_code == 200
 
-    data = response.data.decode()
+    data = response.text
     assert "Log by attempts" in data
     for num in range(1, num_logs + 1):
         assert f"log-group-{num}" in data
@@ -271,7 +279,7 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
         in content_disposition
     )
     assert 200 == response.status_code
-    content = response.data.decode("utf-8")
+    content = response.text
     assert "Log for testing." in content
     assert "localhost\n" in content
 
@@ -314,7 +322,7 @@ def test_get_logs_for_changed_filename_format_db(
 
     # Should find the log under corresponding db entry.
     assert 200 == response.status_code
-    assert "Log for testing." in response.data.decode("utf-8")
+    assert "Log for testing." in response.text
     content_disposition = response.headers["Content-Disposition"]
     expected_filename = (
         f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
@@ -348,7 +356,7 @@ def test_get_logs_with_metadata_as_download_large_file(_, log_admin_client):
     )
     response = log_admin_client.get(url)
 
-    data = response.data.decode()
+    data = response.text
     assert "1st line" in data
     assert "2nd line" in data
     assert "3rd line" in data
@@ -368,12 +376,12 @@ def test_get_logs_with_metadata(log_admin_client, metadata, create_expected_log_
             try_number,
             metadata,
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert 200 == response.status_code
 
-    data = response.data.decode()
+    data = response.text
     assert '"message":' in data
     assert '"metadata":' in data
     assert "Log for testing." in data
@@ -391,12 +399,12 @@ def test_get_logs_with_invalid_metadata(log_admin_client):
             1,
             metadata,
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
 
     assert response.status_code == 400
-    assert response.json == {"error": "Invalid JSON metadata"}
+    assert response.json() == {"error": "Invalid JSON metadata"}
 
 
 @unittest.mock.patch(
@@ -413,12 +421,12 @@ def test_get_logs_with_metadata_for_removed_dag(_, log_admin_client):
             1,
             "{}",
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert 200 == response.status_code
 
-    data = response.data.decode()
+    data = response.text
     assert '"message":' in data
     assert '"metadata":' in data
     assert "airflow log line" in data
@@ -440,7 +448,7 @@ def test_get_logs_response_with_ti_equal_to_none(log_admin_client):
     )
     response = log_admin_client.get(url)
 
-    data = response.json
+    data = response.json()
     assert "message" in data
     assert "error" in data
     assert "*** Task instance did not exist in the DB\n" == data["message"]
@@ -464,9 +472,9 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
     response = log_admin_client.get(url)
     assert 200 == response.status_code
 
-    assert "message" in response.json
-    assert "metadata" in response.json
-    assert "Log for testing." in response.json["message"][0][1]
+    assert "message" in response.json()
+    assert "metadata" in response.json()
+    assert "Log for testing." in response.json()["message"][0][1]
 
 
 def test_get_logs_invalid_execution_data_format(log_admin_client):
@@ -485,7 +493,7 @@ def test_get_logs_invalid_execution_data_format(log_admin_client):
     )
     response = log_admin_client.get(url)
     assert response.status_code == 400
-    assert response.json == {
+    assert response.json() == {
         "error": (
             "Given execution date 'Tuesday February 27, 2024' could not be identified as a date. "
             "Example date format: 2015-11-16T14:34:15+00:00"
@@ -512,7 +520,7 @@ def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client)
     response = log_admin_client.get(url)
     assert 200 == response.status_code
 
-    data = response.json
+    data = response.json()
     assert "message" in data
     assert "metadata" in data
     assert "Task log handler does not support read logs." in data["message"]
@@ -530,8 +538,8 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
         try_number,
     )
     response = log_admin_client.get(url)
-    assert 302 == response.status_code
-    assert "/home" == response.headers["Location"]
+    assert 200 == response.status_code
+    assert "/home" == response.url.path
 
 
 class _ExternalHandler(ExternalLoggingMixin):
@@ -554,7 +562,7 @@ class _ExternalHandler(ExternalLoggingMixin):
     new_callable=unittest.mock.PropertyMock,
     return_value=_ExternalHandler(),
 )
-def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client):
+def test_redirect_to_external_log_with_external_log_handler(_, flask_log_admin_client):
     url_template = "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
     try_number = 1
     url = url_template.format(
@@ -563,6 +571,6 @@ def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client)
         urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
         try_number,
     )
-    response = log_admin_client.get(url)
+    response = flask_log_admin_client.get(url)
     assert 302 == response.status_code
     assert _ExternalHandler.EXTERNAL_URL == response.headers["Location"]

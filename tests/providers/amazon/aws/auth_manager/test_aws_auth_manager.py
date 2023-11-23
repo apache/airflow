@@ -23,7 +23,10 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
-from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
+
 
 try:
     from airflow.auth.managers.models.resource_details import (
@@ -153,7 +156,7 @@ def client_admin():
                 "email": ["email"],
             }
             mock_init_saml_auth.return_value = auth
-            yield application.create_app(testing=True)
+            yield application.create_connexion_app(testing=True)
 
 
 class TestAwsAuthManager:
@@ -165,7 +168,7 @@ class TestAwsAuthManager:
     def test_get_user(self, mock_is_logged_in, auth_manager, app, test_user):
         mock_is_logged_in.return_value = True
 
-        with app.test_request_context():
+        with app.app.test_request_context():
             session["aws_user"] = test_user
             result = auth_manager.get_user()
 
@@ -180,7 +183,7 @@ class TestAwsAuthManager:
 
     @pytest.mark.db_test
     def test_is_logged_in(self, auth_manager, app, test_user):
-        with app.test_request_context():
+        with app.app.test_request_context():
             session["aws_user"] = test_user
             result = auth_manager.is_logged_in()
 
@@ -188,7 +191,7 @@ class TestAwsAuthManager:
 
     @pytest.mark.db_test
     def test_is_logged_in_return_false_when_no_user_in_session(self, auth_manager, app, test_user):
-        with app.test_request_context():
+        with app.app.test_request_context():
             result = auth_manager.is_logged_in()
 
         assert result is False

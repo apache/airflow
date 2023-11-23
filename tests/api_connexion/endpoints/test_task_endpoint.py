@@ -28,7 +28,7 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -36,9 +36,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -47,12 +47,12 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestTaskEndpoint:
@@ -80,7 +80,7 @@ class TestTaskEndpoint:
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag, mapped_dag.dag_id: mapped_dag}
-        configured_app.dag_bag = dag_bag  # type:ignore
+        configured_app.app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
     def clean_db():
@@ -91,8 +91,9 @@ class TestTaskEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, setup_dag) -> None:
         self.clean_db()
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self) -> None:
         self.clean_db()
@@ -140,10 +141,10 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_mapped_task(self):
         expected = {
@@ -177,17 +178,17 @@ class TestGetTask(TestTaskEndpoint):
         }
         response = self.client.get(
             f"/api/v1/dags/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_should_respond_200_serialized(self):
         # Get the dag out of the dagbag before we patch it to an empty one
-        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
+        SerializedDagModel.write_dag(self.flask_app.dag_bag.get_dag(self.dag_id))
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)
+        patcher = unittest.mock.patch.object(self.flask_app, "dag_bag", dag_bag)
         patcher.start()
 
         expected = {
@@ -230,35 +231,35 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json == expected
+        assert response.json() == expected
         patcher.stop()
 
     def test_should_respond_404(self):
         task_id = "xxxx_not_existing"
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
 
     def test_should_respond_404_when_dag_not_found(self):
         dag_id = "xxxx_not_existing"
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert response.json["title"] == "DAG not found"
+        assert response.json()["title"] == "DAG not found"
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            f"/api/v1/dags/{self.dag_id}/tasks", headers={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -341,11 +342,9 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 2,
         }
-        response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_get_tasks_mapped(self):
         expected = {
@@ -415,46 +414,48 @@ class TestGetTasks(TestTaskEndpoint):
             "total_entries": 2,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.mapped_dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.mapped_dag_id}/tasks", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_should_respond_200_ascending_order_by_start_date(self):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks?order_by=start_date",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert self.task1_start_date < self.task2_start_date
-        assert response.json["tasks"][0]["task_id"] == self.task_id
-        assert response.json["tasks"][1]["task_id"] == self.task_id2
+        assert response.json()["tasks"][0]["task_id"] == self.task_id
+        assert response.json()["tasks"][1]["task_id"] == self.task_id2
 
     def test_should_respond_200_descending_order_by_start_date(self):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks?order_by=-start_date",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         # - means is descending
         assert self.task1_start_date < self.task2_start_date
-        assert response.json["tasks"][0]["task_id"] == self.task_id2
-        assert response.json["tasks"][1]["task_id"] == self.task_id
+        assert response.json()["tasks"][0]["task_id"] == self.task_id2
+        assert response.json()["tasks"][1]["task_id"] == self.task_id
 
     def test_should_raise_400_for_invalid_order_by_name(self):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks?order_by=invalid_task_colume_name",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert (
+            response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        )
 
     def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", headers={"REMOTE_USER": "test"})
         assert response.status_code == 404
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks")
 
-        assert_401(response)
+        assert response.status_code == 401

@@ -57,7 +57,7 @@ def minimal_app_for_internal_api() -> Flask:
     )
     def factory() -> Flask:
         with conf_vars({("webserver", "run_internal_api"): "true"}):
-            return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            return app.create_connexion_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
 
     return factory()
 
@@ -70,8 +70,8 @@ def equals(a, b) -> bool:
 class TestRpcApiEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
-        self.app = minimal_app_for_internal_api
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = minimal_app_for_internal_api
+        self.client = self.connexion_app.test_client()  # type:ignore
         mock_test_method.reset_mock()
         mock_test_method.side_effect = None
         with mock.patch(
@@ -85,7 +85,7 @@ class TestRpcApiEndpoint:
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
-            ({}, None, lambda got, _: got == b"", {}),
+            ({}, None, lambda got, _: got == "", {}),
             ({}, "test_me", equals, {}),
             (
                 BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"}),
@@ -123,9 +123,9 @@ class TestRpcApiEndpoint:
         )
         assert response.status_code == 200
         if method_result:
-            response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
+            response_data = BaseSerialization.deserialize(json.loads(response.text), use_pydantic_models=True)
         else:
-            response_data = response.data
+            response_data = response.text
 
         assert result_cmp_func(response_data, method_result)
 
@@ -139,7 +139,7 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 500
-        assert response.data, b"Error executing method: test_method."
+        assert response.text, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
 
     def test_unknown_method(self):
@@ -149,7 +149,7 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
+        assert response.text.startswith("Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
 
     def test_invalid_jsonrpc(self):
@@ -159,5 +159,5 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
+        assert response.text.startswith("Expected jsonrpc 2.0 request.")
         mock_test_method.assert_not_called()

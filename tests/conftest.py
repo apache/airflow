@@ -99,7 +99,7 @@ if run_db_tests_only:
     os.environ["_AIRFLOW_RUN_DB_TESTS_ONLY"] = "true"
 
 AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
-AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
+AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent
 
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plugins")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
@@ -742,7 +742,7 @@ def app():
     with conf_vars({("fab", "auth_rate_limited"): "False"}):
         from airflow.www import app
 
-        yield app.create_app(testing=True)
+        yield app.create_connexion_app(testing=True)
 
 
 @pytest.fixture
@@ -1151,19 +1151,20 @@ def get_test_dag():
 
 @pytest.fixture
 def create_log_template(request):
-    from airflow import settings
     from airflow.models.tasklog import LogTemplate
 
-    session = settings.Session()
-
     def _create_log_template(filename_template, elasticsearch_id=""):
-        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
-        session.add(log_template)
-        session.commit()
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+            session.add(log_template)
+            session.commit()
 
         def _delete_log_template():
-            session.delete(log_template)
-            session.commit()
+            with create_session() as session:
+                session.delete(log_template)
+                session.commit()
 
         request.addfinalizer(_delete_log_template)
 
@@ -1275,6 +1276,16 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True)
+def create_swagger_ui_dir_if_missing():
+    """
+    The directory needs to exist to satisfy starlette attempting to register it as middleware
+    :return:
+    """
+    swagger_ui_dir = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "www" / "static" / "dist" / "swagger-ui"
+    swagger_ui_dir.mkdir(exist_ok=True, parents=True)
 
 
 @pytest.fixture(autouse=True)

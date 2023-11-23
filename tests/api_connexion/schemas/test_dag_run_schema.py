@@ -129,7 +129,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         serialized_dagrun = {"execution_date": "mydate"}
         with pytest.raises(BadRequest) as ctx:
             dagrun_schema.load(serialized_dagrun)
-        assert str(ctx.value) == "Incorrect datetime argument"
+        assert str(ctx.value) == "400: Invalid date string: mydate"
 
 
 class TestDagRunCollection(TestDAGRunBase):

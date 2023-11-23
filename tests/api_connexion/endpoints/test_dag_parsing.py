@@ -43,23 +43,23 @@ TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],  # type: ignore
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         TEST_DAG_ID,
         access_control={"Test": [permissions.ACTION_CAN_EDIT]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestDagParsingRequest:
@@ -82,26 +82,20 @@ class TestDagParsingRequest:
         test_dag: DAG = dagbag.dags[TEST_DAG_ID]
 
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.put(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
         assert 201 == response.status_code
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
         # Duplicate file parsing request
-        response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.put(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
         assert 201 == response.status_code
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
     def test_bad_file_request(self, url_safe_serializer, session):
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
-        response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.put(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
         assert response.status_code == 404
 
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
@@ -111,8 +105,7 @@ class TestDagParsingRequest:
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
             url,
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 

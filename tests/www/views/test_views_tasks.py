@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import html
-import json
 import unittest.mock
 import urllib.parse
 from getpass import getuser
 
+import httpx
 import pendulum
 import pytest
 import time_machine
@@ -47,7 +47,12 @@ from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+    flask_client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -68,7 +73,7 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
     with time_machine.travel(DEFAULT_DATE, tick=False):
-        app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        app.app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -83,7 +88,7 @@ def init_dagruns(app, reset_dagruns):
             dag_id="example_bash_operator",
             run_id=DEFAULT_DAGRUN,
         )
-        app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+        app.app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -91,7 +96,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("example_xcom").create_dagrun(
+        app.app.dag_bag.get_dag("example_xcom").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -99,7 +104,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("latest_only").create_dagrun(
+        app.app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -107,7 +112,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("example_task_group").create_dagrun(
+        app.app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -121,9 +126,9 @@ def init_dagruns(app, reset_dagruns):
 
 
 @pytest.fixture(scope="module")
-def client_ti_without_dag_edit(app):
+def flask_client_ti_without_dag_edit(app):
     create_user(
-        app,
+        app.app,
         username="all_ti_permissions_except_dag_edit",
         role_name="all_ti_permissions_except_dag_edit",
         permissions=[
@@ -138,14 +143,14 @@ def client_ti_without_dag_edit(app):
         ],
     )
 
-    yield client_with_login(
+    yield flask_client_with_login(
         app,
         username="all_ti_permissions_except_dag_edit",
         password="all_ti_permissions_except_dag_edit",
     )
 
-    delete_user(app, username="all_ti_permissions_except_dag_edit")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="all_ti_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.mark.parametrize(
@@ -367,7 +372,7 @@ def test_xcom_return_value_is_not_bytes(admin_client):
 def test_rendered_task_view(admin_client):
     url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp.status_code == 200
     assert "<td>_try_number</td>" not in resp_html
     assert "<td>try_number</td>" in resp_html
@@ -388,7 +393,7 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -399,12 +404,12 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     url = "tree?dag_id=test_tree_view"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -415,12 +420,12 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/graph"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -431,7 +436,7 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/gantt"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params,  safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
@@ -439,16 +444,15 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     url = "/dags/example_bash_operator/graph"
     resp = one_dag_perm_user_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    assert (
-        resp.request.url
-        == "http://localhost/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
+    assert resp.request.url == httpx.URL(
+        "http://testserver/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
     )
     check_content_in_response("example_bash_operator", resp)
 
     url = "/dags/example_xcom/graph"
     resp = one_dag_perm_user_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    assert resp.request.url == "http://localhost/home"
+    assert resp.request.url == httpx.URL("http://testserver/home")
     check_content_in_response("Access is Denied", resp)
 
 
@@ -462,7 +466,7 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
         "last_dagruns", data={"dag_ids": ["example_subdag_operator"]}, follow_redirects=True
     )
     assert resp.status_code == 200
-    stats = json.loads(resp.data.decode("utf-8"))
+    stats = resp.text
     assert "example_bash_operator" not in stats
     assert "example_subdag_operator" in stats
 
@@ -472,7 +476,7 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
         data={"dag_ids": ["example_subdag_operator", "example_bash_operator"]},
         follow_redirects=True,
     )
-    stats = json.loads(resp.data.decode("utf-8"))
+    stats = resp.text
     assert "example_bash_operator" in stats
     assert "example_subdag_operator" in stats
     check_content_not_in_response("example_xcom", resp)
@@ -628,18 +632,20 @@ def new_dag_to_delete():
     dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
     session = settings.Session()
     dag.sync_to_db(session=session)
+    session.commit()
+    session.close()
     return dag
 
 
 @pytest.fixture
 def per_dag_perm_user_client(app, new_dag_to_delete):
-    sm = app.appbuilder.sm
+    sm = app.app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
 
     sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
 
     create_user(
-        app,
+        app.app,
         username="test_user_per_dag_perms",
         role_name="User with some perms",
         permissions=[
@@ -657,21 +663,21 @@ def per_dag_perm_user_client(app, new_dag_to_delete):
         password="test_user_per_dag_perms",
     )
 
-    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.fixture
 def one_dag_perm_user_client(app):
     username = "test_user_one_dag_perm"
     dag_id = "example_bash_operator"
-    sm = app.appbuilder.sm
+    sm = app.app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
 
     sm.create_permission(permissions.ACTION_CAN_READ, perm)
 
     create_user(
-        app,
+        app.app,
         username=username,
         role_name="User with permission to access only one dag",
         permissions=[
@@ -691,8 +697,8 @@ def one_dag_perm_user_client(app):
         password=username,
     )
 
-    delete_user(app, username=username)  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username=username)  # type: ignore
+    delete_roles(app.app)
 
 
 def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
@@ -790,7 +796,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
 
 
-def test_task_instance_delete(session, admin_client, create_task_instance):
+def test_task_instance_delete(session, flask_admin_client, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete",
         execution_date=timezone.utcnow(),
@@ -800,11 +806,13 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    flask_admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
 
 
-def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
+def test_task_instance_delete_permission_denied(
+    session, flask_client_ti_without_dag_edit, create_task_instance
+):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete_permission_denied",
         execution_date=timezone.utcnow(),
@@ -812,11 +820,14 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
         session=session,
     )
     session.commit()
+    session.close()
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    resp = flask_client_ti_without_dag_edit.post(
+        f"/taskinstance/delete/{composite_key}", follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
@@ -1005,7 +1016,9 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
         for task in tasks_to_delete
     ]
     session.bulk_save_objects(trs)
+    session.commit()
     session.flush()
+    session.close()
 
     # run the function to test
     resp = admin_client.post(
@@ -1030,7 +1043,7 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     assert session.query(TaskReschedule).count() == 0
 
 
-def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
+def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, flask_admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
     from airflow.models.baseoperator import chain
 
@@ -1043,10 +1056,10 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
             for i in range(1, 1000 + 1)
         ]
         chain(*tasks)
-    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
+    with unittest.mock.patch.object(app.app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag
         url = f"/dags/{dag.dag_id}/graph"
-        resp = admin_client.get(url, follow_redirects=True)
+        resp = flask_admin_client.get(url, follow_redirects=True)
         assert resp.status_code == 200
 
 
@@ -1057,7 +1070,7 @@ def test_task_instances(admin_client):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "also_run_this": {
             "custom_operator_name": None,
             "dag_id": "example_bash_operator",

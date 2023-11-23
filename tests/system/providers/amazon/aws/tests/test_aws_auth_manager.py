@@ -24,8 +24,11 @@ import pytest
 
 from airflow.www import app as application
 from tests.system.providers.amazon.aws.utils import set_env_id
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
 
 pytest.importorskip("onelogin")
 
@@ -147,7 +150,7 @@ def client_no_permissions(base_app):
         "email": ["email"],
     }
     base_app.return_value = auth
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.fixture
@@ -160,7 +163,7 @@ def client_admin_permissions(base_app):
         "groups": ["Admin"],
     }
     base_app.return_value = auth
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.mark.system("amazon")

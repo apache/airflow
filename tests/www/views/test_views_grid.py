@@ -81,7 +81,7 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
             with TaskGroup(group_id="group"):
                 MockOperator.partial(task_id="mapped").expand(arg1=["a", "b", "c", "d"])
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
         yield dag_maker
 
 
@@ -96,14 +96,15 @@ def dag_with_runs(dag_without_runs):
         run_type=DagRunType.SCHEDULED,
         execution_date=date + timedelta(days=1),
     )
-
     return run_1, run_2
 
 
-def test_no_runs(admin_client, dag_without_runs):
+def test_no_runs(admin_client, dag_without_runs, session):
+    session.commit()
+    session.close()
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dag_runs": [],
         "groups": {
             "children": [
@@ -163,7 +164,9 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs):
+def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs, session):
+    session.commit()
+    session.close()
     for uri_params, expected_run_types, expected_run_states in [
         ("run_state=success&run_state=queued", ["scheduled"], ["success"]),
         ("run_state=running&run_state=failed", ["scheduled"], ["running"]),
@@ -177,9 +180,9 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
         ),
     ]:
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
-        assert resp.status_code == 200, resp.json
-        actual_run_types = list(map(lambda x: x["run_type"], resp.json["dag_runs"]))
-        actual_run_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
+        assert resp.status_code == 200, resp.json()
+        actual_run_types = list(map(lambda x: x["run_type"], resp.json()["dag_runs"]))
+        actual_run_states = list(map(lambda x: x["state"], resp.json()["dag_runs"]))
         assert actual_run_types == expected_run_types
         assert actual_run_states == expected_run_states
 
@@ -199,7 +202,6 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     - One TI not yet finished
     """
     run1, run2 = dag_with_runs
-
     for ti in run1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
     for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
@@ -214,14 +216,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 ti.state = TaskInstanceState.RUNNING
                 ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
                 ti.end_date = None
-
+    session.commit()
     session.flush()
-
+    session.close()
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
-    assert resp.status_code == 200, resp.json
+    assert resp.status_code == 200, resp.json()
 
-    assert resp.json == {
+    assert resp.json() == {
         "dag_runs": [
             {
                 "conf": None,
@@ -429,7 +431,9 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             EmptyOperator(task_id="task3", outlets=[Dataset("foo"), lineagefile])
             EmptyOperator(task_id="task4", outlets=[Dataset("foo")])
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
+        session.commit()
+        session.close()
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
     def _expected_task_details(task_id, has_outlet_datasets):
@@ -444,8 +448,8 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "trigger_rule": "all_success",
         }
 
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dag_runs": [],
         "groups": {
             "children": [
@@ -470,7 +474,7 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         with dag_maker(dag_id=DAG_ID, schedule=datasets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
 
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
@@ -500,8 +504,8 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
         resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
 
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
             {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
@@ -512,5 +516,5 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
 def test_next_run_datasets_404(admin_client):
     resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
-    assert resp.status_code == 404, resp.json
-    assert resp.json == {"error": "can't find dag missingdag"}
+    assert resp.status_code == 404, resp.json()
+    assert resp.json() == {"error": "can't find dag missingdag"}

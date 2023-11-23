@@ -23,7 +23,7 @@ from airflow.security import permissions
 from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import flask_client_with_login
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
@@ -32,13 +32,13 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def fab_app():
-    return application.create_app(testing=True)
+    return application.create_connexion_app(testing=True)
 
 
 @pytest.fixture(scope="module")
 def user_roles_reader(fab_app):
     yield create_user(
-        fab_app,
+        fab_app.app,
         username="user_roles",
         role_name="role_roles",
         permissions=[
@@ -47,13 +47,13 @@ def user_roles_reader(fab_app):
         ],
     )
 
-    delete_user(fab_app, "user_roles")
+    delete_user(fab_app.app, "user_roles")
 
 
 @pytest.fixture
 def client_roles_reader(fab_app, user_roles_reader):
-    fab_app.config["WTF_CSRF_ENABLED"] = False
-    return client_with_login(
+    fab_app.app.config["WTF_CSRF_ENABLED"] = False
+    return flask_client_with_login(
         fab_app,
         username="user_roles_reader",
         password="user_roles_reader",

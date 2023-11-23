@@ -626,8 +626,8 @@ export interface paths {
      * response = self.client.get(
      *     request_url,
      *     query_string={"token": token},
-     *     headers={"Accept": "text/plain"},
-     *     environ_overrides={"REMOTE_USER": "test"},
+     *     headers={"Accept": "text/plain","REMOTE_USER": "test"},
+     *
      * )
      * continuation_token = response.json["continuation_token"]
      *     metadata = URLSafeSerializer(key).loads(continuation_token)
@@ -725,6 +725,12 @@ export interface paths {
   "/datasets": {
     get: operations["get_datasets"];
   };
+  "/datasets/events": {
+    /** Get dataset events */
+    get: operations["get_dataset_events"];
+    /** Create dataset event */
+    post: operations["create_dataset_event"];
+  };
   "/datasets/{uri}": {
     /** Get a dataset by uri. */
     get: operations["get_dataset"];
@@ -734,12 +740,6 @@ export interface paths {
         uri: components["parameters"]["DatasetURI"];
       };
     };
-  };
-  "/datasets/events": {
-    /** Get dataset events */
-    get: operations["get_dataset_events"];
-    /** Create dataset event */
-    post: operations["create_dataset_event"];
   };
   "/config": {
     get: operations["get_config"];
@@ -3845,7 +3845,11 @@ export interface operations {
     };
     responses: {
       /** Success. */
-      204: never;
+      204: {
+        content: {
+          "text/html": string;
+        };
+      };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
@@ -4333,7 +4337,11 @@ export interface operations {
     };
     responses: {
       /** Success. */
-      204: never;
+      204: {
+        content: {
+          "text/html": string;
+        };
+      };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
@@ -4488,8 +4496,8 @@ export interface operations {
    * response = self.client.get(
    *     request_url,
    *     query_string={"token": token},
-   *     headers={"Accept": "text/plain"},
-   *     environ_overrides={"REMOTE_USER": "test"},
+   *     headers={"Accept": "text/plain","REMOTE_USER": "test"},
+   *
    * )
    * continuation_token = response.json["continuation_token"]
    *     metadata = URLSafeSerializer(key).loads(continuation_token)
@@ -4636,7 +4644,7 @@ export interface operations {
           "application/json": {
             content?: string;
           };
-          "plain/text": string;
+          "text/plain": string;
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -4711,26 +4719,6 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get a dataset by uri. */
-  get_dataset: {
-    parameters: {
-      path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["Dataset"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-  };
   /** Get dataset events */
   get_dataset_events: {
     parameters: {
@@ -4788,6 +4776,26 @@ export interface operations {
       content: {
         "application/json": components["schemas"]["CreateDatasetEvent"];
       };
+    };
+  };
+  /** Get a dataset by uri. */
+  get_dataset: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Dataset"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   get_config: {
@@ -5686,14 +5694,14 @@ export type GetDagWarningsVariables = CamelCasedPropertiesDeep<
 export type GetDatasetsVariables = CamelCasedPropertiesDeep<
   operations["get_datasets"]["parameters"]["query"]
 >;
-export type GetDatasetVariables = CamelCasedPropertiesDeep<
-  operations["get_dataset"]["parameters"]["path"]
->;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
 >;
 export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
   operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
+>;
+export type GetDatasetVariables = CamelCasedPropertiesDeep<
+  operations["get_dataset"]["parameters"]["path"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]

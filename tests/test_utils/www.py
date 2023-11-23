@@ -23,11 +23,21 @@ from unittest import mock
 from airflow.models import Log
 
 
-def client_with_login(app, expected_response_code=302, **kwargs):
+def client_with_login(app, expected_path=b"/home", **kwargs):
     patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()
+        resp = client.post("/login/", data=kwargs)
+        assert resp.url.raw_path == expected_path
+    return client
+
+
+def flask_client_with_login(app, expected_response_code=302, **kwargs):
+    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    with mock.patch(patch_path) as check_password_hash:
+        check_password_hash.return_value = True
+        client = app.app.test_client()
         resp = client.post("/login/", data=kwargs)
         assert resp.status_code == expected_response_code
     return client
@@ -35,7 +45,7 @@ def client_with_login(app, expected_response_code=302, **kwargs):
 
 def client_without_login(app):
     # Anonymous users can only view if AUTH_ROLE_PUBLIC is set to non-Public
-    app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+    app.app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
     client = app.test_client()
     return client
 
@@ -48,7 +58,7 @@ def client_without_login_as_admin(app):
 
 
 def check_content_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
@@ -58,7 +68,7 @@ def check_content_in_response(text, resp, resp_code=200):
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:

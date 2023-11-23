@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Container, Literal, Sequence
 
 from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
@@ -82,7 +82,7 @@ class BaseAuthManager(LoggingMixin):
         return []
 
     def get_api_endpoints(self) -> None | Blueprint:
-        """Return API endpoint(s) definition for the auth manager."""
+        """Return API endpoint(s) definition for the auth manager for Airflow 2.9."""
         return None
 
     def get_user_name(self) -> str:
@@ -442,3 +442,12 @@ class BaseAuthManager(LoggingMixin):
         from airflow.www.security_manager import AirflowSecurityManagerV2
 
         return AirflowSecurityManagerV2(self.appbuilder)
+
+    def get_auth_manager_api_specification(self) -> tuple[str | None, dict[Any, Any]]:
+        """
+        Return the mount point and specification (openapi) for auth manager contributed API (Airflow 2.10).
+
+        By default is raises NotImplementedError which produces a warning in airflow logs when auth manager is
+        initialized, but you can return None, {} if the auth manager does not contribute API.
+        """
+        raise NotImplementedError

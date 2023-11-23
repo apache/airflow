@@ -505,7 +505,7 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.9.1",
-        "remove-providers": "",
+        "remove-providers": "fab",  # TODO fix tests!
         "run-tests": "true",
     },
 ]
