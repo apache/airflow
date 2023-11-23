@@ -28,8 +28,8 @@ from pathlib import Path
 from tempfile import gettempdir
 from time import sleep
 
+import connexion
 import psutil
-from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -54,7 +54,7 @@ from airflow.www.extensions.init_security import init_xframe_protection
 from airflow.www.extensions.init_views import init_api_internal, init_error_handlers
 
 log = logging.getLogger(__name__)
-app: Flask | None = None
+app: connexion.FlaskApp | None = None
 
 
 @cli_utils.action_cli
@@ -73,8 +73,8 @@ def internal_api(args):
         log.info(f"Starting the Internal API server on port {args.port} and host {args.hostname}.")
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,  # nosec
-            use_reloader=not app.config["TESTING"],
+            log_level="debug",
+            # reload=not app.app.config["TESTING"],
             port=args.port,
             host=args.hostname,
         )
@@ -101,7 +101,7 @@ def internal_api(args):
             "--workers",
             str(num_workers),
             "--worker-class",
-            str(args.workerclass),
+            "uvicorn.workers.UvicornWorker",
             "--timeout",
             str(worker_timeout),
             "--bind",
@@ -195,7 +195,8 @@ def internal_api(args):
 
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow Internal API app."""
-    flask_app = Flask(__name__)
+    connexion_app = connexion.FlaskApp(__name__)
+    flask_app = connexion_app.app
 
     flask_app.config["APP_NAME"] = "Airflow Internal API"
     flask_app.config["TESTING"] = testing
@@ -240,7 +241,7 @@ def create_app(config=None, testing=False):
 
     with flask_app.app_context():
         init_error_handlers(flask_app)
-        init_api_internal(flask_app, standalone_api=True)
+        init_api_internal(connexion_app, standalone_api=True)
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)

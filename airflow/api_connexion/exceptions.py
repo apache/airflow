@@ -17,15 +17,12 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-import werkzeug
-from connexion import FlaskApi, ProblemException, problem
+from connexion import ProblemException, problem
+from connexion.lifecycle import ConnexionRequest, ConnexionResponse
 
 from airflow.utils.docs import get_docs_url
-
-if TYPE_CHECKING:
-    import flask
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
 
@@ -40,37 +37,29 @@ EXCEPTIONS_LINK_MAP = {
 }
 
 
-def common_error_handler(exception: BaseException) -> flask.Response:
+def problem_error_handler(_request: ConnexionRequest, exception: ProblemException) -> ConnexionResponse:
     """Use to capture connexion exceptions and add link to the type field."""
-    if isinstance(exception, ProblemException):
-        link = EXCEPTIONS_LINK_MAP.get(exception.status)
-        if link:
-            response = problem(
-                status=exception.status,
-                title=exception.title,
-                detail=exception.detail,
-                type=link,
-                instance=exception.instance,
-                headers=exception.headers,
-                ext=exception.ext,
-            )
-        else:
-            response = problem(
-                status=exception.status,
-                title=exception.title,
-                detail=exception.detail,
-                type=exception.type,
-                instance=exception.instance,
-                headers=exception.headers,
-                ext=exception.ext,
-            )
+    link = EXCEPTIONS_LINK_MAP.get(exception.status)
+    if link:
+        return problem(
+            status=exception.status,
+            title=exception.title,
+            detail=exception.detail,
+            type=link,
+            instance=exception.instance,
+            headers=exception.headers,
+            ext=exception.ext,
+        )
     else:
-        if not isinstance(exception, werkzeug.exceptions.HTTPException):
-            exception = werkzeug.exceptions.InternalServerError()
-
-        response = problem(title=exception.name, detail=exception.description, status=exception.code)
-
-    return FlaskApi.get_response(response)
+        return problem(
+            status=exception.status,
+            title=exception.title,
+            detail=exception.detail,
+            type=exception.type,
+            instance=exception.instance,
+            headers=exception.headers,
+            ext=exception.ext,
+        )
 
 
 class NotFound(ProblemException):
