@@ -1004,9 +1004,7 @@ def _deploy_helm_chart(
             f"executor={executor}",
         ]
         if multi_namespace_mode:
-            helm_command.extend(
-                ["--set", "multiNamespaceMode=true", "--set", "airflowNamespaces[0]=test-namespace"]
-            )
+            helm_command.extend(["--set", "multiNamespaceMode=true"])
         if upgrade:
             # force upgrade
             helm_command.append("--force")
@@ -1055,26 +1053,39 @@ def _deploy_airflow(
         if multi_namespace_mode:
             # duplicate Airflow configmaps, secrets and service accounts to test namespace
             run_command_with_k8s_env(
-                [
-                    "kubectl",
-                    "get",
-                    "configmap,secret,serviceaccount",
-                    "-n",
-                    HELM_AIRFLOW_NAMESPACE,
-                    "-o",
-                    "yaml",
-                    "|",
-                    "kubectl",
-                    "apply",
-                    "-n",
-                    TEST_NAMESPACE,
-                    "-f",
-                    "-",
-                ],
+                f"kubectl get secret -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector type!=helm.sh/release.v1 -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
                 python=python,
                 kubernetes_version=kubernetes_version,
                 output=output,
                 check=False,
+                shell=True,
+            )
+
+            run_command_with_k8s_env(
+                f"kubectl get configmap -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector  metadata.name!=kube-root-ca.crt -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+                shell=True,
+            )
+
+            run_command_with_k8s_env(
+                f"kubectl get serviceaccount -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector  metadata.name!=default -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+                shell=True,
             )
 
         get_console(output=output).print(
