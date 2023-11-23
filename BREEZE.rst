@@ -964,7 +964,7 @@ When running ``breeze start-airflow`` or commands that needs a base image, the f
     Error response from daemon: No such image: ghcr.io/apache/airflow/main/ci/python3.10:latest
     Error 1 returned
 
-In this case, we'll need to push the missing image ``ghcr.io/apache/airflow/main/ci/python3.10:latest`` as stated in the error message through ``docker pull ghcr.io/apache/airflow/main/ci/python3.10:latest``.
+In this case, we'll need to pull the missing image ``ghcr.io/apache/airflow/main/ci/python3.10:latest`` as stated in the error message through ``docker pull ghcr.io/apache/airflow/main/ci/python3.10:latest``.
 
 Advanced commands
 =================
