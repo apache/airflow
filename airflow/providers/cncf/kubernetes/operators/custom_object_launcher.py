@@ -212,7 +212,7 @@ class CustomObjectLauncher(LoggingMixin):
         """
         Creates custom object launcher(sparkapplications crd).
 
-                :param kube_client: kubernetes client.
+        :param kube_client: kubernetes client.
         """
         super().__init__()
         self.name = name
@@ -331,7 +331,7 @@ class CustomObjectLauncher(LoggingMixin):
                 )
             except Exception:
                 pass
-            raise AirflowException(f"Spark Job Failed.\nSparkJob Error stack:\n{err}")
+            raise AirflowException(f"Spark Job Failed. Error stack: {err}")
         return driver_state == CustomObjectStatus.SUBMITTED
 
     def check_pod_start_failure(self):
@@ -344,7 +344,7 @@ class CustomObjectLauncher(LoggingMixin):
         except Exception:
             return
         if waiting_reason != "ContainerCreating":
-            raise AirflowException(f"Spark Job Failed.\nStatus: {waiting_reason}\nError: {waiting_message}")
+            raise AirflowException(f"Spark Job Failed. Status: {waiting_reason}, Error: {waiting_message}")
 
     def delete_spark_job(self, spark_job_name=None):
         """Deletes spark job."""

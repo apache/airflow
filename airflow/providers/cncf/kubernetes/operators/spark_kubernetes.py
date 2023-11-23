@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import re
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -221,12 +220,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
         return driver_pod
-
-    def extract_xcom(self, pod):
-        """Retrieves xcom value and kills xcom sidecar container."""
-        result = self.pod_manager.extract_xcom(pod)
-        self.log.info("xcom result: \n%s", result)
-        return json.loads(result)
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
