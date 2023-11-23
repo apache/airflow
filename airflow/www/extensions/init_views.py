@@ -23,12 +23,14 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from connexion import FlaskApi, ProblemException, Resolver
-from connexion.decorators.validation import RequestBodyValidator
-from connexion.exceptions import BadRequestProblem
-from flask import request
+import connexion
+import starlette.exceptions
+from connexion import ProblemException, Resolver
+from connexion.lifecycle import ConnexionRequest, ConnexionResponse
+from connexion.options import SwaggerUIOptions
+from connexion.problem import problem
 
-from airflow.api_connexion.exceptions import common_error_handler
+from airflow.api_connexion.exceptions import problem_error_handler
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
@@ -167,26 +169,6 @@ def init_error_handlers(app: Flask):
     from airflow.www import views
 
     app.register_error_handler(500, views.show_traceback)
-    app.register_error_handler(404, views.not_found)
-
-
-def set_cors_headers_on_response(response):
-    """Add response headers."""
-    allow_headers = conf.get("api", "access_control_allow_headers")
-    allow_methods = conf.get("api", "access_control_allow_methods")
-    allow_origins = conf.get("api", "access_control_allow_origins")
-    if allow_headers:
-        response.headers["Access-Control-Allow-Headers"] = allow_headers
-    if allow_methods:
-        response.headers["Access-Control-Allow-Methods"] = allow_methods
-    if allow_origins == "*":
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    elif allow_origins:
-        allowed_origins = allow_origins.split(" ")
-        origin = request.environ.get("HTTP_ORIGIN", allowed_origins[0])
-        if origin in allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = origin
-    return response
 
 
 class _LazyResolution:
@@ -220,74 +202,71 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
-class _CustomErrorRequestBodyValidator(RequestBodyValidator):
-    """Custom request body validator that overrides error messages.
-
-    By default, Connextion emits a very generic *None is not of type 'object'*
-    error when receiving an empty request body (with the view specifying the
-    body as non-nullable). We overrides it to provide a more useful message.
-    """
-
-    def validate_schema(self, data, url):
-        if not self.is_null_value_valid and data is None:
-            raise BadRequestProblem(detail="Request body must not be empty")
-        return super().validate_schema(data, url)
-
-
 base_paths: list[str] = []  # contains the list of base paths that have api endpoints
 
 
-def init_api_error_handlers(app: Flask) -> None:
+def init_api_error_handlers(connexion_app: connexion.FlaskApp) -> None:
     """Add error handlers for 404 and 405 errors for existing API paths."""
     from airflow.www import views
 
-    @app.errorhandler(404)
-    def _handle_api_not_found(ex):
-        if any([request.path.startswith(p) for p in base_paths]):
+    def _handle_http_exception(ex: starlette.exceptions.HTTPException) -> ConnexionResponse:
+        return problem(
+            title=connexion.http_facts.HTTP_STATUS_CODES.get(ex.status_code),
+            detail=ex.detail,
+            status=ex.status_code,
+        )
+
+    def _handle_api_not_found(
+        request: ConnexionRequest, ex: starlette.exceptions.HTTPException
+    ) -> ConnexionResponse:
+        if any([request.url.path.startswith(p) for p in base_paths]):
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
             # i.e. "no route for it" defined, need to be handled
             # here on the application level
-            return common_error_handler(ex)
+            return _handle_http_exception(ex)
         else:
             return views.not_found(ex)
 
-    @app.errorhandler(405)
-    def _handle_method_not_allowed(ex):
-        if any([request.path.startswith(p) for p in base_paths]):
-            return common_error_handler(ex)
+    def _handle_method_not_allowed(
+        request: ConnexionRequest, ex: starlette.exceptions.HTTPException
+    ) -> ConnexionResponse:
+        if any([request.url.path.startswith(p) for p in base_paths]):
+            return _handle_http_exception(ex)
         else:
             return views.method_not_allowed(ex)
 
-    app.register_error_handler(ProblemException, common_error_handler)
+    connexion_app.add_error_handler(404, _handle_api_not_found)
+    connexion_app.add_error_handler(405, _handle_method_not_allowed)
+    connexion_app.add_error_handler(ProblemException, problem_error_handler)
 
 
-def init_api_connexion(app: Flask) -> None:
+def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
     """Initialize Stable API."""
     base_path = "/api/v1"
     base_paths.append(base_path)
 
     with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
         specification = safe_load(f)
-    api_bp = FlaskApi(
+    swagger_ui_options = SwaggerUIOptions(
+        swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+        swagger_ui_path=os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
+    )
+
+    connexion_app.add_api(
         specification=specification,
         resolver=_LazyResolver(),
         base_path=base_path,
-        options={
-            "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            "swagger_path": os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
-        },
+        swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
-        validator_map={"body": _CustomErrorRequestBodyValidator},
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
+    )
 
-    app.register_blueprint(api_bp)
-    app.extensions["csrf"].exempt(api_bp)
+    # flask_app = connexion_app.app
+    # flask_app.extensions["csrf"].exempt(api_bp)
 
 
-def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
+def init_api_internal(connexion_app: connexion.FlaskApp, standalone_api: bool = False) -> None:
     """Initialize Internal API."""
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
@@ -295,18 +274,20 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     base_paths.append("/internal_api/v1")
     with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
         specification = safe_load(f)
-    api_bp = FlaskApi(
+    swagger_ui_options = SwaggerUIOptions(
+        swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+    )
+
+    connexion_app.add_api(
         specification=specification,
         base_path="/internal_api/v1",
-        options={"swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True)},
+        swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
+    )
 
-    app.register_blueprint(api_bp)
-    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
-    app.extensions["csrf"].exempt(api_bp)
+    # flask_app = connexion_app.app
+    # flask_app.extensions["csrf"].exempt(api_bp)
 
 
 def init_api_experimental(app):
@@ -326,11 +307,12 @@ def init_api_experimental(app):
     app.extensions["csrf"].exempt(endpoints.api_experimental)
 
 
-def init_api_auth_provider(app):
+def init_api_auth_provider(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
-    blueprint = auth_mgr.get_api_endpoints()
-    if blueprint:
+    api = auth_mgr.get_api_endpoints(connexion_app)
+    if api:
+        blueprint = api.blueprint
         base_paths.append(blueprint.url_prefix)
-        app.register_blueprint(blueprint)
-        app.extensions["csrf"].exempt(blueprint)
+        flask_app = connexion_app.app
+        flask_app.extensions["csrf"].exempt(blueprint)

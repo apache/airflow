@@ -20,11 +20,14 @@ from __future__ import annotations
 import warnings
 from datetime import timedelta
 
-from flask import Flask
+import connexion
+from connexion.exceptions import ConnexionException
+from flask import jsonify
 from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
+from starlette.middleware.cors import CORSMiddleware
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
@@ -61,16 +64,44 @@ from airflow.www.extensions.init_views import (
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
-app: Flask | None = None
+app: connexion.FlaskApp | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
 
 
+def custom_jsonify(obj, **kwargs):
+    # Check if cls key is already present
+    if "cls" in kwargs:
+        cls = kwargs.get("cls")
+        if cls != AirflowJsonProvider:
+            raise Exception(f"Conflict: cls: {cls} already set")
+
+    # Set cls to our custom provider
+    kwargs["cls"] = AirflowJsonProvider
+
+    try:
+        return jsonify(obj, **kwargs)
+    except ConnexionException:
+        raise ConnexionException("Unable to serialize data")
+
+
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
-    flask_app = Flask(__name__)
+    connexion_app = connexion.FlaskApp(__name__)
+
+    connexion_app.add_middleware(
+        CORSMiddleware,
+        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
+        allow_origins=conf.get("api", "access_control_allow_origins"),
+        allow_credentials=True,
+        allow_methods=conf.get("api", "access_control_allow_methods"),
+        allow_headers=conf.get("api", "access_control_allow_headers"),
+    )
+
+    connexion_app.jsonify = custom_jsonify
+    flask_app = connexion_app.app
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
@@ -158,14 +189,16 @@ def create_app(config=None, testing=False):
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
         init_error_handlers(flask_app)
-        init_api_connexion(flask_app)
+        init_api_connexion(connexion_app)
         if conf.getboolean("webserver", "run_internal_api", fallback=False):
             if not _ENABLE_AIP_44:
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
-            init_api_internal(flask_app)
+            init_api_internal(connexion_app)
         init_api_experimental(flask_app)
-        init_api_auth_provider(flask_app)
-        init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
+        init_api_auth_provider(connexion_app)
+        init_api_error_handlers(
+            connexion_app
+        )  # needs to be after all api inits to let them add their path first
 
         get_auth_manager().init()
 
@@ -173,7 +206,7 @@ def create_app(config=None, testing=False):
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
-    return flask_app
+    return connexion_app
 
 
 def cached_app(config=None, testing=False):
