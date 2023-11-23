@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-from importlib import import_module
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
@@ -31,6 +30,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -72,7 +72,7 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self._is_auth_type_setup: bool = auth_type is not None
-        self.auth_type: Any = auth_type or HTTPBasicAuth
+        self.auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
@@ -102,8 +102,8 @@ class HttpHook(BaseHook):
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = conn.extra_dejson.copy()
-            conn_auth_type: Any = self._conn_auth_type(conn_extra=conn_extra)
-            auth_type = self.auth_type or conn_auth_type
+            conn_auth_type_name: str | None = conn_extra.pop("auth_type", None)
+            auth_type: Any = self.auth_type or self._conn_auth_type(conn_auth_type_name) or HTTPBasicAuth
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra.pop("auth_kwargs", {})
 
@@ -112,7 +112,7 @@ class HttpHook(BaseHook):
             elif self._is_auth_type_setup:
                 session.auth = auth_type()
 
-            if conn.extra:
+            if conn_extra:
                 try:
                     session.headers.update(conn_extra)
                 except TypeError:
@@ -122,12 +122,11 @@ class HttpHook(BaseHook):
 
         return session
 
-    def _conn_auth_type(self, conn_extra: dict) -> Any:
+    def _conn_auth_type(self, module_name: str | None) -> Any:
         """Load auth_type module from extra Connection parameters."""
-        module_name: str | None = conn_extra.pop("auth_type", None)
         if module_name:
             try:
-                module = import_module(module_name)
+                module = import_string(module_name)
                 self._is_auth_type_setup = True
                 self.log.info("Loaded auth_type: %s", module_name)
                 return module

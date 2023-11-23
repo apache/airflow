@@ -282,7 +282,7 @@ class TestHttpHook:
             conn_type="http",
             login="username",
             password="pass",
-            extra='{"auth_kwargs": {"endpoint": "http://localhost"}}',
+            extra='{"x-header": 0, "auth_kwargs": {"endpoint": "http://localhost"}}',
         )
         mock_get_connection.return_value = conn
 
@@ -291,6 +291,40 @@ class TestHttpHook:
 
         auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
         assert "auth_kwargs" not in session.headers
+        assert "x-header" in session.headers
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_header_and_auth_type(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra='{"x-header": 0, "auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+        )
+        mock_get_connection.return_value = conn
+
+        session = HttpHook().get_conn({})
+        auth.assert_called_once_with("username", "pass")
+        assert isinstance(session.auth, CustomAuthBase)
+        assert "auth_type" not in session.headers
+        assert "x-header" in session.headers
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_auth_type_and_no_credentials(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            extra='{"auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+        )
+        mock_get_connection.return_value = conn
+
+        HttpHook().get_conn({})
+        auth.assert_called_once()
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):
