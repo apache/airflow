@@ -31,12 +31,6 @@ jobs:
         with:
           ref: develop
           persist-credentials: false
-      - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 2
-          persist-credentials: false
       - name: "Install Python"
         uses: actions/setup-python@v4
         with:
@@ -44,7 +38,11 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install Breeze"
-        run: pip install --editable ./dev/breeze/ 
+        run: pip install --user "pipx>=1.2.1"
+             pipx ensurepath
+      - name: "Install Breeze"
+        run: pwd
+             pipx install -e ./dev/breeze 
       - name: "Run Teradata Provider Unit Tests"
         run: breeze testing tests --test-type "Providers[teradata]"
       - name: Selective checks
