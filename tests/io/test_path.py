@@ -255,7 +255,8 @@ class TestFs:
 
         o = ObjectStoragePath(path, my_setting="foo")
         s = o.serialize()
-        assert s["my_setting"] == "foo"
+        assert "my_setting" in s["encrypted_kwargs"]
+        assert s["encrypted_kwargs"]["my_setting"] != "foo"
 
         store = attach("filex", conn_id="mock")
         o = ObjectStoragePath(path, store=store)

@@ -31,6 +31,7 @@ from upath.registry import get_upath_class
 
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
+from airflow.models.crypto import get_fernet
 
 if typing.TYPE_CHECKING:
     from urllib.parse import SplitResult
@@ -40,20 +41,21 @@ if typing.TYPE_CHECKING:
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
+default = "file"
+
 
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(
-        self,
-        parsed_url: SplitResult | None,
-        conn_id: str | None = None,
-        **kwargs: typing.Any,
-    ) -> None:
-        if parsed_url and parsed_url.scheme:
-            self._store = attach(parsed_url.scheme, conn_id)
+    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
+        store = kwargs.pop("store", None)
+        conn_id = kwargs.pop("conn_id", None)
+        if store:
+            self._store = store
+        elif parsed_url and parsed_url.scheme:
+            self._store = attach(protocol=parsed_url.scheme, conn_id=conn_id, storage_options=kwargs)
         else:
-            self._store = attach("file", conn_id)
+            self._store = attach(protocol=default, conn_id=conn_id, storage_options=kwargs)
 
     @property
     def _fs(self) -> AbstractFileSystem:
@@ -70,7 +72,7 @@ class ObjectStoragePath(CloudPath):
 
     __version__: typing.ClassVar[int] = 1
 
-    _default_accessor: type[_CloudAccessor] = _AirflowCloudAccessor
+    _default_accessor = _AirflowCloudAccessor
 
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
@@ -88,19 +90,15 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(
-        cls: type[PT],
-        *args: str | os.PathLike,
-        scheme: str | None = None,
-        conn_id: str | None = None,
-        **kwargs: typing.Any,
-    ) -> PT:
+    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
         args_list = list(args)
 
-        if args_list:
-            other = args_list.pop(0) or "."
-        else:
+        try:
+            other = args_list.pop(0)
+        except IndexError:
             other = "."
+        else:
+            other = other or "."
 
         if isinstance(other, PurePath):
             _cls: typing.Any = type(other)
@@ -126,26 +124,25 @@ class ObjectStoragePath(CloudPath):
 
         url = stringify_path(other)
         parsed_url: SplitResult = urlsplit(url)
+        protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
 
-        if scheme:  # allow override of protocol
-            parsed_url = parsed_url._replace(scheme=scheme)
+        # allow override of protocol
+        protocol = kwargs.get("scheme", protocol)
 
-        if not parsed_url.path:  # ensure path has root
-            parsed_url = parsed_url._replace(path="/")
+        for key in ["scheme", "url"]:
+            val = kwargs.pop(key, None)
+            if val:
+                parsed_url = parsed_url._replace(**{key: val})
 
-        if not parsed_url.scheme and not split_protocol(url)[0]:
+        if not parsed_url.path:
+            parsed_url = parsed_url._replace(path="/")  # ensure path has root
+
+        if not protocol:
             args_list.insert(0, url)
         else:
             args_list.insert(0, parsed_url.path)
 
-        # This matches the parsing logic in urllib.parse; see:
-        # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75a/Lib/urllib/parse.py#L194-L203
-        userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
-        if have_info:
-            conn_id = conn_id or userinfo or None
-            parsed_url = parsed_url._replace(netloc=hostinfo)
-
-        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
+        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
@@ -386,10 +383,22 @@ class ObjectStoragePath(CloudPath):
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink()
 
-    def serialize(self) -> dict[str, str]:
+    def serialize(self) -> dict[str, typing.Any]:
+        fernet = get_fernet()
+        _enc_kwargs = {}
+
+        store = self._kwargs.pop("store", None)
+
+        for k, v in self._kwargs.items():
+            if isinstance(v, str):
+                _enc_kwargs[k] = fernet.encrypt(v.encode()).decode()
+            else:
+                _enc_kwargs[k] = v
+
         return {
             "path": str(self),
-            **self._kwargs,
+            "store": store,
+            "encrypted_kwargs": _enc_kwargs,
         }
 
     @classmethod
@@ -397,5 +406,10 @@ class ObjectStoragePath(CloudPath):
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
 
+        _kwargs = {}
+        fernet = get_fernet()
+        for k, v in data["encrypted_kwargs"].items():
+            _kwargs[k] = fernet.decrypt(v.encode()).decode()
+
         path = data.pop("path")
-        return ObjectStoragePath(path, **data)
+        return ObjectStoragePath(path, **_kwargs)

@@ -39,7 +39,7 @@ GCS_VERSION_AWARE = "gcs.version-aware"
 schemes = ["gs", "gcs"]
 
 
-def get_fs(conn_id: str | None) -> AbstractFileSystem:
+def get_fs(conn_id: str | None, storage_options: dict[str, str]) -> AbstractFileSystem:
     # https://gcsfs.readthedocs.io/en/latest/api.html#gcsfs.core.GCSFileSystem
     from gcsfs import GCSFileSystem
 
@@ -49,15 +49,18 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     g = GoogleBaseHook(gcp_conn_id=conn_id)
     creds = g.get_credentials()
 
-    return GCSFileSystem(
-        project=g.project_id,
-        access=g.extras.get(GCS_ACCESS, "full_control"),
-        token=creds.token,
-        consistency=g.extras.get(GCS_CONSISTENCY, "none"),
-        cache_timeout=g.extras.get(GCS_CACHE_TIMEOUT),
-        requester_pays=g.extras.get(GCS_REQUESTER_PAYS, False),
-        session_kwargs=g.extras.get(GCS_SESSION_KWARGS, {}),
-        endpoint_url=g.extras.get(GCS_ENDPOINT),
-        default_location=g.extras.get(GCS_DEFAULT_LOCATION),
-        version_aware=g.extras.get(GCS_VERSION_AWARE, "false").lower() == "true",
-    )
+    options = {
+        "project": g.project_id,
+        "access": g.extras.get(GCS_ACCESS, "full_control"),
+        "token": creds.token,
+        "consistency": g.extras.get(GCS_CONSISTENCY, "none"),
+        "cache_timeout": g.extras.get(GCS_CACHE_TIMEOUT),
+        "requester_pays": g.extras.get(GCS_REQUESTER_PAYS, False),
+        "session_kwargs": g.extras.get(GCS_SESSION_KWARGS, {}),
+        "endpoint_url": g.extras.get(GCS_ENDPOINT),
+        "default_location": g.extras.get(GCS_DEFAULT_LOCATION),
+        "version_aware": g.extras.get(GCS_VERSION_AWARE, "false").lower() == "true",
+    }
+    options.update(storage_options or {})
+
+    return GCSFileSystem(**options)
