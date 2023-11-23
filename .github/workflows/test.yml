@@ -40,8 +40,7 @@ jobs:
       - name: "Install Breeze"
         run: pip install --user "pipx>=1.2.1"
       - name: "Install Breeze"
-        run: pwd
-             pipx install -e ./dev/breeze 
+        run: pipx install -e ./dev/breeze 
       - name: "Run Teradata Provider Unit Tests"
         run: breeze testing tests --test-type "Providers[teradata]"
       - name: Selective checks
