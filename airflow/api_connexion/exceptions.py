@@ -20,7 +20,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import werkzeug
-from connexion import FlaskApi, ProblemException, problem
+from connexion import FlaskApp, FlaskApi, ProblemException, problem
 
 from airflow.utils.docs import get_docs_url
 

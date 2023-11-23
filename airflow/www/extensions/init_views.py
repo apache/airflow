@@ -23,9 +23,13 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from connexion import FlaskApi, ProblemException, Resolver
-from connexion.decorators.validation import RequestBodyValidator
+from connexion import FlaskApp, FlaskApi, ProblemException, Resolver
+
+from connexion.resolver import Resolver
+# from connexion.validators import VALIDATOR_MAP
+from connexion.validators.abstract import AbstractRequestBodyValidator
 from connexion.exceptions import BadRequestProblem
+from connexion.options import SwaggerUIOptions
 from flask import request
 
 from airflow.api_connexion.exceptions import common_error_handler
@@ -220,7 +224,7 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
-class _CustomErrorRequestBodyValidator(RequestBodyValidator):
+class _CustomErrorRequestBodyValidator(AbstractRequestBodyValidator):
     """Custom request body validator that overrides error messages.
 
     By default, Connextion emits a very generic *None is not of type 'object'*
@@ -267,24 +271,30 @@ def init_api_connexion(app: Flask) -> None:
     base_path = "/api/v1"
     base_paths.append(base_path)
 
-    with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
-        specification = safe_load(f)
-    api_bp = FlaskApi(
-        specification=specification,
-        resolver=_LazyResolver(),
-        base_path=base_path,
-        options={
-            "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            "swagger_path": os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
-        },
+
+    specification=ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml")
+    connexion_app = FlaskApp(
+        import_name=__name__,
+        specification_dir=specification,
         strict_validation=True,
         validate_responses=True,
-        validator_map={"body": _CustomErrorRequestBodyValidator},
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
-
-    app.register_blueprint(api_bp)
-    app.extensions["csrf"].exempt(api_bp)
+        resolver=Resolver(),
+        swagger_ui_options=SwaggerUIOptions(
+            swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+            swagger_ui_path=os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
+        ),
+    )
+    connexion_app.app = app
+    connexion_app.add_api(
+        specification=specification,
+        base_path=base_path,
+        resolver=Resolver(),
+        validate_responses=True,
+        strict_validation=True,
+    )
+    app.after_request_funcs.setdefault(base_path, []).append(set_cors_headers_on_response)
+    app.register_error_handler(ProblemException, common_error_handler)
+    app.extensions["csrf"].exempt(base_path)
 
 
 def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
@@ -293,20 +303,26 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
         return
 
     base_paths.append("/internal_api/v1")
-    with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
-        specification = safe_load(f)
-    api_bp = FlaskApi(
-        specification=specification,
-        base_path="/internal_api/v1",
-        options={"swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True)},
+    specification=ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml")
+    internal_app = FlaskApp(
+        import_name=__name__,
+        specification_dir=specification,
+        swagger_ui_options=SwaggerUIOptions(
+            swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True)
+        ),
         strict_validation=True,
         validate_responses=True,
-    ).blueprint
-    api_bp.after_request(set_cors_headers_on_response)
-
-    app.register_blueprint(api_bp)
-    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
-    app.extensions["csrf"].exempt(api_bp)
+    )
+    internal_app.app = app
+    internal_app.add_api(
+        specification=specification,
+        base_path="/internal_api/v1",
+        resolver=Resolver(),
+        validate_responses=True,
+        strict_validation=True,
+    )
+    app.after_request_funcs.setdefault("/internal_api/v1", []).append(set_cors_headers_on_response)
+    app.extensions["csrf"].exempt("/internal_api/v1")
 
 
 def init_api_experimental(app):
