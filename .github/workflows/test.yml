@@ -36,3 +36,6 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      
