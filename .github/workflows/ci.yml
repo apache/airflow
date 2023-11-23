@@ -1746,7 +1746,7 @@ jobs:
             ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
             'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        run: breeze k8s run-complete-tests --run-in-parallel --upgrade
+        run: breeze k8s run-complete-tests --run-in-parallel --upgrade --parallelism 4
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
