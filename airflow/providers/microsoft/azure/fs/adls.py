@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
-def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None) -> AbstractFileSystem:
+def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem
 
     if conn_id is None:
