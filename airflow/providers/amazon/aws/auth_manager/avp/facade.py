@@ -82,7 +82,8 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             entity_list += entity_fetcher()
 
         self.log.debug(
-            "Making authorization request for method=%s, entity_type=%s, entity_id=%s",
+            "Making authorization request for user=%s, method=%s, entity_type=%s, entity_id=%s",
+            user.get_id(),
             method,
             entity_type,
             entity_id,
