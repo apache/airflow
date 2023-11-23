@@ -1626,7 +1626,7 @@ but here typical examples are presented:
 
 .. code-block:: bash
 
-     breeze prod-image build --additional-extras "jira"
+     breeze prod-image build --additional-airflow-extras "jira"
 
 This installs additional ``jira`` extra while installing airflow in the image.
 

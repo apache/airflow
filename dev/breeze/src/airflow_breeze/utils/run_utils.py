@@ -22,6 +22,7 @@ import contextlib
 import os
 import re
 import shlex
+import shutil
 import signal
 import stat
 import subprocess
@@ -40,8 +41,11 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     WWW_ASSET_COMPILE_LOCK,
+    WWW_ASSET_HASH_FILE,
     WWW_ASSET_OUT_DEV_MODE_FILE,
     WWW_ASSET_OUT_FILE,
+    WWW_NODE_MODULES_DIR,
+    WWW_STATIC_DIST_DIR,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -246,7 +250,10 @@ def get_filesystem_type(filepath: str):
     :return: type of filesystem
     """
     # We import it locally so that click autocomplete works
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
@@ -448,10 +455,21 @@ def kill_process_group(gid: int):
         pass
 
 
+def clean_www_assets():
+    get_console().print("[info]Cleaning www assets[/]")
+    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
+    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
+    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
+    get_console().print("[success]Cleaned www assets[/]")
+
+
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
+    force_clean: bool,
 ):
+    if force_clean:
+        clean_www_assets()
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
         get_console().print(

@@ -61,6 +61,10 @@ CODE = "def callable():\n    print(10)\n"
 @pytest.fixture(autouse=True, scope="function")
 def clear_cache():
     is_source_enabled.cache_clear()
+    try:
+        yield
+    finally:
+        is_source_enabled.cache_clear()
 
 
 def test_extract_source_code():

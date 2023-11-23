@@ -24,6 +24,7 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 suspended: false
+source-date-epoch: 1700148093
 
 versions:
   - 1.0.0

@@ -22,6 +22,7 @@ description: |
     `Opensearch <https://opensearch.org/>`__
 
 suspended: false
+source-date-epoch: 1700148078
 versions:
   - 1.0.0
 

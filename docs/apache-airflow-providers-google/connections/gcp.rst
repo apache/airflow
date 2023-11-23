@@ -307,7 +307,7 @@ For example:
             delegate_to=f"projects/-/serviceAccounts/SA@{PROJECT_ID}.iam.gserviceaccount.com",
         )
 
-Note that as domain-wide delegation is currently supported by most of the Google operators and hooks, its usage should be limited only to Google Workspace (gsuite) and marketing platform operators and hooks. It is deprecated in the following usages:
+Note that as domain-wide delegation is currently supported by most of the Google operators and hooks, its usage should be limited only to Google Workspace (gsuite) and marketing platform operators and hooks or by accessing these services through the GoogleDiscoveryAPI hook. It is deprecated in the following usages:
 
 * All of Google Cloud operators and hooks.
 * Firebase hooks.

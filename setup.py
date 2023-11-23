@@ -353,7 +353,13 @@ ldap = [
 ]
 leveldb = ["plyvel"]
 otel = ["opentelemetry-exporter-prometheus"]
-pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
+pandas = [
+    "pandas>=0.17.1",
+    # Use pyarrow-hotfix to fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
+    # We should remove it once Apache Beam frees us to upgrade to pyarrow 14.0.1
+    "pyarrow-hotfix",
+    "pyarrow>=9.0.0",
+]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
@@ -413,7 +419,7 @@ _MIN_BOTO3_VERSION = "1.28.0"
 
 _devel_only_amazon = [
     "aws_xray_sdk",
-    "moto[cloudformation,glue]>=4.2.5",
+    "moto[cloudformation,glue]>=4.2.9",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
@@ -477,7 +483,7 @@ _devel_only_tests = [
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
-    "pytest",
+    "pytest>=7.1",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-httpx",
@@ -521,6 +527,11 @@ s3fs = [
     "s3fs>=2023.9.2",
 ]
 
+saml = [
+    # This is required for support of SAML which might be used by some providers (e.g. Amazon)
+    "python3-saml>=1.16.0",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     if provider_name not in PROVIDER_DEPENDENCIES:
@@ -548,6 +559,7 @@ devel = get_unique_dependency_list(
         pandas,
         password,
         s3fs,
+        saml,
     ]
 )
 
@@ -594,6 +606,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "password": password,
     "rabbitmq": rabbitmq,
     "s3fs": s3fs,
+    "saml": saml,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,

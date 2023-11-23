@@ -261,7 +261,7 @@ class SecretsMasker(logging.Filter):
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub("***", item)
+                    return self.replacer.sub("***", str(item))
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
@@ -276,14 +276,15 @@ class SecretsMasker(logging.Filter):
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
-        # but it caused infinite recursion, so we need to cast it to str first.
+        # but it caused infinite recursion, to avoid this we mark the log as already filtered.
         except Exception as exc:
             log.warning(
-                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
-                "Error was: %s: %s",
+                "Unable to redact value of type %s, please report this via "
+                "<https://github.com/apache/airflow/issues>. Error was: %s: %s",
                 item,
                 type(exc).__name__,
                 exc,
+                extra={self.ALREADY_FILTERED_FLAG: True},
             )
             return item
 

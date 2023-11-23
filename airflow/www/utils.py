@@ -940,10 +940,7 @@ class UIAlert:
         if self.roles:
             current_user = get_auth_manager().get_user()
             if current_user is not None:
-                if not hasattr(current_user, "roles"):
-                    # If the user does not contain "roles" in its model, return False
-                    return False
-                user_roles = {r.name for r in current_user.roles}
+                user_roles = {r.name for r in getattr(current_user, "roles", [])}
             elif "AUTH_ROLE_PUBLIC" in appbuilder.get_app.config:
                 # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
                 user_roles = {appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}

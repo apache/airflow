@@ -1014,9 +1014,11 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ## Update providers metadata
 
+Make sure you create the following branch from the git tag (steps before) and not from main!
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata
 git add -p .

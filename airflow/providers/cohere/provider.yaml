@@ -24,6 +24,7 @@ description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
 suspended: false
+source-date-epoch: 1700148058
 
 versions:
   - 1.0.0
