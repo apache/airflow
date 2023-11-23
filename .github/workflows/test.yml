@@ -43,6 +43,8 @@ jobs:
         run: pipx install -e ./dev/breeze 
       - name: "Run Teradata Provider Unit Tests"
         run: breeze testing tests --test-type "Providers[teradata]"
+      - name: "Entering into breeze"
+        run: breeze
       - name: "Add new teradata connection for system test"
         run: airflow connections add 'airflow_teradata' --conn-type 'teradata' --conn-login 'dbc' --conn-password 'dbc' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
       - name: Selective checks
