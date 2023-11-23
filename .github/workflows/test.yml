@@ -46,7 +46,7 @@ jobs:
       - name: "Install Breeze"
         run: pip install --editable ./dev/breeze/ 
       - name: "Run Teradata Provider Unit Tests"
-        run: python -m pytest tests/providers/teradata/operators/test_teradata.py
+        run: breeze testing tests --test-type "Providers[teradata]"
       - name: Selective checks
         id: selective-checks
         env:
