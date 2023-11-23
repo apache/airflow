@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import connexion
+import starlette.exceptions
 from connexion import ProblemException, Resolver
 from connexion.options import SwaggerUIOptions
 from connexion.problem import problem
