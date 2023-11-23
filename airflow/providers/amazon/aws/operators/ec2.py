@@ -318,7 +318,7 @@ class EC2RebootInstanceOperator(BaseOperator):
 
 class EC2HibernateInstanceOperator(BaseOperator):
     """
-    Hibernate Amazon EC2 instance.
+    Hibernate Amazon EC2 instances.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
