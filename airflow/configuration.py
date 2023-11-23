@@ -1955,9 +1955,27 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    if not os.path.isfile(AIRFLOW_CONFIG):
-        log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+    airflow_config = pathlib.Path(AIRFLOW_CONFIG)
+    if airflow_config.is_dir():
+        msg = (
+            "Airflow config expected to be a path to the configuration file, "
+            f"but got a directory {airflow_config.__fspath__()!r}."
+        )
+        raise IsADirectoryError(msg)
+    elif not airflow_config.exists():
+        config_directory = airflow_config.parent
+        if not config_directory.exists():
+            # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
+            try:
+                config_directory.relative_to(AIRFLOW_HOME)
+            except ValueError:
+                msg = (
+                    f"Config directory {config_directory.__fspath__()!r} not exists "
+                    f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
+                    "Please create this directory first."
+                )
+                raise FileNotFoundError(msg) from None
+            config_directory.mkdir(parents=True, exist_ok=True)
         if conf.get("core", "fernet_key", fallback=None) is None:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
@@ -1965,7 +1983,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
-        with open(AIRFLOW_CONFIG, "w") as file:
+        with open(airflow_config, "w") as file:
             conf.write(
                 file,
                 include_sources=False,
