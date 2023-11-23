@@ -949,6 +949,23 @@ In this case, disabling IPv6 in the host machine and using IPv4 instead resolved
 The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
 blocked by it, or your proxy setting has not been done properly.
 
+"No such image" Error:
+------------------------
+
+When running ``breeze start-airflow`` or commands that needs a base image, the following output might be observed:
+
+.. code-block:: bash
+
+    [+] Creating 3/0
+     ✔ Container docker-compose-rabbitmq-1  Running                                                                                                                                          0.0s
+     ✔ Container docker-compose-redis-1     Running                                                                                                                                          0.0s
+     ✔ Container docker-compose-postgres-1  Running                                                                                                                                          0.0s
+    [+] Building 0.0s (0/0)                                                                                                                                                  docker:desktop-linux
+    Error response from daemon: No such image: ghcr.io/apache/airflow/main/ci/python3.10:latest
+    Error 1 returned
+
+In this case, we'll need to push the missing image ``ghcr.io/apache/airflow/main/ci/python3.10:latest`` as stated in the error message through ``docker pull ghcr.io/apache/airflow/main/ci/python3.10:latest``.
+
 Advanced commands
 =================
 
