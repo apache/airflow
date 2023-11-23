@@ -259,7 +259,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
 
 class EC2RebootInstanceOperator(BaseOperator):
     """
-    Reboot Amazon EC2 instance.
+    Reboot Amazon EC2 instances.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
