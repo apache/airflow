@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+from importlib import import_module
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
@@ -70,19 +71,12 @@ class HttpHook(BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self._auth_type: Any = auth_type
+        self._is_auth_type_setup: bool = auth_type is not None
+        self.auth_type: Any = auth_type or HTTPBasicAuth
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
-
-    @property
-    def auth_type(self):
-        return self._auth_type or HTTPBasicAuth
-
-    @auth_type.setter
-    def auth_type(self, v):
-        self._auth_type = v
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -108,13 +102,15 @@ class HttpHook(BaseHook):
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = conn.extra_dejson.copy()
+            conn_auth_type: Any = self._conn_auth_type(conn_extra=conn_extra)
+            auth_type = self.auth_type or conn_auth_type
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra.pop("auth_kwargs", {})
 
             if any(auth_args) or auth_kwargs:
-                session.auth = self.auth_type(*auth_args, **auth_kwargs)
-            elif self._auth_type:
-                session.auth = self.auth_type()
+                session.auth = auth_type(*auth_args, **auth_kwargs)
+            elif self._is_auth_type_setup:
+                session.auth = auth_type()
 
             if conn.extra:
                 try:
@@ -125,6 +121,20 @@ class HttpHook(BaseHook):
             session.headers.update(headers)
 
         return session
+
+    def _conn_auth_type(self, conn_extra: dict) -> Any:
+        """Load auth_type module from extra Connection parameters."""
+        module_name: str | None = conn_extra.pop("auth_type", None)
+        if module_name:
+            try:
+                module = import_module(module_name)
+                self._is_auth_type_setup = True
+                self.log.info("Loaded auth_type: %s", module_name)
+                return module
+            except ImportError as error:
+                self.log.debug("Cannot import auth_type '%s' due to: %s", error)
+                raise AirflowException(error)
+        return None
 
     def run(
         self,
