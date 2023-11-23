@@ -1963,6 +1963,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
         )
         raise IsADirectoryError(msg)
     elif not airflow_config.exists():
+        log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
         config_directory = airflow_config.parent
         if not config_directory.exists():
             # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
@@ -1975,6 +1976,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                     "Please create this directory first."
                 )
                 raise FileNotFoundError(msg) from None
+            log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
             config_directory.mkdir(parents=True, exist_ok=True)
         if conf.get("core", "fernet_key", fallback=None) is None:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
@@ -1992,7 +1994,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(AIRFLOW_CONFIG)
+        make_group_other_inaccessible(airflow_config.__fspath__())
     return conf
 
 
