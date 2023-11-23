@@ -29,6 +29,7 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
+          ref: develop
           persist-credentials: false
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
