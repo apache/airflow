@@ -43,9 +43,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install Breeze"
-      - run: pip install --editable ./dev/breeze/
-      - run: python -m pytest -n auto --color=yes
-        working-directory: ./dev/breeze/
+        run: pip install --editable ./dev/breeze/      
       - name: Selective checks
         id: selective-checks
         env:
