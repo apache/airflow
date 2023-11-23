@@ -97,7 +97,7 @@ class TestBatchOperator:
         assert self.batch.hook.max_retries == self.MAX_RETRIES
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
-        assert self.batch.retry_strategy == {}
+        assert self.batch.retry_strategy == {"attempts": 1}
         assert self.batch.container_overrides == {}
         assert self.batch.array_properties is None
         assert self.batch.node_overrides is None
@@ -146,7 +146,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
-            retryStrategy={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -170,7 +170,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
-            retryStrategy={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -237,7 +237,7 @@ class TestBatchOperator:
             "jobName": JOB_NAME,
             "jobDefinition": "hello-world",
             "parameters": {},
-            "retryStrategy": {},
+            "retryStrategy": {"attempts": 1},
             "tags": {},
         }
         if override == "overrides":
