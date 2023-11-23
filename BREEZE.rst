@@ -338,6 +338,15 @@ that Breeze works on
 
             pipx install --force -e dev\breeze
 
+    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
+
+        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+
 
 Running Breeze for the first time
 ---------------------------------
