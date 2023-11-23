@@ -45,7 +45,7 @@ class SignError(Exception):
     """Raises when unable to sign a S3 request."""
 
 
-def get_fs(conn_id: str | None, storage_options: dict[str, str] | None) -> AbstractFileSystem:
+def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -> AbstractFileSystem:
     try:
         from s3fs import S3FileSystem
     except ImportError:
