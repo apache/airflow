@@ -22,7 +22,7 @@ import pytest
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.auth.managers.fab.models import User
+from airflow.providers.fab.auth_manager.models import User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -641,7 +641,7 @@ class TestPatchUser(TestUserEndpoint):
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     @unittest.mock.patch(
-        "airflow.auth.managers.fab.api_endpoints.user_endpoint.generate_password_hash",
+        "airflow.providers.fab.auth_manager.api_endpoints.user_endpoint.generate_password_hash",
         return_value="fake-hashed-pass",
     )
     def test_password_hashed(

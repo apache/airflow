@@ -79,8 +79,8 @@ class TestBasicAuth:
         assert type(result) is Response
         assert result.status_code == 401
 
-    @patch("airflow.auth.managers.fab.api.auth.backend.basic_auth.get_airflow_app")
-    @patch("airflow.auth.managers.fab.api.auth.backend.basic_auth.login_user")
+    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_airflow_app")
+    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_ldap(
         self, mock_login_user, mock_get_airflow_app, app, mock_app, mock_sm, mock_authorization
     ):
@@ -99,8 +99,8 @@ class TestBasicAuth:
         mock_login_user.assert_called_once_with(user, remember=False)
         mock_call.assert_called_once()
 
-    @patch("airflow.auth.managers.fab.api.auth.backend.basic_auth.get_airflow_app")
-    @patch("airflow.auth.managers.fab.api.auth.backend.basic_auth.login_user")
+    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_airflow_app")
+    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_db(
         self, mock_login_user, mock_get_airflow_app, app, mock_app, mock_sm, mock_authorization
     ):

@@ -30,15 +30,15 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
-from airflow.auth.managers.fab.models import User, assoc_permission_role
-from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
+from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
@@ -891,7 +891,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     import airflow.www.security
 
     monkeypatch.setitem(
-        airflow.auth.managers.fab.security_manager.override.__dict__, "DagBag", dagbag_class_mock
+        airflow.providers.fab.auth_manager.security_manager.override.__dict__, "DagBag", dagbag_class_mock
     )
     security_manager._sync_dag_view_permissions = mock.Mock()
 

@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow.api_connexion.exceptions import PermissionDenied
-from airflow.auth.managers.fab.decorators.auth import _has_access_fab, _requires_access_fab
+from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab, _requires_access_fab
 from airflow.security.permissions import ACTION_CAN_READ, RESOURCE_DAG
 from airflow.www import app as application
 
@@ -64,7 +64,7 @@ class TestFabAuthManagerDecorators:
     def setup_method(self) -> None:
         mock_call.reset_mock()
 
-    @patch("airflow.auth.managers.fab.decorators.auth.get_airflow_app")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.get_airflow_app")
     def test_requires_access_fab_sync_resource_permissions(
         self, mock_get_airflow_app, mock_sm, mock_appbuilder, mock_app
     ):
@@ -77,8 +77,8 @@ class TestFabAuthManagerDecorators:
 
         mock_sm.sync_resource_permissions.assert_called_once()
 
-    @patch("airflow.auth.managers.fab.decorators.auth.get_airflow_app")
-    @patch("airflow.auth.managers.fab.decorators.auth.check_authentication")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.get_airflow_app")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.check_authentication")
     def test_requires_access_fab_access_denied(
         self, mock_check_authentication, mock_get_airflow_app, mock_sm, mock_app
     ):
@@ -96,8 +96,8 @@ class TestFabAuthManagerDecorators:
         mock_sm.check_authorization.assert_called_once()
         mock_call.assert_not_called()
 
-    @patch("airflow.auth.managers.fab.decorators.auth.get_airflow_app")
-    @patch("airflow.auth.managers.fab.decorators.auth.check_authentication")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.get_airflow_app")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.check_authentication")
     def test_requires_access_fab_access_granted(
         self, mock_check_authentication, mock_get_airflow_app, mock_sm, mock_app
     ):
@@ -115,7 +115,7 @@ class TestFabAuthManagerDecorators:
         mock_call.assert_called_once()
 
     @pytest.mark.db_test
-    @patch("airflow.auth.managers.fab.decorators.auth._has_access")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth._has_access")
     def test_has_access_fab_with_no_dags(self, mock_has_access, mock_sm, mock_appbuilder, app):
         app.appbuilder = mock_appbuilder
         with app.test_request_context():
@@ -125,8 +125,8 @@ class TestFabAuthManagerDecorators:
         mock_has_access.assert_called_once()
 
     @pytest.mark.db_test
-    @patch("airflow.auth.managers.fab.decorators.auth.render_template")
-    @patch("airflow.auth.managers.fab.decorators.auth._has_access")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth.render_template")
+    @patch("airflow.providers.fab.auth_manager.decorators.auth._has_access")
     def test_has_access_fab_with_multiple_dags_render_error(
         self, mock_has_access, mock_render_template, mock_sm, mock_appbuilder, app
     ):

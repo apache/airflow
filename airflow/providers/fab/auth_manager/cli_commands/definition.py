@@ -107,13 +107,13 @@ USERS_COMMANDS = (
     ActionCommand(
         name="list",
         help="List users",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.users_list"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="create",
         help="Create a user",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.users_create"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_create"),
         args=(
             ARG_ROLE,
             ARG_USERNAME,
@@ -139,31 +139,31 @@ USERS_COMMANDS = (
     ActionCommand(
         name="delete",
         help="Delete a user",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.users_delete"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_delete"),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add-role",
         help="Add role to a user",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.add_role"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.add_role"),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="remove-role",
         help="Remove role from a user",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.remove_role"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.remove_role"),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="import",
         help="Import users",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.users_import"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_import"),
         args=(ARG_USER_IMPORT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",
         help="Export all users",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.user_command.users_export"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_export"),
         args=(ARG_USER_EXPORT, ARG_VERBOSE),
     ),
 )
@@ -171,43 +171,47 @@ ROLES_COMMANDS = (
     ActionCommand(
         name="list",
         help="List roles",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_list"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.role_command.roles_list"),
         args=(ARG_PERMISSIONS, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="create",
         help="Create role",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_create"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.role_command.roles_create"),
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="delete",
         help="Delete role",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_delete"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.role_command.roles_delete"),
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add-perms",
         help="Add roles permissions",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_add_perms"),
+        func=lazy_load_command(
+            "airflow.providers.fab.auth_manager.cli_commands.role_command.roles_add_perms"
+        ),
         args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION_REQUIRED, ARG_VERBOSE),
     ),
     ActionCommand(
         name="del-perms",
         help="Delete roles permissions",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_del_perms"),
+        func=lazy_load_command(
+            "airflow.providers.fab.auth_manager.cli_commands.role_command.roles_del_perms"
+        ),
         args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",
         help="Export roles (without permissions) from db to JSON file",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_export"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.role_command.roles_export"),
         args=(ARG_ROLE_EXPORT, ARG_ROLE_EXPORT_FMT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="import",
         help="Import roles (without permissions) from JSON file to db",
-        func=lazy_load_command("airflow.auth.managers.fab.cli_commands.role_command.roles_import"),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.role_command.roles_import"),
         args=(ARG_ROLE_IMPORT, ARG_VERBOSE),
     ),
 )
@@ -215,6 +219,6 @@ ROLES_COMMANDS = (
 SYNC_PERM_COMMAND = ActionCommand(
     name="sync-perm",
     help="Update permissions for existing roles and optionally DAGs",
-    func=lazy_load_command("airflow.auth.managers.fab.cli_commands.sync_perm_command.sync_perm"),
+    func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.sync_perm_command.sync_perm"),
     args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
 )

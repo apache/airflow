@@ -29,9 +29,9 @@ import re2
 from marshmallow import Schema, fields, validate
 from marshmallow.exceptions import ValidationError
 
-from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded

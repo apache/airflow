@@ -28,12 +28,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
-from airflow.auth.managers.fab.cli_commands.definition import (
-    ROLES_COMMANDS,
-    SYNC_PERM_COMMAND,
-    USERS_COMMANDS,
-)
-from airflow.auth.managers.fab.models import Permission, Role, User
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -49,8 +43,14 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DagModel
+from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    ROLES_COMMANDS,
+    SYNC_PERM_COMMAND,
+    USERS_COMMANDS,
+)
+from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.security import permissions
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -86,11 +86,11 @@ from airflow.utils.yaml import safe_load
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
     )
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
@@ -334,7 +334,9 @@ class FabAuthManager(BaseAuthManager):
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
         """Return the security manager specific to FAB."""
-        from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+        from airflow.providers.fab.auth_manager.security_manager.override import (
+            FabAirflowSecurityManagerOverride,
+        )
         from airflow.www.security import AirflowSecurityManager
 
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
@@ -348,7 +350,7 @@ class FabAuthManager(BaseAuthManager):
                 warnings.warn(
                     "Please make your custom security manager inherit from "
                     "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                 )
             return sm_from_config(self.appbuilder)
 

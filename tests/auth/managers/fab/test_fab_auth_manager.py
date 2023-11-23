@@ -23,11 +23,11 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask
 
-from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
-from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.exceptions import AirflowException
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.models import User
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -363,7 +363,7 @@ class TestFabAuthManager:
             auth_manager_with_appbuilder.get_url_login()
 
     @pytest.mark.db_test
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
@@ -371,7 +371,7 @@ class TestFabAuthManager:
         mock_url_for.assert_called_once_with("test_endpoint.login")
 
     @pytest.mark.db_test
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
     def test_get_url_login_with_next(self, mock_url_for, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
@@ -384,7 +384,7 @@ class TestFabAuthManager:
             auth_manager_with_appbuilder.get_url_logout()
 
     @pytest.mark.db_test
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
     def test_get_url_logout(self, mock_url_for, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
@@ -396,7 +396,7 @@ class TestFabAuthManager:
         assert auth_manager_with_appbuilder.get_url_user_profile() is None
 
     @pytest.mark.db_test
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
     def test_get_url_user_profile(self, mock_url_for, auth_manager_with_appbuilder):
         expected_url = "test_url"
         mock_url_for.return_value = expected_url

@@ -25,8 +25,8 @@ from io import StringIO
 
 import pytest
 
-from airflow.auth.managers.fab.cli_commands import user_command
 from airflow.cli import cli_parser
+from airflow.providers.fab.auth_manager.cli_commands import user_command
 from tests.test_utils.api_connexion_utils import delete_users
 
 pytestmark = pytest.mark.db_test

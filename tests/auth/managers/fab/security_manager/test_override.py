@@ -19,7 +19,7 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import Mock
 
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):
@@ -38,7 +38,7 @@ class TestFabAirflowSecurityManagerOverride:
 
         sm.get_user_by_id.assert_called_once_with(123)
 
-    @mock.patch("airflow.auth.managers.fab.security_manager.override.g", spec={})
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.g", spec={})
     def test_load_user_jwt(self, mock_g):
         sm = EmptySecurityManager()
         mock_user = Mock()

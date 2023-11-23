@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from connexion import NoContent
 from flask import request
@@ -34,20 +34,21 @@ from airflow.api_connexion.schemas.user_schema import (
     user_schema,
 )
 from airflow.api_connexion.security import requires_access_custom_view
-from airflow.auth.managers.fab.models import User
+from airflow.providers.fab.auth_manager.models import User
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.security import permissions
-from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
-    from airflow.auth.managers.fab.models import Role
+    from airflow.providers.fab.auth_manager.models import Role
 
 
 @requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
-    ab_security_manager = get_airflow_app().appbuilder.sm
-    user = ab_security_manager.find_user(username=username)
+    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    user = security_manager.find_user(username=username)
     if not user:
         raise NotFound(title="User not found", detail=f"The User with username `{username}` was not found")
     return user_collection_item_schema.dump(user)
@@ -57,8 +58,8 @@ def get_user(*, username: str) -> APIResponse:
 @format_parameters({"limit": check_limit})
 def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users."""
-    appbuilder = get_airflow_app().appbuilder
-    session = appbuilder.get_session
+    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    session = security_manager.get_session
     total_entries = session.execute(select(func.count(User.id))).scalar()
     direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
@@ -93,7 +94,7 @@ def post_user() -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = get_airflow_app().appbuilder.sm
+    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
     username = data["username"]
     email = data["email"]
 
@@ -136,7 +137,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = get_airflow_app().appbuilder.sm
+    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
 
     user = security_manager.find_user(username=username)
     if user is None:
@@ -200,7 +201,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 @requires_access_custom_view(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user."""
-    security_manager = get_airflow_app().appbuilder.sm
+    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
 
     user = security_manager.find_user(username=username)
     if user is None:

@@ -19,8 +19,8 @@ from __future__ import annotations
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.auth.managers.fab.models import Role
-from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.models import Role
+from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import (
     assert_401,

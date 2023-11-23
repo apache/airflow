@@ -60,6 +60,7 @@ body:
         - docker
         - elasticsearch
         - exasol
+        - fab
         - facebook
         - ftp
         - github
