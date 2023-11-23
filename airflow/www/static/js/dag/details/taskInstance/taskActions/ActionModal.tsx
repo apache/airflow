@@ -108,7 +108,7 @@ const ActionModal = ({
                   <AccordionIcon />
                 </AccordionButton>
                 <AccordionPanel>
-                  <Box maxHeight="30vh" overflowY="auto">
+                  <Box maxHeight="35vh" overflowY="auto">
                     <AffectedTasksTable affectedTasks={affectedTasks} />
                   </Box>
                 </AccordionPanel>
