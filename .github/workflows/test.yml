@@ -39,6 +39,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install pipx"
         run: pip install --user "pipx>=1.2.1"
+      - run: pip install -U pytest
       - run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
       - run: airflow db init
       - run: airflow connections add 'airflow_teradata' --conn-type 'teradata' --conn-login 'demo_user' --conn-password 'airbyteintro' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
