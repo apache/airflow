@@ -155,6 +155,7 @@ with DAG(
     reboot_instance = EC2RebootInstanceOperator(
         task_id="reboot_instace",
         instance_ids=instance_id,
+        wait_for_completion=True,
     )
     # [END howto_operator_ec2_reboot_instance]
 
@@ -162,6 +163,7 @@ with DAG(
     hibernate_instance = EC2HibernateInstanceOperator(
         task_id="hibernate_instace",
         instance_ids=instance_id,
+        wait_for_completion=True,
     )
     # [END howto_operator_ec2_hibernate_instance]
 
