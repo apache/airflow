@@ -83,6 +83,21 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     return classname, version, data
 
 
+def encrypt(value: _primitives) -> str:
+    """Encrypt a primitive value."""
+    if not isinstance(value, _primitives):
+        raise TypeError(f"cannot encrypt non primitive value {value}")
+
+    from airflow.models.crypto import get_fernet
+
+    if isinstance(value, str):
+        enc = get_fernet().encrypt(value.encode("utf-8")).decode("utf-8")
+    else:
+        return
+
+    return get_fernet().encrypt(str(value).encode("utf-8")).decode("utf-8")
+
+
 def serialize(o: object, depth: int = 0) -> U | None:
     """Serialize an object into a representation consisting only built-in types.
 

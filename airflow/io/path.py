@@ -146,7 +146,10 @@ class ObjectStoragePath(CloudPath):
 
     @functools.lru_cache
     def __hash__(self) -> int:
-        return hash(self._bucket)
+        return hash(str(self))
+
+    def __eq__(self, other: typing.Any) -> bool:
+        return self.samestore(other) and str(self) == str(other)
 
     def samestore(self, other: typing.Any) -> bool:
         return isinstance(other, ObjectStoragePath) and self._accessor == other._accessor
@@ -386,18 +389,19 @@ class ObjectStoragePath(CloudPath):
     def serialize(self) -> dict[str, typing.Any]:
         fernet = get_fernet()
         _enc_kwargs = {}
+        _kwargs = self._kwargs.copy()
 
-        store = self._kwargs.pop("store", None)
+        conn_id = _kwargs.pop("conn_id", None)
 
-        for k, v in self._kwargs.items():
+        for k, v in _kwargs.items():
             if isinstance(v, str):
                 _enc_kwargs[k] = fernet.encrypt(v.encode()).decode()
             else:
-                _enc_kwargs[k] = v
+                _enc_kwargs[k] = fernet.encrypt(bytes(v)).decode()
 
         return {
             "path": str(self),
-            "store": store,
+            "conn_id": conn_id,
             "encrypted_kwargs": _enc_kwargs,
         }
 
@@ -412,4 +416,6 @@ class ObjectStoragePath(CloudPath):
             _kwargs[k] = fernet.decrypt(v.encode()).decode()
 
         path = data.pop("path")
-        return ObjectStoragePath(path, **_kwargs)
+        conn_id = data.pop("conn_id", None)
+
+        return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
