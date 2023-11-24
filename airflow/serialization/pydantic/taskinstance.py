@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
 from airflow.models import Operator
@@ -105,12 +105,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""

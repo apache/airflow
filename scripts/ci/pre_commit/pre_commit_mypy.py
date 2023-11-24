@@ -34,20 +34,22 @@ os.environ["SKIP_GROUP_OUTPUT"] = "true"
 
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+
+    os.environ["SKIP_UPGRADE_CHECK"] = "true"
     from common_precommit_utils import filter_out_providers_on_non_main_branch
 
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED  # isort: skip
+    from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_SELECTED
+    from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.console import get_console  # isort: skip
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags  # isort: skip
     from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed  # isort: skip
-    from airflow_breeze.utils.packages import get_suspended_provider_folders
     from airflow_breeze.utils.run_utils import (
         get_ci_image_for_pre_commits,
         run_command,
     )
 
-    suspended_providers_folders = get_suspended_provider_folders()
+    shell_params = ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, backend="none")
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:
@@ -60,13 +62,9 @@ if __name__ == "__main__":
             "docker",
             "run",
             "-t",
-            *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
+            *get_extra_docker_flags(mount_sources=MOUNT_SELECTED, include_mypy_volume=True),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            f"SUSPENDED_PROVIDERS_FOLDERS={' '.join(suspended_providers_folders)}",
-            "-e",
-            "BACKEND=sqlite",
             "--pull",
             "never",
             airflow_image,
@@ -74,6 +72,7 @@ if __name__ == "__main__":
             *files_to_test,
         ],
         check=False,
+        env=shell_params.env_variables_for_docker_commands,
     )
     if cmd_result.returncode != 0:
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"

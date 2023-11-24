@@ -57,6 +57,7 @@ if TYPE_CHECKING:
         PushConfig,
         ReceivedMessage,
         RetryPolicy,
+        SchemaSettings,
     )
 
 
@@ -182,6 +183,8 @@ class PubSubHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
+        schema_settings: dict | SchemaSettings = None,
+        message_retention_duration: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -206,6 +209,11 @@ class PubSubHook(GoogleBaseHook):
             to be used to protect access to messages published on this topic.
             The expected format is
             ``projects/*/locations/*/keyRings/*/cryptoKeys/*``.
+        :param schema_settings: (Optional) Settings for validating messages published against an
+            existing schema. The expected format is ``projects/*/schemas/*``.
+        :param message_retention_duration: (Optional) Indicates the minimum duration to retain a
+            message after it is published to the topic. The expected format is a duration in
+            seconds with up to nine fractional digits, ending with 's'. Example: "3.5s".
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
@@ -228,6 +236,8 @@ class PubSubHook(GoogleBaseHook):
                     "labels": labels,
                     "message_storage_policy": message_storage_policy,
                     "kms_key_name": kms_key_name,
+                    "schema_settings": schema_settings,
+                    "message_retention_duration": message_retention_duration,
                 },
                 retry=retry,
                 timeout=timeout,

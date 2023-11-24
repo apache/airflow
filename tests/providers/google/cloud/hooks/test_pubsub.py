@@ -103,7 +103,14 @@ class TestPubSubHook:
         create_method = mock_service.return_value.create_topic
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
-            request=dict(name=EXPANDED_TOPIC, labels=LABELS, message_storage_policy=None, kms_key_name=None),
+            request=dict(
+                name=EXPANDED_TOPIC,
+                labels=LABELS,
+                message_storage_policy=None,
+                kms_key_name=None,
+                schema_settings=None,
+                message_retention_duration=None,
+            ),
             retry=DEFAULT,
             timeout=None,
             metadata=(),

@@ -32,6 +32,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException, Remov
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
@@ -480,6 +481,34 @@ class Connection(Base, LoggingMixin):
     def to_dict(self) -> dict[str, Any]:
         return {"conn_id": self.conn_id, "description": self.description, "uri": self.get_uri()}
 
+    def to_json_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+        """
+        Convert Connection to json-serializable dictionary.
+
+        :param prune_empty: Whether or not remove empty values.
+        :param validate: Validate dictionary is JSON-serializable
+
+        :meta private:
+        """
+        conn = {
+            "conn_id": self.conn_id,
+            "conn_type": self.conn_type,
+            "description": self.description,
+            "host": self.host,
+            "login": self.login,
+            "password": self.password,
+            "schema": self.schema,
+            "port": self.port,
+        }
+        if prune_empty:
+            conn = prune_dict(val=conn, mode="strict")
+        if (extra := self.extra_dejson) or not prune_empty:
+            conn["extra"] = extra
+
+        if validate:
+            json.dumps(conn)
+        return conn
+
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
@@ -496,3 +525,9 @@ class Connection(Base, LoggingMixin):
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
         return Connection(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
+        conn = self.to_json_dict(prune_empty=True, validate=False)
+        conn.pop("conn_id", None)
+        return json.dumps(conn)

@@ -38,7 +38,7 @@ class OpenSearchQueryOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchQueryOperator`
 
-    :param query: A Dictionary Open Search DSL query.
+    :param query: A Dictionary OpenSearch DSL query.
     :param search_object: A Search object from opensearch-dsl.
     :param index_name: The name of the index to search for documents.
     :param opensearch_conn_id: opensearch connection to use
@@ -97,7 +97,7 @@ class OpenSearchQueryOperator(BaseOperator):
 
 class OpenSearchCreateIndexOperator(BaseOperator):
     """
-    Create a new index on an Open Search cluster with a given index name.
+    Create a new index on an OpenSearch cluster with a given index name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -127,7 +127,7 @@ class OpenSearchCreateIndexOperator(BaseOperator):
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Creates an index on an Open Search cluster."""
+        """Creates an index on an OpenSearch cluster."""
         try:
             self.hook.client.indices.create(index=self.index_name, body=self.index_body)
         except OpenSearchException as e:

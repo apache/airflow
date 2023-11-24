@@ -518,7 +518,11 @@ class S3Hook(AwsBaseHook):
         wildcard_match: bool,
     ) -> bool:
         """
-        Check for all keys in bucket and returns boolean value.
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
+        is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket

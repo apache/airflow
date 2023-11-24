@@ -576,9 +576,24 @@ repos:
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] core imports
-        description: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
-        entry: "from airflow\\.models import.* BaseOperator"
+        name: Check BaseOperator core imports
+        description: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator\\b"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/decorators/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/sensors/.*$|
+          ^dev/provider_packages/.*$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperatorLink core imports
+        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
+        entry: "from airflow\\.models import.* BaseOperatorLink"
         files: \.py$
         pass_filenames: true
         exclude: >
@@ -593,7 +608,7 @@ repos:
         language: pygrep
         name: Check BaseOperator[Link] other imports
         description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -919,7 +934,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging', 'filelock']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -1010,7 +1025,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-core
         name: Run mypy for core
         language: python
@@ -1018,7 +1033,7 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1026,7 +1041,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
@@ -1034,13 +1049,13 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
-      - id: check-provider-yaml-valid
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+      - id:   check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
@@ -1048,12 +1063,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: update-er-diagram
         name: Update ER diagram
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

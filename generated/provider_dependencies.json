@@ -31,7 +31,7 @@
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
-      "watchtower~=3.0.1"
+      "watchtower>=2.0.1,<4"
     ],
     "cross-providers-deps": [
       "apache.hive",
