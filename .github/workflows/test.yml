@@ -45,9 +45,8 @@ jobs:
       - run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
       - run: airflow db init
       - run: airflow connections add 'airflow_teradata' --conn-type 'teradata' --conn-login 'demo_user' --conn-password 'airbyteintro' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
-      - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest
       - run: airflow connections list
-      - run: pytest --system=teradata  tests/system/providers/teradata/example_teradata.py
+      - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py
 
       
       
