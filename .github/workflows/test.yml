@@ -37,18 +37,12 @@ jobs:
           python-version: "3.8"
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - name: "Install pipx"
-        run: pip install --user "pipx>=1.2.1"
-      - run: pip install -U pytest
-      - run: python -m pip install time-machine
-      - run: pip install pytest-asyncio
-      - run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
+      - name: "Install required packages"
+        run: pip install --user "pipx>=1.2.1";pip install -U pytest;python -m pip install time-machine;pip install pytest-asyncio
+      - name: "Install airflow and teradata provider from sources"
+        run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
       - run: airflow db init
-      - run: airflow connections delete 'teradata_default'
-      - run: airflow connections add 'teradata_default' --conn-type 'teradata' --conn-login 'demo_user' --conn-password 'airbyteintro' --conn-host 'test-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
-      - run: airflow connections list
       - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py
-      - run: airflow connections list
 
       
       
