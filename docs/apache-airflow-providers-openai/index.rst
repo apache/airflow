@@ -105,7 +105,7 @@ Package apache-airflow-providers-openai
 `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------

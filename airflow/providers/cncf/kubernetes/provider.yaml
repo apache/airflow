@@ -22,8 +22,9 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 suspended: false
-source-date-epoch: 1700148057
+source-date-epoch: 1700821457
 versions:
+  - 7.10.0
   - 7.9.0
   - 7.8.0
   - 7.7.0

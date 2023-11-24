@@ -24,9 +24,10 @@ description: |
     `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 suspended: false
-source-date-epoch: 1700148076
+source-date-epoch: 1700822381
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:
