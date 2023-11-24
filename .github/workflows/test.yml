@@ -48,6 +48,7 @@ jobs:
       - run: airflow connections add 'teradata_default' --conn-type 'teradata' --conn-login 'demo_user' --conn-password 'airbyteintro' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
       - run: airflow connections list
       - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py
+      - run: airflow connections list
 
       
       
