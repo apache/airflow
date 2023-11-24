@@ -29,6 +29,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler,
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
@@ -204,6 +206,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     :param sql: the SQL code or string pointing to a template file to be executed (templated).
         File must have a '.sql' extension.
+    :param sql_callable: function that return a string containing the SQL to be executed (templated).
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
@@ -228,7 +231,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def __init__(
         self,
         *,
-        sql: str | list[str],
+        sql: str | list[str] | None = None,
+        sql_callable: Callable[[], str | list[str]] | None = None,
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
@@ -240,7 +244,12 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
+        if sql and sql_callable:
+            raise ValueError("only one")
+        if not sql and not sql_callable:
+            raise ValueError("at least one")
         self.sql = sql
+        self.sql_callable = sql_callable
         self.autocommit = autocommit
         self.parameters = parameters
         self.handler = handler
@@ -271,6 +280,15 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        if callable(self.sql_callable):
+            self.sql: str | list[str] = self.sql_callable()
+            super().render_template_fields(context, jinja_env)
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)

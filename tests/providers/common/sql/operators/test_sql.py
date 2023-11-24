@@ -96,6 +96,24 @@ class TestSQLExecuteQueryOperator:
         )
         mock_process_output.assert_not_called()
 
+    def test_sql_callable(self, create_task_instance_of_operator):
+        def build_sql_query():
+            time = "{{ ds }}"
+            query = "SELECT * FROM table_a WHERE insert_time = '{logical_date}';"
+            return query.format(logical_date=time)
+
+        ti = create_task_instance_of_operator(
+            SQLExecuteQueryOperator,
+            dag_id="test_dag",
+            execution_date=datetime.datetime(2017, 1, 1),
+            task_id="test_task",
+            conn_id="default_conn",
+            sql_callable=build_sql_query,
+        )
+        rendered_template = ti.render_templates()
+
+        assert "SELECT * FROM table_a WHERE insert_time = '2017-01-01';" == rendered_template.sql
+
 
 class TestColumnCheckOperator:
     valid_column_mapping = {
