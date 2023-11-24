@@ -39,8 +39,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install pipx"
         run: pip install --user "pipx>=1.2.1"
-      - run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -e . \
-             --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt
+      - run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -e . --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt
       - run: airflow connections add 'airflow_teradata' --conn-type 'teradata' --conn-login 'dbc' --conn-password 'dbc' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com' --conn-schema 'airbyte_td'
       - name: Selective checks
         id: selective-checks
