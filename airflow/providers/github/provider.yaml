@@ -29,7 +29,7 @@ dependencies:
   - PyGithub!=1.58
 
 suspended: false
-source-date-epoch: 1700148065
+source-date-epoch: 1700827464
 versions:
   - 2.4.0
   - 2.3.2

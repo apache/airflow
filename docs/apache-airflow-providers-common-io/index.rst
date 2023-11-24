@@ -77,7 +77,7 @@ Package apache-airflow-providers-common-io
 ``Common IO Provider``
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------

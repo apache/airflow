@@ -20,7 +20,7 @@ package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
 suspended: false
-source-date-epoch: 1700148050
+source-date-epoch: 1700827439
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 versions:
