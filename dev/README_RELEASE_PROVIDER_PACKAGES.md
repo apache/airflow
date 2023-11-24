@@ -22,11 +22,13 @@
 
 - [What the provider packages are](#what-the-provider-packages-are)
 - [Provider packages](#provider-packages)
+- [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Apply template updates](#apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -74,6 +76,24 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider packages](PROVIDER_PACKAGE_DETAILS.md).
+
+# Bump min Airflow version for providers
+
+If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
+command with the `--only-min-version-update` flag. This will only update the min version in
+the `__init__.py` files and package documentation without bumping the provider versions.
+
+```shell script
+breeze release-management prepare-provider-documentation --only-min-version-update
+```
+
+Note: that this command will only bump the min airflow versions for those providers that do not have it set to
+a higher version. You do not have to skip specific providers - run it for all providers it will
+handle everything automatically.
+
+Note: this step is **not** part of the release cycle. It should be done independently
+when the time to update min airflow version has come.
 
 # Decide when to release
 
@@ -175,7 +195,11 @@ breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
-In case you want to **just** regenerate the documentation because you fixed something in the templates, add
+## Apply template updates
+
+(This step can also be executed independently when needed)
+
+Regenerate the documentation templates by running the command with
 `--reapply-templates` flag to the command above. This refreshes the content of:
 
 * `__init__.py` in provider's package
@@ -183,18 +207,9 @@ In case you want to **just** regenerate the documentation because you fixed some
 * Provider index for the documentation
 * Provider README file used when publishing package in PyPI
 
-If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
-in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
-command with the `--only-min-version-update` flag. This will only update the min version in
-the `__init__.py` files and package documentation without bumping the provider versions.
-
 ```shell script
-breeze release-management prepare-provider-documentation --only-min-version-update
+breeze release-management prepare-provider-documentation --reapply-templates-only
 ```
-
-Note: that this command will only bump the min airflow versions for those providers that do not have it set to
-a higher version. You do not have to skip specific providers - run it for all providers and it will
-handle everything automatically.
 
 ## Open PR with suggested version releases
 
@@ -407,7 +422,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build providers-index --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build apache-airflow-providers --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -438,6 +453,16 @@ breeze build-docs removed.provider
 ```shell script
 ./docs/start_doc_server.sh
 ```
+
+If you encounter error like:
+
+```shell script
+airflow git:(main) ./docs/start_doc_server.sh
+./docs/start_doc_server.sh: line 22: cd: /Users/eladkal/PycharmProjects/airflow/docs/_build: No such file or directory
+```
+
+That probably means that the doc folder is empty thus it can not build the doc server.
+This indicates that previous step of building the docs did not work.
 
 - Copy the documentation to the ``airflow-site`` repository
 
