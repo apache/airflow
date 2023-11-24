@@ -55,7 +55,7 @@ OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: list[str],
+    cmd: list[str] | str,
     title: str | None = None,
     *,
     check: bool = True,
@@ -120,7 +120,7 @@ def run_command(
     if not title:
         shortened_command = [
             shorten_command(index, argument)
-            for index, argument in enumerate(cmd)
+            for index, argument in enumerate(cmd if isinstance(cmd, list) else shlex.split(cmd))
             if not exclude_command(index, argument)
         ]
         # Heuristics to get a (possibly) short but explanatory title showing what the command does
@@ -135,7 +135,7 @@ def run_command(
         if "capture_output" not in kwargs or not kwargs["capture_output"]:
             kwargs["stdout"] = output.file
             kwargs["stderr"] = subprocess.STDOUT
-    command_to_print = " ".join(shlex.quote(c) for c in cmd)
+    command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
     if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
@@ -250,7 +250,10 @@ def get_filesystem_type(filepath: str):
     :return: type of filesystem
     """
     # We import it locally so that click autocomplete works
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
