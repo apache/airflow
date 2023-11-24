@@ -21,7 +21,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch
 jobs:
   teradata-tests:
-    name: "Run Teradata Provider tests"
+    name: "Run Teradata Provider Unit and System tests"
     runs-on: "ubuntu-22.04"
     steps:
       - name: Cleanup repo
@@ -41,5 +41,7 @@ jobs:
         run: pip install --user "pipx>=1.2.1";pip install -U pytest;python -m pip install time-machine;pip install pytest-asyncio
       - name: "Install airflow and teradata provider from sources"
         run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
-      - run: airflow db init
-      - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
+      - name: "Initialize airflow database"
+        run: airflow db init
+      - name: "Run system tests"
+        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
