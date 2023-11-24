@@ -66,6 +66,8 @@ from tests.test_utils.db import (
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
 
+pytestmark = pytest.mark.db_test
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -1270,6 +1272,8 @@ class TestBackfillJob:
     def test_sub_set_subdag(self, dag_maker):
         with dag_maker(
             "test_sub_set_subdag",
+            on_success_callback=lambda _: None,
+            on_failure_callback=lambda _: None,
         ) as dag:
             op1 = EmptyOperator(task_id="leave1")
             op2 = EmptyOperator(task_id="leave2")

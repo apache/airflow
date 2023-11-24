@@ -294,6 +294,13 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <_howto/operator:PythonVirtualenvOperator>`_ which will
+   dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 Special case - adding dependencies via requirements.txt file
 ============================================================
 

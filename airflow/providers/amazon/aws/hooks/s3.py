@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         from aiobotocore.client import AioBaseClient
 
 from asgiref.sync import sync_to_async
-from boto3.s3.transfer import TransferConfig
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -518,7 +518,11 @@ class S3Hook(AwsBaseHook):
         wildcard_match: bool,
     ) -> bool:
         """
-        Check for all keys in bucket and returns boolean value.
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
+        is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket
@@ -912,6 +916,15 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
         """
+
+        def sanitize_extra_args() -> dict[str, str]:
+            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
+            return {
+                arg_name: arg_value
+                for (arg_name, arg_value) in self.extra_args.items()
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
+            }
+
         s3_resource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
@@ -919,7 +932,8 @@ class S3Hook(AwsBaseHook):
             verify=self.verify,
         )
         obj = s3_resource.Object(bucket_name, key)
-        obj.load()
+
+        obj.load(**sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key

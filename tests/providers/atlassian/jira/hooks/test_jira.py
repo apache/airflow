@@ -19,9 +19,14 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 jira_client_mock = Mock(name="jira_client")
 

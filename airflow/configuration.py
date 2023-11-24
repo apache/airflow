@@ -62,10 +62,6 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-    # Temporarily suppress warnings from pydantic until we upgrade minimum version of pydantic to v2
-    # Which should happen in Airflow 2.8.0
-    warnings.filterwarnings(action="ignore", category=UserWarning, module=r"pydantic._internal._config")
-
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
@@ -2060,19 +2056,6 @@ def make_group_other_inaccessible(file_path: str):
             "Continuing with original permissions: %s",
             e,
         )
-
-
-# Historical convenience functions to access config entries
-def load_test_config():
-    """Historical load_test_config."""
-    warnings.warn(
-        "Accessing configuration method 'load_test_config' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.load_test_config'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.load_test_config()
 
 
 def get(*args, **kwargs) -> ConfigType | None:

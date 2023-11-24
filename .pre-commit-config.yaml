@@ -19,7 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   python: python3
   node: 18.6.0
-minimum_pre_commit_version: '2.0.0'
+minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
     hooks:
@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.3.1
+    rev: v1.5.4
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -155,13 +155,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  - repo: https://github.com/psf/black
-    rev: 23.10.0
-    hooks:
-      - id: black
-        name: Run black (Python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^.*/.*_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -181,14 +174,17 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.292
+    rev: v0.1.4
     hooks:
       # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
       # host CPU to it's fullest
       - id: ruff
-        name: ruff
-        args: [ --fix ]
+        name: ruff-lint
+        args: [--fix]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+      - id: ruff-format
+        name: ruff-format
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
     hooks:
@@ -200,7 +196,7 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-        alias: black
+        alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -382,6 +378,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-common-sql-dependency-make-serializable
+        name: Check dependency of SQL Providers with '_make_serializable'
+        entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
+        language: python
+        files: ^airflow/providers/.*/hooks/.*\.py$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
@@ -518,6 +520,7 @@ repos:
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow/providers/apache/spark/decorators/|
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
@@ -546,6 +549,7 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -572,9 +576,24 @@ repos:
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] core imports
-        description: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
-        entry: "from airflow\\.models import.* BaseOperator"
+        name: Check BaseOperator core imports
+        description: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator\\b"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/decorators/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/sensors/.*$|
+          ^dev/provider_packages/.*$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperatorLink core imports
+        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
+        entry: "from airflow\\.models import.* BaseOperatorLink"
         files: \.py$
         pass_filenames: true
         exclude: >
@@ -589,7 +608,7 @@ repos:
         language: pygrep
         name: Check BaseOperator[Link] other imports
         description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -746,7 +765,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/setup\.cfg$|^dev/breeze/setup\.py$|^dev/breeze/README\.md$
+        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -915,7 +934,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging', 'filelock']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -974,6 +993,30 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
         pass_filenames: false
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+      - id: check-provider-docs-valid
+        name: Validate provider doc files
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_docs.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml|^docs/.*
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
+        require_serial: true
+      - id: bandit
+        name: bandit
+        description: "Bandit is a tool for finding common security issues in Python code"
+        entry: bandit
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['bandit>=1.7.5']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          - "--skip"
+          - "B301,B324,B403,B404,B603"
+          - "--severity-level"
+          - "high"  # TODO: remove this line when we fix all the issues
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -982,7 +1025,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-core
         name: Run mypy for core
         language: python
@@ -990,15 +1033,15 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
@@ -1006,13 +1049,13 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
-      - id: check-provider-yaml-valid
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+      - id:   check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
@@ -1020,12 +1063,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
       - id: update-er-diagram
         name: Update ER diagram
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

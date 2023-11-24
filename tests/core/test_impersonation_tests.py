@@ -37,6 +37,8 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TEST_DAG_FOLDER = os.path.join(TEST_ROOT_FOLDER, "dags")

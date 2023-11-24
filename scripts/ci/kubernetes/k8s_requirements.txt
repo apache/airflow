@@ -1,4 +1,4 @@
-apache-airflow[cncf.kubernetes]
+-e .[kubernetes]
 pytest
 pytest-cov
 pytest-instafail

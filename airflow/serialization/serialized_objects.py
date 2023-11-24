@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
@@ -80,9 +80,9 @@ if TYPE_CHECKING:
 
     HAS_KUBERNETES: bool
     try:
-        from kubernetes.client import models as k8s
+        from kubernetes.client import models as k8s  # noqa: TCH004
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TCH004
     except ImportError:
         pass
 
@@ -447,7 +447,7 @@ class BaseSerialization:
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
-            return SerializedDAG.serialize_dag(var)
+            return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -498,14 +498,11 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif isinstance(var, Connection):
-            return cls._encode(var.to_dict(), type_=DAT.CONNECTION)
+            return cls._encode(var.to_json_dict(validate=True), type_=DAT.CONNECTION)
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
-                try:
-                    return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
-                except AttributeError:  # Pydantic 1.x compatibility.
-                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
+                return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
             if isinstance(var, Job):
                 return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
@@ -878,10 +875,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # If not, store them as strings
         # And raise an exception if the field is not templateable
         forbidden_fields = set(inspect.signature(BaseOperator.__init__).parameters.keys())
+        # Though allow some of the BaseOperator fields to be templated anyway
+        forbidden_fields.difference_update({"email"})
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
-                    raise AirflowException(f"Cannot template BaseOperator fields: {template_field}")
+                    raise AirflowException(f"Cannot template BaseOperator field: {template_field!r}")
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)

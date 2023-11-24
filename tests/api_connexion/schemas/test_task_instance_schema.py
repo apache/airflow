@@ -33,6 +33,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
+@pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)
     def set_attrs(self, session, dag_maker):

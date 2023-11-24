@@ -140,7 +140,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ID                                                        | Description                                                  | Image   |
 +===========================================================+==============================================================+=========+
-| black                                                     | Run black (Python formatter)                                 |         |
+| bandit                                                    | bandit                                                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -154,7 +154,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-base-operator-usage                                 | * Check BaseOperator[Link] core imports                      |         |
+| check-base-operator-usage                                 | * Check BaseOperator core imports                            |         |
+|                                                           | * Check BaseOperatorLink core imports                        |         |
 |                                                           | * Check BaseOperator[Link] other imports                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency           |         |
@@ -166,6 +167,8 @@ require Breeze Docker image to be built locally.
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-common-sql-dependency-make-serializable             | Check dependency of SQL Providers with '_make_serializable'  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -216,6 +219,8 @@ require Breeze Docker image to be built locally.
 | check-pre-commit-information-consistent                   | Validate hook IDs & names and sync with docs                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports             |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-provider-docs-valid                                 | Validate provider doc files                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -319,7 +324,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | rst-backticks                                             | Check if RST files use double backticks for code             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff                                                      | ruff                                                         |         |
+| ruff                                                      | ruff-lint                                                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| ruff-format                                               | ruff-format                                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | shellcheck                                                | Check Shell scripts syntax correctness                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

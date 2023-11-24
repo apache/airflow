@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bullseye``             | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bookworm``             | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -277,4 +277,7 @@ Docker context files.
 |                                          |                                          | from the GitHub of Apache Airflow        |
 |                                          |                                          | This allows to optimize iterations for   |
 |                                          |                                          | Image builds and speeds up CI builds.    |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_CACHE_EPOCH``                      | ``"0"``                                  | Allow to invalidate cache by passing a   |
+|                                          |                                          | new argument.                            |
 +------------------------------------------+------------------------------------------+------------------------------------------+

@@ -129,6 +129,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "DB test flags",
+            "options": [
+                "--run-db-tests-only",
+                "--skip-db-tests",
+            ],
+        },
+        {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
@@ -141,6 +148,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Compile www assets flag",
             "options": [
                 "--dev",
+                "--force-clean",
             ],
         }
     ],

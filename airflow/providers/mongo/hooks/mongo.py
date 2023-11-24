@@ -366,3 +366,27 @@ class MongoHook(BaseHook):
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
         return collection.delete_many(filter_doc, **kwargs)
+
+    def distinct(
+        self,
+        mongo_collection: str,
+        distinct_key: str,
+        filter_doc: dict | None = None,
+        mongo_db: str | None = None,
+        **kwargs,
+    ) -> list[Any]:
+        """
+        Returns a list of distinct values for the given key across a collection.
+
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.distinct
+
+        :param mongo_collection: The name of the collection to perform distinct on.
+        :param distinct_key: The field to return distinct values from.
+        :param filter_doc: A query that matches the documents get distinct values from.
+            Can be omitted; then will cover the entire collection.
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        return collection.distinct(distinct_key, filter=filter_doc, **kwargs)

@@ -41,7 +41,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         within the given MSSQL Database and then upload it to the
         'mssql-export' GCS bucket (along with a schema file). ::
 
-            export_customers = MsSqlToGoogleCloudStorageOperator(
+            export_customers = MSSQLToGCSOperator(
                 task_id='export_customers',
                 sql='SELECT * FROM dbo.Customers;',
                 bit_fields=['some_bit_field', 'another_bit_field'],

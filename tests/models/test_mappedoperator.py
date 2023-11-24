@@ -46,6 +46,8 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
