@@ -18,14 +18,11 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import TYPE_CHECKING, overload
+from typing import overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
-
-if TYPE_CHECKING:
-    from pendulum.tz.timezone import Timezone
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone("UTC")
@@ -75,20 +72,6 @@ def utc_epoch() -> dt.datetime:
     result = result.replace(tzinfo=utc)
 
     return result
-
-
-def in_timezone(datetime: DateTime, tz: Timezone, dst_rule: str = pendulum.PRE_TRANSITION) -> DateTime:
-    """Convert a datetime to a timezone, but also allow for dst_rule override.
-
-    :param datetime: pendulum DateTime
-    :param tz: pendulum Timezone
-    :param dst_rule: pendulum.PRE_TRANSITION or pendulum.POST_TRANSITION
-    :return: localized datetime in timezone
-
-    :meta private:
-    """
-    tz = pendulum._safe_timezone(tz)
-    return tz.convert(datetime, dst_rule=dst_rule)
 
 
 @overload

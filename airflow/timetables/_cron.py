@@ -26,7 +26,7 @@ from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, in_timezone, make_aware, make_naive
+from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 
 class CronMixin:
@@ -79,12 +79,12 @@ class CronMixin:
 
         # calculate the delta to the next scheduled time, taking into account
         # if the next scheduled time is in a different tz
-        current_offset = in_timezone(current, self._timezone).utcoffset()
+        current_offset = self._timezone.convert(current).utcoffset()
         scheduled_offset = instance(scheduled, self._timezone).utcoffset()
         if current_offset is not None and scheduled_offset is not None:
             utc_offset_delta = current_offset - scheduled_offset
         else:
-            utc_offset_delta = datetime.timedelta(seconds=0)
+            utc_offset_delta = datetime.timedelta()
 
         # here we need to re-offset UTC because our next calculation was in local time
         return convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
@@ -97,12 +97,12 @@ class CronMixin:
 
         # calculate the delta to the next scheduled time, taking into account
         # if the next scheduled time is in a different tz
-        current_offset = in_timezone(current, self._timezone).utcoffset()
+        current_offset = self._timezone.convert(current).utcoffset()
         scheduled_offset = instance(scheduled, self._timezone).utcoffset()
         if current_offset is not None and scheduled_offset is not None:
             utc_offset_delta = current_offset - scheduled_offset
         else:
-            utc_offset_delta = datetime.timedelta(seconds=0)
+            utc_offset_delta = datetime.timedelta()
 
         # here we need to re-offset UTC because our next calculation was in local time
         # return convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
