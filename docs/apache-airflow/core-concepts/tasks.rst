@@ -265,40 +265,19 @@ The explanation of the criteria used in the above snippet to detect zombie tasks
 
     Only task instances in the RUNNING state are considered potential zombies.
 
-.. code-block::
-
-  .where(TI.state == TaskInstanceState.RUNNING)
-
 2. **Job State and Heartbeat Check**
 
     Zombie tasks are identified if the associated job is not in the RUNNING state or if the latest heartbeat of the job is
     earlier than the calculated time threshold (limit_dttm). The heartbeat is a mechanism to indicate that a task or job is
     still alive and running.
 
-.. code-block::
-
-  .where(
-    or_(
-        Job.state != JobState.RUNNING,
-        Job.latest_heartbeat < limit_dttm,
-    )
-  )
-
 3. **Job Type**
 
     The job associated with the task must be of type "LocalTaskJob."
 
-.. code-block::
-
-  .where(Job.job_type == "LocalTaskJob")
-
 4. **Queued by Job ID**
 
     Only tasks queued by the same job that is currently being processed are considered.
-
-.. code-block::
-
-  .where(TI.queued_by_job_id == self.job.id)
 
 These conditions collectively help identify running tasks that may be zombies based on their state, associated job
 state, heartbeat status, job type, and the specific job that queued them. If a task meets these criteria, it is
