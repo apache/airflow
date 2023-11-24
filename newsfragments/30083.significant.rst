@@ -1,4 +1,4 @@
-Non-fixed cron timetables no longer account for changing in timezone.
+Variable-interval cron timetables no longer account for DST transition
 
 Given a cron expression resulting in an interval-based schedule, such as
 ``0 9-16 * * *``, job after a timezone change (e.g. entering or exiting daylight
