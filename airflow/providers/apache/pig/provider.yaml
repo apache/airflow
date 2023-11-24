@@ -22,7 +22,7 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1700148052
+source-date-epoch: 1700827441
 versions:
   - 4.2.0
   - 4.1.2

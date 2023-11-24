@@ -22,7 +22,7 @@ description: |
     `DingTalk <https://www.dingtalk.com/>`__
 
 suspended: false
-source-date-epoch: 1700148061
+source-date-epoch: 1700827457
 versions:
   - 3.3.0
   - 3.2.1

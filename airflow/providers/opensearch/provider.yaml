@@ -17,12 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-opensearch
-name: Opensearch
+name: OpenSearch
 description: |
-    `Opensearch <https://opensearch.org/>`__
+    `OpenSearch <https://opensearch.org/>`__
 
 suspended: false
-source-date-epoch: 1700148078
+source-date-epoch: 1700827483
 versions:
   - 1.0.0
 
@@ -31,7 +31,7 @@ dependencies:
   - opensearch-py>=2.2.0
 
 integrations:
-  - integration-name: Opensearch
+  - integration-name: OpenSearch
     external-doc-url: https://opensearch.org/
     how-to-guide:
       - /docs/apache-airflow-providers-opensearch/operators/opensearch.rst
@@ -39,12 +39,12 @@ integrations:
     tags: [software]
 
 hooks:
-  - integration-name: Opensearch
+  - integration-name: OpenSearch
     python-modules:
       - airflow.providers.opensearch.hooks.opensearch
 
 operators:
-  - integration-name: Opensearch
+  - integration-name: OpenSearch
     python-modules:
       - airflow.providers.opensearch.operators.opensearch
 

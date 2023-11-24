@@ -85,7 +85,6 @@ from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     fix_ownership_using_docker,
-    get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
@@ -431,17 +430,17 @@ def build_docs(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    params = BuildCiParams(
+    build_params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=params)
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
         docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
         for dir_name in ["_build", "_doctrees", "_inventory_cache", "_api"]:
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
-    ci_image_name = params.airflow_image_name
+    ci_image_name = build_params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,
@@ -450,8 +449,11 @@ def build_docs(
         skip_environment_initialization=True,
         short_doc_packages=expand_all_provider_packages(doc_packages),
     )
-    extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
-    env = get_env_variables_for_docker_commands(params)
+    shell_params = ShellParams(
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    )
+    extra_docker_flags = get_extra_docker_flags(mount_sources=MOUNT_SELECTED)
     cmd = [
         "docker",
         "run",
@@ -463,7 +465,7 @@ def build_docs(
         "/opt/airflow/scripts/in_container/run_docs_build.sh",
         *doc_builder.args_doc_builder,
     ]
-    process = run_command(cmd, text=True, env=env, check=False)
+    process = run_command(cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands)
     fix_ownership_using_docker()
     if process.returncode == 0:
         get_console().print(
@@ -714,11 +716,10 @@ def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
-    env_variables = get_env_variables_for_docker_commands(shell_params)
-    run_command(command_to_execute, env=env_variables)
+    run_command(command_to_execute, env=shell_params.env_variables_for_docker_commands)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
-        run_command(command_to_execute, env=env_variables)
+        run_command(command_to_execute)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
@@ -796,9 +797,8 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
-    cmd = ["docker", "compose", "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
+    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow"]
     cmd_added = shell_params.command_passed
-    env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
@@ -817,7 +817,11 @@ def enter_shell(**kwargs) -> RunCommandResult:
             sys.exit(1)
 
     command_result = run_command(
-        cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
+        cmd,
+        text=True,
+        check=False,
+        env=shell_params.env_variables_for_docker_commands,
+        output_outside_the_group=True,
     )
     if command_result.returncode == 0:
         return command_result
@@ -834,13 +838,12 @@ def stop_exec_on_error(returncode: int):
 
 
 def find_airflow_container() -> str | None:
-    exec_shell_params = ShellParams()
-    check_docker_resources(exec_shell_params.airflow_image_name)
-    exec_shell_params.print_badge_info()
-    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
     cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
     docker_compose_ps_command = run_command(
-        cmd, text=True, capture_output=True, env=env_variables, check=False
+        cmd, text=True, capture_output=True, check=False, env=shell_params.env_variables_for_docker_commands
     )
     if get_dry_run():
         return "CONTAINER_ID"

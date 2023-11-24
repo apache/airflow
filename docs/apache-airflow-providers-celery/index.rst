@@ -81,7 +81,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 PIP package         Version required
 ==================  ==============================
 ``apache-airflow``  ``>=2.5.0``
-``celery``          ``>=5.3.0,<6,!=5.3.3,!=5.3.2``
+``celery``          ``>=5.3.0,!=5.3.2,!=5.3.3,<6``
 ``flower``          ``>=1.0.0``
 ``google-re2``      ``>=1.0``
 ==================  ==============================
