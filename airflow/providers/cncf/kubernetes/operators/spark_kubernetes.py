@@ -59,7 +59,7 @@ class SparkKubernetesOperator(BaseOperator):
     def __init__(
         self,
         *,
-        application_file: str,
+        application_file: str | dict,
         namespace: str | None = None,
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = "sparkoperator.k8s.io",
@@ -111,7 +111,10 @@ class SparkKubernetesOperator(BaseOperator):
                 raise
 
     def execute(self, context: Context):
-        body = _load_body_to_dict(self.application_file)
+        if isinstance(self.application_file, str):
+            body = _load_body_to_dict(self.application_file)
+        else:
+            body = self.application_file
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
 
@@ -177,7 +180,10 @@ class SparkKubernetesOperator(BaseOperator):
         return response
 
     def on_kill(self) -> None:
-        body = _load_body_to_dict(self.application_file)
+        if isinstance(self.application_file, str):
+            body = _load_body_to_dict(self.application_file)
+        else:
+            body = self.application_file
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
         self.hook.delete_custom_object(
