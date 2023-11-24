@@ -42,7 +42,4 @@ jobs:
       - name: "Install airflow and teradata provider from sources"
         run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
       - run: airflow db init
-      - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py
-
-      
-      
+      - run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
