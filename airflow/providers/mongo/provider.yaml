@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-mongo
 name: MongoDB
 description: |
-    `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
+    `MongoDB <https://www.mongodb.com/>`__
 
 suspended: false
 source-date-epoch: 1700148074
@@ -49,7 +49,7 @@ dependencies:
 
 integrations:
   - integration-name: MongoDB
-    external-doc-url: https://www.mongodb.com/what-is-mongodb
+    external-doc-url: https://www.mongodb.com/
     logo: /integration-logos/mongo/MongoDB.png
     tags: [software]
 

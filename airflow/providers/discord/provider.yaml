@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-discord
 name: Discord
 description: |
-    `Discord <https://discordapp.com/>`__
+    `Discord <https://discord.com/>`__
 
 suspended: false
 source-date-epoch: 1700148062
@@ -46,7 +46,7 @@ dependencies:
 
 integrations:
   - integration-name: Discord
-    external-doc-url: https://discordapp.com
+    external-doc-url: https://discord.com/
     logo: /integration-logos/discord/Discord.png
     tags: [service]
 
