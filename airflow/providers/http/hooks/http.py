@@ -39,6 +39,12 @@ if TYPE_CHECKING:
 class HttpHook(BaseHook):
     """Interact with HTTP servers.
 
+    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
+        * set the `auth_type` parameter in the Connection settings.
+        * define extra parameters used to instantiate the `auth_type` class, in the Connection settings.
+
+    See :doc:`/connections/http` for full documentation.
+
     :param method: the API method to be called
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
         API url i.e https://www.google.com/ and optional authentication credentials. Default

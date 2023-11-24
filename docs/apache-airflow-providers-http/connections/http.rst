@@ -54,7 +54,15 @@ Schema (optional)
     Specify the service type etc: http/https.
 
 Extras (optional)
-    Specify headers in json format.
+    Any key / value parameters supplied here will be added to the headers in json format.
+
+   Additionally there a few special optional keywords that are handled separately.
+
+    - ``auth_type``
+        * The path to the Authentication class to attach the request.Session object. Typically a subclass of
+          ``request.auth.AuthBase``. This is omitted if the HttpHook is declared with a ``auth_type``.
+    - ``auth_kwargs``
+        * Extra key-value parameters used to instantiate the ``auth_type`` class.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
