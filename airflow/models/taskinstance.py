@@ -1425,6 +1425,14 @@ class TaskInstance(Base, LoggingMixin):
 
     @try_number.expression
     def try_number(cls):
+        """
+        This is what will be used by SQLAlchemy when filtering on try_number.
+
+        This is required because the override in the get_try_number function causes 
+        try_number values to be off by one when listing tasks in the UI.
+
+        :meta private:
+        """
         return cls._try_number
 
     @try_number.setter
