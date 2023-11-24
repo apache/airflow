@@ -22,7 +22,7 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 suspended: false
-source-date-epoch: 1700821405
+source-date-epoch: 1700827447
 versions:
   - 2.3.0
   - 2.2.0
