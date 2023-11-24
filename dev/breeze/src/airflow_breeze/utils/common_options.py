@@ -414,6 +414,7 @@ option_version_suffix_for_pypi = click.option(
     "--version-suffix-for-pypi",
     help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
     envvar="VERSION_SUFFIX_FOR_PYPI",
+    default="",
 )
 option_version_suffix_for_pypi_ci = click.option(
     "--version-suffix-for-pypi",
