@@ -1711,6 +1711,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
+    # [START find_zombies]
     def _find_zombies(self) -> None:
         """
         Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
@@ -1762,6 +1763,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._task_context_logger.error(log_message, ti=ti)
             self.job.executor.send_callback(request)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+
+    # [END find_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
