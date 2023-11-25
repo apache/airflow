@@ -44,7 +44,7 @@ jobs:
       - name: "Verifying Airflow version"
         run: airflow version;
       - name: "Initialize airflow database"
-        run: airflow db init; airflow db migrate
+        run: airflow db init; airflow db migrate;airflow db reset -y;
       - name: "Run Unit tests"
         run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py; 
       - name: Airflow connections list before add
