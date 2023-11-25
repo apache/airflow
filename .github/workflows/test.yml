@@ -46,7 +46,9 @@ jobs:
       - name: Setting Fernet key
         run: export AIRFLOW__CORE__FERNET_KEY= "$(python -c "from cryptography.fernet import Fernet; FERNET_KEY = Fernet.generate_key().decode(); print(FERNET_KEY)")";
       - name: Setting Fernet key
-        run: export FERNET_KEY= "$AIRFLOW__CORE__FERNET_KEY"; echo "$AIRFLOW__CORE__FERNET_KEY"
+        run: echo "$AIRFLOW__CORE__FERNET_KEY"
+      - name: Setting Fernet key
+        run: export FERNET_KEY= "$AIRFLOW__CORE__FERNET_KEY"
       - name: "Initialize airflow database"
         run: airflow db init;
       - name: "Run Unit tests"
