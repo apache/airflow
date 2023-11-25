@@ -118,7 +118,7 @@ This does, however, place some requirements on the Database.
 Database Requirements
 """""""""""""""""""""
 
-The short version is that users of PostgreSQL 10+ or MySQL 8+ are all ready to go -- you can start running as
+The short version is that users of PostgreSQL 12+ or MySQL 8.0+ are all ready to go -- you can start running as
 many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
 using a different database please read on.
 
@@ -134,8 +134,8 @@ UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
-- PostgreSQL 10+
-- MySQL 8+
+- PostgreSQL 12+
+- MySQL 8.0+
 
 .. warning::
 
@@ -144,15 +144,9 @@ The following databases are fully supported and provide an "optimal" experience:
   Without these features, running multiple schedulers is not supported and deadlock errors have been reported. MariaDB
   10.6.0 and following may work appropriately with multiple schedulers, but this has not been tested.
 
-.. warning::
-
-  MySQL 5.x does not support ``SKIP LOCKED`` or ``NOWAIT``, and additionally is more prone to deciding
-  queries are deadlocked, so running with more than a single scheduler on MySQL 5.x is not supported or
-  recommended.
-
 .. note::
 
-  Microsoft SQLServer has not been tested with HA.
+  Microsoft SQL Server has not been tested with HA.
 
 .. _fine-tuning-scheduler:
 

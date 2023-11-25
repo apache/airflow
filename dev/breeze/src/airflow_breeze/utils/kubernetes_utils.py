@@ -365,7 +365,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
 
 
 def run_command_with_k8s_env(
-    cmd: list[str],
+    cmd: list[str] | str,
     python: str,
     kubernetes_version: str,
     executor: str | None = None,

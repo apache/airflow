@@ -3609,6 +3609,10 @@ class DagModel(Base):
         """Provide interface compatibility to 'DAG'."""
         return self.is_paused
 
+    def get_is_active(self, *, session: Session | None = None) -> bool:
+        """Provide interface compatibility to 'DAG'."""
+        return self.is_active
+
     @staticmethod
     @internal_api_call
     @provide_session

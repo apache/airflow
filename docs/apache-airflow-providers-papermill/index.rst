@@ -77,7 +77,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.4.0
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -103,4 +103,5 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.5.0``
 ``papermill[all]``  ``>=1.2.1``
 ``scrapbook[all]``
+``ipykernel``
 ==================  ==================

@@ -66,7 +66,8 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import (
         TaskStateChangeCallback,
     )
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.expandinput import (
         ExpandInput,
