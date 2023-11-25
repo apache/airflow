@@ -39,8 +39,8 @@ def test_file_transfer_copy():
         operator.execute(context={})
         mock_object_storage_path.assert_has_calls(
             [
-                mock.call("test_source", None),
-                mock.call("test_target", None),
+                mock.call("test_source", conn_id=None),
+                mock.call("test_target", conn_id=None),
             ],
         )
         source_path.copy.assert_called_once_with(target_path)

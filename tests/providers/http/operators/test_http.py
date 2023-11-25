@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 from requests import Response
+from requests.models import RequestEncodingMixin
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.http.operators.http import HttpOperator
@@ -112,39 +113,75 @@ class TestHttpOperator:
         )
         assert result == "content"
 
-    def test_paginated_responses(self, requests_mock):
+    @pytest.mark.parametrize(
+        "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
+        [
+            ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
+            ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
+            ("data foo", {"x-head": "1"}, {"verify": False}, "data bar", {"x-head": "0"}, {"verify": True}),
+            ({"data": 1}, {"x-head": "1"}, {"verify": False}, "data foo", {"x-head": "0"}, {"verify": True}),
+        ],
+    )
+    def test_pagination(
+        self,
+        requests_mock,
+        data,
+        headers,
+        extra_options,
+        pagination_data,
+        pagination_headers,
+        pagination_extra_options,
+    ):
         """
         Test that the HttpOperator calls repetitively the API when a
         pagination_function is provided, and as long as this function returns
         a dictionary that override previous' call parameters.
         """
-        has_returned: bool = False
+        is_second_call: bool = False
 
         def pagination_function(response: Response) -> dict | None:
             """Paginated function which returns None at the second call."""
-            nonlocal has_returned
-            if not has_returned:
-                has_returned = True
+            nonlocal is_second_call
+            if not is_second_call:
+                is_second_call = True
                 return dict(
-                    endpoint="/",
-                    data={"cursor": "example"},
-                    headers={},
-                    extra_options={},
+                    endpoint=response.json()["endpoint"],
+                    data=pagination_data,
+                    headers=pagination_headers,
+                    extra_options=pagination_extra_options,
                 )
             return None
 
-        requests_mock.get("http://www.example.com", json={"value": 5})
+        first_endpoint = requests_mock.post("http://www.example.com/1", json={"value": 5, "endpoint": "2"})
+        second_endpoint = requests_mock.post("http://www.example.com/2", json={"value": 10, "endpoint": "3"})
         operator = HttpOperator(
             task_id="test_HTTP_op",
-            method="GET",
-            endpoint="/",
+            method="POST",
+            endpoint="/1",
+            data=data,
+            headers=headers,
+            extra_options=extra_options,
             http_conn_id="HTTP_EXAMPLE",
             pagination_function=pagination_function,
+            response_filter=lambda resp: [entry.json()["value"] for entry in resp],
         )
         result = operator.execute({})
-        assert result == ['{"value": 5}', '{"value": 5}']
 
-    def test_async_paginated_responses(self, requests_mock):
+        # Ensure the initial call is made with parameters passed to the Operator
+        first_call = first_endpoint.request_history[0]
+        assert first_call.headers.items() >= headers.items()
+        assert first_call.body == RequestEncodingMixin._encode_params(data)
+        assert first_call.verify is extra_options["verify"]
+
+        # Ensure the second - paginated - call is made with parameters merged from the pagination function
+        second_call = second_endpoint.request_history[0]
+        assert second_call.headers.items() >= pagination_headers.items()
+        assert second_call.body == RequestEncodingMixin._encode_params(pagination_data)
+        assert second_call.verify is pagination_extra_options["verify"]
+
+        assert result == [5, 10]
+
+    def test_async_pagination(self, requests_mock):
         """
         Test that the HttpOperator calls asynchronously and repetitively
         the API when a pagination_function is provided, and as long as this function

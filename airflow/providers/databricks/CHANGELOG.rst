@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Make pyodbc.Row and databricks.Row JSON-serializable via new 'make_serializable' method (#32319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
 5.0.0
 .....
 
@@ -33,6 +46,8 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 The ``offset`` parameter has been deprecated from ``list_jobs`` in favor of faster pagination with ``page_token`` similarly to `Databricks API <https://docs.databricks.com/api/workspace/jobs/list>`_.
+
+* ``Remove offset-based pagination from 'list_jobs' function in 'DatabricksHook' (#34926)``
 
 4.7.0
 .....

@@ -221,7 +221,7 @@ Imagine this code:
           dag=dag,
       )
 
-What you can do check it, add to your code you want to check some print statements and run
+What you can do to check it is add some print statements to the code you want to check and then run
 ``python <my_dag_file>.py``.
 
 

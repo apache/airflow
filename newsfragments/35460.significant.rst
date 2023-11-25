@@ -1,0 +1,10 @@
+Raw HTML code in DAG docs and DAG params descriptions is disabled by default
+
+To ensure that no malicious javascript can be injected with DAG descriptions or trigger UI forms by DAG authors
+a new parameter ``webserver.allow_raw_html_descriptions`` was added with default value of ``False``.
+If you trust your DAG authors code and want to allow using raw HTML in DAG descriptions and params, you can restore the previous
+behavior by setting the configuration value to ``True``.
+
+To ensure Airflow is secure by default, the raw HTML support in trigger UI has been super-seeded by markdown support via
+the ``description_md`` attribute. If you have been using ``description_html`` please migrate to ``description_md``.
+The ``custom_html_form`` is now deprecated.

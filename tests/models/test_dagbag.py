@@ -888,7 +888,9 @@ class TestDagBag:
         # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
         mock_s10n_write_dag.assert_has_calls(
             [
-                mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
+                mock.call(
+                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
+                ),
             ]
         )
 

@@ -228,6 +228,9 @@ class User(Model, BaseUser):
     def get_id(self):
         return self.id
 
+    def get_name(self) -> str:
+        return self.username or self.email or self.user_id
+
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 

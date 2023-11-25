@@ -81,6 +81,12 @@ Community providers lifecycle
 This document describes the complete life-cycle of community providers - from inception and approval to
 Airflow main branch to being decommissioned and removed from the main branch in Airflow repository.
 
+.. note::
+
+   Technical details on how to manage lifecycle of providers are described in the document:
+
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANGING_PROVIDERS_LIFECYCLE.rst>`_
+
 
 Accepting new community providers
 ---------------------------------
@@ -281,7 +287,7 @@ more updates to the providers done by the community - except maybe potentially s
 might be various reasons for the providers to be removed:
 
 * the service they connect to is no longer available
-* the dependencies for the provider are not maintained any more and there is no viable alternative
+* the dependencies for the provider are not maintained anymore and there is no viable alternative
 * there is another, more popular provider that supersedes community provider
 * etc. etc.
 

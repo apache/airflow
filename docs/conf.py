@@ -63,7 +63,7 @@ if PACKAGE_NAME == "apache-airflow":
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
-    ALL_PROVIDER_YAMLS = load_package_data()
+    ALL_PROVIDER_YAMLS = load_package_data(include_suspended=True)
     try:
         CURRENT_PROVIDER = next(
             provider_yaml
@@ -248,6 +248,7 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",

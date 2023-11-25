@@ -22,6 +22,7 @@ description: |
   `Apache Druid <https://druid.apache.org/>`__.
 
 suspended: false
+source-date-epoch: 1700827434
 versions:
   - 3.6.0
   - 3.5.0

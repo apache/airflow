@@ -171,3 +171,35 @@ def test_on_kill(mock_kubernetes_hook, mock_load_body_to_dict):
         namespace="default",
         name="spark-app",
     )
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_execute_with_application_file_dict(mock_kubernetes_hook):
+    op = SparkKubernetesOperator(task_id="task_id", application_file={"metadata": {"name": "spark-app"}})
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    op.execute({})
+
+    mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        body={"metadata": {"name": "spark-app"}},
+        namespace="default",
+    )
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_on_kill_with_application_file_dict(mock_kubernetes_hook):
+    op = SparkKubernetesOperator(task_id="task_id", application_file={"metadata": {"name": "spark-app"}})
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    op.on_kill()
+
+    mock_kubernetes_hook.return_value.delete_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        name="spark-app",
+        namespace="default",
+    )

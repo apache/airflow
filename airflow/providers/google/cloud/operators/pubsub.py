@@ -35,6 +35,7 @@ from google.cloud.pubsub_v1.types import (
     PushConfig,
     ReceivedMessage,
     RetryPolicy,
+    SchemaSettings,
 )
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
@@ -130,6 +131,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
+        schema_settings: dict | SchemaSettings = None,
+        message_retention_duration: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -144,6 +147,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self.labels = labels
         self.message_storage_policy = message_storage_policy
         self.kms_key_name = kms_key_name
+        self.schema_settings = schema_settings
+        self.message_retention_duration = message_retention_duration
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -163,6 +168,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
             labels=self.labels,
             message_storage_policy=self.message_storage_policy,
             kms_key_name=self.kms_key_name,
+            schema_settings=self.schema_settings,
+            message_retention_duration=self.message_retention_duration,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

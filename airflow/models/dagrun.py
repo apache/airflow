@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import warnings
 from collections import defaultdict
@@ -77,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -94,6 +96,37 @@ class TISchedulingDecision(NamedTuple):
     changed_tis: bool
     unfinished_tis: list[TI]
     finished_tis: list[TI]
+
+
+class ConfDict(dict):
+    """Custom dictionary for storing only JSON serializable values."""
+
+    def __init__(self, val=None):
+        super().__init__(self.is_jsonable(val))
+
+    def __setitem__(self, key, value):
+        self.is_jsonable({key: value})
+        super().__setitem__(key, value)
+
+    @staticmethod
+    def is_jsonable(conf: dict) -> dict | None:
+        """Prevent setting non-json attributes."""
+        try:
+            json.dumps(conf)
+        except TypeError:
+            raise AirflowException("Cannot assign non JSON Serializable value")
+        if isinstance(conf, dict):
+            return conf
+        else:
+            raise AirflowException(f"Object of type {type(conf)} must be a dict")
+
+    @staticmethod
+    def dump_check(conf: str) -> str:
+        val = json.loads(conf)
+        if isinstance(val, dict):
+            return conf
+        else:
+            raise TypeError(f"Object of type {type(val)} must be a dict")
 
 
 def _creator_note(val):
@@ -126,7 +159,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
-    conf = Column(PickleType)
+    _conf = Column("conf", PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -228,7 +261,12 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf or {}
+
+        if isinstance(conf, str):
+            self._conf = ConfDict.dump_check(conf)
+        else:
+            self._conf = ConfDict(conf or {})
+
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
@@ -257,6 +295,16 @@ class DagRun(Base, LoggingMixin):
                 f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
             )
         return run_id
+
+    def get_conf(self):
+        return self._conf
+
+    def set_conf(self, value):
+        self._conf = ConfDict(value)
+
+    @declared_attr
+    def conf(self):
+        return synonym("_conf", descriptor=property(self.get_conf, self.set_conf))
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -466,7 +514,7 @@ class DagRun(Base, LoggingMixin):
     def fetch_task_instances(
         dag_id: str | None = None,
         run_id: str | None = None,
-        dag: DAG | None = None,
+        task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
@@ -494,8 +542,8 @@ class DagRun(Base, LoggingMixin):
                 else:
                     tis = tis.where(TI.state.in_(state))
 
-        if dag and dag.partial:
-            tis = tis.where(TI.task_id.in_(dag.task_ids))
+        if task_ids is not None:
+            tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
     @provide_session
@@ -510,8 +558,9 @@ class DagRun(Base, LoggingMixin):
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
         """
+        task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
         return DagRun.fetch_task_instances(
-            dag_id=self.dag_id, run_id=self.run_id, dag=self.dag, state=state, session=session
+            dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
 
     @provide_session
@@ -521,7 +570,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | None:
+    ) -> TI | TaskInstancePydantic | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -545,7 +594,7 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         session: Session = NEW_SESSION,
         map_index: int = -1,
-    ) -> TI | None:
+    ) -> TI | TaskInstancePydantic | None:
         """
         Returns the task instance specified by task_id for this dag run.
 

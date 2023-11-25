@@ -28,6 +28,12 @@ from unittest import mock
 import boto3
 import pytest
 from moto import mock_s3
+from openlineage.client.facet import (
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    LifecycleStateChangeDatasetFacetPreviousIdentifier,
+)
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -44,6 +50,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
 )
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -292,6 +299,28 @@ class TestS3FileTransformOperator:
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
         assert self.content == result["Body"].read()
 
+    def test_get_openlineage_facets_on_start(self):
+        expected_input = Dataset(
+            namespace=f"s3://{self.bucket}",
+            name=self.input_key,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.bucket}",
+            name=self.output_key,
+        )
+
+        op = S3FileTransformOperator(
+            task_id="test",
+            source_s3_key=f"s3://{self.bucket}/{self.input_key}",
+            dest_s3_key=f"s3://{self.bucket}/{self.output_key}",
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
+
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
         mock_proc = mock.MagicMock()
@@ -408,6 +437,55 @@ class TestS3CopyObjectOperator:
         assert len(objects_in_dest_bucket["Contents"]) == 1
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
+
+    def test_get_openlineage_facets_on_start_combination_1(self):
+        expected_input = Dataset(
+            namespace=f"s3://{self.source_bucket}",
+            name=self.source_key,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.dest_bucket}",
+            name=self.dest_key,
+        )
+
+        op = S3CopyObjectOperator(
+            task_id="test",
+            source_bucket_name=self.source_bucket,
+            source_bucket_key=self.source_key,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_key=self.dest_key,
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
+
+    def test_get_openlineage_facets_on_start_combination_2(self):
+        expected_input = Dataset(
+            namespace=f"s3://{self.source_bucket}",
+            name=self.source_key,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.dest_bucket}",
+            name=self.dest_key,
+        )
+
+        source_key_s3_url = f"s3://{self.source_bucket}/{self.source_key}"
+        dest_key_s3_url = f"s3://{self.dest_bucket}/{self.dest_key}"
+
+        op = S3CopyObjectOperator(
+            task_id="test",
+            source_bucket_key=source_key_s3_url,
+            dest_bucket_key=dest_key_s3_url,
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
 
 
 @mock_s3
@@ -575,6 +653,82 @@ class TestS3DeleteObjectsOperator:
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
+    @pytest.mark.parametrize("keys", ("path/data.txt", ["path/data.txt"]))
+    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
+    def test_get_openlineage_facets_on_complete_single_object(self, mock_hook, keys):
+        bucket = "testbucket"
+        expected_input = Dataset(
+            namespace=f"s3://{bucket}",
+            name="path/data.txt",
+            facets={
+                "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                    lifecycleStateChange=LifecycleStateChange.DROP.value,
+                    previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        namespace=f"s3://{bucket}",
+                        name="path/data.txt",
+                    ),
+                )
+            },
+        )
+
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object", bucket=bucket, keys=keys)
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 1
+        assert lineage.inputs[0] == expected_input
+
+    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
+    def test_get_openlineage_facets_on_complete_multiple_objects(self, mock_hook):
+        bucket = "testbucket"
+        keys = ["path/data1.txt", "path/data2.txt"]
+        expected_inputs = [
+            Dataset(
+                namespace=f"s3://{bucket}",
+                name="path/data1.txt",
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=f"s3://{bucket}",
+                            name="path/data1.txt",
+                        ),
+                    )
+                },
+            ),
+            Dataset(
+                namespace=f"s3://{bucket}",
+                name="path/data2.txt",
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=f"s3://{bucket}",
+                            name="path/data2.txt",
+                        ),
+                    )
+                },
+            ),
+        ]
+
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object", bucket=bucket, keys=keys)
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert lineage.inputs == expected_inputs
+
+    @pytest.mark.parametrize("keys", ("", []))
+    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
+    def test_get_openlineage_facets_on_complete_no_objects(self, mock_hook, keys):
+        op = S3DeleteObjectsOperator(
+            task_id="test_task_s3_delete_single_object", bucket="testbucket", keys=keys
+        )
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        assert lineage == OperatorLineage()
+
 
 class TestS3CreateObjectOperator:
     @mock.patch.object(S3Hook, "load_string")
@@ -614,3 +768,17 @@ class TestS3CreateObjectOperator:
         operator.execute(None)
 
         mock_load_string.assert_called_once_with(data, S3_KEY, BUCKET_NAME, False, False, None, None, None)
+
+    @pytest.mark.parametrize(("bucket", "key"), (("bucket", "file.txt"), (None, "s3://bucket/file.txt")))
+    def test_get_openlineage_facets_on_start(self, bucket, key):
+        expected_output = Dataset(
+            namespace="s3://bucket",
+            name="file.txt",
+        )
+
+        op = S3CreateObjectOperator(task_id="test", s3_bucket=bucket, s3_key=key, data="test")
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 0
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0] == expected_output

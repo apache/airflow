@@ -1483,7 +1483,7 @@ export interface components {
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"];
       doc_md?: string | null;
-      default_view?: string;
+      default_view?: string | null;
       /**
        * @description User-specified DAG params.
        *

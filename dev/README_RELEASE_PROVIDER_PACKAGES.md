@@ -22,11 +22,13 @@
 
 - [What the provider packages are](#what-the-provider-packages-are)
 - [Provider packages](#provider-packages)
+- [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Apply template updates](#apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -74,6 +76,24 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider packages](PROVIDER_PACKAGE_DETAILS.md).
+
+# Bump min Airflow version for providers
+
+If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
+command with the `--only-min-version-update` flag. This will only update the min version in
+the `__init__.py` files and package documentation without bumping the provider versions.
+
+```shell script
+breeze release-management prepare-provider-documentation --only-min-version-update
+```
+
+Note: that this command will only bump the min airflow versions for those providers that do not have it set to
+a higher version. You do not have to skip specific providers - run it for all providers it will
+handle everything automatically.
+
+Note: this step is **not** part of the release cycle. It should be done independently
+when the time to update min airflow version has come.
 
 # Decide when to release
 
@@ -133,6 +153,16 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 breeze release-management prepare-provider-documentation [packages]
 ```
 
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), documentation for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-documentation removed.provider
+```
+
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
@@ -163,6 +193,22 @@ branch should be prepared like this:
 ```shell script
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
+```
+
+## Apply template updates
+
+(This step can also be executed independently when needed)
+
+Regenerate the documentation templates by running the command with
+`--reapply-templates` flag to the command above. This refreshes the content of:
+
+* `__init__.py` in provider's package
+* Provider Commits
+* Provider index for the documentation
+* Provider README file used when publishing package in PyPI
+
+```shell script
+breeze release-management prepare-provider-documentation --reapply-templates-only
 ```
 
 ## Open PR with suggested version releases
@@ -204,6 +250,18 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
+
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both removed.provider
+```
+
 
 * Sign all your packages
 
@@ -273,6 +331,17 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both removed.provider
+```
+
 
 * Verify the artifacts that would be uploaded:
 
@@ -353,44 +422,47 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --package-filter apache-airflow-providers \
-   --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build apache-airflow-providers --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
 
-If we want to just release some providers you can release them in this way:
+If we want to just release some providers you can release them using package names:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-PACKAGE1' \
-  --package-filter 'apache-airflow-providers-PACKAGE2' \
-  ...
+breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
-You can also use shorthand names as arguments instead of using the full names
-for airflow providers. Example:
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), doc for the provider will not be built when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs providers-index cncf.kubernetes sftp --clean-build
+breeze build-docs removed.provider
 ```
 
-If you have providers as list of provider ids because you just released them, you can build them with
-
-```shell script
-breeze build-docs --clean-build amazon apache.beam google ....
-```
 
 - Now you can preview the documentation.
 
 ```shell script
 ./docs/start_doc_server.sh
 ```
+
+If you encounter error like:
+
+```shell script
+airflow git:(main) ./docs/start_doc_server.sh
+./docs/start_doc_server.sh: line 22: cd: /Users/eladkal/PycharmProjects/airflow/docs/_build: No such file or directory
+```
+
+That probably means that the doc folder is empty thus it can not build the doc server.
+This indicates that previous step of building the docs did not work.
 
 - Copy the documentation to the ``airflow-site`` repository
 
@@ -401,9 +473,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs \
-    --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -420,21 +490,20 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
-
-breeze release-management add-back-references amazon cncf.kubernetes
+breeze release-management publish-docs amazon apache.beam google ....
+breeze release-management add-back-references all-providers
 ```
 
-or with
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), docs for the provider will not be published when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
-
-# No need to add back references as the script has this step as integral part
+breeze release-management publish-docs removed.provider
+breeze release-management add-back-references all-providers
 ```
-
 
 - If you publish a new package, you must add it to
   [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
@@ -970,9 +1039,11 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ## Update providers metadata
 
+Make sure you create the following branch from the git tag (steps before) and not from main!
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata
 git add -p .

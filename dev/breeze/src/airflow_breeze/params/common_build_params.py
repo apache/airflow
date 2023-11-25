@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -37,24 +38,23 @@ class CommonBuildParams:
     Common build parameters. Those parameters are common parameters for CI And PROD build.
     """
 
-    additional_airflow_extras: str = ""
-    additional_dev_apt_command: str = ""
-    additional_dev_apt_deps: str = ""
-    additional_dev_apt_env: str = ""
-    additional_python_deps: str = ""
-    additional_pip_install_flags: str = ""
+    additional_airflow_extras: str | None = None
+    additional_dev_apt_command: str | None = None
+    additional_dev_apt_deps: str | None = None
+    additional_dev_apt_env: str | None = None
+    additional_python_deps: str | None = None
+    additional_pip_install_flags: str | None = None
     airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
     default_constraints_branch: str = os.environ.get(
         "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
-    airflow_constraints_location: str = ""
-    build_id: int = 0
+    airflow_constraints_location: str | None = None
     builder: str = "autodetect"
     build_progress: str = ALLOWED_BUILD_PROGRESS[0]
     constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
-    commit_sha: str = ""
-    dev_apt_command: str = ""
-    dev_apt_deps: str = ""
+    commit_sha: str | None = None
+    dev_apt_command: str | None = None
+    dev_apt_deps: str | None = None
     docker_cache: str = "registry"
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
@@ -68,13 +68,18 @@ class CommonBuildParams:
     python: str = "3.8"
     tag_as_latest: bool = False
     dry_run: bool = False
-    version_suffix_for_pypi: str = ""
+    version_suffix_for_pypi: str | None = None
     verbose: bool = False
     debian_version: str = "bookworm"
+    build_arg_values: list[str] = field(default_factory=list)
 
     @property
     def airflow_version(self):
         raise NotImplementedError()
+
+    @property
+    def build_id(self) -> str:
+        return os.environ.get("CI_BUILD_ID", "0")
 
     @property
     def image_type(self) -> str:
@@ -99,23 +104,14 @@ class CommonBuildParams:
         return image
 
     @property
-    def extra_docker_build_flags(self) -> list[str]:
-        extra_flass = []
-        if self.build_progress:
-            extra_flass.append(f"--progress={self.build_progress}")
-        return extra_flass
-
-    @property
-    def docker_cache_directive(self) -> list[str]:
-        docker_cache_directive = []
+    def common_docker_build_flags(self) -> list[str]:
+        extra_flags = []
+        extra_flags.append(f"--progress={self.build_progress}")
         if self.docker_cache == "registry":
-            for platform in self.platforms:
-                docker_cache_directive.append(f"--cache-from={self.get_cache(platform)}")
+            extra_flags.append(f"--cache-from={self.get_cache(self.platform)}")
         elif self.docker_cache == "disabled":
-            docker_cache_directive.append("--no-cache")
-        else:
-            docker_cache_directive = []
-        return docker_cache_directive
+            extra_flags.append("--no-cache")
+        return extra_flags
 
     @property
     def python_base_image(self):
@@ -169,13 +165,31 @@ class CommonBuildParams:
     def platforms(self) -> list[str]:
         return self.platform.split(",")
 
-    @property
-    def required_image_args(self) -> list[str]:
+    def _build_arg(self, name: str, value: Any, optional: bool):
+        if value is None or "":
+            if optional:
+                return
+            else:
+                raise ValueError(f"Value for {name} cannot be empty or None")
+        if value is True:
+            str_value = "true"
+        elif value is False:
+            str_value = "false"
+        else:
+            str_value = str(value) if value is not None else ""
+        self.build_arg_values.append(f"{name}={str_value}")
+
+    def _req_arg(self, name: str, value: Any):
+        self._build_arg(name, value, False)
+
+    def _opt_arg(self, name: str, value: Any):
+        self._build_arg(name, value, True)
+
+    def prepare_arguments_for_docker_build_command(self) -> list[str]:
         raise NotImplementedError()
 
-    @property
-    def optional_image_args(self) -> list[str]:
-        raise NotImplementedError()
-
-    def __post_init__(self):
-        pass
+    def _to_build_args(self):
+        build_args = []
+        for arg in self.build_arg_values:
+            build_args.extend(["--build-arg", arg])
+        return build_args

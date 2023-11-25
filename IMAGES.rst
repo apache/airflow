@@ -33,7 +33,7 @@ Airflow has two main images (build from Dockerfiles):
 PROD image
 -----------
 
-The PROD image is a multi-segment image. The first segment "airflow-build-image" contains all the
+The PROD image is a multi-segment image. The first segment ``airflow-build-image`` contains all the
 build essentials and related dependencies that allow to install airflow locally. By default the image is
 built from a released version of Airflow from GitHub, but by providing some extra arguments you can also
 build it from local sources. This is particularly useful in CI environment where we are using the image
@@ -41,7 +41,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing dependencies.
+``airflow-build-image`` segment uses the same technique as the CI jobs for pre-installing dependencies.
 It first pre-installs them from the right GitHub branch and only after that final airflow installation is
 done from either local sources or remote location (PyPI or GitHub repository).
 
@@ -54,7 +54,7 @@ CI image
 The CI image is used by `Breeze <BREEZE.rst>`_ as the shell image but it is also used during CI tests.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed. It installs PIP dependencies from the current branch first -
-so that any changes in setup.py do not trigger reinstalling of all dependencies.
+so that any changes in ``setup.py`` do not trigger reinstalling of all dependencies.
 There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
 
@@ -97,7 +97,7 @@ By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
 
 The images are built with default extras - different extras for CI and production image and you
-can change the extras via the ``--extras`` parameters and add new ones with ``--additional-extras``.
+can change the extras via the ``--extras`` parameters and add new ones with ``--additional-airflow-extras``.
 
 For example if you want to build Python 3.8 version of production image with
 "all" extras installed you should run this command:
@@ -110,7 +110,7 @@ If you just want to add new extras you can add them like that:
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras "all"
+  breeze prod-image build --python 3.8 --additional-airflow-extras "all"
 
 The command that builds the CI image is optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -128,7 +128,7 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras=trino --install-airflow-version=2.0.0
+  breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-airflow-version=2.0.0
 
 This will build the image using command similar to:
 
@@ -170,7 +170,7 @@ You can also skip installing airflow and install it from locally provided files 
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.8 --additional-extras=trino --install-packages-from-context
+  breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 
@@ -331,7 +331,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  breeze ci-image build --python 3.8 --additional-extras=jdbc --additional-python-deps="pandas" \
+  breeze ci-image build --python 3.8 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
