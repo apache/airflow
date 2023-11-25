@@ -251,8 +251,9 @@ class TestVaultClient:
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(
-            credentials="credentials",
+        client.auth.gcp.login.assert_called_with(
+            role="TODO",
+            jwt="TODO",
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -280,7 +281,11 @@ class TestVaultClient:
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(credentials="credentials", mount_point="other")
+        client.auth.gcp.login.assert_called_with(
+            role="TODO",
+            jwt="TODO",
+            mount_point="other"
+        )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
 
@@ -306,8 +311,9 @@ class TestVaultClient:
             key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(
-            credentials="credentials",
+        client.auth.gcp.login.assert_called_with(
+            role="TODO",
+            jwt="TODO",
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
