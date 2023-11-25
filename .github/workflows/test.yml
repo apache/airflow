@@ -38,10 +38,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install required packages"
-        run: pip install --user "pipx>=1.2.1";pip install -U pytest;python -m pip install time-machine;pip install pytest-asyncio
+        run: pip install --user "pipx>=1.2.1";pip install -U pytest;python -m pip install time-machine;pip install pytest-asyncio;pip install pytest-md-report;
       - name: "Install airflow and teradata provider from sources"
         run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]"     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt
       - name: "Initialize airflow database"
         run: airflow db init
       - name: "Run system tests"
-        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
+        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --md-report --md-report-verbose=1 --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --md-report --md-report-verbose=1 --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
