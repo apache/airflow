@@ -94,4 +94,4 @@ See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsea
 Cleaning logs
 -------------
 
-You can enable ``logGroomerSidecar`` to periodically clean the logs from local disk
+You can enable ``scheduler.logGroomerSidecar`` to periodically clean the logs from local disk
