@@ -131,6 +131,12 @@ class ExternalTaskSensor(BaseSensorOperator):
         or DAG does not exist (default value: False).
     :param poll_interval: polling period in seconds to check for the status
     :param deferrable: Run sensor in deferrable mode
+
+    .. warning::
+
+        In deferrable mode, this operator only supports sensing exactly 1 external task right now.
+        Support for sensing full DAGs, multiple tasks, or task groups is not yet supported with
+        `deferrable=True`.
     """
 
     template_fields = ["external_dag_id", "external_task_id", "external_task_ids", "external_task_group_id"]
