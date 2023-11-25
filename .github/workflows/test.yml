@@ -46,7 +46,7 @@ jobs:
       - name: Setting Fernet key
         run: export AIRFLOW__CORE__FERNET_KEY="$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")"
       - name: "Initialize airflow database"
-        run: airflow db migrate;
+        run: airflow standalone;
       - name: "Run Unit tests"
         run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py; 
       - name: Airflow connection new add
