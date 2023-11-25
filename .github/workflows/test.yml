@@ -52,5 +52,5 @@ jobs:
       - name: "Run system tests"
         run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;
       - name: Airflow connection test
-        run: airflow connections test airflow_teradata1;
+        run: export AIRFLOW__CORE__TEST_CONNECTION=Enabled;airflow connections test airflow_teradata1;
       
