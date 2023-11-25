@@ -86,7 +86,12 @@ from airflow_breeze.utils.docker_command_utils import (
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
-from airflow_breeze.utils.parallel import DockerBuildxProgressMatcher, check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import (
+    DockerBuildxProgressMatcher,
+    ShowLastLineProgressMatcher,
+    check_async_run_results,
+    run_with_pool,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
@@ -448,6 +453,45 @@ def pull_prod_image(
             sys.exit(return_code)
 
 
+def run_verify_in_parallel(
+    image_params_list: list[BuildProdParams],
+    python_version_list: list[str],
+    extra_pytest_args: tuple[str, ...],
+    include_success_outputs: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+) -> None:
+    with ci_group(f"Verifying PROD images for {python_version_list}"):
+        all_params = [f"PROD {image_params.python}" for image_params in image_params_list]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=ShowLastLineProgressMatcher(),
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    verify_an_image,
+                    kwds={
+                        "image_name": image_params.airflow_image_name_with_tag,
+                        "image_type": "PROD",
+                        "slim_image": False,
+                        "extra_pytest_args": extra_pytest_args,
+                        "output": outputs[index],
+                    },
+                )
+                for index, image_params in enumerate(image_params_list)
+            ]
+    check_async_run_results(
+        results=results,
+        success="All images verified",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
+
+
 @prod_image.command(
     name="verify",
     context_settings=dict(
@@ -455,22 +499,29 @@ def pull_prod_image(
         allow_extra_args=True,
     ),
 )
-@option_python
-@option_image_tag_for_verifying
-@option_image_name
-@option_pull
 @click.option(
     "--slim-image",
     help="The image to verify is slim and non-slim tests should be skipped.",
     is_flag=True,
 )
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@option_python
+@option_python_versions
+@option_image_tag_for_verifying
+@option_image_name
+@option_pull
 @option_github_repository
 @option_github_token
+@option_run_in_parallel
+@option_parallelism
+@option_skip_cleanup
+@option_include_success_outputs
+@option_debug_resources
 @option_verbose
 @option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def verify(
     python: str,
+    python_versions: str,
     github_repository: str,
     image_name: str,
     image_tag: str | None,
@@ -478,6 +529,11 @@ def verify(
     slim_image: bool,
     github_token: str,
     extra_pytest_args: tuple,
+    run_in_parallel: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
 ):
     """Verify Production image."""
     perform_environment_checks()
@@ -485,27 +541,54 @@ def verify(
         github_token=github_token,
         output=None,
     )
-    if image_name is None:
-        build_params = BuildProdParams(
-            python=python,
-            image_tag=image_tag,
-            github_repository=github_repository,
-            github_token=github_token,
+    if (pull or image_name) and run_in_parallel:
+        get_console().print(
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
         )
-        image_name = build_params.airflow_image_name_with_tag
-    if pull:
-        check_remote_ghcr_io_commands()
-        command_to_run = ["docker", "pull", image_name]
-        run_command(command_to_run, check=True)
-    get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
-    return_code, info = verify_an_image(
-        image_name=image_name,
-        output=None,
-        image_type="PROD",
-        extra_pytest_args=extra_pytest_args,
-        slim_image=slim_image,
-    )
-    sys.exit(return_code)
+        sys.exit(1)
+    if run_in_parallel:
+        base_build_params = BuildProdParams(
+            python=python,
+            github_repository=github_repository,
+            image_tag=image_tag,
+        )
+        python_version_list = get_python_version_list(python_versions)
+        params_list: list[BuildProdParams] = []
+        for python in python_version_list:
+            build_params = deepcopy(base_build_params)
+            build_params.python = python
+            params_list.append(build_params)
+        run_verify_in_parallel(
+            image_params_list=params_list,
+            python_version_list=python_version_list,
+            extra_pytest_args=extra_pytest_args,
+            include_success_outputs=include_success_outputs,
+            parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
+        )
+    else:
+        if image_name is None:
+            build_params = BuildProdParams(
+                python=python,
+                image_tag=image_tag,
+                github_repository=github_repository,
+                github_token=github_token,
+            )
+            image_name = build_params.airflow_image_name_with_tag
+        if pull:
+            check_remote_ghcr_io_commands()
+            command_to_run = ["docker", "pull", image_name]
+            run_command(command_to_run, check=True)
+        get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
+        return_code, info = verify_an_image(
+            image_name=image_name,
+            output=None,
+            image_type="PROD",
+            extra_pytest_args=extra_pytest_args,
+            slim_image=slim_image,
+        )
+        sys.exit(return_code)
 
 
 def clean_docker_context_files():
