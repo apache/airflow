@@ -95,7 +95,7 @@ class DAGDetailSchema(DAGSchema):
 
     owners = fields.Method("get_owners", dump_only=True)
     timezone = TimezoneField()
-    catchup = fields.Boolean()
+    catchup = fields.Method("get_catchup", dump_only=True)
     orientation = fields.String()
     concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer()
@@ -147,6 +147,11 @@ class DAGDetailSchema(DAGSchema):
         """Get the Params defined in a DAG."""
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
+
+    @staticmethod
+    def get_catchup(obj: DAG):
+        """Get catchup value defined in a DAG."""
+        return obj._backport_catchup
 
 
 class DAGCollection(NamedTuple):

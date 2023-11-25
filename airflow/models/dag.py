@@ -632,6 +632,8 @@ class DAG(LoggingMixin):
                 f"{ORIENTATION_PRESETS}, but get {orientation}"
             )
         self.catchup: Catchup = Catchup(catchup)
+        # For backward compatibility, we need to store the original value and return it in the API
+        self._backport_catchup = catchup
 
         self.partial: bool = False
         self.on_success_callback = on_success_callback
