@@ -127,7 +127,7 @@ The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
-then you will want to turn catchup off. This can be done by setting ``catchup="disable"`` in DAG  or ``catchup_by_default=False``
+then you will want to turn catchup off. This can be done by setting ``catchup="disable"`` in DAG  or ``catchup_by_default="disable"``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
 .. code-block:: python
@@ -167,11 +167,14 @@ In such a case, the single DAG Run created will cover data between 2016-01-01 06
 differences between a cron and a delta based schedule, take a look at the
 :ref:`timetables comparison <Differences between the cron and delta data interval timetables>`
 
-If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
+If the ``dag.catchup`` value had been ``"enable"`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
 as that interval hasn't completed) and the scheduler will execute them sequentially.
 
-Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
+Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it, or the dag run was
+missed for some reason (for example there was a pressure on the scheduler, or the scheduler was down).
+If you want to keep the catchup on for this case, without triggering all the dag runs between the dag start date and
+the logical date of your first dag run, you can set ``dag.catchup`` to ``"ignore_first"``.
 
 This behavior is great for atomic datasets that can easily be split into periods. Turning catchup off is great
 if your DAG performs catchup internally.
