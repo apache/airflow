@@ -44,7 +44,7 @@ jobs:
       - name: "Verifying Airflow version"
         run: airflow version;
       - name: Setting Fernet key
-        run: export AIRFLOW__CORE__FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        run: export AIRFLOW__CORE__FERNET_KEY="$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")"
       - name: "Initialize airflow database"
         run: airflow db migrate;
       - name: "Run Unit tests"
@@ -52,7 +52,7 @@ jobs:
       - name: Airflow connection new add
         run: airflow connections add 'airflow_teradata1' --conn-type 'teradata' --conn-login 'dbc' --conn-password 'dbc' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com'  --conn-schema 'airbyte_td'
       - name: Printing Fernet key
-        run: echo "$AIRFLOW__CORE__FERNET_KEY";
+        run: echo "$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")";echo $(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())");
       - name: "Run system tests"
         run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
       - name: Airflow connection test
