@@ -248,10 +248,10 @@ class AzureSynapsePipelineHook(BaseHook):
     :param azure_synapse_workspace_dev_endpoint: The Azure Synapse Workspace development endpoint.
     """
 
-    conn_type: str = "azure_synapse_pipeline"
+    conn_type: str = "azure_synapse"
     conn_name_attr: str = "azure_synapse_conn_id"
     default_conn_name: str = "azure_synapse_connection"
-    hook_name: str = "Azure Synapse Pipeline"
+    hook_name: str = "Azure Synapse"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:

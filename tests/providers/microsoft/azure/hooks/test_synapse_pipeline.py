@@ -44,7 +44,7 @@ def setup_connections(create_mock_connections):
         # connection_client_secret
         Connection(
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-            conn_type="azure_synapse_pipeline",
+            conn_type="azure_synapse",
             host=SYNAPSE_WORKSPACE_URL,
             login="clientId",
             password="clientSecret",
@@ -53,14 +53,14 @@ def setup_connections(create_mock_connections):
         # connection_default_credential
         Connection(
             conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
-            conn_type="azure_synapse_pipeline",
+            conn_type="azure_synapse",
             host=SYNAPSE_WORKSPACE_URL,
             extra={},
         ),
         # connection_missing_tenant_id
         Connection(
             conn_id="azure_synapse_missing_tenant_id",
-            conn_type="azure_synapse_pipeline",
+            conn_type="azure_synapse",
             host=SYNAPSE_WORKSPACE_URL,
             login="clientId",
             password="clientSecret",
