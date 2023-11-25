@@ -42,7 +42,7 @@ jobs:
       - name: "Install airflow and teradata provider from sources"
         run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]" --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt      
       - name: "Initialize airflow database"
-        run: airflow db migrate
+        run: airflow db reset -y; airflow db migrate
       - name: "Run Unit tests"
         run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py; 
       - name: Airflow connections list before add
