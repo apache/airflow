@@ -51,8 +51,10 @@ jobs:
         run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py; 
       - name: Airflow connection new add
         run: airflow connections add 'airflow_teradata1' --conn-type 'teradata' --conn-login 'dbc' --conn-password 'dbc' --conn-host 'airbyteteradatadest-25wbjoteev9ujvxw.env.clearscape.teradata.com'  --conn-schema 'airbyte_td'
+      - name: Printing Fernet key
+        run: echo "$AIRFLOW__CORE__FERNET_KEY";
       - name: "Run system tests"
-        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;
+        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
       - name: Airflow connection test
         run: export AIRFLOW__CORE__TEST_CONNECTION=Enabled;airflow connections test airflow_teradata1;
       
