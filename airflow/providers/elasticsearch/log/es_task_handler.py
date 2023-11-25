@@ -70,17 +70,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # For elasticsearch>8 retry_timeout have changed for elasticsearch to retry_on_timeout
-    # in Elasticsearch() compared to previous versions.
-    # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
-    if (
-        elastic_search_config
-        and "retry_timeout" in elastic_search_config
-        and not kwargs_dict.get("retry_on_timeout")
-    ):
-        retry_timeout = elastic_search_config.get("retry_timeout")
-        if retry_timeout is not None:
-            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
