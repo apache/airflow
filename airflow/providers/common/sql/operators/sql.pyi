@@ -17,7 +17,7 @@
 #
 # This is automatically generated stub for the `common.sql` provider
 #
-# This file is generated automatically by the `update-common-sql-api stubs` pre-commit
+# This file is generated automatically by the `update-common-sql-api-stubs` pre-commit
 # and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
@@ -63,6 +63,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     template_fields_renderers: Incomplete
     ui_color: str
     sql: Incomplete
+    sql_callable: Incomplete
     autocommit: Incomplete
     parameters: Incomplete
     handler: Incomplete
@@ -73,6 +74,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self,
         *,
         sql: Union[str, list[str]],
+        sql_callable: Callable[[], str | list[str]] | None,
         autocommit: bool = ...,
         parameters: Union[Mapping, Iterable, None] = ...,
         handler: Callable[[Any], Any] = ...,

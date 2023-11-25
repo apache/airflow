@@ -195,6 +195,9 @@ class BaseSQLOperator(BaseOperator):
         raise AirflowFailException(exception_string)
 
 
+SQL_NOT_SET = "SQL_NOT_SET"
+
+
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
     Executes SQL code in a specific database.
@@ -231,7 +234,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def __init__(
         self,
         *,
-        sql: str | list[str] | None = None,
+        sql: str | list[str] = SQL_NOT_SET,
         sql_callable: Callable[[], str | list[str]] | None = None,
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
@@ -244,9 +247,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
-        if sql and sql_callable:
+        if sql != SQL_NOT_SET and sql_callable:
             raise ValueError("only one")
-        if not sql and not sql_callable:
+        if sql == SQL_NOT_SET and sql_callable is None:
             raise ValueError("at least one")
         self.sql = sql
         self.sql_callable = sql_callable
@@ -287,8 +290,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         if callable(self.sql_callable):
-            self.sql: str | list[str] = self.sql_callable()
-            super().render_template_fields(context, jinja_env)
+            self.sql = self.sql_callable()
+        super().render_template_fields(context, jinja_env)
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
