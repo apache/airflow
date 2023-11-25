@@ -46,4 +46,4 @@ jobs:
       - name: "Run Unit tests"
         run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py; 
       - name: "Run system tests"
-        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/providers/teradata/hooks/test_teradata.py --md-report --md-report-verbose=1 ;pytest --system=teradata --md-report --md-report-verbose=1   tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
+        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/providers/teradata/hooks/test_teradata.py;pytest --system=teradata tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
