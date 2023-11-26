@@ -30,13 +30,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
-    from databricks.sql.types import Row
-
     from airflow.utils.context import Context
-
-
-def make_serializable(val: Row):
-    return tuple(val)
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -129,7 +123,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:
-            return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
+            return list(zip(descriptions, results))
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
         # Output to a file only the result of last query
@@ -162,7 +156,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
+        return list(zip(descriptions, results))
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]

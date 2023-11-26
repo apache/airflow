@@ -248,6 +248,7 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",

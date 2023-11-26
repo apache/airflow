@@ -89,6 +89,8 @@ PIP package          Version required
 ===================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -103,7 +105,7 @@ Package apache-airflow-providers-openai
 `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------

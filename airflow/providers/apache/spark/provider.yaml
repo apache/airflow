@@ -22,6 +22,7 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 suspended: false
+source-date-epoch: 1700827443
 versions:
   - 4.4.0
   - 4.3.0
@@ -51,6 +52,7 @@ versions:
 dependencies:
   - apache-airflow>=2.5.0
   - pyspark
+  - grpcio-status
 
 integrations:
   - integration-name: Apache Spark
@@ -70,6 +72,7 @@ operators:
 hooks:
   - integration-name: Apache Spark
     python-modules:
+      - airflow.providers.apache.spark.hooks.spark_connect
       - airflow.providers.apache.spark.hooks.spark_jdbc
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
       - airflow.providers.apache.spark.hooks.spark_sql
@@ -77,6 +80,8 @@ hooks:
 
 
 connection-types:
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook
+    connection-type: spark_connect
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
     connection-type: spark_jdbc
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook

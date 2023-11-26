@@ -338,6 +338,15 @@ that Breeze works on
 
             pipx install --force -e dev\breeze
 
+    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
+
+        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -1626,7 +1635,7 @@ but here typical examples are presented:
 
 .. code-block:: bash
 
-     breeze prod-image build --additional-extras "jira"
+     breeze prod-image build --additional-airflow-extras "jira"
 
 This installs additional ``jira`` extra while installing airflow in the image.
 
@@ -2047,12 +2056,6 @@ The below example perform documentation preparation for provider packages.
 
      breeze release-management prepare-provider-documentation
 
-By default, the documentation preparation runs package verification to check if all packages are
-importable, but you can add ``--skip-package-verification`` to skip it.
-
-.. code-block:: bash
-
-     breeze release-management prepare-provider-documentation --skip-package-verification
 
 You can also add ``--answer yes`` to perform non-interactive build.
 

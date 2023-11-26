@@ -44,7 +44,7 @@ env:
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-  # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
+  # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
@@ -232,7 +232,6 @@ jobs:
           --builder airflow_cache
           --prepare-buildx-cache
           --run-in-parallel
-          --force-build
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
@@ -260,11 +259,6 @@ jobs:
         if: >
           matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
           && needs.build-info.outputs.default-branch == 'main'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: >
-          always() && needs.build-info.outputs.canary-run == 'true'
-          && needs.build-info.outputs.default-branch == 'main'
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
     timeout-minutes: 5
@@ -291,9 +285,6 @@ jobs:
         uses: ./.github/actions/breeze
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   build-ci-images:
     timeout-minutes: 80
@@ -329,166 +320,12 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           BUILD_TIMEOUT_MINUTES: 70
-
-  generate-constraints:
-    permissions:
-      contents: read
-    timeout-minutes: 70
-    name: >
-      Preview constraints
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images]
-    env:
-      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
-      PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest --wait-for-image
-      - name: "Source constraints"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-      - name: "No providers constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-no-providers
-      - name: "PyPI constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints
-      - name: "Dependency upgrade summary"
-        shell: bash
-        run: |
-          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
-            echo "Summarizing Python $PYTHON_VERSION"
-            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
-          done
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
-
-  build-prod-images:
-    timeout-minutes: 80
-    name: >
-      ${{needs.build-info.outputs.build-job-description}} PROD images
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images, generate-constraints]
-    env:
-      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      BACKEND: sqlite
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      # Force more parallelism for build even on public images
-      PARALLELISM: 6
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
-          persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
+      - name: Verify CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze ci-image verify --run-in-parallel
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: >
-          Build PROD Images
-          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/build-prod-images
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-        with:
-          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-
-  build-prod-images-bullseye:
-    timeout-minutes: 80
-    name: >
-      ${{needs.build-info.outputs.build-job-description}} Bullseye PROD images
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images, generate-constraints]
-    if: needs.build-info.outputs.canary-run == 'true'
-    env:
-      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      BACKEND: sqlite
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      # Force more parallelism for build even on public images
-      PARALLELISM: 6
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
-          persist-credentials: false
-          submodules: recursive
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
-      - name: >
-          Build Bullseye PROD Images
-          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/build-prod-images
-        with:
-          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-          DEBIAN_VERSION: "bullseye"
-          # Do not override the "bookworm" image - just push a new bullseye image
-          # TODO: improve caching for that build
-          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+        if: needs.build-info.outputs.in-workflow-build == 'true'
 
   run-breeze-tests:
     timeout-minutes: 10
@@ -506,11 +343,7 @@ jobs:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
-      - run: >
-          breeze setup version ||
-          (echo "\033[0;31mERROR: Breeze version check failed\033[0m" &&
-           echo "Please run 'breeze setup version' and commit the changes." && false)
+      - run: pip install --editable ./dev/breeze/
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
 
@@ -596,6 +429,7 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
@@ -610,21 +444,84 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.in-workflow-build == 'false'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.in-workflow-build == 'false'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.in-workflow-build == 'false'
+      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        id: wait-for-images
+        run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+        if: needs.build-info.outputs.in-workflow-build == 'false'
+
+  generate-constraints:
+    permissions:
+      contents: read
+    timeout-minutes: 70
+    name: >
+      Verify CI Images & Generate constraints
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
+      PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+    if: needs.build-info.outputs.ci-image-build == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        id: wait-for-images
-        run: breeze ci-image pull --run-in-parallel --verify --wait-for-image --tag-as-latest
+      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze ci-image pull --run-in-parallel --tag-as-latest
+      - name: Verify CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze ci-image verify --run-in-parallel
         env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
+      - name: "Source constraints"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
+      - name: "No providers constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-no-providers
+      - name: "PyPI constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints
+      - name: "Dependency upgrade summary"
+        shell: bash
+        run: |
+          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+            echo "Summarizing Python $PYTHON_VERSION"
+            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
+          done
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: constraints
+          path: ./files/constraints-*/constraints-*.txt
+          retention-days: 7
+
 
   static-checks:
     timeout-minutes: 45
@@ -664,9 +561,6 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -720,12 +614,9 @@ jobs:
           SKIP_IMAGE_PRE_COMMITS: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
-  docs:
-    timeout-minutes: 90
+  build-docs:
+    timeout-minutes: 60
     name: "Build docs"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -753,7 +644,7 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }} --docs-only
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
@@ -787,9 +678,37 @@ jobs:
       - name: "Upload documentation to AWS S3"
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
+
+  spellcheck-docs:
+    timeout-minutes: 60
+    name: "Spellcheck docs"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.docs-build == 'true'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - uses: actions/cache@v3
+        id: cache-doc-inventories
+        with:
+          path: ./docs/_inventory_cache/
+          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          restore-keys: |
+            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-
+      - name: "Spellcheck docs"
+        run: >
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }} --spellcheck-only
 
   prepare-test-provider-packages-wheel:
     timeout-minutes: 80
@@ -814,7 +733,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
         run: >
-          breeze release-management prepare-provider-documentation
+          breeze release-management prepare-provider-documentation --non-interactive
           ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
@@ -842,9 +761,10 @@ jobs:
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
+      - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
+        run: >
+          breeze release-management prepare-provider-packages --skip-tag-check
+          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
 
   provider-airflow-compatibility-check:
     timeout-minutes: 80
@@ -910,9 +830,6 @@ jobs:
         if: >
           needs.build-info.outputs.affected-providers-list-as-string != '' &&
           needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -959,9 +876,6 @@ jobs:
           breeze release-management install-provider-packages
           --package-format sdist --use-airflow-version sdist --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
 
   test-airflow-release-commands:
@@ -997,9 +911,6 @@ jobs:
       - name: "Check Airflow release process command"
         run: |
           breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   tests-helm:
     timeout-minutes: 80
@@ -1019,9 +930,7 @@ jobs:
       JOB_ID: "helm-tests"
       USE_XDIST: "true"
     if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
-      (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
-      needs.build-info.outputs.default-branch == 'main'
+      needs.build-info.outputs.needs-helm-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1664,10 +1573,93 @@ jobs:
           echo
           echo Total number of unique warnings $(cat ./artifacts/test-warnings*/* | sort | uniq | wc -l)
 
+  build-prod-images:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.build-job-description}} PROD images
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images]
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: >
+          Build PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+
+  build-prod-images-bullseye:
+    timeout-minutes: 80
+    name: >
+      Build Bullseye PROD images
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: >
+          Build Bullseye PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          DEBIAN_VERSION: "bullseye"
+          # Do not override the "bookworm" image - just push a new bullseye image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
 
   wait-for-prod-images:
     timeout-minutes: 80
-    name: "Wait for & verify PROD images"
+    name: "Wait for PROD images"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -1680,12 +1672,15 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+        if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
@@ -1695,21 +1690,11 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        # We pull images again (which is a NOOP) but this time we also verify the images
-        # Having it as a separate step allows us to see if the problem was with waiting or verification
-        run: breeze prod-image pull --verify --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
-
+        if: needs.build-info.outputs.in-workflow-build == 'false'
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
-    name: "Test docker-compose quick start"
+    name: "Verify PROD image and docker-compose quick start"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -1723,17 +1708,21 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: >
-          Prepare breeze & PROD image:
-          ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          pull-image-type: 'PROD'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze prod-image pull --run-in-parallel --tag-as-latest
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          # Force more parallelism for pull even on public images
+          PARALLELISM: 6
+      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze prod-image verify --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   tests-kubernetes:
     timeout-minutes: 240
@@ -1767,6 +1756,8 @@ jobs:
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          # Force more parallelism for pull even on public images
+          PARALLELISM: 6
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v3
         with:
@@ -1801,9 +1792,6 @@ jobs:
       - name: "Delete clusters just in case they are left"
         run: breeze k8s delete-cluster --all
         if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   update-constraints:
     permissions:
@@ -1814,7 +1802,8 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - docs
+      - build-docs
+      - spellcheck-docs
       - wait-for-ci-images
       - wait-for-prod-images
       - static-checks
@@ -1824,7 +1813,6 @@ jobs:
       - tests-no-db
       - tests-integration-postgres
       - tests-integration-mysql
-      # Skip when generate constraints fails
       - generate-constraints
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1921,7 +1909,6 @@ jobs:
           --builder airflow_cache
           --prepare-buildx-cache
           --run-in-parallel
-          --force-build
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
@@ -1934,8 +1921,8 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           COMMIT_SHA: ${{ github.sha }}
         if: matrix.platform == 'linux/amd64'
-      - name: "Move dist packages to docker-context files"
-        run: mv -v ./dist/*.whl ./docker-context-files
+      - name: "Copy dist packages to docker-context files"
+        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze prod-image build
@@ -1958,9 +1945,6 @@ jobs:
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && matrix.platform == 'linux/arm64'
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # This is only a check if ARM images are successfully building when committer runs PR from
   # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
@@ -1974,8 +1958,8 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - generate-constraints
-      - docs
+      - build-docs
+      - spellcheck-docs
       - static-checks
       - tests-sqlite
       - tests-mysql
@@ -2016,7 +2000,4 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()

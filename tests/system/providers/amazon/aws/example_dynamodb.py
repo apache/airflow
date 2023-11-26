@@ -92,12 +92,26 @@ with DAG(
     )
     # [END howto_sensor_dynamodb_value]
 
+    # [START howto_sensor_dynamodb_any_value]
+    dynamodb_sensor_any_value = DynamoDBValueSensor(
+        task_id="waiting_for_dynamodb_item_any_value",
+        table_name=table_name,
+        partition_key_name=PK_ATTRIBUTE_NAME,
+        partition_key_value="Test",
+        sort_key_name=SK_ATTRIBUTE_NAME,
+        sort_key_value="2022-07-12T11:11:25-0400",
+        attribute_name="Value",
+        attribute_value=["Foo", "Testing", "Bar"],
+    )
+    # [END howto_sensor_dynamodb_any_value]
+
     chain(
         # TEST SETUP
         test_context,
         create_table,
         # TEST BODY
         dynamodb_sensor,
+        dynamodb_sensor_any_value,
         # TEST TEARDOWN
         delete_table,
     )

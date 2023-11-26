@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Extend task context logging support for remote logging using Elasticsearch (#32977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update es read query to not use body (#34792)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+
+Misc
+~~~~
+
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 5.1.1
 .....
 

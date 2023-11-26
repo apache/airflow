@@ -110,7 +110,7 @@ with DAG(
         query={"query": {"bool": {"must": {"match": {"message": "hello world"}}}}},
     )
     search = Search()
-    search.index = INDEX_NAME
+    search._index = [INDEX_NAME]
     search_object = search.filter("term", logger="airflow").query("match", message="hello airflow")
 
     search_high_level = OpenSearchQueryOperator(task_id="high_level_query", search_object=search_object)

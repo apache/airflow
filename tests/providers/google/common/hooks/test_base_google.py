@@ -683,6 +683,20 @@ class TestGoogleBaseHook:
                 ["ACCOUNT_2", "ACCOUNT_3"],
                 id="multiple_elements_list_with_override",
             ),
+            pytest.param(
+                None,
+                "ACCOUNT_1,ACCOUNT_2,ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1, ACCOUNT_2, ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string_with_space",
+            ),
         ],
     )
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")

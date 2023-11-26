@@ -22,6 +22,7 @@ description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
 suspended: false
+source-date-epoch: 1700827433
 versions:
   - 2.5.0
   - 2.4.4

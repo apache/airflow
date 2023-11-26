@@ -149,6 +149,7 @@ combine-as-imports = true
 [tool.ruff.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+"airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 
 [tool.ruff.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

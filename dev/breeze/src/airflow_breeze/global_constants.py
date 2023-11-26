@@ -200,6 +200,7 @@ MYSQL_HOST_PORT = "23306"
 MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
+CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
@@ -254,6 +255,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.3": ["3.8", "3.9", "3.10", "3.11"],
 }
 
 DB_RESET = False
@@ -361,6 +363,7 @@ AVAILABLE_INTEGRATIONS = [
     "trino",
 ]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
