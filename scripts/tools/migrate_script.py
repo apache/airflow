@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Migration script to port an Apache Airflow 2.7.3 DB to another DB engine.
+"""Migration script to port an Apache Airflow metadata DB to another DB engine.
 
 Call it with `python migrate_script.py --extract` on the source environment
 to dump the configured airflow metadata database to a SQLite file called
@@ -26,6 +26,8 @@ to dump the configured airflow metadata database to a SQLite file called
 Note that it is common sense probably that this script is assuming that schedulers,
 workers, triggerer and webserver are stopped while running this script. It is also
 advised to halt all running jobs and DAG runs.
+
+Database schema must match.
 
 Note that this script is made for Airflow 2.7.3 and is provided without any warranty.
 """
@@ -79,7 +81,7 @@ airflow_db_url = engine.url
 temp_db_url = "sqlite:///migration.db"
 supported_db_versions = [
     # see https://airflow.apache.org/docs/apache-airflow/stable/migrations-ref.html
-    "788397e78828"  # Airflow 2.7.3
+    "405de8318b3a"  # Airflow 2.7.3
 ]
 
 # initialise logging
@@ -125,7 +127,7 @@ def copy_airflow_tables(source_engine, target_engine):
         TaskReschedule,
         Variable,
         BaseXCom,
-        "ab_user_role",
+        "ab_user_role",  # besides the ORM objects some table which demand cleaning are listed
         "ab_permission_view",
         "ab_permission_view_role",
     ]
@@ -136,9 +138,14 @@ def copy_airflow_tables(source_engine, target_engine):
     quote = "`" if dialect_name == "mysql" else '"'
 
     # check that source DB is a supported version
-    db_version = target_session.scalar(f"SELECT * FROM {quote}alembic_version{quote}")
+    db_version = target_session.scalar("SELECT * FROM alembic_version")
     if db_version not in supported_db_versions:
         raise ValueError(f"Unsupported Airflow Schema version {db_version}")
+    source_version = source_session.scalar("SELECT * FROM alembic_version")
+    if source_version != db_version:
+        raise ValueError(
+            f"Database schema must match. Source is {source_version}, destination is {db_version}."
+        )
 
     # Deserialization fails, but we want to transfer the blob as original anyway, mock serialization away
     def deserialize_mock(self: XCom):
@@ -146,6 +153,7 @@ def copy_airflow_tables(source_engine, target_engine):
 
     BaseXCom.orm_deserialize_value = deserialize_mock
 
+    # Step 1 - delete any leftovers, ensure all tables to be migrated are empty - use reverse order
     for clz in reversed(objects_to_migrate):
         if isinstance(clz, str):
             logging.info("Cleaning table %s", clz)
@@ -177,6 +185,7 @@ def copy_airflow_tables(source_engine, target_engine):
                         continue_delete = target_session.execute(delete(clz)).rowcount > 0
             else:
                 target_session.execute(delete(clz))
+    # Step 2 - copy all data over, use only ORM mapped tables
     for clz in objects_to_migrate:
         count = 0
         if not isinstance(clz, str):
@@ -189,26 +198,26 @@ def copy_airflow_tables(source_engine, target_engine):
                     logging.info("Migration of chunk finished, %i migrated", count)
             logging.info("Migration of %s finished with %i rows", clz.__tablename__, count)
             target_session.commit()
+    # Step 3 - update sequences to ensure new records continue with valid IDs auto-generated
     for clz in objects_to_migrate:
         count = 0
-        if not isinstance(clz, str):
-            if "id" in clz.__dict__:
-                logging.info("Resetting sequence value for %s", clz.__tablename__)
-                max = target_session.scalar(f"SELECT MAX(id) FROM {quote}{clz.__tablename__}{quote}")
-                if max:
-                    if dialect_name == "postgresql":
-                        target_session.execute(
-                            f"ALTER SEQUENCE {quote}{clz.__tablename__}_id_seq{quote} RESTART WITH {max+1}"
-                        )
-                    elif dialect_name == "sqlite":
-                        pass  # nothing to be done for sqlite
-                    elif dialect_name == "mysql":
-                        target_session.execute(
-                            f"ALTER TABLE {quote}{clz.__tablename__}{quote} AUTO_INCREMENT = {max+1}"
-                        )
-                    else:  # e.g. "mssql"
-                        raise Exception(f"Database type {dialect_name} not supported")
-                target_session.commit()
+        if not isinstance(clz, str) and "id" in clz.__dict__:
+            logging.info("Resetting sequence value for %s", clz.__tablename__)
+            max = target_session.scalar(f"SELECT MAX(id) FROM {quote}{clz.__tablename__}{quote}")
+            if max:
+                if dialect_name == "postgresql":
+                    target_session.execute(
+                        f"ALTER SEQUENCE {quote}{clz.__tablename__}_id_seq{quote} RESTART WITH {max+1}"
+                    )
+                elif dialect_name == "sqlite":
+                    pass  # nothing to be done for sqlite
+                elif dialect_name == "mysql":
+                    target_session.execute(
+                        f"ALTER TABLE {quote}{clz.__tablename__}{quote} AUTO_INCREMENT = {max+1}"
+                    )
+                else:  # e.g. "mssql"
+                    raise Exception(f"Database type {dialect_name} not supported")
+            target_session.commit()
 
 
 def main(extract: bool, restore: bool):
@@ -221,7 +230,7 @@ def main(extract: bool, restore: bool):
         envs["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = temp_db_url
         subprocess.check_call(args=["airflow", "db", "reset", "--yes"], env=envs)
 
-    # source database
+    # source and target database
     airflow_engine = create_engine(airflow_db_url)
     temp_engine = create_engine(temp_db_url)
     logging.info("Connection to databases established")
