@@ -34,7 +34,9 @@ from airflow.serialization.serde import (
     VERSION,
     _get_patterns,
     _match,
+    decrypt,
     deserialize,
+    encrypt,
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
@@ -364,3 +366,15 @@ class TestSerDe:
             TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
         ):
             serialize(i)
+
+    @pytest.mark.parametrize(
+        "expr",
+        [1, False, True, "test", 1.1234],
+    )
+    def test_encryption_decryption(self, expr):
+        e = encrypt(expr)
+        assert e != expr
+        assert str(e) != str(expr)
+        d = decrypt(e)
+        assert d == expr
+        assert type(d) == type(expr)

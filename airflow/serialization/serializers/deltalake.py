@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.serialization.serde import decrypt, encrypt
 from airflow.utils.module_loading import qualname
 
 serializers = ["deltalake.table.DeltaTable"]
@@ -28,7 +29,7 @@ stringifiers = serializers
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
-__version__ = 1
+__version__ = 2
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
@@ -37,14 +38,11 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not isinstance(o, DeltaTable):
         return "", "", 0, False
 
-    from airflow.models.crypto import get_fernet
-
     # we encrypt the information here until we have as part of the
     # storage options can have sensitive information
-    fernet = get_fernet()
     properties: dict = {}
     for k, v in o._storage_options.items() if o._storage_options else {}:
-        properties[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
+        properties[k] = encrypt(v)
 
     data = {
         "table_uri": o.table_uri,
@@ -67,7 +65,10 @@ def deserialize(classname: str, version: int, data: dict):
         fernet = get_fernet()
         properties = {}
         for k, v in data["storage_options"].items():
-            properties[k] = fernet.decrypt(v.encode("utf-8")).decode("utf-8")
+            if version == 1:
+                properties[k] = fernet.decrypt(v.encode("utf-8")).decode("utf-8")
+            else:
+                properties[k] = decrypt(v)
 
         if len(properties) == 0:
             storage_options = None

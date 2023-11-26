@@ -20,7 +20,9 @@ from __future__ import annotations
 import dataclasses
 import enum
 import functools
+import io
 import logging
+import pickle
 import sys
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
@@ -53,6 +55,10 @@ OLD_DICT = "dict"
 
 DEFAULT_VERSION = 0
 
+ENCRYPTION_PROTOCOL_VERSION = 1
+ENCRYPTION_PROTO = b"\x90"  # encryption protocol marker
+BOOL = b"\x88"  # boolean marker
+
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 U = Union[bool, float, int, dict, list, str, tuple, set]
 S = Union[list, tuple, set]
@@ -63,6 +69,8 @@ _stringifiers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
+P = Union[int, bool, float, str]
+
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
 
 
@@ -81,6 +89,80 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     data = d.get(DATA)
 
     return classname, version, data
+
+
+def encrypt(value: P) -> str:
+    """Encrypt a primitive value."""
+    if not isinstance(value, _primitives):
+        raise TypeError(f"cannot encrypt non primitive value {value}")
+
+    from airflow.models.crypto import get_fernet
+
+    # after encryption, we cannot assume that the value is a string,
+    # so we need to add the type information. We use the pickle protocol
+    # in a light way for that.
+    frame = io.BytesIO()
+
+    # write the encryption protocol header
+    frame.write(ENCRYPTION_PROTO)
+    frame.write(pickle.encode_long(ENCRYPTION_PROTOCOL_VERSION))
+
+    # order is important here
+    if isinstance(value, bool):
+        frame.write(BOOL)
+        if value:
+            value = 1
+        else:
+            value = 0
+    elif isinstance(value, int):
+        frame.write(pickle.INT)
+    elif isinstance(value, float):
+        frame.write(pickle.FLOAT)
+    elif isinstance(value, str):
+        frame.write(pickle.STRING)
+    else:
+        raise TypeError(f"cannot encrypt {value}")
+
+    frame.write(str(value).encode("utf-8"))
+    enc_data = get_fernet().encrypt(frame.getvalue()).decode("utf-8")
+
+    return enc_data
+
+
+def decrypt(value: str) -> P:
+    """Decrypt a primitive value."""
+    if not isinstance(value, str):
+        raise TypeError(f"cannot decrypt non string value {value}")
+
+    from airflow.models.crypto import get_fernet
+
+    frame = io.BytesIO(get_fernet().decrypt(value.encode("utf-8")))
+
+    # read the encryption protocol header
+    if frame.read(1) != ENCRYPTION_PROTO:
+        raise ValueError(f"invalid encryption protocol {value}")
+
+    if pickle.decode_long(frame.read(1)) != ENCRYPTION_PROTOCOL_VERSION:
+        raise ValueError(f"invalid encryption protocol version {value}")
+
+    data: P
+    t = frame.read(1)
+    if t == pickle.INT:
+        data = int(frame.read().decode("utf-8"))
+    elif t == BOOL:
+        val = frame.read().decode("utf-8")
+        if val == "1":
+            data = True
+        else:
+            data = False
+    elif t == pickle.FLOAT:
+        data = float(frame.read().decode("utf-8"))
+    elif t == pickle.STRING:
+        data = frame.read().decode("utf-8")
+    else:
+        raise ValueError(f"invalid encryption protocol type {value}")
+
+    return data
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
