@@ -674,7 +674,7 @@ to use sources of Airflow from the release tag, can reproducibly build the same 
 packages as the release manager and they will be byte-by-byte identical, which makes them easy to
 verify - if they came from the same sources. This build is only done using released dependencies
 from PyPI and source code in our repository - no other binary dependencies are used during the build
-process and if the packages produced are byte-by-byte identical with one that we can do from tagged sources
+process and if the packages produced are byte-by-byte identical with the one we create from tagged sources
 it means that the build has a verified provenance.
 
 How to verify it:
