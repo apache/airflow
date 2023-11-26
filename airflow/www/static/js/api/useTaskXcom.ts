@@ -47,7 +47,7 @@ export const useTaskXcomCollection = ({
     )
   );
 
-export const useTaskXcom = ({
+export const useTaskXcomEntry = ({
   dagId,
   dagRunId,
   taskId,

@@ -43,7 +43,13 @@ interface Props {
   tryNumber: TaskInstance["tryNumber"];
 }
 
-const Xcom = ({ dagId, dagRunId, taskId, mapIndex, tryNumber }: Props) => {
+const XcomCollection = ({
+  dagId,
+  dagRunId,
+  taskId,
+  mapIndex,
+  tryNumber,
+}: Props) => {
   const taskXcomRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(taskXcomRef);
 
@@ -107,4 +113,4 @@ const Xcom = ({ dagId, dagRunId, taskId, mapIndex, tryNumber }: Props) => {
   );
 };
 
-export default Xcom;
+export default XcomCollection;

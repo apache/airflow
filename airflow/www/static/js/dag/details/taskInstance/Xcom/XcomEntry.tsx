@@ -19,7 +19,7 @@
 
 import { Alert, AlertIcon, Spinner, Td, Text, Tr } from "@chakra-ui/react";
 import React from "react";
-import { useTaskXcom } from "src/api";
+import { useTaskXcomEntry } from "src/api";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 
 interface Props {
@@ -43,7 +43,7 @@ const XcomEntry = ({
     data: xcom,
     isLoading,
     error,
-  } = useTaskXcom({
+  } = useTaskXcomEntry({
     dagId,
     dagRunId,
     taskId,

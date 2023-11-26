@@ -48,7 +48,7 @@ import usePools from "./usePools";
 import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
-import { useTaskXcom, useTaskXcomCollection } from "./useTaskXcom";
+import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
 
 axios.interceptors.request.use((config) => {
   config.paramsSerializer = {
@@ -92,6 +92,6 @@ export {
   useTaskInstance,
   useUpstreamDatasetEvents,
   useHistoricalMetricsData,
-  useTaskXcom,
+  useTaskXcomEntry,
   useTaskXcomCollection,
 };

@@ -59,7 +59,7 @@ import ClearRun from "./dagRun/ClearRun";
 import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
-import Xcom from "./taskInstance/Xcom";
+import XcomCollection from "./taskInstance/Xcom";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -364,7 +364,7 @@ const Details = ({
           )}
           {showXcom && run && (
             <TabPanel height="100%">
-              <Xcom
+              <XcomCollection
                 dagId={dagId}
                 dagRunId={runId}
                 taskId={taskId}
