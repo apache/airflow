@@ -93,6 +93,7 @@ class TestTaskCollectionSchema:
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -104,7 +105,7 @@ class TestTaskCollectionSchema:
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                     "is_mapped": False,
                 }
             ],
