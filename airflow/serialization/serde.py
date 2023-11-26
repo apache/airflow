@@ -57,7 +57,7 @@ DEFAULT_VERSION = 0
 
 ENCRYPTION_PROTOCOL_VERSION = 1
 ENCRYPTION_PROTO = b"\x90"  # encryption protocol marker
-BOOL = b"\x88"  # boolean marker
+BOOL = b"\xe0"  # boolean marker
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 U = Union[bool, float, int, dict, list, str, tuple, set]
