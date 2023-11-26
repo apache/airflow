@@ -183,6 +183,7 @@ class ShellParams:
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix_for_pypi: str = ""
+    warn_image_upgrade_needed: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -274,6 +275,10 @@ class ShellParams:
     def get_backend_compose_files(self, backend: str) -> list[Path]:
         backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
+            return [backend_docker_compose_file]
+        if self.project_name == "pre-commit":
+            # do not forward ports for pre-commit runs - to not clash with running containers from
+            # breeze
             return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 

@@ -611,7 +611,7 @@ jobs:
           --skip-image-upgrade-check --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
-          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP_BREEZE_PRE_COMMITS: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
 

@@ -758,6 +758,12 @@ option_skip_image_upgrade_check = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_UPGRADE_CHECK",
 )
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
 option_skip_environment_initialization = click.option(
     "--skip-environment-initialization",
     help="Skip running breeze entrypoint initialization - no user output, no db checks.",

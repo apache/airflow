@@ -123,8 +123,8 @@ require Breeze Docker image to be built locally.
   ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
-  In case you do not have breeze image configured locally, you can also disable all checks that require
-  the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+  In case you do not have breeze image configured locally, you can also disable all checks that require breeze
+  the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
 .. note:: Mypy volume cache

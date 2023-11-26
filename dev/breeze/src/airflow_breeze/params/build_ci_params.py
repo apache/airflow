@@ -42,6 +42,7 @@ class BuildCiParams(CommonBuildParams):
     eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
     skip_image_upgrade_check: bool = False
+    warn_image_upgrade_needed: bool = False
 
     @property
     def airflow_version(self):
