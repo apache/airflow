@@ -27,7 +27,6 @@ import signal
 import stat
 import subprocess
 import sys
-from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from typing import Mapping, Union
@@ -152,7 +151,7 @@ def run_command(
         if get_dry_run(dry_run_override):
             return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
-            if output_outside_the_group:
+            if output_outside_the_group and os.environ.get("GITHUB_ACTIONS") == "true":
                 get_console().print("::endgroup::")
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
         except subprocess.CalledProcessError as ex:
@@ -206,6 +205,7 @@ def assert_pre_commit_installed():
     """
     # Local import to make autocomplete work
     import yaml
+    from packaging.version import Version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
@@ -221,7 +221,7 @@ def assert_pre_commit_installed():
     if command_result.returncode == 0:
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
-            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
+            if Version(pre_commit_version) >= Version(min_pre_commit_version):
                 get_console().print(
                     f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"

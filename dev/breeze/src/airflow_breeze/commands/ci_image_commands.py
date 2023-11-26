@@ -124,6 +124,16 @@ def ci_image():
 
 def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Output | None) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
+    result = run_command(
+        ["docker", "inspect", ci_image_params.airflow_image_name_with_tag],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True
+    if ci_image_params.skip_image_upgrade_check:
+        return False
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False

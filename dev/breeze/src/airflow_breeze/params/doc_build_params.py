@@ -31,7 +31,6 @@ class DocBuildParams:
     docs_only: bool
     spellcheck_only: bool
     short_doc_packages: tuple[str, ...]
-    skip_environment_initialization: bool = False
     one_pass_only: bool = False
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
 

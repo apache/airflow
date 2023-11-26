@@ -458,8 +458,13 @@ The choices you make are persisted in the ``./.build/`` cache directory so that 
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
+You can also run breeze with ``SKIP_SAVING_CHOICES`` to non-empty value and breeze invocation will not save
+used cache value to cache - this is useful when you run non-interactive scripts with ``breeze shell`` and
+want to - for example - force Python version used only for that execution without changing the Python version
+that user used last time.
+
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
-in the help of the commands.
+in the help of the commands (for example in output of ``breeze config --help``).
 
 Building the documentation
 --------------------------

@@ -759,6 +759,8 @@ def generate_constraints(
             python=python,
             github_repository=github_repository,
             skip_environment_initialization=True,
+            skip_image_upgrade_check=True,
+            quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
         )
         return_code, info = run_generate_constraints(
