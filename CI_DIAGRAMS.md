@@ -314,7 +314,7 @@ the "v2-*-test" branches. The "Canary" run attempts to upgrade dependencies to t
 and quickly pushes an early cache the CI/PROD images to the GitHub Registry - so that pull requests
 can quickly use the new cache - this is useful when Dockerfile or installation scripts change because such
 cache will already have the latest Dockerfile and scripts pushed even if some tests will fail.
-When successful, the run updates the constraints files in the "constraints-main" branch with the latest
+When successful, the run updates the constraints files in the "constraints-BRANCH" branch with the latest
 constraints and pushes both cache and latest  CI/PROD images to the GitHub Registry.
 
 ```mermaid
@@ -410,17 +410,21 @@ sequenceDiagram
     end
     par
         GitHub Registry ->> Tests: Use cache from registry
-        Note over Tests: Build CI latest images/cache<br>Use pushed constraints
+        Airflow Repo ->> Tests: Get latest constraints from 'constraints-BRANCH'
+        Note over Tests: Build CI latest images/cache
         Tests ->> GitHub Registry: Push CI latest images/cache
         GitHub Registry ->> Tests: Use cache from registry
-        Note over Tests: Build PROD latest images/cache<br>Use pushed constraints
+        Airflow Repo ->> Tests: Get latest constraints from 'constraints-BRANCH'
+        Note over Tests: Build PROD latest images/cache
         Tests ->> GitHub Registry: Push PROD latest images/cache
     and
         GitHub Registry ->> Tests: Use cache from registry
-        Note over Tests: Build ARM CI cache<br>Use pushed constraints
+        Airflow Repo ->> Tests: Get latest constraints from 'constraints-BRANCH'
+        Note over Tests: Build ARM CI cache
         Tests ->> GitHub Registry: Push ARM CI cache
         GitHub Registry ->> Tests: Use cache from registry
-        Note over Tests: Build ARM PROD cache<br>Use pushed constraints
+        Airflow Repo ->> Tests: Get latest constraints from 'constraints-BRANCH'
+        Note over Tests: Build ARM PROD cache
         Tests ->> GitHub Registry: Push ARM PROD cache
     end
     Tests -->> Airflow Repo: Status update
