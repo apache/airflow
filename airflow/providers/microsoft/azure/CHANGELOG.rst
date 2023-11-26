@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Synapse Pipeline connection-type in the UI (#35709)``
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Add operator to invoke Azure-Synapse pipeline (#35091)``
+* ``Extend task context logging support for remote logging using WASB (Azure Blob Storage) (#32972)``
+
+Misc
+~~~~
+
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 8.2.0
 .....
 

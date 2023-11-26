@@ -263,6 +263,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
+AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -277,6 +278,9 @@ AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
 WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
 WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
+WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
+WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
+WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
 FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
 FILES_SBOM_DIR = FILES_DIR / "sbom"
@@ -286,6 +290,10 @@ LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
+SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
+GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
+GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")

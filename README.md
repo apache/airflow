@@ -269,22 +269,15 @@ packages:
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
   there will sometimes be breaking changes that might make some, or all
-  providers, have minimum Airflow version specified. Change of that minimum supported Airflow version
-  is a breaking change for provider because installing the new provider might automatically
-  upgrade Airflow (which might be an undesired side effect of upgrading provider).
+  providers, have minimum Airflow version specified.
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent of the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
   only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
-* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
-  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
-  if this PATCH is relevant to the clients.
-  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
-  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
-  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
-  independently of their Airflow PATCH version.
+* **Airflow API clients**: Their versioning is independent from Airflow versions. They follow their own
+  SemVer rules for breaking changes and new features - which for example allows to change the way we generate
+  the clients.
 
 ## Version Life Cycle
 

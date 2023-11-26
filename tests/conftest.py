@@ -1075,7 +1075,14 @@ def clear_lru_cache():
     from airflow.utils.entry_points import _get_grouped_entry_points
 
     ExecutorLoader.validate_database_executor_compatibility.cache_clear()
-    _get_grouped_entry_points.cache_clear()
+    try:
+        _get_grouped_entry_points.cache_clear()
+        try:
+            yield
+        finally:
+            _get_grouped_entry_points.cache_clear()
+    finally:
+        ExecutorLoader.validate_database_executor_compatibility.cache_clear()
 
 
 @pytest.fixture(autouse=True)

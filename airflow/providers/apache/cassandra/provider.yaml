@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-apache-cassandra
 name: Apache Cassandra
 description: |
-    `Apache Cassandra <http://cassandra.apache.org/>`__.
+    `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 suspended: false
-source-date-epoch: 1700148046
+source-date-epoch: 1700827433
 versions:
   - 3.3.0
   - 3.2.1
@@ -45,7 +45,7 @@ dependencies:
 
 integrations:
   - integration-name: Apache Cassandra
-    external-doc-url: http://cassandra.apache.org/
+    external-doc-url: https://cassandra.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-cassandra/operators.rst
     logo: /integration-logos/apache/cassandra-3.png

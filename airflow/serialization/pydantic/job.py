@@ -18,7 +18,7 @@ import datetime
 from functools import cached_property
 from typing import Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -44,11 +44,7 @@ class JobPydantic(BaseModelPydantic):
     hostname: Optional[str]
     unixname: Optional[str]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
     @cached_property
     def executor(self):

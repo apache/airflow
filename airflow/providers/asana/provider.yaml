@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-asana
 name: Asana
 description: |
-    `Asana <https://app.asana.com/>`__
+    `Asana <https://asana.com/>`__
 
 suspended: false
-source-date-epoch: 1700148055
+source-date-epoch: 1700827446
 versions:
   - 2.3.0
   - 2.2.2

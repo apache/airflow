@@ -56,12 +56,17 @@ class HttpOperator(BaseOperator):
     :param pagination_function: A callable that generates the parameters used to call the API again,
         based on the previous response. Typically used when the API is paginated and returns for e.g a
         cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
-        repeatedly until this callable returns None. Also, the result of the Operator will become by
-        default a list of Response.text objects (instead of a single response object). Same with the
-        other injected functions (like response_check, response_filter, ...) which will also receive a
-        list of Response object. This function receives a Response object form previous call, and should
-        return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`), which will be merged
-        and will override the one used in the initial API call.
+        repeatedly until this callable returns None. The result of the Operator will become by default a
+        list of Response.text objects (instead of a single response object). Same with the other injected
+        functions (like response_check, response_filter, ...) which will also receive a list of Response
+        objects. This function receives a Response object form previous call, and should return a nested
+        dictionary with the following optional keys: `endpoint`, `data`, `headers` and `extra_options.
+        Those keys will be merged and/or override the parameters provided into the HttpOperator declaration.
+        Parameters are merged when they are both a dictionary (e.g.: HttpOperator.headers will be merged
+        with the `headers` dict provided by this function). When merging, dict items returned by this
+        function will override initial ones (e.g: if both HttpOperator.headers and `headers` have a 'cookie'
+        item, the one provided by `headers` is kept). Parameters are simply overridden when any of them are
+        string (e.g.: HttpOperator.endpoint is overridden by `endpoint`).
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -101,7 +106,7 @@ class HttpOperator(BaseOperator):
         *,
         endpoint: str | None = None,
         method: str = "POST",
-        data: Any = None,
+        data: dict[str, Any] | str | None = None,
         headers: dict[str, str] | None = None,
         pagination_function: Callable[..., Any] | None = None,
         response_check: Callable[..., bool] | None = None,
@@ -271,9 +276,16 @@ class HttpOperator(BaseOperator):
         :param next_page_params: A dictionary containing the parameters for the next page.
         :return: A dictionary containing the merged parameters.
         """
+        data: str | dict | None = None  # makes mypy happy
+        next_page_data_param = next_page_params.get("data")
+        if isinstance(self.data, dict) and isinstance(next_page_data_param, dict):
+            data = merge_dicts(self.data, next_page_data_param)
+        else:
+            data = next_page_data_param or self.data
+
         return dict(
             endpoint=next_page_params.get("endpoint") or self.endpoint,
-            data=merge_dicts(self.data, next_page_params.get("data", {})),
+            data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
             extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
         )
@@ -294,14 +306,20 @@ class SimpleHttpOperator(HttpOperator):
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :param headers: The HTTP headers to be added to the GET request
-    :param pagination_function: A callable that generates the parameters used to call the API again.
-        Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
-        a 'next page URL'. When provided, the Operator will call the API repeatedly until this callable
-        returns None. Also, the result of the Operator will become by default a list of Response.text
-        objects (instead of a single response object). Same with the other injected functions (like
-        response_check, response_filter, ...) which will also receive a list of Response object. This
-        function should return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`),
-        which will be merged and override the one used in the initial API call.
+    :param pagination_function: A callable that generates the parameters used to call the API again,
+        based on the previous response. Typically used when the API is paginated and returns for e.g a
+        cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
+        repeatedly until this callable returns None. The result of the Operator will become by default a
+        list of Response.text objects (instead of a single response object). Same with the other injected
+        functions (like response_check, response_filter, ...) which will also receive a list of Response
+        objects. This function receives a Response object form previous call, and should return a nested
+        dictionary with the following optional keys: `endpoint`, `data`, `headers` and `extra_options.
+        Those keys will be merged and/or override the parameters provided into the HttpOperator declaration.
+        Parameters are merged when they are both a dictionary (e.g.: HttpOperator.headers will be merged
+        with the `headers` dict provided by this function). When merging, dict items returned by this
+        function will override initial ones (e.g: if both HttpOperator.headers and `headers` have a 'cookie'
+        item, the one provided by `headers` is kept). Parameters are simply overridden when any of them are
+        string (e.g.: HttpOperator.endpoint is overridden by `endpoint`).
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.

@@ -33,7 +33,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from connexion import FlaskApi
-    from flask import Flask
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -64,11 +63,12 @@ class BaseAuthManager(LoggingMixin):
     Class to derive in order to implement concrete auth managers.
 
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
+
+    :param appbuilder: the flask app builder
     """
 
-    def __init__(self, app: Flask, appbuilder: AirflowAppBuilder) -> None:
+    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__()
-        self.app = app
         self.appbuilder = appbuilder
 
     @staticmethod
@@ -83,21 +83,29 @@ class BaseAuthManager(LoggingMixin):
         """Return API endpoint(s) definition for the auth manager."""
         return None
 
-    @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
+        user = self.get_user()
+        if not user:
+            self.log.error("Calling 'get_user_name()' but the user is not signed in.")
+            raise AirflowException("The user must be signed in.")
+        return user.get_name()
 
-    @abstractmethod
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""
+        return self.get_user_name()
 
     @abstractmethod
-    def get_user(self) -> BaseUser:
+    def get_user(self) -> BaseUser | None:
         """Return the user associated to the user in session."""
 
-    @abstractmethod
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
+        user = self.get_user()
+        if not user:
+            self.log.error("Calling 'get_user_id()' but the user is not signed in.")
+            raise AirflowException("The user must be signed in.")
+        return str(user.get_id())
 
     def init(self) -> None:
         """
@@ -384,9 +392,13 @@ class BaseAuthManager(LoggingMixin):
     def get_url_logout(self) -> str:
         """Return the logout page url."""
 
-    @abstractmethod
     def get_url_user_profile(self) -> str | None:
-        """Return the url to a page displaying info about the current user."""
+        """
+        Return the url to a page displaying info about the current user.
+
+        By default, return None.
+        """
+        return None
 
     @cached_property
     def security_manager(self) -> AirflowSecurityManagerV2:
@@ -394,7 +406,7 @@ class BaseAuthManager(LoggingMixin):
         Return the security manager.
 
         By default, Airflow comes with the default security manager
-        airflow.www.security_manager.AirflowSecurityManagerV2. The auth manager might need to extend this
+        ``airflow.www.security_manager.AirflowSecurityManagerV2``. The auth manager might need to extend this
         default security manager for its own purposes.
 
         By default, return the default AirflowSecurityManagerV2.

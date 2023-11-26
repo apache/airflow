@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-facebook
 name: Facebook
 description: |
-    `Facebook Ads <http://business.facebook.com/>`__
+    `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 suspended: false
-source-date-epoch: 1700148064
+source-date-epoch: 1700827462
 versions:
   - 3.3.0
   - 3.2.2
@@ -48,7 +48,7 @@ dependencies:
 
 integrations:
   - integration-name: Facebook Ads
-    external-doc-url: http://business.facebook.com
+    external-doc-url: https://business.facebook.com
     logo: /integration-logos/facebook/Facebook-Ads.png
     tags: [service]
 

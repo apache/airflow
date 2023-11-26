@@ -148,6 +148,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Compile www assets flag",
             "options": [
                 "--dev",
+                "--force-clean",
             ],
         }
     ],

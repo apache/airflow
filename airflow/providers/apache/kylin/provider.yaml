@@ -22,7 +22,7 @@ description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1700148051
+source-date-epoch: 1700827439
 versions:
   - 3.3.0
   - 3.2.1

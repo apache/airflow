@@ -45,7 +45,3 @@ runs:
         name: source-constraints
         path: ./files/constraints-*/constraints-*.txt
         retention-days: 7
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership
-      if: always()

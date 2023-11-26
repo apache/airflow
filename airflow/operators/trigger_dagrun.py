@@ -28,7 +28,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun

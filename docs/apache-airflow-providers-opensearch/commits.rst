@@ -20,7 +20,7 @@
 Package apache-airflow-providers-opensearch
 ------------------------------------------------------
 
-`Opensearch <https://opensearch.org/>`__
+`OpenSearch <https://opensearch.org/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``opensearch``.

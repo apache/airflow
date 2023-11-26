@@ -56,46 +56,6 @@ function in_container_script_start() {
     fi
 }
 
-#
-# Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
-# changed to the Host user via osxfs filesystem
-#
-function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "linux" ]]; then
-        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
-             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
-             return
-        fi
-        DIRECTORIES_TO_FIX=(
-            "/dist"
-            "/files"
-            "${AIRFLOW_SOURCES}/logs"
-            "${AIRFLOW_SOURCES}/docs"
-            "${AIRFLOW_SOURCES}/dags"
-            "${AIRFLOW_SOURCES}/airflow/"
-            "${AIRFLOW_SOURCES}/constraints/"
-            "${AIRFLOW_SOURCES}/images/"
-            "${AIRFLOW_SOURCES}/.mypy_cache/"
-            "${AIRFLOW_SOURCES}/dev/"
-        )
-        count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
-        if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
-            echo
-            echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
-            echo
-            find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-            echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
-            echo
-        fi
-     else
-        echo
-        echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
-        echo
-    fi
-}
-
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
@@ -103,29 +63,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-}
-
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
-function start_output_heartbeat() {
-    MESSAGE=${1:-"Still working!"}
-    INTERVAL=${2:=10}
-    echo
-    echo "Starting output heartbeat"
-    echo
-
-    bash 2>/dev/null <<EOF &
-while true; do
-  echo "\$(date): ${MESSAGE} "
-  sleep ${INTERVAL}
-done
-EOF
-    export HEARTBEAT_PID=$!
-}
-
-function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}" || true
-    wait "${HEARTBEAT_PID}" || true 2>/dev/null
 }
 
 function dump_airflow_logs() {
@@ -329,45 +266,6 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
     set +x
-}
-
-function install_all_provider_packages_from_wheels() {
-    echo
-    echo "Installing all provider packages from wheels"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache_airflow_providers_*.whl
-}
-
-function install_all_provider_packages_from_sdist() {
-    echo
-    echo "Installing all provider packages from .tar.gz"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache-airflow-providers-*.tar.gz
-}
-
-function twine_check_provider_packages_from_wheels() {
-    echo
-    echo "Twine check of all provider packages from wheels"
-    echo
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    twine check /dist/apache_airflow_providers_*.whl
-}
-
-function twine_check_provider_packages_from_sdist() {
-    echo
-    echo "Twine check all provider packages from sdist"
-    echo
-    twine check /dist/apache-airflow-providers-*.tar.gz
 }
 
 function install_supported_pip_version() {

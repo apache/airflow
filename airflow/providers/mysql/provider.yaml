@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-mysql
 name: MySQL
 description: |
-    `MySQL <https://www.mysql.com/products/>`__
+    `MySQL <https://www.mysql.com/>`__
 
 suspended: false
-source-date-epoch: 1700148074
+source-date-epoch: 1700827479
 versions:
   - 5.4.0
   - 5.3.1
