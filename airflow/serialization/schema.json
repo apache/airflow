@@ -130,7 +130,8 @@
             "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": {
+        "catchup": { "type": "string" },
+        "_backport_catchup": {
             "oneOf": [
                 { "type": "boolean" },
                 { "type": "string" }
