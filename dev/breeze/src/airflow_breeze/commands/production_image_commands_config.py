@@ -95,7 +95,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--use-constraints-for-context-packages",
                 "--disable-airflow-repo-cache",
                 "--disable-mysql-client-installation",
-                "--disable-mssql-client-installation",
                 "--disable-postgres-client-installation",
             ],
         },

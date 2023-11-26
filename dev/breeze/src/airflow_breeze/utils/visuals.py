@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,
-    MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -85,7 +84,6 @@ CHEATSHEET = f"""
           * {FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
-          * {MSSQL_HOST_PORT} -> forwarded to MSSQL database  -> mssql:1443
           * {REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379
 
         Direct links to those services that you can use from the host:
@@ -95,8 +93,6 @@ CHEATSHEET = f"""
           * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
-          * MSSQL:     jdbc:sqlserver://127.0.0.1:{MSSQL_HOST_PORT};databaseName=airflow;user=sa;password=
-                       Airflow123
           * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
 
     [info]* How can I add my stuff in Breeze:[/]

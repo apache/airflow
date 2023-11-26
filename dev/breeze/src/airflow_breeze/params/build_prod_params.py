@@ -46,7 +46,6 @@ class BuildProdParams(CommonBuildParams):
     cleanup_context: bool = False
     airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False
-    disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
     install_airflow_reference: str | None = None
@@ -178,10 +177,6 @@ class BuildProdParams(CommonBuildParams):
         return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
-    def install_mssql_client(self) -> str:
-        return "false" if self.disable_mssql_client_installation else "true"
-
-    @property
     def install_mysql_client(self) -> str:
         return "false" if self.disable_mysql_client_installation else "true"
 
@@ -211,7 +206,6 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
-        self._req_arg("INSTALL_MSSQL_CLIENT", self.install_mssql_client)
         self._req_arg("INSTALL_MYSQL_CLIENT", self.install_mysql_client)
         self._req_arg("INSTALL_PACKAGES_FROM_CONTEXT", self.install_packages_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)

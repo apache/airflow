@@ -28,8 +28,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import get_mssql_table_constraints
-
 # revision identifiers, used by Alembic.
 revision = "98ae134e6fff"
 down_revision = "6abdffdd4815"
@@ -63,47 +61,21 @@ def upgrade():
 def downgrade():
     """Revert length of user identifier columns in ab_user and ab_register_user tables"""
     conn = op.get_bind()
-    if conn.dialect.name != "mssql":
-        with op.batch_alter_table("ab_user") as batch_op:
-            batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column(
-                "username",
-                type_=sa.String(256).with_variant(sa.String(256, collation="NOCASE"), "sqlite"),
-                existing_nullable=False,
-            )
-            batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)
-        with op.batch_alter_table("ab_register_user") as batch_op:
-            batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column(
-                "username",
-                type_=sa.String(256).with_variant(sa.String(256, collation="NOCASE"), "sqlite"),
-                existing_nullable=False,
-            )
-            batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)
-    else:
-        # MSSQL doesn't drop implicit unique constraints it created
-        # We need to drop the two unique constraints explicitly
-        with op.batch_alter_table("ab_user") as batch_op:
-            batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
-            # Drop the unique constraint on username and email
-            constraints = get_mssql_table_constraints(conn, "ab_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", type_=sa.String(256), existing_nullable=False)
-            batch_op.create_unique_constraint(None, ["username"])
-            batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)
-            batch_op.create_unique_constraint(None, ["email"])
-
-        with op.batch_alter_table("ab_register_user") as batch_op:
-            batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
-            batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)
-            # Drop the unique constraint on username
-            constraints = get_mssql_table_constraints(conn, "ab_register_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", type_=sa.String(256), existing_nullable=False)
-            batch_op.create_unique_constraint(None, ["username"])
+    with op.batch_alter_table("ab_user") as batch_op:
+        batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
+        batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
+        batch_op.alter_column(
+            "username",
+            type_=sa.String(256).with_variant(sa.String(256, collation="NOCASE"), "sqlite"),
+            existing_nullable=False,
+        )
+        batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)
+    with op.batch_alter_table("ab_register_user") as batch_op:
+        batch_op.alter_column("first_name", type_=sa.String(64), existing_nullable=False)
+        batch_op.alter_column("last_name", type_=sa.String(64), existing_nullable=False)
+        batch_op.alter_column(
+            "username",
+            type_=sa.String(256).with_variant(sa.String(256, collation="NOCASE"), "sqlite"),
+            existing_nullable=False,
+        )
+        batch_op.alter_column("email", type_=sa.String(256), existing_nullable=False)

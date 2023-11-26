@@ -1260,9 +1260,7 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint(
-            "dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -3539,9 +3537,7 @@ class TaskInstanceNote(Base):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
-        PrimaryKeyConstraint(
-            "task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
             (dag_id, task_id, run_id, map_index),
             [

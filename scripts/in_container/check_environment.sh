@@ -81,16 +81,13 @@ function check_db_backend {
         check_service "PostgreSQL" "run_nc postgres 5432" "${max_check}"
     elif [[ ${BACKEND} == "mysql" ]]; then
         check_service "MySQL" "run_nc mysql 3306" "${max_check}"
-    elif [[ ${BACKEND} == "mssql" ]]; then
-        check_service "MSSQL" "run_nc mssql 1433" "${max_check}"
-        check_service "MSSQL Login Check" "airflow db check" "${max_check}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     elif [[ ${BACKEND} == "none" ]]; then
         echo "${COLOR_YELLOW}WARNING: Using no database backend!${COLOR_RESET}"
         return
     else
-        echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
+        echo "Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]"
         exit 1
     fi
 }

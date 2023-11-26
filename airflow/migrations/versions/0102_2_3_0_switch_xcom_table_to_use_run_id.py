@@ -29,7 +29,6 @@ from alembic import op
 from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, and_, literal_column, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.migrations.utils import get_mssql_table_constraints
 
 # Revision identifiers, used by Alembic.
 revision = "c306b5b5ae4a"
@@ -168,12 +167,3 @@ def downgrade():
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
-    if conn.dialect.name == "mssql":
-        constraints = get_mssql_table_constraints(conn, "xcom")
-        pk, _ = constraints["PRIMARY KEY"].popitem()
-        op.drop_constraint(pk, "xcom", type_="primary")
-        op.create_primary_key(
-            constraint_name="pk_xcom",
-            table_name="xcom",
-            columns=["dag_id", "task_id", "execution_date", "key"],
-        )

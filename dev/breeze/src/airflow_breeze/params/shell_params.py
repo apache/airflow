@@ -29,7 +29,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
-    ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -42,7 +41,6 @@ from airflow_breeze.global_constants import (
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_SKIP,
-    MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -61,22 +59,12 @@ from airflow_breeze.utils.path_utils import (
     GENERATED_DOCKER_COMPOSE_ENV_FILE,
     GENERATED_DOCKER_ENV_FILE,
     GENERATED_DOCKER_LOCK_FILE,
-    MSSQL_TMP_DIR_NAME,
     SCRIPTS_CI_DIR,
 )
-from airflow_breeze.utils.run_tests import file_name_from_test_type
-from airflow_breeze.utils.run_utils import commit_sha, get_filesystem_type, run_command
+from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
 
 DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
-
-
-def add_mssql_compose_file(compose_file_list: list[Path]):
-    docker_filesystem = get_filesystem_type("/var/lib/docker")
-    if docker_filesystem == "tmpfs":
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-tmpfs-volume.yml")
-    else:
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-docker-volume.yml")
 
 
 def _set_var(env: dict[str, str], variable: str, attribute: str | bool | None, default: str | None = None):
@@ -146,7 +134,6 @@ class ShellParams:
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
-    mssql_version: str = ALLOWED_MSSQL_VERSIONS[0]
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
     only_min_version_update: bool = False
@@ -246,8 +233,6 @@ class ShellParams:
             version = self.postgres_version
         if self.backend == "mysql":
             version = self.mysql_version
-        if self.backend == "mssql":
-            version = self.mssql_version
         return version
 
     @cached_property
@@ -276,12 +261,9 @@ class ShellParams:
         backend_files: list[Path] = []
         if self.backend != "all":
             backend_files = self.get_backend_compose_files(self.backend)
-            if self.backend == "mssql":
-                add_mssql_compose_file(compose_file_list)
         else:
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
-            add_mssql_compose_file(compose_file_list)
 
         if self.executor == "CeleryExecutor":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
@@ -352,22 +334,6 @@ class ShellParams:
     @cached_property
     def suspended_providers_folders(self):
         return " ".join(get_suspended_provider_folders()).strip()
-
-    @cached_property
-    def mssql_data_volume(self) -> str:
-        docker_filesystem = get_filesystem_type("/var/lib/docker")
-        # Make sure the test type is not too long to be used as a volume name in docker-compose
-        # The tmp directory in our self-hosted runners can be quite long, so we should limit the volume name
-        volume_name = (
-            "tmp-mssql-volume-" + file_name_from_test_type(self.test_type)[:20]
-            if self.test_type
-            else "tmp-mssql-volume"
-        )
-        if docker_filesystem == "tmpfs":
-            return os.fspath(Path.home() / MSSQL_TMP_DIR_NAME / f"{volume_name}-{self.mssql_version}")
-        else:
-            # mssql_data_volume variable is only used in case of tmpfs
-            return ""
 
     @cached_property
     def rootless_docker(self) -> bool:
@@ -453,9 +419,6 @@ class ShellParams:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
-        _set_var(_env, "MSSQL_DATA_VOLUME", self.mssql_data_volume)
-        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
-        _set_var(_env, "MSSQL_VERSION", self.mssql_version)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "NUM_RUNS", self.num_runs)

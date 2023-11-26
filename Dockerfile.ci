@@ -570,16 +570,6 @@ function install_pipx_tools() {
     echo
     # Make sure PIPX is installed in latest version
     pip install --root-user-action ignore  --upgrade "pipx>=1.2.1"
-    if [[ $(uname -m) != "aarch64" ]]; then
-        # Do not install mssql-cli for ARM
-        # Install all the tools we need available in command line but without impacting the current environment
-        pipx install mssql-cli
-
-        # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
-        # its own execution bash script which is not compliant with the auto-activation of
-        # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
-        sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
-    fi
 }
 
 common::get_colors
@@ -792,13 +782,6 @@ If it does not complete soon, you might want to stop it and remove file lock:
 }
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
-
-    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mssql" ]]; then
-            echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
-            exit 1
-        fi
-    fi
 
     echo
     echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"

@@ -30,16 +30,6 @@ from lazy_object_proxy import Proxy
 ######################################
 
 
-def _mssql_TIMESTAMP():
-    from sqlalchemy.dialects import mssql
-
-    class DATETIME2(mssql.DATETIME2):
-        def __init__(self, *args, precision=6, **kwargs):
-            super().__init__(*args, precision=precision, **kwargs)
-
-    return DATETIME2
-
-
 def _mysql_TIMESTAMP():
     from sqlalchemy.dialects import mysql
 

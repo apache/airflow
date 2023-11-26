@@ -109,8 +109,6 @@ function wait_for_connection {
             detected_port=5432
         elif [[ ${BACKEND} == "mysql"* ]]; then
             detected_port=3306
-        elif [[ ${BACKEND} == "mssql"* ]]; then
-            detected_port=1433
         elif [[ ${BACKEND} == "redis"* ]]; then
             detected_port=6379
         elif [[ ${BACKEND} == "amqp"* ]]; then

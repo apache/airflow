@@ -97,9 +97,7 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint(
-            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

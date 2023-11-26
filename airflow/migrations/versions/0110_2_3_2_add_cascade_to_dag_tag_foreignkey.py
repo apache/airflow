@@ -27,8 +27,6 @@ from __future__ import annotations
 from alembic import op
 from sqlalchemy import inspect
 
-from airflow.migrations.utils import get_mssql_table_constraints
-
 # revision identifiers, used by Alembic.
 revision = "3c94c427fdf6"
 down_revision = "1de7bc13c950"
@@ -52,10 +50,6 @@ def upgrade():
             )
     else:
         with op.batch_alter_table("dag_tag") as batch_op:
-            if conn.dialect.name == "mssql":
-                constraints = get_mssql_table_constraints(conn, "dag_tag")
-                Fk, _ = constraints["FOREIGN KEY"].popitem()
-                batch_op.drop_constraint(Fk, type_="foreignkey")
             if conn.dialect.name == "postgresql":
                 batch_op.drop_constraint("dag_tag_dag_id_fkey", type_="foreignkey")
             batch_op.create_foreign_key(

@@ -67,7 +67,6 @@ from airflow_breeze.utils.common_options import (
     option_load_example_dags,
     option_max_time,
     option_mount_sources,
-    option_mssql_version,
     option_mysql_version,
     option_platform_single,
     option_postgres_version,
@@ -153,7 +152,6 @@ class TimerThread(threading.Thread):
 @option_builder
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version
@@ -189,7 +187,6 @@ def shell(
     integration: tuple[str, ...],
     postgres_version: str,
     mysql_version: str,
-    mssql_version: str,
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
@@ -234,7 +231,6 @@ def shell(
         integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
-        mssql_version=mssql_version,
         forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
@@ -272,7 +268,6 @@ def shell(
 @option_load_example_dags
 @option_load_default_connection
 @option_mysql_version
-@option_mssql_version
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version
@@ -315,7 +310,6 @@ def start_airflow(
     load_example_dags: bool,
     load_default_connections: bool,
     mysql_version: str,
-    mssql_version: str,
     forward_credentials: bool,
     mount_sources: str,
     use_airflow_version: str | None,
@@ -362,7 +356,6 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mysql_version=mysql_version,
-        mssql_version=mssql_version,
         forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
@@ -805,9 +798,6 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
             get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
         if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:

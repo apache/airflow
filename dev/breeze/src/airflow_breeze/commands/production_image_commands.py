@@ -214,7 +214,6 @@ def prod_image():
     help="Extras to install by default.",
 )
 @click.option("--disable-mysql-client-installation", help="Do not install MySQL client.", is_flag=True)
-@click.option("--disable-mssql-client-installation", help="Do not install MsSQl client.", is_flag=True)
 @click.option("--disable-postgres-client-installation", help="Do not install Postgres client.", is_flag=True)
 @click.option(
     "--disable-airflow-repo-cache",
@@ -275,7 +274,6 @@ def build(
     cleanup_context: bool,
     airflow_extras: str,
     disable_mysql_client_installation: bool,
-    disable_mssql_client_installation: bool,
     disable_postgres_client_installation: bool,
     disable_airflow_repo_cache: bool,
     install_airflow_reference: str | None,
@@ -339,7 +337,6 @@ def build(
         cleanup_context=cleanup_context,
         airflow_extras=airflow_extras,
         disable_mysql_client_installation=disable_mysql_client_installation,
-        disable_mssql_client_installation=disable_mssql_client_installation,
         disable_postgres_client_installation=disable_postgres_client_installation,
         disable_airflow_repo_cache=disable_airflow_repo_cache,
         install_airflow_reference=install_airflow_reference,

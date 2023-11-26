@@ -33,7 +33,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
-    ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PACKAGE_FORMATS,
     ALLOWED_PARALLEL_TEST_TYPE_CHOICES,
@@ -170,14 +169,6 @@ option_mysql_version = click.option(
     help="Version of MySQL used.",
     type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
-    show_default=True,
-)
-option_mssql_version = click.option(
-    "-S",
-    "--mssql-version",
-    help="Version of MsSQL used.",
-    type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
-    default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
     show_default=True,
 )
 option_forward_credentials = click.option(

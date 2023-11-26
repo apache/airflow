@@ -38,7 +38,6 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_python,
@@ -189,7 +188,6 @@ def version():
 @option_backend
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
@@ -202,7 +200,6 @@ def change_config(
     backend: str,
     postgres_version: str,
     mysql_version: str,
-    mssql_version: str,
     cheatsheet: bool,
     asciiart: bool,
     colour: bool,
@@ -247,7 +244,6 @@ def change_config(
     get_console().print()
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
-    get_console().print(f"[info]* MsSQL version: {mssql_version}[/]")
     get_console().print()
     get_console().print(f"[info]* ASCIIART: {get_status(asciiart_file)}[/]")
     get_console().print(f"[info]* Cheatsheet: {get_status(cheatsheet_file)}[/]")

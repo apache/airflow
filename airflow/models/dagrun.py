@@ -197,7 +197,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='running'"),
-            mssql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
         ),
         # since mysql lacks filtered/partial indices, this creates a
@@ -207,7 +206,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='queued'"),
-            mssql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         ),
     )

@@ -2598,7 +2598,6 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 * 25555 -> forwarded to Flower dashboard -> airflow:5555
 * 25433 -> forwarded to Postgres database -> postgres:5432
 * 23306 -> forwarded to MySQL database  -> mysql:3306
-* 21433 -> forwarded to MSSQL database  -> mssql:1443
 * 26379 -> forwarded to Redis broker -> redis:6379
 
 
@@ -2609,7 +2608,6 @@ You can connect to these ports/databases using:
 * Flower:    http://127.0.0.1:25555
 * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
 * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-* MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
 * Redis:     redis://127.0.0.1:26379/0
 
 If you do not use ``start-airflow`` command, you can start the webserver manually with
@@ -2639,7 +2637,6 @@ You can change the used host port numbers by setting appropriate environment var
 * ``WEBSERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
-* ``MSSQL_HOST_PORT``
 * ``FLOWER_HOST_PORT``
 * ``REDIS_HOST_PORT``
 

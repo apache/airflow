@@ -27,8 +27,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import get_mssql_table_constraints
-
 # revision identifiers, used by Alembic.
 revision = "909884dea523"
 down_revision = "48925b2719cb"
@@ -52,24 +50,6 @@ def upgrade():
         with op.batch_alter_table("ab_user", schema=None) as batch_op:
             batch_op.alter_column("username", existing_type=sa.String(256), nullable=False)
             batch_op.alter_column("email", existing_type=sa.String(256), nullable=False)
-    elif conn.dialect.name == "mssql":
-        with op.batch_alter_table("ab_register_user") as batch_op:
-            # Drop the unique constraint on username and email
-            constraints = get_mssql_table_constraints(conn, "ab_register_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", existing_type=sa.String(256), nullable=False)
-            batch_op.create_unique_constraint(None, ["username"])
-            batch_op.alter_column("email", existing_type=sa.String(256), nullable=False)
-        with op.batch_alter_table("ab_user") as batch_op:
-            # Drop the unique constraint on username and email
-            constraints = get_mssql_table_constraints(conn, "ab_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", existing_type=sa.String(256), nullable=False)
-            batch_op.create_unique_constraint(None, ["username"])
-            batch_op.alter_column("email", existing_type=sa.String(256), nullable=False)
-            batch_op.create_unique_constraint(None, ["email"])
 
 
 def downgrade():
@@ -87,21 +67,3 @@ def downgrade():
         with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
             batch_op.alter_column("email", existing_type=sa.String(256), nullable=True)
             batch_op.alter_column("username", existing_type=sa.String(256), nullable=True, unique=True)
-    elif conn.dialect.name == "mssql":
-        with op.batch_alter_table("ab_register_user") as batch_op:
-            # Drop the unique constraint on username and email
-            constraints = get_mssql_table_constraints(conn, "ab_register_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", existing_type=sa.String(256), nullable=False, unique=True)
-            batch_op.create_unique_constraint(None, ["username"])
-            batch_op.alter_column("email", existing_type=sa.String(256), nullable=False, unique=True)
-        with op.batch_alter_table("ab_user") as batch_op:
-            # Drop the unique constraint on username and email
-            constraints = get_mssql_table_constraints(conn, "ab_user")
-            for k, _ in constraints.get("UNIQUE").items():
-                batch_op.drop_constraint(k, type_="unique")
-            batch_op.alter_column("username", existing_type=sa.String(256), nullable=True)
-            batch_op.create_unique_constraint(None, ["username"])
-            batch_op.alter_column("email", existing_type=sa.String(256), nullable=True, unique=True)
-            batch_op.create_unique_constraint(None, ["email"])

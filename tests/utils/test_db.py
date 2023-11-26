@@ -81,15 +81,6 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "taskset_id"),
             # from test_security unit test
             lambda t: (t[0] == "remove_table" and t[1].name == "some_model"),
-            # MSSQL default tables
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_monitor"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_db"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_usg"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "MSreplication_options"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_dev"),
-            # MSSQL foreign keys where CASCADE has been removed
-            lambda t: (t[0] == "remove_fk" and t[1].name == "task_reschedule_dr_fkey"),
-            lambda t: (t[0] == "add_fk" and t[1].name == "task_reschedule_dr_fkey"),
             # Ignore flask-session table/index
             lambda t: (t[0] == "remove_table" and t[1].name == "session"),
             lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
@@ -189,12 +180,6 @@ class TestDb:
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
             with pytest.raises(AirflowException, match="Offline migration not supported for SQLite"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
-
-    def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
-            dialect.name = "mssql"
-            with pytest.raises(ValueError, match="Check that .* is a valid .* For dialect 'mssql'"):
                 upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
 
     @mock.patch("airflow.utils.db._offline_migration")

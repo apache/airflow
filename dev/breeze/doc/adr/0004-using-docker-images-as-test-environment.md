@@ -55,8 +55,7 @@ makes it extremely painful to set up and keep the virtual environments updated w
 tests for all the components of Airflow. Another dependencies of Airflow (mysql, postgres and others)
 also require "system-level" dependencies to be installed, not only Python dependencies (for example
 mysql integration requires mysql client system libraries to be installed). Those dependencies that have
-system dependencies change over time (for example when we added MsSQL support) so the environment needs
-to include also evolution of those.
+system dependencies change over time so the environment needs to include also evolution of those.
 
 The usual, simple approach where each developer keeps their own virtualenv updated in this case does not
 scale for Airflow. There are literally more than 10 dependencies updated every day for airflow and keeping

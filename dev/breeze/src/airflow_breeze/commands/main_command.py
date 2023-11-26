@@ -38,7 +38,6 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_integration,
     option_max_time,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_python,
@@ -107,7 +106,6 @@ class MainGroupWithAliases(BreezeGroup):
 @option_builder
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_integration
 @option_database_isolation
 @option_standalone_dag_processor

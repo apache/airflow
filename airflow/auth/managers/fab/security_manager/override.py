@@ -63,7 +63,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import and_, func, inspect, literal, or_, select
+from sqlalchemy import and_, func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -1290,9 +1290,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
             .exists()
         )
-        # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
-        if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
-            return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
 
     def perms_include_action(self, perms, action_name):

@@ -1184,18 +1184,7 @@ def _create_table_as(
 
     We have to handle CTAS differently for different dialects.
     """
-    from sqlalchemy import column, select, table
-
-    if dialect_name == "mssql":
-        cte = source_query.cte("source")
-        moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select(cte))
-
-        stmt = ins.compile(bind=session.get_bind())
-        cte_sql = stmt.ctes[cte]
-
-        session.execute(text(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source"))
-    elif dialect_name == "mysql":
+    if dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
         session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
@@ -1479,8 +1468,6 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
         yield from check_fn(session=session)
-        # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
-        session.commit()
 
 
 def _offline_migration(migration_func: Callable, config, revision):
@@ -1526,7 +1513,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise AirflowException("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("2.2.0", "7b2661a43ba3") if dbname == "mssql" else ("2.0.0", "e959f08ac86c")
+    min_version, min_revision = ("2.0.0", "e959f08ac86c")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
@@ -1781,9 +1768,6 @@ def create_global_lock(
             conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
-        elif dialect.name == "mssql":
-            # TODO: make locking work for MSSQL
-            pass
 
         yield
     finally:
@@ -1794,9 +1778,6 @@ def create_global_lock(
                 raise RuntimeError("Error releasing DB lock!")
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
-        elif dialect.name == "mssql":
-            # TODO: make locking work for MSSQL
-            pass
 
 
 def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
@@ -1831,9 +1812,6 @@ def compare_server_default(
     return True if the defaults are different, False if not, or None to allow the default implementation
     to compare these defaults
 
-    Comparing server_default is not accurate in MSSQL because the
-    inspected_default above != metadata_default, while in Postgres/MySQL they are equal.
-    This is an issue with alembic
     In SQLite: task_instance.map_index & task_reschedule.map_index
     are not comparing accurately. Sometimes they are equal, sometimes they are not.
     Alembic warned that this feature has varied accuracy depending on backends.
@@ -1841,7 +1819,7 @@ def compare_server_default(
         environment.EnvironmentContext.configure.params.compare_server_default)
     """
     dialect_name = context.connection.dialect.name
-    if dialect_name in ["mssql", "sqlite"]:
+    if dialect_name == "sqlite":
         return False
     if (
         dialect_name == "mysql"

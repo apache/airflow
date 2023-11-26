@@ -55,7 +55,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
             ],
         },
         {
@@ -153,7 +152,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
             ],
         },
         {
@@ -197,7 +195,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
             ],
         },
         {

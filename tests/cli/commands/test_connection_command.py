@@ -71,7 +71,6 @@ class TestCliListConnections:
         ("http_default", "http"),
         ("local_mysql", "mysql"),
         ("mongo_default", "mongo"),
-        ("mssql_default", "mssql"),
         ("mysql_default", "mysql"),
         ("pinot_broker_default", "pinot"),
         ("postgres_default", "postgres"),

@@ -47,7 +47,6 @@ from airflow_breeze.utils.common_options import (
     option_include_success_outputs,
     option_integration,
     option_mount_sources,
-    option_mssql_version,
     option_mysql_version,
     option_parallel_test_types,
     option_parallelism,
@@ -385,7 +384,6 @@ def _verify_parallelism_parameters(
 @option_backend
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_integration
 @option_image_tag_for_running
 @option_use_airflow_version
@@ -432,7 +430,6 @@ def command_for_tests(**kwargs):
 @option_backend
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_image_tag_for_running
 @option_use_airflow_version
 @option_mount_sources
@@ -543,7 +540,6 @@ def _run_test_command(
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_xdist: bool,
-    mssql_version: str = "",
     mysql_version: str = "",
     postgres_version: str = "",
 ):
@@ -564,7 +560,6 @@ def _run_test_command(
         integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
-        mssql_version=mssql_version,
         image_tag=image_tag,
         use_airflow_version=use_airflow_version,
         mount_sources=mount_sources,
@@ -637,7 +632,6 @@ def _run_test_command(
 @option_backend
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_image_tag_for_running
 @option_mount_sources
 @option_integration
@@ -660,7 +654,6 @@ def integration_tests(
     backend: str,
     postgres_version: str,
     mysql_version: str,
-    mssql_version: str,
     integration: tuple,
     github_repository: str,
     test_timeout: int,
@@ -679,7 +672,6 @@ def integration_tests(
         integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
-        mssql_version=mssql_version,
         image_tag=image_tag,
         mount_sources=mount_sources,
         forward_ports=False,

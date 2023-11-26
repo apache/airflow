@@ -30,7 +30,6 @@ from sqlalchemy.sql import and_, select
 from sqlalchemy.sql.schema import ForeignKeyConstraint
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.migrations.utils import get_mssql_table_constraints
 
 ID_LEN = 250
 
@@ -124,11 +123,7 @@ def upgrade():
     with op.batch_alter_table(
         "rendered_task_instance_fields", copy_from=rendered_task_instance_fields
     ) as batch_op:
-        if dialect_name == "mssql":
-            constraints = get_mssql_table_constraints(op.get_bind(), "rendered_task_instance_fields")
-            pk, _ = constraints["PRIMARY KEY"].popitem()
-            batch_op.drop_constraint(pk, type_="primary")
-        elif dialect_name != "sqlite":
+        if dialect_name != "sqlite":
             batch_op.drop_constraint("rendered_task_instance_fields_pkey", type_="primary")
         batch_op.alter_column("run_id", existing_type=StringID(), existing_nullable=True, nullable=False)
         batch_op.drop_column("execution_date")

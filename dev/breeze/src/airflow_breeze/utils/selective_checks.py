@@ -29,12 +29,10 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
-    CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
-    DEFAULT_MSSQL_VERSION,
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -42,7 +40,6 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
-    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -389,7 +386,6 @@ class SelectiveChecks:
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     default_postgres_version = DEFAULT_POSTGRES_VERSION
     default_mysql_version = DEFAULT_MYSQL_VERSION
-    default_mssql_version = DEFAULT_MSSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
@@ -457,10 +453,6 @@ class SelectiveChecks:
         return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
 
     @cached_property
-    def mssql_versions(self) -> list[str]:
-        return CURRENT_MSSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MSSQL_VERSION]
-
-    @cached_property
     def kind_version(self) -> str:
         return KIND_VERSION
 
@@ -478,19 +470,6 @@ class SelectiveChecks:
             {"python-version": python_version, "postgres-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
-            )
-        ]
-
-    @cached_property
-    def mssql_exclude(self) -> list[dict[str, str]]:
-        if not self.full_tests_needed:
-            # Only basic combination so we do not need to exclude anything
-            return []
-        return [
-            # Exclude all combinations that are repeating python/mssql versions
-            {"python-version": python_version, "mssql-version": mssql_version}
-            for python_version, mssql_version in excluded_combos(
-                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MSSQL_VERSIONS
             )
         ]
 
@@ -1010,11 +989,6 @@ class SelectiveChecks:
         # TODO: when we have it properly set-up with labels we should just check for
         #       "k8s-runner" presence in runs_on
         return False
-
-    @cached_property
-    def mssql_parallelism(self) -> int:
-        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
-        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
 
     @cached_property
     def has_migrations(self) -> bool:

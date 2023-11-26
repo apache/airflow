@@ -72,7 +72,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -2891,10 +2891,7 @@ class Airflow(AirflowBaseView):
 
         def _convert_to_date(session, column):
             """Convert column to date."""
-            if session.bind.dialect.name == "mssql":
-                return column.cast(Date)
-            else:
-                return func.date(column)
+            return func.date(column)
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
