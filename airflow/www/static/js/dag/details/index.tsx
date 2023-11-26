@@ -144,9 +144,12 @@ const Details = ({
   const isMappedTaskSummary = isMapped && mapIndex === undefined && taskId;
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
-  const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
+  const isIndividualTaskInstance = !!(
+    isTaskInstance && !isGroupOrMappedTaskSummary
+  );
+  const showLogs = isIndividualTaskInstance;
+  const showXcom = isIndividualTaskInstance;
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
-  const showXcom = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
