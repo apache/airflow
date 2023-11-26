@@ -16,11 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+
+pytestmark = pytest.mark.db_test
 
 TEST_CONN_ID = "test_weaviate_conn"
 
@@ -36,6 +40,150 @@ def weaviate_hook():
     with patch.object(WeaviateHook, "get_connection", return_value=mock_conn):
         hook = WeaviateHook(conn_id=TEST_CONN_ID)
     return hook
+
+
+@pytest.fixture
+def mock_auth_api_key():
+    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthApiKey") as m:
+        yield m
+
+
+@pytest.fixture
+def mock_auth_bearer_token():
+    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthBearerToken") as m:
+        yield m
+
+
+@pytest.fixture
+def mock_auth_client_credentials():
+    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthClientCredentials") as m:
+        yield m
+
+
+@pytest.fixture
+def mock_auth_client_password():
+    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthClientPassword") as m:
+        yield m
+
+
+class TestWeaviateHook:
+    """
+    Test the WeaviateHook Hook.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_method(self, monkeypatch):
+        """Set up the test method."""
+        self.weaviate_api_key1 = "weaviate_api_key1"
+        self.weaviate_api_key2 = "weaviate_api_key2"
+        self.api_key = "api_key"
+        self.weaviate_client_credentials = "weaviate_client_credentials"
+        self.client_secret = "client_secret"
+        self.scope = "scope1 scope2"
+        self.client_password = "client_password"
+        self.client_bearer_token = "client_bearer_token"
+        self.host = "http://localhost:8080"
+        conns = (
+            Connection(
+                conn_id=self.weaviate_api_key1,
+                host=self.host,
+                conn_type="weaviate",
+                extra={"api_key": self.api_key},
+            ),
+            Connection(
+                conn_id=self.weaviate_api_key2,
+                host=self.host,
+                conn_type="weaviate",
+                extra={"token": self.api_key},
+            ),
+            Connection(
+                conn_id=self.weaviate_client_credentials,
+                host=self.host,
+                conn_type="weaviate",
+                extra={"client_secret": self.client_secret, "scope": self.scope},
+            ),
+            Connection(
+                conn_id=self.client_password,
+                host=self.host,
+                conn_type="weaviate",
+                login="login",
+                password="password",
+            ),
+            Connection(
+                conn_id=self.client_bearer_token,
+                host=self.host,
+                conn_type="weaviate",
+                extra={
+                    "access_token": self.client_bearer_token,
+                    "expires_in": 30,
+                    "refresh_token": "refresh_token",
+                },
+            ),
+        )
+        for conn in conns:
+            monkeypatch.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    def test_get_client_with_api_key_in_extra(self, mock_client, mock_auth_api_key):
+        hook = WeaviateHook(conn_id=self.weaviate_api_key1)
+        hook.get_client()
+        mock_auth_api_key.assert_called_once_with(self.api_key)
+        mock_client.assert_called_once_with(
+            url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    def test_get_client_with_token_in_extra(self, mock_client, mock_auth_api_key):
+        # when token is passed in extra
+        hook = WeaviateHook(conn_id=self.weaviate_api_key2)
+        hook.get_client()
+        mock_auth_api_key.assert_called_once_with(self.api_key)
+        mock_client.assert_called_once_with(
+            url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    def test_get_client_with_access_token_in_extra(self, mock_client, mock_auth_bearer_token):
+        hook = WeaviateHook(conn_id=self.client_bearer_token)
+        hook.get_client()
+        mock_auth_bearer_token.assert_called_once_with(
+            self.client_bearer_token, expires_in=30, refresh_token="refresh_token"
+        )
+        mock_client.assert_called_once_with(
+            url=self.host,
+            auth_client_secret=mock_auth_bearer_token(
+                access_token=self.client_bearer_token, expires_in=30, refresh_token="refresh_token"
+            ),
+            additional_headers={},
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    def test_get_client_with_client_secret_in_extra(self, mock_client, mock_auth_client_credentials):
+        hook = WeaviateHook(conn_id=self.weaviate_client_credentials)
+        hook.get_client()
+        mock_auth_client_credentials.assert_called_once_with(
+            client_secret=self.client_secret, scope=self.scope
+        )
+        mock_client.assert_called_once_with(
+            url=self.host,
+            auth_client_secret=mock_auth_client_credentials(api_key=self.client_secret, scope=self.scope),
+            additional_headers={},
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    def test_get_client_with_client_password_in_extra(self, mock_client, mock_auth_client_password):
+        hook = WeaviateHook(conn_id=self.client_password)
+        hook.get_client()
+        mock_auth_client_password.assert_called_once_with(
+            username="login", password="password", scope="offline_access"
+        )
+        mock_client.assert_called_once_with(
+            url=self.host,
+            auth_client_secret=mock_auth_client_password(
+                username="login", password="password", scope="offline_access"
+            ),
+            additional_headers={},
+        )
 
 
 def test_create_class(weaviate_hook):

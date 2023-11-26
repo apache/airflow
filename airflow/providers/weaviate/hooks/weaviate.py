@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import weaviate
+from weaviate import Client as WeaviateClient
+from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
 from airflow.hooks.base import BaseHook
 
@@ -62,28 +63,34 @@ class WeaviateHook(BaseHook):
             },
         }
 
-    def get_client(self) -> weaviate.Client:
+    def get_client(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
         url = conn.host
         username = conn.login or ""
         password = conn.password or ""
         extras = conn.extra_dejson
-        token = extras.pop("token", "")
+        access_token = extras.get("access_token", None)
+        refresh_token = extras.get("refresh_token", None)
+        expires_in = extras.get("expires_in", 60)
+        # previously token was used as api_key(backwards compatibility)
+        api_key = extras.get("api_key", None) or extras.get("token", None)
+        client_secret = extras.get("client_secret", None)
         additional_headers = extras.pop("additional_headers", {})
-        scope = conn.extra_dejson.get("oidc_scope", "offline_access")
-
-        if token == "" and username != "":
-            auth_client_secret = weaviate.AuthClientPassword(
-                username=username, password=password, scope=scope
+        scope = extras.get("scope", None) or extras.get("oidc_scope", "offline_access")
+        if api_key:
+            auth_client_secret = AuthApiKey(api_key)
+        elif access_token:
+            auth_client_secret = AuthBearerToken(
+                access_token, expires_in=expires_in, refresh_token=refresh_token
             )
+        elif client_secret:
+            auth_client_secret = AuthClientCredentials(client_secret=client_secret, scope=scope)
         else:
-            auth_client_secret = weaviate.AuthApiKey(token)
+            auth_client_secret = AuthClientPassword(username=username, password=password, scope=scope)
 
-        client = weaviate.Client(
+        return WeaviateClient(
             url=url, auth_client_secret=auth_client_secret, additional_headers=additional_headers
         )
-
-        return client
 
     def test_connection(self) -> tuple[bool, str]:
         try:
