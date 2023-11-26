@@ -110,20 +110,19 @@ def encrypt(value: P) -> str:
     # order is important here
     if isinstance(value, bool):
         frame.write(BOOL)
-        if value:
-            value = 1
-        else:
-            value = 0
+        frame.write(pickle.NEWTRUE if value else pickle.NEWFALSE)
     elif isinstance(value, int):
         frame.write(pickle.INT)
+        frame.write(pickle.encode_long(value))
     elif isinstance(value, float):
         frame.write(pickle.FLOAT)
+        frame.write(repr(value).encode("utf-8"))
     elif isinstance(value, str):
         frame.write(pickle.STRING)
+        frame.write(value.encode("utf-8"))
     else:
         raise TypeError(f"cannot encrypt {value}")
 
-    frame.write(str(value).encode("utf-8"))
     enc_data = get_fernet().encrypt(frame.getvalue()).decode("utf-8")
 
     return enc_data
@@ -142,19 +141,21 @@ def decrypt(value: str) -> P:
     if frame.read(1) != ENCRYPTION_PROTO:
         raise ValueError(f"invalid encryption protocol {value}")
 
-    if pickle.decode_long(frame.read(1)) != ENCRYPTION_PROTOCOL_VERSION:
+    if pickle.decode_long(frame.read(1)) > ENCRYPTION_PROTOCOL_VERSION:
         raise ValueError(f"invalid encryption protocol version {value}")
 
     data: P
     t = frame.read(1)
     if t == pickle.INT:
-        data = int(frame.read().decode("utf-8"))
+        data = pickle.decode_long(frame.read())
     elif t == BOOL:
-        val = frame.read().decode("utf-8")
-        if val == "1":
+        b = frame.read()
+        if b == pickle.NEWTRUE:
             data = True
-        else:
+        elif b == pickle.NEWFALSE:
             data = False
+        else:
+            raise ValueError(f"invalid boolean value {value}")
     elif t == pickle.FLOAT:
         data = float(frame.read().decode("utf-8"))
     elif t == pickle.STRING:
