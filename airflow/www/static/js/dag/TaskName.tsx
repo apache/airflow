@@ -17,14 +17,13 @@
  * under the License.
  */
 
-import React, { MouseEventHandler, CSSProperties } from "react";
+import React, { CSSProperties } from "react";
 import { Text, TextProps, useTheme } from "@chakra-ui/react";
 import { FiChevronUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
 interface Props extends TextProps {
   isGroup?: boolean;
   isMapped?: boolean;
-  onToggle: MouseEventHandler<HTMLDivElement>;
   isOpen?: boolean;
   label: string;
   id?: string;
@@ -35,7 +34,6 @@ interface Props extends TextProps {
 const TaskName = ({
   isGroup = false,
   isMapped = false,
-  onToggle,
   isOpen = false,
   label,
   id,
@@ -51,8 +49,7 @@ const TaskName = ({
   };
   return (
     <Text
-      cursor={isGroup ? "pointer" : undefined}
-      onClick={onToggle}
+      cursor="pointer"
       data-testid={id}
       width="100%"
       color={colors.gray[800]}
