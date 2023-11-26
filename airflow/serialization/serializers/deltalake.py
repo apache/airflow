@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.serialization.serde import decrypt, encrypt
 from airflow.utils.module_loading import qualname
 
 serializers = ["deltalake.table.DeltaTable"]
@@ -34,6 +33,8 @@ __version__ = 2
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
     from deltalake.table import DeltaTable
+
+    from airflow.serialization.serde import encrypt
 
     if not isinstance(o, DeltaTable):
         return "", "", 0, False
@@ -57,6 +58,7 @@ def deserialize(classname: str, version: int, data: dict):
     from deltalake.table import DeltaTable
 
     from airflow.models.crypto import get_fernet
+    from airflow.serialization.serde import decrypt
 
     if version > __version__:
         raise TypeError("serialized version is newer than class version")

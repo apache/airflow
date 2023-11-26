@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.serialization.serde import decrypt, encrypt
 from airflow.utils.module_loading import qualname
 
 serializers = ["pyiceberg.table.Table"]
@@ -34,6 +33,8 @@ __version__ = 2
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
     from pyiceberg.table import Table
+
+    from airflow.serialization.serde import encrypt
 
     if not isinstance(o, Table):
         return "", "", 0, False
@@ -58,6 +59,7 @@ def deserialize(classname: str, version: int, data: dict):
     from pyiceberg.table import Table
 
     from airflow.models.crypto import get_fernet
+    from airflow.serialization.serde import decrypt
 
     if version > __version__:
         raise TypeError("serialized version is newer than class version")

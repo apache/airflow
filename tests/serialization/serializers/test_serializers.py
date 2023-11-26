@@ -31,6 +31,7 @@ from pyiceberg.io import FileIO
 from pyiceberg.table import Table
 
 from airflow import PY39
+from airflow.models.crypto import get_fernet
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
@@ -200,6 +201,30 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
+    @patch.object(Catalog, "__abstractmethods__", set())
+    @patch.object(FileIO, "__abstractmethods__", set())
+    @patch("airflow.serialization.serde.encrypt")
+    @patch("pyiceberg.catalog.Catalog.load_table")
+    @patch("pyiceberg.catalog.load_catalog")
+    def test_iceberg_v1(self, mock_load_catalog, mock_load_table, mock_encrypt):
+        fernet = get_fernet()
+        uri = "http://rest.no.where"
+        catalog = Catalog("catalog", uri=uri)
+        identifier = ("catalog", "schema", "table")
+        mock_load_catalog.return_value = catalog
+        mock_encrypt.side_effect = lambda x: fernet.encrypt(x.encode("utf-8")).decode("utf-8")
+
+        i = Table(identifier, "bar", catalog=catalog, metadata_location="", io=FileIO())
+        mock_load_table.return_value = i
+
+        e = serialize(i)
+        e["__version__"] = 1
+
+        d = deserialize(e)
+        assert i == d
+        mock_load_catalog.assert_called_with("catalog", uri=uri)
+        mock_load_table.assert_called_with((identifier[1], identifier[2]))
+
     @patch("deltalake.table.Metadata")
     @patch("deltalake.table.RawDeltaTable")
     @patch.object(DeltaTable, "version", return_value=0)
@@ -222,3 +247,23 @@ class TestSerializers:
         assert i.version() == d.version()
         assert i._storage_options == d._storage_options
         assert d._storage_options is None
+
+    @patch("airflow.serialization.serde.encrypt")
+    @patch("deltalake.table.Metadata")
+    @patch("deltalake.table.RawDeltaTable")
+    @patch.object(DeltaTable, "version", return_value=0)
+    @patch.object(DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path")
+    def test_deltalake_v1(self, mock_table_uri, mock_version, mock_deltalake, mock_metadata, mock_encrypt):
+        uri = "/tmp/bucket/path"
+        fernet = get_fernet()
+        mock_encrypt.side_effect = lambda x: fernet.encrypt(x.encode("utf-8")).decode("utf-8")
+
+        i = DeltaTable(uri, storage_options={"key": "value"})
+
+        e = serialize(i)
+        e["__version__"] = 1
+
+        d = deserialize(e)
+        assert i.table_uri == d.table_uri
+        assert i.version() == d.version()
+        assert i._storage_options == d._storage_options
