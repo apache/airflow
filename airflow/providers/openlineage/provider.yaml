@@ -22,7 +22,9 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 suspended: false
+source-date-epoch: 1700827483
 versions:
+  - 1.2.1
   - 1.2.0
   - 1.1.1
   - 1.1.0

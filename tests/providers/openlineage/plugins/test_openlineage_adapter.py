@@ -39,7 +39,10 @@ from tests.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 
-@patch.dict(os.environ, {"OPENLINEAGE_URL": "http://ol-api:5000", "OPENLINEAGE_API_KEY": "api-key"})
+@patch.dict(
+    os.environ,
+    {"OPENLINEAGE_URL": "http://ol-api:5000", "OPENLINEAGE_API_KEY": "api-key"},
+)
 def test_create_client_from_ol_env():
     client = OpenLineageAdapter().get_or_create_openlineage_client()
 
@@ -90,7 +93,11 @@ def test_create_client_from_env_var_config():
 
 
 @patch.dict(
-    os.environ, {"OPENLINEAGE_URL": "http://ol-from-env:5000", "OPENLINEAGE_API_KEY": "api-key-from-env"}
+    os.environ,
+    {
+        "OPENLINEAGE_URL": "http://ol-from-env:5000",
+        "OPENLINEAGE_API_KEY": "api-key-from-env",
+    },
 )
 @patch.dict(os.environ, {"OPENLINEAGE_CONFIG": "some/config.yml"})
 def test_create_client_overrides_env_vars():
@@ -108,7 +115,9 @@ def test_create_client_overrides_env_vars():
         assert client.transport.kind == "console"
 
 
-def test_emit_start_event():
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
 
@@ -138,7 +147,8 @@ def test_emit_start_event():
                     runId=run_id,
                     facets={
                         "nominalTime": NominalTimeRunFacet(
-                            nominalStartTime="2022-01-01T00:00:00", nominalEndTime="2022-01-01T00:00:00"
+                            nominalStartTime="2022-01-01T00:00:00",
+                            nominalEndTime="2022-01-01T00:00:00",
                         ),
                         "processing_engine": ProcessingEngineRunFacet(
                             version=ANY, name="Airflow", openlineageAdapterVersion=ANY
@@ -158,8 +168,13 @@ def test_emit_start_event():
         in client.emit.mock_calls
     )
 
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
 
-def test_emit_complete_event():
+
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
 
@@ -187,8 +202,13 @@ def test_emit_complete_event():
         in client.emit.mock_calls
     )
 
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
 
-def test_emit_failed_event():
+
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
 
@@ -216,9 +236,14 @@ def test_emit_failed_event():
         in client.emit.mock_calls
     )
 
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
+
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
-def test_emit_dag_started_event(uuid):
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -248,7 +273,8 @@ def test_emit_dag_started_event(uuid):
                     runId=random_uuid,
                     facets={
                         "nominalTime": NominalTimeRunFacet(
-                            nominalStartTime=event_time.isoformat(), nominalEndTime=event_time.isoformat()
+                            nominalStartTime=event_time.isoformat(),
+                            nominalEndTime=event_time.isoformat(),
                         )
                     },
                 ),
@@ -261,9 +287,14 @@ def test_emit_dag_started_event(uuid):
         in client.emit.mock_calls
     )
 
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
+
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
-def test_emit_dag_complete_event(uuid):
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -298,9 +329,14 @@ def test_emit_dag_complete_event(uuid):
         in client.emit.mock_calls
     )
 
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
+
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
-def test_emit_dag_failed_event(uuid):
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -341,3 +377,22 @@ def test_emit_dag_failed_event(uuid):
         )
         in client.emit.mock_calls
     )
+
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
+
+
+@patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
+@patch("airflow.providers.openlineage.plugins.adapter.OpenLineageRedactor")
+@patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
+@patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+def test_openlineage_adapter_stats_emit_failed(
+    mock_stats_incr, mock_stats_timer, mock_redact, mock_get_client
+):
+    adapter = OpenLineageAdapter()
+    mock_get_client.return_value.emit.side_effect = Exception()
+
+    adapter.emit(MagicMock())
+
+    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_incr.assert_has_calls([mock.call("ol.emit.failed")])

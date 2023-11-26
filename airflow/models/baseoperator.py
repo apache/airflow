@@ -26,7 +26,6 @@ import functools
 import logging
 import sys
 import warnings
-from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
 from types import FunctionType
@@ -34,7 +33,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ClassVar,
     Collection,
     Iterable,
     Sequence,
@@ -102,12 +100,10 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.abstractoperator import (
-        TaskStateChangeCallback,
-    )
+    from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger
@@ -263,6 +259,7 @@ def partial(
     doc_json: str | None | ArgNotSet = NOTSET,
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
+    logger_name: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -327,6 +324,7 @@ def partial(
         "doc_md": doc_md,
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
+        "logger_name": logger_name,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -660,6 +658,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param logger_name: Name of the logger used by the Operator to emit logs.
+        If set to `None` (default), the logger name will fall back to
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
     """
 
     # Implementing Operator.
@@ -679,7 +681,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "user_defined_macros",
         "user_defined_filters",
         "params",
-        "_log",
     )
 
     # each operator should override this class attr for shallow copy attrs.
@@ -791,6 +792,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        logger_name: str | None = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -945,7 +947,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
-        self._log = logging.getLogger("airflow.task.operators")
+        self._log_config_logger_name = "airflow.task.operators"
+        self._logger_name = logger_name
 
         # Lineage
         self.inlets: list = []
@@ -1234,13 +1237,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        del state["_log"]
+        if self._log:
+            del state["_log"]
 
         return state
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
         self,
@@ -1903,31 +1906,30 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
         raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
-@attr.s(auto_attribs=True)
-class BaseOperatorLink(metaclass=ABCMeta):
-    """Abstract base class that defines how we get an operator link."""
-
-    operators: ClassVar[list[type[BaseOperator]]] = []
+def __getattr__(name):
     """
-    This property will be used by Airflow Plugins to find the Operators to which you want
-    to assign this Operator Link
+    PEP-562: Lazy loaded attributes on python modules.
 
-    :return: List of Operator classes used by task for which you want to create extra link
+    :meta private:
     """
+    path = __deprecated_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Name of the link. This will be the button name on the task UI."""
+    from airflow.utils.module_loading import import_string
 
-    @abstractmethod
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        """Link to external system.
+    warnings.warn(
+        f"Import `{__name__}.{name}` is deprecated. Please use `{path}.{name}`.",
+        RemovedInAirflow3Warning,
+        stacklevel=2,
+    )
+    val = import_string(f"{path}.{name}")
 
-        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
-        supported at runtime but is deprecated.
+    # Store for next time
+    globals()[name] = val
+    return val
 
-        :param operator: The Airflow operator object this link is associated to.
-        :param ti_key: TaskInstance ID to return link for.
-        :return: link to external system
-        """
+
+__deprecated_imports = {
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
+}

@@ -175,11 +175,14 @@ The pipx tool
 We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
+Note that ``pipx`` >= 1.2.1 is needed in order to deal with breaking ``packaging`` release in September
+2023 that broke earlier versions of ``pipx``.
+
 Install pipx
 
 .. code-block:: bash
 
-    pip install --user pipx
+    pip install --user "pipx>=1.2.1"
 
 Breeze, is not globally accessible until your PATH is updated. Add <USER FOLDER>\.local\bin as a variable
 environments. This can be done automatically by the following command (follow instructions printed).
@@ -334,6 +337,15 @@ that Breeze works on
         .. code-block:: bash
 
             pipx install --force -e dev\breeze
+
+    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
+
+        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
 
 
 Running Breeze for the first time
@@ -506,7 +518,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
-Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
+as the short hand operator.
 
 Running static checks
 ---------------------
@@ -1622,7 +1635,7 @@ but here typical examples are presented:
 
 .. code-block:: bash
 
-     breeze prod-image build --additional-extras "jira"
+     breeze prod-image build --additional-airflow-extras "jira"
 
 This installs additional ``jira`` extra while installing airflow in the image.
 
@@ -2043,12 +2056,6 @@ The below example perform documentation preparation for provider packages.
 
      breeze release-management prepare-provider-documentation
 
-By default, the documentation preparation runs package verification to check if all packages are
-importable, but you can add ``--skip-package-verification`` to skip it.
-
-.. code-block:: bash
-
-     breeze release-management prepare-provider-documentation --skip-package-verification
 
 You can also add ``--answer yes`` to perform non-interactive build.
 
@@ -2563,8 +2570,8 @@ Mounting Local Sources to Breeze
 
 Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
-visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
-by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
+visible in the Docker immediately and ready to test without rebuilding images. You can modify mounting
+options by specifying ``--mount-sources`` flag when running Breeze. For example, in the case of ``--mount-sources skip`` you will have sources
 embedded in the container and changes to these sources will not be persistent.
 
 

@@ -157,7 +157,7 @@ Here is the comparison of the two approaches:
 +----------------------------------------------------+-----------+-------------+
 | Can build from custom airflow sources (forks)      | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
-| Can build on air-gaped system                      | No        | Yes         |
+| Can build on air-gapped system                     | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
 
 TL;DR; If you have a need to build custom image, it is easier to start with "Extending". However, if your
@@ -294,6 +294,11 @@ There are two types of images you can extend your image from:
 2) Slim Airflow image, which is a minimal image, contains all supported backends database clients installed
    for AMD64 platform and Postgres for ARM64 platform, but contains no extras or providers, except
    the 4 default providers.
+
+.. note:: Database clients and database providers in slim images
+    Slim images come with database clients preinstalled for your convenience, however the default
+    providers included do not include any database provider. You will still need to manually install
+    any database provider you need
 
 .. note:: Differences of slim image vs. regular image.
 
@@ -509,16 +514,10 @@ Customizing the image
 ---------------------
 
 .. warning::
-    BREAKING CHANGE! As of Airflow 2.3.0 you need to use
-    `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_ to build customized
-    Airflow Docker image. We are using new features of Building (and ``dockerfile:1.4`` syntax)
-    to make our image faster to build and "standalone" - i.e. not needing any extra files from
-    Airflow in order to be build. As of Airflow 2.3.0, the ``Dockerfile`` that is released with Airflow
-    does not need any extra folders or files and can be copied and used from any folder.
-    Previously you needed to copy Airflow sources together with the Dockerfile as some scripts were
-    needed to make it work. You also need to use ``DOCKER_CONTEXT_FILES`` build arg if you want to
-    use your own custom files during the build (see
-    :ref:`Using docker context files <using-docker-context-files>` for details).
+
+    In Dockerfiles released in Airflow 2.8.0, images are based on ``Debian Bookworm`` images as base images.
+    For Dockerfiles released as part of 2.8.* series you can still choose - deprecated now - ``Debian Bullseye``
+    image as base images, but this possibility will be removed in 2.9.0.
 
 .. note::
     You can usually use the latest ``Dockerfile`` released by Airflow to build previous Airflow versions.
@@ -531,10 +530,11 @@ Prerequisites for building customized docker image:
 * You need to enable `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_ to
   build the image. This can be done by setting ``DOCKER_BUILDKIT=1`` as an environment variable
   or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
-  and running ``docker buildx build`` command.
+  and running ``docker buildx build`` command. Docker Desktop has ``Buildkit`` enabled by default.
 
 * You need to have a new Docker installed to handle ``1.4`` syntax of the Dockerfile.
-  Docker version ``20.10.7`` and above is known to work.
+  Docker version ``23.0.0`` and above are known to work.
+
 
 Before attempting to customize the image, you need to download flexible and customizable ``Dockerfile``.
 You can extract the officially released version of the Dockerfile from the
@@ -741,7 +741,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example the production image in version ``3.8`` with additional airflow extras from ``2.0.2``
+The following example builds the production image in version ``3.8`` with additional airflow extras from
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
@@ -755,6 +755,25 @@ The ``jre-headless`` does not require recompiling so it can be installed as the 
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
+
+.. _image-build-bullseye:
+
+Building Debian Bullseye-based images
+.....................................
+
+.. warning::
+
+  By default Airflow images as of Airflow 2.8.0 are based on ``Debian Bookworm``. However, you can also
+  build images based on - deprecated - ``Debian Bullseye``. This option will be removed in the
+  Dockerfile released in Airflow 2.9.0
+
+The following example builds the production image in version ``3.8`` based on ``Debian Bullseye`` base image.
+
+.. exampleinclude:: docker-examples/customizing/debian-bullseye.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
 
 .. _image-build-github:
 

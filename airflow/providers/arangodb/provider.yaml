@@ -26,6 +26,7 @@ dependencies:
   - python-arango>=7.3.2
 
 suspended: false
+source-date-epoch: 1700827446
 versions:
   - 2.3.0
   - 2.2.2

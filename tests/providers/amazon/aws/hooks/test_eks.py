@@ -22,7 +22,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 import time_machine
@@ -52,7 +52,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -1198,6 +1198,8 @@ class TestEksHooks:
 
 
 class TestEksHook:
+    python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
+
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
         "aws_conn_id, region_name, expected_args",
@@ -1206,32 +1208,37 @@ class TestEksHook:
                 "test-id",
                 "test-region",
                 [
-                    "-m",
-                    "airflow.providers.amazon.aws.utils.eks_get_token",
-                    "--region-name",
-                    "test-region",
-                    "--aws-conn-id",
-                    "test-id",
-                    "--cluster-name",
-                    "test-cluster",
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args=" --region-name test-region --aws-conn-id test-id",
+                    ),
                 ],
             ],
             [
                 None,
                 "test-region",
                 [
-                    "-m",
-                    "airflow.providers.amazon.aws.utils.eks_get_token",
-                    "--region-name",
-                    "test-region",
-                    "--cluster-name",
-                    "test-cluster",
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args=" --region-name test-region",
+                    ),
                 ],
             ],
             [
                 None,
                 None,
-                ["-m", "airflow.providers.amazon.aws.utils.eks_get_token", "--cluster-name", "test-cluster"],
+                [
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args="",
+                    ),
+                ],
             ],
         ],
     )
@@ -1271,8 +1278,7 @@ class TestEksHook:
                             "exec": {
                                 "apiVersion": "client.authentication.k8s.io/v1alpha1",
                                 "args": expected_args,
-                                "command": sys.executable,
-                                "env": [{"name": "AIRFLOW__LOGGING__LOGGING_LEVEL", "value": "FATAL"}],
+                                "command": "sh",
                                 "interactiveMode": "Never",
                             }
                         },
@@ -1351,7 +1357,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlsplit(value)
+    result = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

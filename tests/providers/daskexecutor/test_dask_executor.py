@@ -108,6 +108,7 @@ class TestDaskExecutor(TestBaseDask):
     # This test is quarantined because it became rather flaky on our CI in July 2023 and reason for this
     # is unknown. An issue for that was created: https://github.com/apache/airflow/issues/32778 and the
     # marker should be removed while (possibly) the reason for flaky behaviour is found and fixed.
+    @pytest.mark.quarantined
     @pytest.mark.execution_timeout(180)
     def test_backfill_integration(self):
         """
@@ -214,6 +215,7 @@ class TestDaskExecutorQueue:
         assert success_future.done()
         assert success_future.exception() is None
 
+    @pytest.mark.execution_timeout(120)
     def test_dask_queues_no_queue_specified(self):
         self.cluster = LocalCluster(resources={"queue1": 1})
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
@@ -224,7 +226,7 @@ class TestDaskExecutorQueue:
         success_future = next(k for k, v in executor.futures.items() if v == "success")
 
         # wait for the futures to execute, with a timeout
-        timeout = timezone.utcnow() + timedelta(seconds=30)
+        timeout = timezone.utcnow() + timedelta(seconds=100)
         while not success_future.done():
             if timezone.utcnow() > timeout:
                 raise ValueError(

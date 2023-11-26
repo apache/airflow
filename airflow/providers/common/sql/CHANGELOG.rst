@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+1.8.1
+.....
+
+Misc
+~~~~
+
+* ``Add '_make_serializable' method which other SQL operators can overrides when result from cursor is not JSON-serializable (#32319)``
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
 1.8.0
 .....
 

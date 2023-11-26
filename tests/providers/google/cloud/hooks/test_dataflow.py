@@ -55,7 +55,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
-TEST_ENVIRONMENT = {}
+TEST_ENVIRONMENT: dict[str, str] = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -1417,6 +1417,10 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
+            # DONE
+            (DataflowJobStatus.JOB_STATE_DONE, None, True),
+            (DataflowJobStatus.JOB_STATE_DONE, True, True),
+            (DataflowJobStatus.JOB_STATE_DONE, False, True),
             # RUNNING
             (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
             (DataflowJobStatus.JOB_STATE_RUNNING, True, False),

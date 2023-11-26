@@ -430,7 +430,7 @@ class TestPodManager:
         )
 
         ret_values = self.pod_manager.fetch_requested_container_logs(
-            pod=mock_pod, container_logs=container_logs, follow_logs=follow
+            pod=mock_pod, containers=container_logs, follow_logs=follow
         )
         for ret in ret_values:
             assert ret.running is False
@@ -450,7 +450,7 @@ class TestPodManager:
 
         ret_values = self.pod_manager.fetch_requested_container_logs(
             pod=mock_pod,
-            container_logs=container_logs,
+            containers=container_logs,
         )
 
         assert len(ret_values) == 0

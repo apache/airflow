@@ -60,6 +60,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkJobOperator,
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
+    InstanceFlexibilityPolicy,
+    InstanceSelection,
 )
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -112,6 +114,7 @@ CONFIG = {
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
+        "min_num_instances": 1,
     },
     "secondary_worker_config": {
         "num_instances": 4,
@@ -132,6 +135,17 @@ CONFIG = {
         {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
     "endpoint_config": {},
+    "auxiliary_node_groups": [
+        {
+            "node_group": {
+                "roles": ["DRIVER"],
+                "node_group_config": {
+                    "num_instances": 2,
+                },
+            },
+            "node_group_id": "cluster_driver_pool",
+        }
+    ],
 }
 VIRTUAL_CLUSTER_CONFIG = {
     "kubernetes_cluster_config": {
@@ -195,6 +209,64 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
     "endpoint_config": {
         "enable_http_port_access": True,
     },
+}
+
+CONFIG_WITH_FLEX_MIG = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+        "preemptibility": "SPOT",
+        "instance_flexibility_policy": {
+            "instance_selection_list": [
+                {
+                    "machine_types": [
+                        "projects/project_id/zones/zone/machineTypes/machine1",
+                        "projects/project_id/zones/zone/machineTypes/machine2",
+                    ],
+                    "rank": 0,
+                },
+                {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
+            ],
+        },
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {
+        "idle_delete_ttl": {"seconds": 60},
+        "auto_delete_time": "2019-09-12T00:00:00.000000Z",
+    },
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
+    ],
+    "endpoint_config": {},
 }
 
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
@@ -361,10 +433,26 @@ class TestsClusterGenerator:
             )
             assert "num_workers == 0 means single" in str(ctx.value)
 
+    def test_min_num_workers_less_than_num_workers(self):
+        with pytest.raises(ValueError) as ctx:
+            ClusterGenerator(
+                num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+            )
+            assert (
+                "The value of min_num_workers must be less than or equal to num_workers. "
+                "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
+            )
+
+    def test_min_num_workers_without_num_workers(self):
+        with pytest.raises(ValueError) as ctx:
+            ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
+            assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
+
     def test_build(self):
         generator = ClusterGenerator(
             project_id="project_id",
             num_workers=2,
+            min_num_workers=1,
             zone="zone",
             network_uri="network_uri",
             subnetwork_uri="subnetwork_uri",
@@ -395,6 +483,8 @@ class TestsClusterGenerator:
             auto_delete_time=datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
+            driver_pool_id="cluster_driver_pool",
+            driver_pool_size=2,
         )
         cluster = generator.make()
         assert CONFIG == cluster
@@ -437,6 +527,56 @@ class TestsClusterGenerator:
         )
         cluster = generator.make()
         assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
+
+    def test_build_with_flex_migs(self):
+        generator = ClusterGenerator(
+            project_id="project_id",
+            num_workers=2,
+            zone="zone",
+            network_uri="network_uri",
+            subnetwork_uri="subnetwork_uri",
+            internal_ip_only=True,
+            tags=["tags"],
+            storage_bucket="storage_bucket",
+            init_actions_uris=["init_actions_uris"],
+            init_action_timeout="10m",
+            metadata={"metadata": "data"},
+            custom_image="custom_image",
+            custom_image_project_id="custom_image_project_id",
+            autoscaling_policy="autoscaling_policy",
+            properties={"properties": "data"},
+            optional_components=["optional_components"],
+            num_masters=2,
+            master_machine_type="master_machine_type",
+            master_disk_type="master_disk_type",
+            master_disk_size=128,
+            worker_machine_type="worker_machine_type",
+            worker_disk_type="worker_disk_type",
+            worker_disk_size=256,
+            num_preemptible_workers=4,
+            preemptibility="Spot",
+            region="region",
+            service_account="service_account",
+            service_account_scopes=["service_account_scopes"],
+            idle_delete_ttl=60,
+            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_ttl=250,
+            customer_managed_key="customer_managed_key",
+            secondary_worker_instance_flexibility_policy=InstanceFlexibilityPolicy(
+                [
+                    InstanceSelection(
+                        [
+                            "projects/project_id/zones/zone/machineTypes/machine1",
+                            "projects/project_id/zones/zone/machineTypes/machine2",
+                        ],
+                        0,
+                    ),
+                    InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
+                ]
+            ),
+        )
+        cluster = generator.make()
+        assert CONFIG_WITH_FLEX_MIG == cluster
 
 
 class TestDataprocClusterCreateOperator(DataprocClusterTestBase):

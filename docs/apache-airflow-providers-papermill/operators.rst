@@ -62,3 +62,11 @@ Example DAG to Verify the message in the notebook:
     :language: python
     :start-after: [START howto_verify_operator_papermill]
     :end-before: [END howto_verify_operator_papermill]
+
+
+Example DAG to Verify the message in the notebook using a remote jupyter kernel:
+
+.. exampleinclude:: /../../tests/system/providers/papermill/example_papermill_remote_verify.py
+    :language: python
+    :start-after: [START howto_verify_operator_papermill_remote_kernel]
+    :end-before: [END howto_verify_operator_papermill_remote_kernel]

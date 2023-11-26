@@ -113,11 +113,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bookworm                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bookworm              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
@@ -385,6 +385,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 | Basic static checks             | Performs basic static checks (no image)                  | Yes (6)  | -        | -         | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build docs                      | Builds and tests publishing of the documentation         | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Spellcheck docs                 | Spellcheck docs                                          | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests wheel provider packages   | Tests if provider packages can be built and released     | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
