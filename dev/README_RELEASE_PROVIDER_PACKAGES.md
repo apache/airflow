@@ -667,6 +667,102 @@ docker run --rm --entrypoint "airflow" local/airflow info
 docker image rm local/airflow
 ```
 
+### Reproducible package builds checks
+
+For provider packages we introduced a reproducible build mechanism - which means that whoever wants
+to use sources of Airflow from the release tag, can reproducibly build the same "wheel" and "sdist"
+packages as the release manager and they will be byte-by-byte identical, which makes them easy to
+verify - if they came from the same sources. This build is only done using released dependencies
+from PyPI and source code in our repository - no other binary dependencies are used during the build
+process and if the packages produced are byte-by-byte identical with the one we create from tagged sources
+it means that the build has a verified provenance.
+
+How to verify it:
+
+1) Change directory where your airflow sources are checked out
+
+```shell
+cd "${AIRFLOW_REPO_ROOT}"
+```
+
+2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
+   of the release wave. For example:
+
+```shell
+git checkout tags/providers-amazon-1.0.0rc1
+```
+
+3) Remove all the packages you have in dist folder
+
+```shell
+rm -rf dist/*
+```
+
+4) Build the packages using checked out sources
+
+```shell
+breeze release-management prepare-provider-packages --package-format both
+```
+
+5) Switch to the folder where you checked out the SVN dev files
+
+```shell
+cd {PATH_TO_SVN}
+cd airflow/providers
+```
+
+6) Compare the packages in SVN to the ones you just built
+
+```shell
+for i in *.tar.gz *.whl
+do
+   echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
+done
+```
+
+You should see output similar to:
+
+```
+apache_airflow_providers_amazon-8.12.0.tar.gz:No diff found
+apache_airflow_providers_apache_impala-1.2.1.tar.gz:No diff found
+apache_airflow_providers_atlassian_jira-2.3.0.tar.gz:No diff found
+apache_airflow_providers_cncf_kubernetes-7.10.0.tar.gz:No diff found
+apache_airflow_providers_common_io-1.1.0.tar.gz:No diff found
+apache_airflow_providers_common_sql-1.8.1.tar.gz:No diff found
+apache_airflow_providers_databricks-5.0.1.tar.gz:No diff found
+apache_airflow_providers_dbt_cloud-3.4.1.tar.gz:No diff found
+apache_airflow_providers_docker-3.8.2.tar.gz:No diff found
+apache_airflow_providers_elasticsearch-5.2.0.tar.gz:No diff found
+apache_airflow_providers_google-10.12.0.tar.gz:No diff found
+apache_airflow_providers_microsoft_azure-8.3.0.tar.gz:No diff found
+apache_airflow_providers_odbc-4.2.0.tar.gz:No diff found
+apache_airflow_providers_openai-1.0.1.tar.gz:No diff found
+apache_airflow_providers_opsgenie-5.3.0.tar.gz:No diff found
+apache_airflow_providers_papermill-3.5.0.tar.gz:No diff found
+apache_airflow_providers_redis-3.4.1.tar.gz:No diff found
+apache_airflow_providers_snowflake-5.1.2.tar.gz:No diff found
+apache_airflow_providers_trino-5.4.1.tar.gz:No diff found
+apache_airflow_providers_amazon-8.12.0-py3-none-any.whl:No diff found
+apache_airflow_providers_apache_impala-1.2.1-py3-none-any.whl:No diff found
+apache_airflow_providers_atlassian_jira-2.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_cncf_kubernetes-7.10.0-py3-none-any.whl:No diff found
+apache_airflow_providers_common_io-1.1.0-py3-none-any.whl:No diff found
+apache_airflow_providers_common_sql-1.8.1-py3-none-any.whl:No diff found
+apache_airflow_providers_databricks-5.0.1-py3-none-any.whl:No diff found
+apache_airflow_providers_dbt_cloud-3.4.1-py3-none-any.whl:No diff found
+apache_airflow_providers_docker-3.8.2-py3-none-any.whl:No diff found
+apache_airflow_providers_elasticsearch-5.2.0-py3-none-any.whl:No diff found
+apache_airflow_providers_google-10.12.0-py3-none-any.whl:No diff found
+apache_airflow_providers_microsoft_azure-8.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_odbc-4.2.0-py3-none-any.whl:No diff found
+apache_airflow_providers_openai-1.0.1-py3-none-any.whl:No diff found
+apache_airflow_providers_opsgenie-5.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_papermill-3.5.0-py3-none-any.whl:No diff found
+apache_airflow_providers_redis-3.4.1-py3-none-any.whl:No diff found
+apache_airflow_providers_snowflake-5.1.2-py3-none-any.whl:No diff found
+apache_airflow_providers_trino-5.4.1-py3-none-any.whl:No diff found
+```
+
 ### Licences check
 
 This can be done with the Apache RAT tool.
