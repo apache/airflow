@@ -47,14 +47,10 @@ def upgrade():
             sa.Column("resource_version", sa.String(255)),
         ]
 
-        # alembic creates an invalid SQL for mssql and mysql dialects
+        # alembic creates an invalid SQL for mysql dialect
         if conn.dialect.name in {"mysql"}:
             columns_and_constraints.append(
                 sa.CheckConstraint("one_row_id<>0", name="kube_resource_version_one_row_id")
-            )
-        elif conn.dialect.name not in {"mssql"}:
-            columns_and_constraints.append(
-                sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
             )
 
         table = op.create_table(RESOURCE_TABLE, *columns_and_constraints)

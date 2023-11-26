@@ -159,5 +159,5 @@ def downgrade():
         batch_op.create_primary_key(
             "rendered_task_instance_fields_pkey", ["dag_id", "task_id", "execution_date"]
         )
-        batch_op.drop_column("map_index", mssql_drop_default=True)
+        batch_op.drop_column("map_index")
         batch_op.drop_column("run_id")

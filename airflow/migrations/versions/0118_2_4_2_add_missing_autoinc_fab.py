@@ -49,8 +49,7 @@ def upgrade():
     to change them.
     """
     conn = op.get_bind()
-    if conn.dialect.name in ["mssql", "sqlite"]:
-        # 1.10.12 didn't support SQL Server, so it couldn't have gotten this wrong --> nothing to correct
+    if conn.dialect.name == "sqlite":
         # SQLite autoinc was "implicit" for an INTEGER NOT NULL PRIMARY KEY
         return
 

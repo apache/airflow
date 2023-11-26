@@ -102,22 +102,12 @@ def upgrade():
     with op.batch_alter_table("xcom") as bop:
         xcom_columns = [col.get("name") for col in inspector.get_columns("xcom")]
         if "id" in xcom_columns:
-            if conn.dialect.name == "mssql":
-                constraint_dict = get_table_constraints(conn, "xcom")
-                drop_column_constraints(operator=bop, column_name="id", constraint_dict=constraint_dict)
             bop.drop_column("id")
             bop.drop_index("idx_xcom_dag_task_date")
-            # mssql doesn't allow primary keys with nullable columns
-            if conn.dialect.name != "mssql":
-                bop.create_primary_key("pk_xcom", ["dag_id", "task_id", "key", "execution_date"])
 
 
 def downgrade():
     """Unapply Remove id column from xcom"""
     conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
-        if conn.dialect.name != "mssql":
-            bop.drop_constraint("pk_xcom", type_="primary")
-        bop.add_column(Column("id", Integer, nullable=False))
-        bop.create_primary_key("id", ["id"])
-        bop.create_index("idx_xcom_dag_task_date", ["dag_id", "task_id", "key", "execution_date"])
+        bop.drop_constraint("pk_xcom", type_="primary")

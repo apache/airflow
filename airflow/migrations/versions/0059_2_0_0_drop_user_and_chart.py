@@ -104,7 +104,7 @@ def downgrade():
         conn.execute(text("SET time_zone = '+00:00'"))
         op.alter_column(table_name="chart", column_name="last_modified", type_=mysql.TIMESTAMP(fsp=6))
     else:
-        if conn.dialect.name in ("sqlite", "mssql"):
+        if conn.dialect.name == "sqlite":
             return
 
         if conn.dialect.name == "postgresql":

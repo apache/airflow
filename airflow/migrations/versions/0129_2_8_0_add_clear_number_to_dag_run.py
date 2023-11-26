@@ -37,22 +37,16 @@ airflow_version = "2.8.0"
 
 def upgrade():
     """Apply add cleared column to dagrun"""
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        with op.batch_alter_table("dag_run") as batch_op:
-            batch_op.add_column(sa.Column("clear_number", sa.Integer, default=0))
-            batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
-    else:
-        with op.batch_alter_table("dag_run") as batch_op:
-            batch_op.add_column(
-                sa.Column(
-                    "clear_number",
-                    sa.Integer,
-                    default=0,
-                    nullable=False,
-                    server_default="0",
-                )
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "clear_number",
+                sa.Integer,
+                default=0,
+                nullable=False,
+                server_default="0",
             )
+        )
 
 
 def downgrade():

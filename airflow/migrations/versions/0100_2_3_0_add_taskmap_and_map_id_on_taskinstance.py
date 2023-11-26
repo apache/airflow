@@ -102,13 +102,13 @@ def downgrade():
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
         batch_op.drop_index("idx_task_reschedule_dag_task_run")
-        batch_op.drop_column("map_index", mssql_drop_default=True)
+        batch_op.drop_column("map_index")
 
     op.execute("DELETE FROM task_instance WHERE map_index != -1")
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
-        batch_op.drop_column("map_index", mssql_drop_default=True)
+        batch_op.drop_column("map_index")
         batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id"])
 
     with op.batch_alter_table("task_reschedule") as batch_op:

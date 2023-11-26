@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = "2e42bb497a22"
@@ -38,29 +37,15 @@ airflow_version = "2.0.2"
 
 def upgrade():
     """Apply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``"""
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        with op.batch_alter_table("dag") as batch_op:
-            batch_op.alter_column(
-                "last_scheduler_run", new_column_name="last_parsed_time", type_=mssql.DATETIME2(precision=6)
-            )
-    else:
-        with op.batch_alter_table("dag") as batch_op:
-            batch_op.alter_column(
-                "last_scheduler_run", new_column_name="last_parsed_time", type_=sa.TIMESTAMP(timezone=True)
-            )
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.alter_column(
+            "last_scheduler_run", new_column_name="last_parsed_time", type_=sa.TIMESTAMP(timezone=True)
+        )
 
 
 def downgrade():
     """Unapply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``"""
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        with op.batch_alter_table("dag") as batch_op:
-            batch_op.alter_column(
-                "last_parsed_time", new_column_name="last_scheduler_run", type_=mssql.DATETIME2(precision=6)
-            )
-    else:
-        with op.batch_alter_table("dag") as batch_op:
-            batch_op.alter_column(
-                "last_parsed_time", new_column_name="last_scheduler_run", type_=sa.TIMESTAMP(timezone=True)
-            )
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.alter_column(
+            "last_parsed_time", new_column_name="last_scheduler_run", type_=sa.TIMESTAMP(timezone=True)
+        )

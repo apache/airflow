@@ -42,10 +42,6 @@ INDEX_NAME = "idx_" + TABLE_NAME + "_dag_task_date"
 def upgrade():
     # See 0e2a74e0fc9f_add_time_zone_awareness
     timestamp = TIMESTAMP
-    if op.get_bind().dialect.name == "mssql":
-        # We need to keep this as it was for this old migration on mssql
-        timestamp = sa.DateTime()
-
     op.create_table(
         TABLE_NAME,
         sa.Column("id", sa.Integer(), nullable=False),

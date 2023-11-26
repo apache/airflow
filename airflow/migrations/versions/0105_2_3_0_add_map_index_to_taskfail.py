@@ -146,7 +146,7 @@ def downgrade():
         batch_op.alter_column("execution_date", existing_type=TIMESTAMP, nullable=False)
         if dialect_name != "sqlite":
             batch_op.drop_constraint("task_fail_ti_fkey", type_="foreignkey")
-        batch_op.drop_column("map_index", mssql_drop_default=True)
+        batch_op.drop_column("map_index")
         batch_op.drop_column("run_id")
     op.create_index(
         index_name="idx_task_fail_dag_task_date",

@@ -62,10 +62,6 @@ def upgrade():
         )  # Avoid select updated rows
         session.commit()
 
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        op.drop_index(index_name="ti_pool", table_name="task_instance")
-
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column(
@@ -74,17 +70,9 @@ def upgrade():
             nullable=False,
         )
 
-    if conn.dialect.name == "mssql":
-        op.create_index(
-            index_name="ti_pool", table_name="task_instance", columns=["pool", "state", "priority_weight"]
-        )
-
 
 def downgrade():
     """Make TaskInstance.pool field nullable."""
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        op.drop_index(index_name="ti_pool", table_name="task_instance")
 
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
@@ -92,11 +80,6 @@ def downgrade():
             column_name="pool",
             type_=sa.String(50),
             nullable=True,
-        )
-
-    if conn.dialect.name == "mssql":
-        op.create_index(
-            index_name="ti_pool", table_name="task_instance", columns=["pool", "state", "priority_weight"]
         )
 
     with create_session() as session:

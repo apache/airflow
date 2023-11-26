@@ -42,7 +42,6 @@ def upgrade():
             "idx_dag_run_queued_dags",
             ["state", "dag_id"],
             postgresql_where=text("state='queued'"),
-            mssql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         )
 

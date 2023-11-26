@@ -38,25 +38,11 @@ airflow_version = "2.2.0"
 
 def upgrade():
     """Apply Make XCom primary key columns non-nullable"""
-    conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
         bop.alter_column("key", type_=StringID(length=512), nullable=False)
         bop.alter_column("execution_date", type_=TIMESTAMP, nullable=False)
-        if conn.dialect.name == "mssql":
-            bop.create_primary_key(
-                constraint_name="pk_xcom", columns=["dag_id", "task_id", "key", "execution_date"]
-            )
 
 
 def downgrade():
     """Unapply Make XCom primary key columns non-nullable"""
-    conn = op.get_bind()
-    with op.batch_alter_table("xcom") as bop:
-        # regardless of what the model defined, the `key` and `execution_date`
-        # columns were always non-nullable for mysql, sqlite and postgres, so leave them alone
-
-        if conn.dialect.name == "mssql":
-            bop.drop_constraint("pk_xcom", type_="primary")
-            # execution_date and key wasn't nullable in the other databases
-            bop.alter_column("key", type_=StringID(length=512), nullable=True)
-            bop.alter_column("execution_date", type_=TIMESTAMP, nullable=True)
+    pass

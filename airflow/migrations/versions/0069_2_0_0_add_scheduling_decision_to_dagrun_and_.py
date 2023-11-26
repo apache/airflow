@@ -41,7 +41,6 @@ def upgrade():
     """Apply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``"""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
-    is_mssql = bool(conn.dialect.name == "mssql")
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
@@ -74,7 +73,7 @@ def upgrade():
         f"""
         UPDATE dag SET
             concurrency={concurrency},
-            has_task_concurrency_limits={1 if is_sqlite or is_mssql else sa.true()}
+            has_task_concurrency_limits={1 if is_sqlite else sa.true()}
         where concurrency IS NULL
         """
     )

@@ -72,10 +72,10 @@ def _add_worker_uuid_table():
 
     conn = op.get_bind()
 
-    # alembic creates an invalid SQL for mssql and mysql dialects
-    if conn.dialect.name in {"mysql"}:
+    # alembic creates an invalid SQL for mysql dialect
+    if conn.dialect.name == "mysql":
         columns_and_constraints.append(sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id"))
-    elif conn.dialect.name not in {"mssql"}:
+    else:
         columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
 
     table = op.create_table(WORKER_UUID_TABLE, *columns_and_constraints)
@@ -91,12 +91,12 @@ def _add_resource_table():
 
     conn = op.get_bind()
 
-    # alembic creates an invalid SQL for mssql and mysql dialects
-    if conn.dialect.name in {"mysql"}:
+    # alembic creates an invalid SQL for mysql dialect
+    if conn.dialect.name == "mysql":
         columns_and_constraints.append(
             sa.CheckConstraint("one_row_id<>0", name="kube_resource_version_one_row_id")
         )
-    elif conn.dialect.name not in {"mssql"}:
+    else:
         columns_and_constraints.append(
             sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
         )

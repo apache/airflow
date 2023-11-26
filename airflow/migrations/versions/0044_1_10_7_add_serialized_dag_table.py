@@ -77,8 +77,8 @@ def upgrade():
             nullable=False,
         )
     else:
-        # sqlite and mssql datetime are fine as is.  Therefore, not converting
-        if conn.dialect.name in ("sqlite", "mssql"):
+        # sqlite datetime is fine as is.  Therefore, not converting
+        if conn.dialect.name == "sqlite":
             return
 
         # we try to be database agnostic, but not every db (e.g. sqlserver)

@@ -43,4 +43,4 @@ def upgrade():
 def downgrade():
     """Unapply Add has_import_errors column to DagModel"""
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.drop_column("has_import_errors", mssql_drop_default=True)
+        batch_op.drop_column("has_import_errors")

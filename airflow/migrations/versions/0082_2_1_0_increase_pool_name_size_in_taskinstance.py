@@ -43,12 +43,5 @@ def upgrade():
 
 def downgrade():
     """Unapply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters"""
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-        with op.batch_alter_table("task_instance") as batch_op:
-            batch_op.drop_index("ti_pool")
-            batch_op.alter_column("pool", type_=sa.String(50), nullable=False)
-            batch_op.create_index("ti_pool", ["pool"])
-    else:
-        with op.batch_alter_table("task_instance") as batch_op:
-            batch_op.alter_column("pool", type_=sa.String(50), nullable=False)
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.alter_column("pool", type_=sa.String(50), nullable=False)

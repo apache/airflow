@@ -54,4 +54,4 @@ def upgrade():
 def downgrade():
     """Remove is_orphaned from DatasetModel"""
     with op.batch_alter_table("dataset") as batch_op:
-        batch_op.drop_column("is_orphaned", mssql_drop_default=True)
+        batch_op.drop_column("is_orphaned")
