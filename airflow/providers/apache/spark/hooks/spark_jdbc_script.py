@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import argparse
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession
 
 SPARK_WRITE_TO_JDBC: str = "spark_to_jdbc"
 SPARK_READ_FROM_JDBC: str = "jdbc_to_spark"
@@ -147,8 +146,6 @@ def _parse_arguments(args: list[str] | None = None) -> Any:
 
 
 def _create_spark_session(arguments: Any) -> SparkSession:
-    from pyspark.sql import SparkSession
-
     return SparkSession.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
 
 
