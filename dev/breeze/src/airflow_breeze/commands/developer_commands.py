@@ -646,7 +646,8 @@ def static_checks(
         text=True,
         env=env,
     )
-    fix_ownership_using_docker()
+    if not os.environ.get("SKIP_IMAGE_PRE_COMMITS"):
+        fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
             get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
