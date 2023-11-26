@@ -117,22 +117,6 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bookworm              | Version of python base image used in Airflow Builds      |
-| python base  |                                                          | We keep the "latest" version only to mark last "good"    |
-| image        |                                                          | python base that went through testing and was pushed.    |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| PROD Build   | airflow/<BRANCH>/prod-build/python<X.Y>:latest           | Production Build image - this is the "build" stage of    |
-| image        |                                                          | production image. It contains build-essentials and all   |
-|              |                                                          | necessary apt packages to build/install PIP packages.    |
-|              |                                                          | We keep the "latest" version only to speed up builds.    |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Manifest     | airflow/<BRANCH>/ci-manifest/python<X.Y>:latest          | CI manifest image - this is the image used to optimize   |
-| CI image     |                                                          | pulls and builds for Breeze development environment      |
-|              |                                                          | They store hash indicating whether the image will be     |
-|              |                                                          | faster to build or pull.                                 |
-|              |                                                          | We keep the "latest" version only to help breeze to      |
-|              |                                                          | check if new image should be pulled.                     |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
 | CI image     | airflow/<BRANCH>/ci/python<X.Y>:latest                   | CI image - this is the image used for most of the tests. |
 |              | or                                                       | Contains all provider dependencies and tools useful      |
 |              | airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>             | For testing. This image is used in Breeze.               |
@@ -239,49 +223,39 @@ Regular PR builds run in a "stable" environment:
 * no ARM image builds are build in the regular PRs
 * lower probability of flaky tests for non-committer PRs (public runners and less parallelism)
 
+Maintainers can also run the "Pull Request run" from the "apache/airflow" repository by pushing
+to a branch in the "apache/airflow" repository. This is useful when you want to test a PR that
+changes the CI/CD infrastructure itself (for example changes to the CI/CD scripts or changes to
+the CI/CD workflows). In this case the PR is run in the context of the "apache/airflow" repository
+and has WRITE access to the GitHub Container Registry.
+
 Canary run
 ----------
 
-Those runs are results of direct pushes done by the committers - basically merging of a Pull Request
-by the committers. Those runs execute in the context of the Apache Airflow Code Repository and have also
-write permission for GitHub resources (container registry, code repository).
+This is the flow that happens when a pull request is merged to the "main" branch or pushed to any of
+the "v2-*-test" branches. The "Canary" run attempts to upgrade dependencies to the latest versions
+and quickly pushes a preview of cache the CI/PROD images to the GitHub Registry - so that pull requests
+can quickly use the new cache - this is useful when Dockerfile or installation scripts change because such
+cache will already have the latest Dockerfile and scripts pushed even if some tests will fail.
+When successful, the run updates the constraints files in the "constraints-main" branch with the latest
+constraints and pushes both cache and latest  CI/PROD images to the GitHub Registry.
 
-The main purpose for the run is to check if the code after merge still holds all the assertions - like
-whether it still builds, all tests are green. This is a "Canary" build that helps us to detect early
-problems with dependencies, image building, full matrix of tests in case they passed through selective checks.
+When "Canary" build fails, it's often a sign that some of our dependencies released a new version that
+is not compatible with current tests or Airflow code, Also it might mean that a breaking change has been
+merged to "main". Both cases should be addressed quickly by the maintainers. The "broken main" by our code
+should be fixed quickly, while the "broken dependencies" can take a bit of time to fix as until the tests
+succeeds, constraints will not be updated, which means that regular PRs will continue using the old version
+of dependencies that already passed one of the previous "Canary" runs.
 
-This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
-after merge even if they do not fail in isolation. Also those runs are already reviewed and confirmed by the
-committers so they can be used to do some housekeeping:
-
-- pushing most recent image build in the PR to the GitHub Container Registry (for caching) including recent
-  Dockerfile changes and setup.py/setup.cfg changes (Early Cache)
-- test that image in ``breeze`` command builds quickly
-- run full matrix of tests to detect any tests that will be mistakenly missed in ``selective checks``
-- upgrading to latest constraints and pushing those constraints if all tests succeed
-- refresh latest Python base images in case new patch-level is released
-
-The housekeeping is important - Python base images are refreshed with varying frequency (once every few months
-usually but sometimes several times per week) with the latest security and bug fixes.
 
 Scheduled runs
 --------------
 
-Those runs are results of (nightly) triggered job - only for ``main`` branch. The
-main purpose of the job is to check if there was no impact of external dependency changes on the Apache
-Airflow code (for example transitive dependencies released that fail the build). It also checks if the
-Docker images can be built from the scratch (again - to see if some dependencies have not changed - for
-example downloaded package releases etc.
-
-All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
-run categories. Here is a summary of the run categories with regards of the jobs they are running.
-Those jobs often have matrix run strategy which runs several different variations of the jobs
-(with different Backend type / Python version, type of the tests to run for example). The following chapter
-describes the workflows that execute for each run.
-
-Those runs and their corresponding ``Build Images`` runs are only executed in main ``apache/airflow``
-repository, they are not executed in forks - we want to be nice to the contributors and not use their
-free build minutes on GitHub Actions.
+This is the flow that happens when a scheduled run is triggered. The "scheduled" workflow is aimed to
+run regularly (overnight). Scheduled run is generally the same as "Canary" run, with the difference
+that the image is build always from the scratch and not from the cache. This way we can check that no
+"system" dependencies in debian base image have changed and that the build is still reproducible.
+No separate diagram is needed for scheduled run as it is identical to that of "Canary" run.
 
 Workflows
 =========
@@ -364,9 +338,11 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build CI images                 | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Generate constraints            | Generates constraints that were updated in this build    | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
+| Verify CI/generate constraints  | Verify CI image and generate constraints for the build   | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build PROD images               | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build Bullseye PROD images      | Builds images based on Bullseye debian                   | -        | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Run breeze tests                | Run unit tests for Breeze                                | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -412,7 +388,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Wait for PROD Images            | Waits for and verify PROD Images                         | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Test docker-compose             | Tests if quick-start docker compose works                | Yes      | Yes      | Yes       | Yes               |
+| Verify PROD/test compose        | Verify PROD image and tests quick-start Docker Compose   | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests Kubernetes                | Run Kubernetes test                                      | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -429,9 +405,10 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 ``(2)`` The jobs wait for CI images to be available. It only actually runs when build image is needed (in
   case of simpler PRs that do not change dependencies or source code, images are not build)
 
-``(3)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
-upgraded only if all tests are successful. The images are rebuilt in this step using constraints pushed
-in the previous step. Constraints are only actually pushed in the ``canary`` runs.
+``(3)`` PROD and CI cache & images are pushed as "cache" (both AMD and ARM) and "latest" (only AMD)
+to GitHub Container registry and constraints are upgraded only if all tests are successful.
+The images are rebuilt in this step using constraints pushed in the previous step.
+Constraints are only actually pushed in the ``canary/scheduled`` runs.
 
 ``(4)`` In main, PROD image uses locally build providers using "latest" version of the provider code. In the
 non-main version of the build, the latest released providers from PyPI are used.
