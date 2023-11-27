@@ -24,6 +24,7 @@ jobs:
     name: "Run Teradata Provider Unit and System tests"
     runs-on: "ubuntu-22.04"
     strategy:
+      max-parallel: 1
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
