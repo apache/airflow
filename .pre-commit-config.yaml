@@ -935,7 +935,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging', 'filelock']
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
