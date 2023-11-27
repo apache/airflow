@@ -819,34 +819,34 @@ class TestDag:
         next_utc = dag.following_schedule(next_utc)
         assert local_tz.convert(next_utc).isoformat() == "2018-03-25T05:00:00+02:00"
 
-    # def test_following_previous_schedule_daily_dag_cet_to_cest(self):
-    #     """
-    #     Make sure DST transitions are properly observed
-    #     """
-    #     local_tz = pendulum.timezone("Europe/Zurich")
-    #     start = local_tz.convert(datetime.datetime(2018, 3, 25, 2), dst_rule=pendulum.PRE_TRANSITION)
+    def test_following_previous_schedule_daily_dag_cet_to_cest(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2), dst_rule=pendulum.PRE_TRANSITION)
 
-    #     utc = timezone.convert_to_utc(start)
+        utc = timezone.convert_to_utc(start)
 
-    #     dag = DAG("tz_dag", start_date=start, schedule="0 3 * * *")
+        dag = DAG("tz_dag", start_date=start, schedule="0 3 * * *")
 
-    #     prev = dag.previous_schedule(utc)
-    #     prev_local = local_tz.convert(prev)
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
 
-    #     assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-    #     assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
+        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
 
-    #     _next = dag.following_schedule(utc)
-    #     next_local = local_tz.convert(_next)
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
 
-    #     assert next_local.isoformat() == "2018-03-25T03:00:00+02:00"
-    #     assert _next.isoformat() == "2018-03-25T01:00:00+00:00"
+        assert next_local.isoformat() == "2018-03-25T03:00:00+02:00"
+        assert _next.isoformat() == "2018-03-25T01:00:00+00:00"
 
-    #     prev = dag.previous_schedule(_next)
-    #     prev_local = local_tz.convert(prev)
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
 
-    #     assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-    #     assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
+        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
 
     def test_following_schedule_relativedelta(self):
         """
