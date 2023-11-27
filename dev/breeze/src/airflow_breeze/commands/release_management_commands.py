@@ -684,21 +684,30 @@ def run_generate_constraints_in_parallel(
 @option_image_tag_for_running
 @option_debug_release_management
 @option_airflow_constraints_mode_ci
+@click.option(
+    "--chicken-egg-providers",
+    default="",
+    help="List of chicken-egg provider packages - "
+    "those that have airflow_version >= current_version and should "
+    "be installed in CI from locally built packages with >= current_version.dev0 ",
+    envvar="CHICKEN_EGG_PROVIDERS",
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
 @option_answer
 def generate_constraints(
-    python: str,
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
-    debug_resources: bool,
-    python_versions: str,
-    image_tag: str | None,
-    debug: bool,
     airflow_constraints_mode: str,
+    debug: bool,
+    debug_resources: bool,
     github_repository: str,
+    image_tag: str | None,
+    parallelism: int,
+    python: str,
+    python_versions: str,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
+    chicken_egg_providers: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -742,6 +751,7 @@ def generate_constraints(
                 python=python,
                 github_repository=github_repository,
                 airflow_constraints_mode=airflow_constraints_mode,
+                chicken_egg_providers=chicken_egg_providers,
             )
             for python in python_version_list
         ]
@@ -762,6 +772,7 @@ def generate_constraints(
             skip_image_upgrade_check=True,
             quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
+            chicken_egg_providers=chicken_egg_providers,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,

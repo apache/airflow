@@ -524,7 +524,7 @@ aiobotocore = [
 s3fs = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned above
-    "s3fs>=2023.9.2",
+    "s3fs>=2023.10.0",
 ]
 
 saml = [

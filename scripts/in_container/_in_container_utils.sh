@@ -233,13 +233,26 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local packages_to_install=()
     local provider_package
     local res
+    local chicken_egg_prefixes
+    chicken_egg_prefixes=""
+    if [[ ${CHICKEN_EGG_PROVIDERS=} != "" ]]; then
+        echo "${COLOR_BLUE}Finding providers to install from dist: ${CHICKEN_EGG_PROVIDERS}${COLOR_RESET}"
+        for chicken_egg_provider in ${CHICKEN_EGG_PROVIDERS}
+        do
+            chicken_egg_prefixes="${chicken_egg_prefixes} apache-airflow-providers-${chicken_egg_provider//./-}"
+        done
+        echo "${COLOR_BLUE}Chicken egg prefixes: ${chicken_egg_prefixes}${COLOR_RESET}"
+        ls /dist/
+    fi
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
-        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
-        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
-        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
-        # the provider from PyPI
-        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
+        if [[ "${chicken_egg_prefixes}" == *"${provider_package}"* ]]; then
+            # add the provider prepared in dist folder where chicken - egg problem is mitigated
+            for file in /dist/"${provider_package//-/_}"*.whl
+            do
+                packages_to_install+=( "${file}" )
+                echo "Added ${file} from dist folder as this is a chicken-egg package ${COLOR_GREEN}OK${COLOR_RESET}"
+            done
             continue
         fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
