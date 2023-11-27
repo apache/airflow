@@ -1,0 +1,57 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: airflow-teradata-tests
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch
+jobs:
+  teradata-tests:
+    name: "Run Teradata Provider Unit and System tests"
+    runs-on: "ubuntu-22.04"
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+      - name: "Install Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: "Install required packages"
+        run: pip install --user "pipx>=1.2.1";pip install -U pytest;python -m pip install time-machine;pip install pytest-asyncio;pip install pytest-md-report;pip install cryptography;
+      - name: "Install airflow and teradata provider from sources"
+        run: INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]" --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-${{ matrix.python-version }}.txt      
+      - name: "Verifying Airflow version"
+        run: airflow version;      
+      - name: "Initialize airflow database"
+        run: airflow db migrate;
+      - name: "Run Unit tests"
+        run:   pytest --md-report --md-report-verbose=1  tests/providers/teradata/operators/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/hooks/test_teradata.py; pytest  --md-report --md-report-verbose=1  tests/providers/teradata/transfers/test_teradata_to_teradata.py;      
+      - name: "Run system tests"
+        run: export SYSTEM_TESTS_ENV_ID=teradatasystemtest; pytest --system=teradata  tests/system/providers/teradata/example_teradata.py;pytest --system=teradata  tests/system/providers/teradata/example_teradata_to_teradata_transfer.py;
