@@ -18,27 +18,28 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit
+
+initialize_breeze_precommit(__name__, __file__)
+
+res_setup = subprocess.run(["breeze", "k8s", "setup-env"], check=True)
+if res_setup.returncode != 0:
+    console.print("[red]\nError while setting up k8s environment.")
+    sys.exit(res_setup.returncode)
+
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
+HELM_BIN_PATH = AIRFLOW_SOURCES_DIR / ".build" / ".k8s-env" / "bin" / "helm"
 
-
-sys.path.insert(0, os.fspath(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-sys.path.insert(0, os.fspath(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
-sys.path.insert(
-    0, os.fspath(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src")
-)  # make sure setup is imported from Airflow
-
-if __name__ == "__main__":
-    from airflow_breeze.utils.kubernetes_utils import HELM_BIN_PATH, make_sure_kubernetes_tools_are_installed
-    from airflow_breeze.utils.run_utils import run_command
-
-    make_sure_kubernetes_tools_are_installed()
-
-    result = run_command(
-        [os.fspath(HELM_BIN_PATH), "lint", ".", "-f", "values.yaml"],
-        check=False,
-        cwd=AIRFLOW_SOURCES_DIR / "chart",
-    )
-    sys.exit(result.returncode)
+result = subprocess.run(
+    [os.fspath(HELM_BIN_PATH), "lint", ".", "-f", "values.yaml"],
+    check=False,
+    cwd=AIRFLOW_SOURCES_DIR / "chart",
+)
+if res_setup.returncode != 0:
+    console.print("[red]\nError while linting.")
+    sys.exit(res_setup.returncode)
