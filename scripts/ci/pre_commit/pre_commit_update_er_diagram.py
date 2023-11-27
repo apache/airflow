@@ -33,7 +33,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
     os.environ["SKIP_GROUP_OUTPUT"] = "true"
-    os.environ["SKIP_UPGRADE_CHECK"] = "true"
+    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
     from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_SELECTED
     from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.console import get_console

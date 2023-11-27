@@ -60,13 +60,13 @@ def in_help() -> bool:
     return "--help" in sys.argv or "-h" in sys.argv
 
 
-def skip_upgrade_check():
+def skip_breeze_self_upgrade_check():
     return (
         in_self_upgrade()
         or in_autocomplete()
         or in_help()
         or hasattr(sys, "_called_from_test")
-        or os.environ.get("SKIP_UPGRADE_CHECK")
+        or os.environ.get("SKIP_BREEZE_SELF_UPGRADE_CHECK")
     )
 
 
@@ -243,7 +243,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     if sources_root_from_env:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
-    if installation_airflow_sources is None and not skip_upgrade_check():
+    if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         get_console().print(
             "\n[error]Breeze should only be installed with -e flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
@@ -254,7 +254,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()
-    if not skip_upgrade_check():
+    if not skip_breeze_self_upgrade_check():
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()

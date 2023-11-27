@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 if __name__ == "__main__":
-    os.environ["SKIP_UPGRADE_CHECK"] = "true"
+    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
     sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
     from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip

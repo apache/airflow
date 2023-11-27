@@ -2804,7 +2804,7 @@ make sure to follow these steps:
 * choose ``module`` to run and set it to ``airflow_breeze.breeze`` - this is the entrypoint of breeze
 * add parameters you want to run breeze with (for example ``ci-image build`` if you want to debug
   how breeze builds the CI image
-* set ``SKIP_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
+* set ``SKIP_BREEZE_SELF_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for
