@@ -81,7 +81,6 @@ class Connection(Base, LoggingMixin):
     :param port: The port number.
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
-    :param uri: URI address describing connection parameters.
     """
 
     EXTRA_KEY = "__extra__"
@@ -126,6 +125,10 @@ class Connection(Base, LoggingMixin):
                 "You can't mix these two ways to create this object."
             )
         if uri:
+            warnings.warn(
+                "The `uri` parameter is deprecated.  Use class method `from_uri` instead.",
+                RemovedInAirflow3Warning,
+            )
             self._parse_from_uri(uri)
         else:
             self.conn_type = conn_type
@@ -189,6 +192,13 @@ class Connection(Base, LoggingMixin):
         elif "-" in conn_type:
             conn_type = conn_type.replace("-", "_")
         return conn_type
+
+    @classmethod
+    def from_uri(cls, *, uri: str, conn_id: str | None = None, description: str | None = None):
+        """Build Connection object from Airflow connection uri representation."""
+        c = cls(conn_id=conn_id, description=description)
+        c._parse_from_uri(uri=uri)
+        return c
 
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
@@ -458,7 +468,7 @@ class Connection(Base, LoggingMixin):
         # enabled only if SecretCache.init() has been called first
         try:
             uri = SecretCache.get_connection_uri(conn_id)
-            return Connection(conn_id=conn_id, uri=uri)
+            return Connection.from_uri(conn_id=conn_id, uri=uri)
         except SecretCache.NotPresentException:
             pass  # continue business
 

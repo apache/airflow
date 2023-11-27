@@ -225,7 +225,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         uri = response.get("conn_uri")
         if uri:
-            return Connection(conn_id, uri=uri)
+            return Connection.from_uri(conn_id=conn_id, uri=uri)
 
         return Connection(conn_id, **response)
 

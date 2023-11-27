@@ -248,7 +248,9 @@ def connections_add(args):
             )
 
     if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
+        new_conn = Connection.from_uri(
+            conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri
+        )
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
     elif args.conn_json:

@@ -190,7 +190,7 @@ def _create_connection(conn_id: str, value: Any):
     from airflow.models.connection import Connection
 
     if isinstance(value, str):
-        return Connection(conn_id=conn_id, uri=value)
+        return Connection.from_uri(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
         connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
         current_keys = set(value.keys())

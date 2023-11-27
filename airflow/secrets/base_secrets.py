@@ -67,7 +67,7 @@ class BaseSecretsBackend(ABC):
         if value[0] == "{":
             return Connection.from_json(conn_id=conn_id, value=value)
         else:
-            return Connection(conn_id=conn_id, uri=value)
+            return Connection.from_uri(conn_id=conn_id, uri=value)
 
     def get_conn_uri(self, conn_id: str) -> str | None:
         """

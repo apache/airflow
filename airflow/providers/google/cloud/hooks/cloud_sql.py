@@ -964,7 +964,7 @@ class CloudSQLDatabaseHook(BaseHook):
         proxy, TCP, UNIX sockets, SSL.
         """
         uri = self._generate_connection_uri()
-        connection = Connection(conn_id=self.db_conn_id, uri=uri)
+        connection = Connection.from_uri(conn_id=self.db_conn_id, uri=uri)
         self.log.info("Creating connection %s", self.db_conn_id)
         return connection
 
