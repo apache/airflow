@@ -35,7 +35,7 @@ os.environ["SKIP_GROUP_OUTPUT"] = "true"
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
-    os.environ["SKIP_UPGRADE_CHECK"] = "true"
+    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
     from common_precommit_utils import filter_out_providers_on_non_main_branch
 
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
