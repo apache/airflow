@@ -156,6 +156,7 @@ so coding will always be required.
     privacy_notice
     project
     license
+    developer/index
 
 .. toctree::
     :hidden:
