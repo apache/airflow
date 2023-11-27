@@ -17,44 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import os
+import subprocess
 import sys
 from pathlib import Path
 
-if __name__ == "__main__":
-    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
-    sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit
 
-    from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip
+initialize_breeze_precommit(__name__, __file__)
 
-    sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
-    sys.path.insert(
-        0, str(AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src")
-    )  # make sure setup is imported from Airflow
-
-    from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
-    from common_precommit_utils import insert_documentation
-
-    sys.path.append(str(AIRFLOW_SOURCES_ROOT_PATH))
-
-    MOUNTS_HEADER = (
-        "        # START automatically generated volumes from "
-        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
-    )
-    MOUNTS_FOOTER = (
-        "        # END automatically generated volumes from "
-        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
-    )
-
-    local_mount_file_path = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "local.yml"
-    PREFIX = "      "
-    volumes = []
-    for src, dest in VOLUMES_FOR_SELECTED_MOUNTS:
-        volumes.extend(
-            [
-                PREFIX + "- type: bind\n",
-                PREFIX + f"  source: ../../../{src}\n",
-                PREFIX + f"  target: {dest}\n",
-            ]
-        )
-    insert_documentation(local_mount_file_path, volumes, MOUNTS_HEADER, MOUNTS_FOOTER)
+res = subprocess.run(
+    ["breeze", "setup", "synchronize-local-mounts"],
+    check=False,
+)
+if res.returncode != 0:
+    console.print("\n[red]Error when running local mounts synchronization.\n")
