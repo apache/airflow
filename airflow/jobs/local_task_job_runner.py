@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -81,7 +82,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        task_instance: TaskInstance,  # TODO add TaskInstancePydantic
+        task_instance: TaskInstance | TaskInstancePydantic,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -284,7 +285,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
-                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                execution_time = (dagrun.end_date or timezone.utcnow()) - (
+                    dagrun.start_date or timezone.utcnow()
+                )
                 if ti.task.dag is not None:
                     dagrun_timeout = ti.task.dag.dagrun_timeout
                 else:

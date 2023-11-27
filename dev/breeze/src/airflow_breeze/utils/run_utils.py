@@ -22,11 +22,11 @@ import contextlib
 import os
 import re
 import shlex
+import shutil
 import signal
 import stat
 import subprocess
 import sys
-from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from typing import Mapping, Union
@@ -40,8 +40,11 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     WWW_ASSET_COMPILE_LOCK,
+    WWW_ASSET_HASH_FILE,
     WWW_ASSET_OUT_DEV_MODE_FILE,
     WWW_ASSET_OUT_FILE,
+    WWW_NODE_MODULES_DIR,
+    WWW_STATIC_DIST_DIR,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -51,7 +54,7 @@ OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: list[str],
+    cmd: list[str] | str,
     title: str | None = None,
     *,
     check: bool = True,
@@ -116,7 +119,7 @@ def run_command(
     if not title:
         shortened_command = [
             shorten_command(index, argument)
-            for index, argument in enumerate(cmd)
+            for index, argument in enumerate(cmd if isinstance(cmd, list) else shlex.split(cmd))
             if not exclude_command(index, argument)
         ]
         # Heuristics to get a (possibly) short but explanatory title showing what the command does
@@ -131,7 +134,7 @@ def run_command(
         if "capture_output" not in kwargs or not kwargs["capture_output"]:
             kwargs["stdout"] = output.file
             kwargs["stderr"] = subprocess.STDOUT
-    command_to_print = " ".join(shlex.quote(c) for c in cmd)
+    command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
     if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
@@ -148,7 +151,7 @@ def run_command(
         if get_dry_run(dry_run_override):
             return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
-            if output_outside_the_group:
+            if output_outside_the_group and os.environ.get("GITHUB_ACTIONS") == "true":
                 get_console().print("::endgroup::")
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
         except subprocess.CalledProcessError as ex:
@@ -172,6 +175,8 @@ def run_command(
                 get_console(output=output).print(
                     "[error]========================= STDERR end ==============================[/]"
                 )
+            if check:
+                raise
             return ex
 
 
@@ -200,6 +205,7 @@ def assert_pre_commit_installed():
     """
     # Local import to make autocomplete work
     import yaml
+    from packaging.version import Version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
@@ -215,7 +221,7 @@ def assert_pre_commit_installed():
     if command_result.returncode == 0:
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
-            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
+            if Version(pre_commit_version) >= Version(min_pre_commit_version):
                 get_console().print(
                     f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
@@ -244,7 +250,10 @@ def get_filesystem_type(filepath: str):
     :return: type of filesystem
     """
     # We import it locally so that click autocomplete works
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
@@ -446,10 +455,21 @@ def kill_process_group(gid: int):
         pass
 
 
+def clean_www_assets():
+    get_console().print("[info]Cleaning www assets[/]")
+    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
+    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
+    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
+    get_console().print("[success]Cleaned www assets[/]")
+
+
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
+    force_clean: bool,
 ):
+    if force_clean:
+        clean_www_assets()
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
         get_console().print(

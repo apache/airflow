@@ -17,34 +17,35 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip  # noqa: E402
-
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
-sys.path.insert(
-    0, str(AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src")
-)  # make sure setup is imported from Airflow
-# flake8: noqa: F401
-from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS  # isort: skip  # noqa: E402
-
-from common_precommit_utils import insert_documentation  # isort: skip # noqa: E402
-
-sys.path.append(str(AIRFLOW_SOURCES_ROOT_PATH))
-
-MOUNTS_HEADER = (
-    "        # START automatically generated volumes from "
-    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
-)
-MOUNTS_FOOTER = (
-    "        # END automatically generated volumes from "
-    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
-)
-
 if __name__ == "__main__":
+    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
+    sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+
+    from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip
+
+    sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
+    sys.path.insert(
+        0, str(AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src")
+    )  # make sure setup is imported from Airflow
+
+    from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
+    from common_precommit_utils import insert_documentation
+
+    sys.path.append(str(AIRFLOW_SOURCES_ROOT_PATH))
+
+    MOUNTS_HEADER = (
+        "        # START automatically generated volumes from "
+        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
+    )
+    MOUNTS_FOOTER = (
+        "        # END automatically generated volumes from "
+        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
+    )
+
     local_mount_file_path = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "local.yml"
     PREFIX = "      "
     volumes = []

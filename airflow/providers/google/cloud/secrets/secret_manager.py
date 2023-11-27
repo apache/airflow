@@ -28,7 +28,6 @@ from airflow.providers.google.cloud._internal_client.secret_manager_client impor
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
 
@@ -154,13 +153,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= (2, 3):
-            warnings.warn(
-                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-                "in a future release.  Please use method `get_conn_value` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+            "in a future release.  Please use method `get_conn_value` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:

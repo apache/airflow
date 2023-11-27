@@ -48,6 +48,11 @@ from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataF
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -152,6 +157,7 @@ class AzureDataFactoryHook(BaseHook):
     hook_name: str = "Azure Data Factory"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -205,7 +211,12 @@ class AzureDataFactoryHook(BaseHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = get_field(extras, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
@@ -1140,7 +1151,12 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = AsyncDefaultAzureCredential()
+            managed_identity_client_id = get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = get_field(extras, "workload_identity_tenant_id")
+            credential = get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         self._async_conn = AsyncDataFactoryManagementClient(
             credential=credential,

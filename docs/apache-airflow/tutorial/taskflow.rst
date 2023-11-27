@@ -465,7 +465,8 @@ In the above code block, a new TaskFlow function is defined as ``extract_from_fi
 reads the data from a known file location.
 In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
 that this is a Sensor task which waits for the file.
-Finally, a dependency between this Sensor task and the TaskFlow function is specified.
+The TaskFlow function call is put in a variable ``order_data``.
+Finally, a dependency between this Sensor task and the TaskFlow function is specified using the variable.
 
 
 Consuming XComs between decorated and traditional tasks
@@ -497,13 +498,13 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     Using the ``.output`` property as an input to another task is supported only for operator parameters
     listed as a ``template_field``.
 
-In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
+In the code example below, a :class:`~airflow.providers.http.operators.http.HttpOperator` result
 is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
 
-    get_api_results_task = SimpleHttpOperator(
+    get_api_results_task = HttpOperator(
         task_id="get_api_results",
         endpoint="/api/query",
         do_xcom_push=True,

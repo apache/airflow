@@ -74,8 +74,22 @@ See the section below for more details on suspending releases of the community p
 
 List of all available community providers is available at the `Providers index <https://airflow.apache.org/docs/>`_.
 
+
+Community providers lifecycle
+=============================
+
+This document describes the complete life-cycle of community providers - from inception and approval to
+Airflow main branch to being decommissioned and removed from the main branch in Airflow repository.
+
+.. note::
+
+   Technical details on how to manage lifecycle of providers are described in the document:
+
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANGING_PROVIDERS_LIFECYCLE.rst>`_
+
+
 Accepting new community providers
-=================================
+---------------------------------
 
 Accepting new community providers should be a deliberate process that requires ``[DISCUSSION]``
 followed by ``[VOTE]`` thread at the airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
@@ -109,8 +123,18 @@ the community. Also it is often easier to advertise and promote usage of the pro
 themselves when they own, manage and release their provider, especially when they can synchronize releases
 of their provider with new feature, the service might get added.
 
-Minimum supported version of Airflow for Community managed providers
-====================================================================
+Community providers release process
+-----------------------------------
+
+The community providers are released regularly (usually every 2 weeks) in batches consisting of any providers
+that need to be released because they changed since last release. The release manager decides which providers
+to include and whether some or all providers should be released (see the next chapter about upgrading the
+minimum version of Airflow for example the case where we release all active meaning non-suspended providers,
+together in a single batch). Also Release Manager decides on the version bump of the provider (depending on
+classification, whether there are breaking changes, new features or just bugs comparing to previous version).
+
+Upgrading Minimum supported version of Airflow
+----------------------------------------------
 
 One of the important limitations of the Providers released by the community is that we introduce the limit
 of a minimum supported version of Airflow. The minimum version of Airflow is the ``MINOR`` version (2.4, 2.5 etc.)
@@ -134,10 +158,13 @@ provider when we increase minimum Airflow version.
 Increasing the minimum version ot the Providers is one of the reasons why 3rd-party provider maintainers
 might want to maintain their own providers - as they can decide to support older versions of Airflow.
 
-3rd-party providers
-===================
+3rd-parties relation to community providers
+-------------------------------------------
 
-Providers, can (and it is recommended for 3rd-party providers) also be maintained and releases by 3rd parties.
+Providers, can (and it is recommended for 3rd-party services) also be maintained and released by 3rd parties,
+but for multiple reasons we might decide to keep those providers as community managed providers - mostly
+due to prevalence and popularity of the 3rd-party services and use cases they serve among our community. There
+are however certain conditions and expectations we have in order.
 
 There is no difference between the community and 3rd party providers - they have all the same capabilities
 and limitations. The consensus in the Airflow community is that usually it is better for the community and
@@ -166,8 +193,8 @@ for the historical providers that are managed by the community, and current set 
 found at the
 `Ecosystem: system test dashboards <https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards>`_
 
-Mixed governance model
-======================
+Mixed governance model for 3rd-party related community providers
+----------------------------------------------------------------
 
 Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
 compatibilities in their integrations (for example cloud providers, or specific service providers). But,
@@ -219,7 +246,7 @@ The availability of stakeholder that can manage "service-oriented" maintenance a
 responsibility, will also drive our willingness to accept future, new providers to become community managed.
 
 Suspending releases for providers
-=================================
+---------------------------------
 
 In case a provider is found to require old dependencies that are not compatible with upcoming versions of
 the Apache Airflow or with newer dependencies required by other providers, the provider's release
@@ -251,3 +278,51 @@ The suspension may be triggered by any committer after the following criteria ar
 
 The suspension will be lifted when the dependencies of the provider are made compatible with the Apache
 Airflow and with other providers - by merging a PR that removes the suspension and succeeds.
+
+Removing community providers
+----------------------------
+
+The providers can be removed from main branch of Airflow when the community agrees that there should be no
+more updates to the providers done by the community - except maybe potentially security fixes found. There
+might be various reasons for the providers to be removed:
+
+* the service they connect to is no longer available
+* the dependencies for the provider are not maintained anymore and there is no viable alternative
+* there is another, more popular provider that supersedes community provider
+* etc. etc.
+
+Each case of removing provider should be discussed individually and separate ``[VOTE]`` thread should start,
+where regular rules for code modification apply (following the
+`Apache Software Foundation voting rules <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_).
+In cases where the reasons for removal are ``obvious``, and discussed before, also ``[LAZY CONSENSUS]`` thread
+can be started. Generally speaking a discussion thread ``[DISCUSS]`` is advised before such removal and
+sufficient time should pass (at least a week) to give a chance for community members to express their
+opinion on the removal.
+
+There are the following consequences (or lack of them) of removing the provider:
+
+* One last release of the provider is done with documentation updated informing that the provider is no
+  longer maintained by the Apache Airflow community - linking to this page. This information should also
+  find its way to the package documentation and consequently - to the description of the package in PyPI.
+* An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
+* The released provider packages remain available on PyPI and in the
+   `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
+   Software Foundation, while they are removed from the
+   `Downloads <https://downloads.apache.org/airflow/providers/>`_ .
+   Also it remains in the Index of the Apache Airflow Providers documentation at
+   `Airflow Documentation <https://airflow.apache.org/docs/>`_ with note ``(not maintained)`` next to it.
+* The code of the provider is removed from ``main`` branch of the Apache Airflow repository - including
+  the tests and documentation. It is no longer built in CI and dependencies of the provider no longer
+  contribute to the CI image/constraints of Apache Airflow for development and future ``MINOR`` release.
+* The provider is removed from the list of Apache Airflow extras in the next ``MINOR`` Airflow release
+* The dependencies of the provider are removed from the constraints of the Apache Airflow
+  (and the constraints are updated in the next ``MINOR`` release of Airflow)
+* In case of confirmed security issues that need fixing that are reported to the provider after it has been
+  removed, there are two options:
+  * in case there is a viable alternative or in case the provider is anyhow not useful to be installed, we
+    might issue advisory to the users to remove the provider (and use alternatives if applicable)
+  * in case the users might still need the provider, we still might decide to release new version of the
+    provider with security issue fixed, starting from the source code in Git history where the provider was
+    last released. This however, should only be done in case there are no viable alternatives for the users.
+* Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
+  of accepting new provider described above.

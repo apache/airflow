@@ -138,6 +138,7 @@ def instruction_update_version_branch(version_branch):
 def create_constraints(version_branch):
     if confirm_action("Do you want to create branches from the constraints main?"):
         run_command(["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True)
+        run_command(["git", "pull", "origin", "constraints-main"], dry_run_override=DRY_RUN, check=True)
         run_command(
             ["git", "checkout", "-b", f"constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
         )

@@ -60,10 +60,6 @@ def verify_all_commands_described_in_docs():
 
 
 def is_regeneration_needed() -> bool:
-    env = os.environ.copy()
-    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
-    # needed to keep consistent output
-    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
     return_code = call(
         [
             sys.executable,
@@ -72,12 +68,15 @@ def is_regeneration_needed() -> bool:
             "regenerate-command-images",
             "--check-only",
         ],
-        env=env,
     )
     return return_code != 0
 
 
 if __name__ == "__main__":
+    os.environ["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
+    # needed to keep consistent output
+    os.environ["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
+    os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
     return_code = 0
     verify_all_commands_described_in_docs()
     if is_regeneration_needed():
@@ -92,7 +91,7 @@ if __name__ == "__main__":
                 "\n[bright_blue]Some of the commands changed since last time images were generated.\n"
             )
             console.print("\n[yellow]You should install it and run those commands manually:\n")
-            console.print("\n[magenta]breeze setup regenerate-command images\n")
+            console.print("\n[magenta]breeze setup regenerate-command-images\n")
             console.print("\n[magenta]breeze setup check-all-params-in-groups\n")
             sys.exit(return_code)
         res = subprocess.run(
@@ -103,7 +102,7 @@ if __name__ == "__main__":
             console.print("\n[red]Breeze command configuration has changed.\n")
             console.print("\n[bright_blue]Images have been regenerated.\n")
             console.print("\n[bright_blue]You might want to run it manually:\n")
-            console.print("\n[magenta]]breeze setup regenerate-command images\n")
+            console.print("\n[magenta]breeze setup regenerate-command-images\n")
     res = subprocess.run(
         ["breeze", "setup", "check-all-params-in-groups"],
         check=False,

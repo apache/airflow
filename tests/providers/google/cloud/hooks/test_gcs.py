@@ -299,7 +299,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
 
         # Then
@@ -318,7 +320,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
         # Then
         assert not response

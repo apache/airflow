@@ -35,6 +35,7 @@
     :caption: Guides
 
     Operators <operators/index>
+    Notifications <notifications/index>
 
 .. toctree::
     :hidden:
@@ -76,7 +77,7 @@ Package apache-airflow-providers-opsgenie
 `Opsgenie <https://www.opsgenie.com/>`__
 
 
-Release: 5.2.0
+Release: 5.3.0
 
 Provider package
 ----------------

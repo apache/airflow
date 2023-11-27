@@ -25,7 +25,6 @@ import os
 from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from googleapiclient import discovery
 
@@ -41,9 +40,6 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLExecuteQueryOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-if TYPE_CHECKING:
-    from airflow.settings import Session
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
@@ -208,10 +204,11 @@ with DAG(
             for ip_item in response.get("ipAddresses", []):
                 if ip_item["type"] == "PRIMARY":
                     return ip_item["ipAddress"]
+            return None
 
     @task
     def create_connection(connection_id: str, connection_kwargs: dict, use_public_ip: bool, **kwargs) -> None:
-        session: Session = settings.Session()
+        session = settings.Session()
         if session.query(Connection).filter(Connection.conn_id == connection_id).first():
             log.warning("Connection '%s' already exists", connection_id)
             return None

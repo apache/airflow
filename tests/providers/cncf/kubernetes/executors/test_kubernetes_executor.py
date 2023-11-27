@@ -1022,17 +1022,9 @@ class TestKubernetesExecutor:
 
         ti.refresh_from_db()
         assert ti.state == State.SCHEDULED
-        assert mock_kube_client.list_namespaced_pod.call_count == 2
-        mock_kube_client.list_namespaced_pod.assert_any_call(
-            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
-        )
-        # also check that we fall back to execution_date if we didn't find the pod with run_id
-        execution_date_label = pod_generator.datetime_to_label_safe_datestring(ti.execution_date)
+        assert mock_kube_client.list_namespaced_pod.call_count == 1
         mock_kube_client.list_namespaced_pod.assert_called_with(
-            namespace="default",
-            label_selector=(
-                f"dag_id=test_clear,task_id=task1,airflow-worker=1,execution_date={execution_date_label}"
-            ),
+            namespace="default", label_selector="airflow-worker=1"
         )
 
     @pytest.mark.db_test
@@ -1049,7 +1041,22 @@ class TestKubernetesExecutor:
     ):
         """Leave the state alone if a pod already exists"""
         mock_kube_client = mock.MagicMock()
-        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=["something"])
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_clear",
+                            "task_id": "task1",
+                            "airflow-worker": 1,
+                            "run_id": "test",
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
 
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
@@ -1069,7 +1076,7 @@ class TestKubernetesExecutor:
         ti.refresh_from_db()
         assert ti.state == State.QUEUED
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+            namespace="default", label_selector="airflow-worker=1"
         )
 
     @pytest.mark.db_test
@@ -1077,10 +1084,23 @@ class TestKubernetesExecutor:
         """One mapped task has a launched pod - other does not."""
 
         def list_namespaced_pod(*args, **kwargs):
-            if "map_index=0" in kwargs["label_selector"]:
-                return k8s.V1PodList(items=["something"])
-            else:
-                return k8s.V1PodList(items=[])
+            return k8s.V1PodList(
+                items=[
+                    k8s.V1Pod(
+                        metadata=k8s.V1ObjectMeta(
+                            labels={
+                                "role": "airflow-worker",
+                                "dag_id": "test_clear",
+                                "task_id": "bash",
+                                "airflow-worker": 1,
+                                "map_index": 0,
+                                "run_id": "test",
+                            },
+                        ),
+                        status=k8s.V1PodStatus(phase="Pending"),
+                    )
+                ]
+            )
 
         mock_kube_client = mock.MagicMock()
         mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
@@ -1109,25 +1129,10 @@ class TestKubernetesExecutor:
         assert ti0.state == State.QUEUED
         assert ti1.state == State.SCHEDULED
 
-        assert mock_kube_client.list_namespaced_pod.call_count == 3
-        execution_date_label = pod_generator.datetime_to_label_safe_datestring(dag_run.execution_date)
-        mock_kube_client.list_namespaced_pod.assert_has_calls(
-            [
-                mock.call(
-                    namespace="default",
-                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=0,run_id=test",
-                ),
-                mock.call(
-                    namespace="default",
-                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,run_id=test",
-                ),
-                mock.call(
-                    namespace="default",
-                    label_selector=f"dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,"
-                    f"execution_date={execution_date_label}",
-                ),
-            ],
-            any_order=True,
+        assert mock_kube_client.list_namespaced_pod.call_count == 1
+        mock_kube_client.list_namespaced_pod.assert_called_with(
+            namespace="default",
+            label_selector="airflow-worker=1",
         )
 
     @pytest.mark.db_test
@@ -1238,16 +1243,18 @@ class TestKubernetesExecutor:
             "try_number": "1",
         }
         get_logs_task_metadata.cache_clear()
-        with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
-            expected_annotations = {
-                "dag_id": "dag",
-                "run_id": "run_id",
-                "task_id": "task",
-                "try_number": "1",
-            }
-            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
-            assert annotations_actual == expected_annotations
-        get_logs_task_metadata.cache_clear()
+        try:
+            with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
+                expected_annotations = {
+                    "dag_id": "dag",
+                    "run_id": "run_id",
+                    "task_id": "task",
+                    "try_number": "1",
+                }
+                annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+                assert annotations_actual == expected_annotations
+        finally:
+            get_logs_task_metadata.cache_clear()
 
     def test_annotations_for_logging_task_metadata_fallback(self):
         annotations_test = {
@@ -1257,11 +1264,13 @@ class TestKubernetesExecutor:
             "try_number": "1",
         }
         get_logs_task_metadata.cache_clear()
-        with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
-            expected_annotations = "<omitted>"
-            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
-            assert annotations_actual == expected_annotations
-        get_logs_task_metadata.cache_clear()
+        try:
+            with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
+                expected_annotations = "<omitted>"
+                annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+                assert annotations_actual == expected_annotations
+        finally:
+            get_logs_task_metadata.cache_clear()
 
 
 class TestKubernetesJobWatcher:

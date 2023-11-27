@@ -60,6 +60,8 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
+  - name: AIRFLOW_HOME
+    value: {{ .Values.airflowHome }}
   # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
@@ -248,7 +250,7 @@ If release name contains chart name it will be used as a full name.
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
+  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
   volumeMounts:
   - name: dags
     mountPath: /git

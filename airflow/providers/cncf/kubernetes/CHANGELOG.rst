@@ -27,6 +27,61 @@
 Changelog
 ---------
 
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add annotations field into  in KubernetesPodOperator (#35641)``
+* ``Add custom_resource_definition to KubernetesResourceBaseOperator (#35600)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert Remove PodLoggingStatus object #35422 (#35822)``
+* ``Fix K8S executor override config using pod_override_object (#35185)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+
+Misc
+~~~~
+
+* ``Remove inconsequential code bits in KPO logging (#35416)``
+* ``Remove non existing params from 'KubernetesResourceBaseOperator' docstring``
+* ``KubernetesExecutor observability Improvements (#35579)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add bandit to pre-commit to detect common security issues (#34247)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add verificationy that provider docs are as expected (#35424)``
+* ``Add startup_check_interval_seconds to PodManager's await_pod_start (#34231)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove before_log in KPO retry and add traceback when interrupted (#35423)``
+* ``Remove tenancity on KPO logs inner func consume_logs (#35504)``
+
+Misc
+~~~~
+
+* ``Simplify KPO multi container log reconciliation logic (#35450)``
+* ``Remove PodLoggingStatus object (#35422)``
+* ``Improve clear_not_launched_queued_tasks call duration (#34985)``
+* ``Use constant for empty xcom result sentinel (#35451)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
 7.8.0
 .....
 

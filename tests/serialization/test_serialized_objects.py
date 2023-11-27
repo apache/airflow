@@ -36,7 +36,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.serialization.enums import DagAttributeTypes as DAT
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.job import JobPydantic
@@ -211,6 +211,27 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     serialized = BaseSerialization.serialize(obj)  # does not raise
     # Verify the result is JSON-serializable
     json.dumps(serialized)  # does not raise
+
+
+@pytest.mark.parametrize(
+    "conn_uri",
+    [
+        pytest.param("aws://", id="only-conn-type"),
+        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
+            "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
+            id="extra",
+        ),
+    ],
+)
+def test_backcompat_deserialize_connection(conn_uri):
+    """Test deserialize connection which serialised by previous serializer implementation."""
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    deserialized = BaseSerialization.deserialize(conn_obj)
+    assert deserialized.get_uri() == conn_uri
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")

@@ -21,7 +21,8 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import attr
 
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.xcom import XCom
 
 if TYPE_CHECKING:

@@ -120,9 +120,7 @@ class TestDataPipelineHook:
         Test that run_data_pipeline is called with correct parameters and
         calls Google Data Pipelines API
         """
-        mock_request = (
-            mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
-        )
+        mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
         mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
 
         result = self.datapipeline_hook.run_data_pipeline(

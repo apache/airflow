@@ -38,9 +38,9 @@ class ChimeNotifier(BaseNotifier):
     """
     Chime notifier to send messages to a chime room via callbacks.
 
-    :param: chime_conn_id: The chime connection to use with Endpoint as "https://hooks.chime.aws" and
-                           the webhook token in the form of ```{webhook.id}?token{webhook.token}```
-    :param: message: The message to send to the chime room associated with the webhook.
+    :param chime_conn_id: The chime connection to use with Endpoint as "https://hooks.chime.aws" and
+        the webhook token in the form of ```{webhook.id}?token{webhook.token}```
+    :param message: The message to send to the chime room associated with the webhook.
 
     """
 

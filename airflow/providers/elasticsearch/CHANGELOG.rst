@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Extend task context logging support for remote logging using Elasticsearch (#32977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update es read query to not use body (#34792)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+
+Misc
+~~~~
+
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Use None instead of empty data structures when no ElasticSearch logs (#34793)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
 5.1.0
 .....
 

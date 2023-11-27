@@ -771,7 +771,7 @@ ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
 )
 ARG_INTERNAL_API_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default="0.0.0.0",
+    default="0.0.0.0",  # nosec
     help="Set the hostname on which to run the web server",
 )
 ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(

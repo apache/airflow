@@ -168,9 +168,7 @@ class TestCeleryExecutor:
             "airflow.providers.celery.executors.celery_executor_utils._execute_in_subprocess"
         ) as mock_subproc, mock.patch(
             "airflow.providers.celery.executors.celery_executor_utils._execute_in_fork"
-        ) as mock_fork, mock.patch(
-            "celery.app.task.Task.request"
-        ) as mock_task:
+        ) as mock_fork, mock.patch("celery.app.task.Task.request") as mock_task:
             mock_task.id = "abcdef-124215-abcdef"
             with expected_context:
                 celery_executor_utils.execute_command(command)

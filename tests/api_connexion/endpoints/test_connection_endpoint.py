@@ -23,6 +23,7 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -619,6 +620,12 @@ class TestConnection(TestConnectionEndpoint):
             "status": True,
             "message": "Connection successfully tested",
         }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_connection_env_is_cleaned_after_run(self):
+        payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
+        self.client.post("/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"})
+        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_post_should_respond_400_for_invalid_payload(self):

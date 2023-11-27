@@ -240,7 +240,7 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
                     content_type="text/plain",
                 ),
             ],

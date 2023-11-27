@@ -22,7 +22,10 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 suspended: false
+source-date-epoch: 1700827450
 versions:
+  - 7.10.0
+  - 7.9.0
   - 7.8.0
   - 7.7.0
   - 7.6.0
@@ -342,3 +345,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

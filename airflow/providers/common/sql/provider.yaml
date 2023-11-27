@@ -22,7 +22,9 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 suspended: false
+source-date-epoch: 1700827452
 versions:
+  - 1.8.1
   - 1.8.0
   - 1.7.2
   - 1.7.1
