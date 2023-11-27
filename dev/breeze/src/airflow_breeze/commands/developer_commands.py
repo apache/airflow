@@ -85,6 +85,7 @@ from airflow_breeze.utils.common_options import (
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
+    option_warn_image_upgrade_needed,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
@@ -203,6 +204,7 @@ class TimerThread(threading.Thread):
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
+@option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
@@ -248,6 +250,7 @@ def shell(
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
     verbose_commands: bool,
+    warn_image_upgrade_needed: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
@@ -298,6 +301,7 @@ def shell(
         use_packages_from_dist=use_packages_from_dist,
         verbose_commands=verbose_commands,
         restart=restart,
+        warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     fix_ownership_using_docker()
     sys.exit(result.returncode)
@@ -693,7 +697,7 @@ def static_checks(
         text=True,
         env=env,
     )
-    if not os.environ.get("SKIP_IMAGE_PRE_COMMITS"):
+    if not os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
         fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):

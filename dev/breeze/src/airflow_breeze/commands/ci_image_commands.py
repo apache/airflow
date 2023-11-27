@@ -132,8 +132,6 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     )
     if result.returncode != 0:
         return True
-    if ci_image_params.skip_image_upgrade_check:
-        return False
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
@@ -638,6 +636,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     from inputimeout import TimeoutOccurred
 
     if not md5sum_check_if_build_is_needed(
+        build_ci_params=build_ci_params,
         md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
         skip_provider_dependencies_check=build_ci_params.skip_provider_dependencies_check,
     ):
@@ -808,6 +807,8 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         platform=command_params.platform,
         force_build=command_params.force_build,
         skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
+        skip_image_upgrade_check=command_params.skip_image_upgrade_check,
+        warn_image_upgrade_needed=command_params.warn_image_upgrade_needed,
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

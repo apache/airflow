@@ -94,6 +94,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--quiet",
                 "--skip-image-upgrade-check",
+                "--warn-image-upgrade-needed",
                 "--skip-environment-initialization",
                 "--tty",
             ],

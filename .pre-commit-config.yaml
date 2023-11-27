@@ -429,6 +429,7 @@ repos:
         language: python
         files: ^docs
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -1070,5 +1071,5 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
