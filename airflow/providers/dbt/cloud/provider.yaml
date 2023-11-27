@@ -19,11 +19,12 @@
 package-name: apache-airflow-providers-dbt-cloud
 name: dbt Cloud
 description: |
-    `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
+    `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 suspended: false
-source-date-epoch: 1700148061
+source-date-epoch: 1700827456
 versions:
+  - 3.4.1
   - 3.4.0
   - 3.3.0
   - 3.2.3

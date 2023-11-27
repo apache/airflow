@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-airbyte
 name: Airbyte
 description: |
-  `Airbyte <https://airbyte.io/>`__
+  `Airbyte <https://airbyte.com/>`__
 
 suspended: false
-source-date-epoch: 1700148043
+source-date-epoch: 1700827428
 versions:
   - 3.4.0
   - 3.3.2
@@ -46,7 +46,7 @@ dependencies:
 
 integrations:
   - integration-name: Airbyte
-    external-doc-url: https://www.airbyte.io/
+    external-doc-url: https://airbyte.com/
     logo: /integration-logos/airbyte/Airbyte.png
     how-to-guide:
       - /docs/apache-airflow-providers-airbyte/operators/airbyte.rst

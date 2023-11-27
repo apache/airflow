@@ -97,7 +97,6 @@ from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     fix_ownership_using_docker,
-    get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
@@ -149,15 +148,15 @@ option_debug_release_management = click.option(
 
 
 def run_docker_command_with_debug(
-    params: ShellParams,
+    shell_params: ShellParams,
     command: list[str],
     debug: bool,
     enable_input: bool = False,
     output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
-    env_variables = get_env_variables_for_docker_commands(params)
-    extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
+    env = shell_params.env_variables_for_docker_commands
+    extra_docker_flags = get_extra_docker_flags(mount_sources=shell_params.mount_sources)
     if enable_input or debug:
         term_flag = "-it"
     else:
@@ -169,7 +168,7 @@ def run_docker_command_with_debug(
         *extra_docker_flags,
         "--pull",
         "never",
-        params.airflow_image_name_with_tag,
+        shell_params.airflow_image_name_with_tag,
     ]
     if debug:
         cmd_string = " ".join([shlex.quote(s) for s in command if s != "-c"])
@@ -187,16 +186,16 @@ echo -e '\\e[34mRun this command to debug:
         )
         return run_command(
             base_command,
-            env=env_variables,
             output_outside_the_group=output_outside_the_group,
+            env=env,
             **kwargs,
         )
     else:
         base_command.extend(command)
         return run_command(
             base_command,
-            env=env_variables,
             check=False,
+            env=env,
             output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
@@ -610,7 +609,7 @@ def run_generate_constraints(
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
     generate_constraints_result = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output=output,
@@ -760,6 +759,8 @@ def generate_constraints(
             python=python,
             github_repository=github_repository,
             skip_environment_initialization=True,
+            skip_image_upgrade_check=True,
+            quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
         )
         return_code, info = run_generate_constraints(
@@ -825,7 +826,7 @@ def _run_command_for_providers(
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
     result_command = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=False,
         output=output,
@@ -957,7 +958,7 @@ def install_provider_packages(
         )
     else:
         result_command = run_docker_command_with_debug(
-            params=shell_params,
+            shell_params=shell_params,
             command=cmd_to_run,
             debug=debug,
             output_outside_the_group=True,
@@ -999,6 +1000,8 @@ def verify_provider_packages(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        backend="sqlite",
+        executor="SequentialExecutor",
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1015,7 +1018,7 @@ def verify_provider_packages(
         "python /opt/airflow/scripts/in_container/verify_providers.py",
     ]
     result_command = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output_outside_the_group=True,

@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-microsoft-winrm
 name: Windows Remote Management (WinRM)
 description: |
-  `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
+  `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 suspended: false
-source-date-epoch: 1700148073
+source-date-epoch: 1700827477
 versions:
   - 3.3.0
   - 3.2.2

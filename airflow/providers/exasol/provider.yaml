@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-exasol
 name: Exasol
 description: |
-    `Exasol <https://docs.exasol.com/home.htm>`__
+    `Exasol <https://www.exasol.com/>`__
 
 suspended: false
-source-date-epoch: 1700148064
+source-date-epoch: 1700827461
 versions:
   - 4.3.0
   - 4.2.5

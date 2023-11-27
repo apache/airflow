@@ -73,7 +73,7 @@
 Package apache-airflow-providers-opensearch
 ------------------------------------------------------
 
-`Opensearch <https://opensearch.org/>`__
+`OpenSearch <https://opensearch.org/>`__
 
 
 Release: 1.0.0

@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-presto
 name: Presto
 description: |
-    `Presto <https://prestodb.github.io/>`__
+    `Presto <https://prestodb.io/>`__
 
 suspended: false
-source-date-epoch: 1700148082
+source-date-epoch: 1700827490
 versions:
   - 5.2.1
   - 5.2.0
@@ -59,7 +59,7 @@ dependencies:
 
 integrations:
   - integration-name: Presto
-    external-doc-url: http://prestodb.github.io/
+    external-doc-url: https://prestodb.io/
     logo: /integration-logos/presto/PrestoDB.png
     tags: [software]
 

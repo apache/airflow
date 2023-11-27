@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.8.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor docker operator attribute validations and docs (#35571)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
 3.8.1
 .....
 

@@ -21,7 +21,7 @@ name: Yandex
 description: |
     Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 suspended: false
-source-date-epoch: 1700148093
+source-date-epoch: 1700827507
 versions:
   - 3.6.0
   - 3.5.0

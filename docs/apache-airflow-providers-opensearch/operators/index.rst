@@ -18,7 +18,7 @@
 
 
 
-Open Search Operators
+OpenSearch Operators
 ======================
 
 
