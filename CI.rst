@@ -535,7 +535,7 @@ Depending whether the scripts are run locally via `Breeze <BREEZE.rst>`_ or whet
 are run in ``Build Images`` or ``Tests`` workflows they can take different values.
 
 You can use those variables when you try to reproduce the build locally (alternatively you can pass
-those via command line flags passed to ``breeze`` command.
+those via corresponding command line flags passed to ``breeze shell`` command.
 
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | Variable                                | Local       | Build Images | CI         | Comment                                         |
