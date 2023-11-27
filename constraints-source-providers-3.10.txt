@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-27T09:12:19Z
+# This constraints file was automatically generated on 2023-11-27T19:33:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -10,7 +10,7 @@
 #
 Authlib==1.2.1
 Babel==2.13.1
-ConfigUpdater==3.1.1
+ConfigUpdater==3.2
 Deprecated==1.2.14
 Flask-AppBuilder==4.3.9
 Flask-Babel==2.0.0
@@ -141,7 +141,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.36
+cohere==4.37
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.0
@@ -182,7 +182,7 @@ exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
 facebook-business==18.0.4
-fastavro==1.8.2
+fastavro==1.9.0
 fasteners==0.19
 fastjsonschema==2.19.0
 filelock==3.13.1
@@ -279,8 +279,8 @@ inflection==0.5.1
 influxdb-client==1.38.0
 iniconfig==2.0.0
 ipdb==0.13.13
-ipykernel==6.26.0
-ipython==8.18.0
+ipykernel==6.27.1
+ipython==8.18.1
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.3.0
@@ -556,7 +556,7 @@ toolz==0.12.0
 tornado==6.3.3
 towncrier==23.11.0
 tqdm==4.66.1
-traitlets==5.13.0
+traitlets==5.14.0
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
