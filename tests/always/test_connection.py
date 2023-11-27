@@ -589,6 +589,8 @@ class TestConnection:
         """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
         json_val = json.dumps(dict(password=val))
         assert Connection.from_json(json_val).password == expected
+        if expected:
+            self.mask_secret.assert_called_once_with(expected)
 
     @mock.patch.dict(
         "os.environ",

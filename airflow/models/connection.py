@@ -138,9 +138,11 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+
         if self.extra:
             self._validate_extra(self.extra, self.conn_id)
 
+    def _mask_secrets(self):
         if self.password:
             mask_secret(self.password)
 
@@ -174,8 +176,7 @@ class Connection(Base, LoggingMixin):
 
     @reconstructor
     def on_db_load(self):
-        if self.password:
-            mask_secret(self.password)
+        self._mask_secrets()
 
     def parse_from_uri(self, **uri):
         """Use uri parameter in constructor, this method is deprecated."""
@@ -198,6 +199,7 @@ class Connection(Base, LoggingMixin):
         """Build Connection object from Airflow connection uri representation."""
         c = cls(conn_id=conn_id, description=description)
         c._parse_from_uri(uri=uri)
+        c._mask_secrets()
         return c
 
     def _parse_from_uri(self, uri: str):
@@ -531,7 +533,9 @@ class Connection(Base, LoggingMixin):
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-        return Connection(conn_id=conn_id, **kwargs)
+        c = Connection(conn_id=conn_id, **kwargs)
+        c._mask_secrets()
+        return c
 
     def as_json(self) -> str:
         """Convert Connection to JSON-string object."""
