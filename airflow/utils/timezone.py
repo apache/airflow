@@ -18,17 +18,22 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
 
+if TYPE_CHECKING:
+    from airflow.typing_compat import Literal
+
+    DT = TypeVar("DT", bound=dt.datetime)
+
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone("UTC")
 
 
-def is_localized(value):
+def is_localized(value: dt.datetime) -> bool:
     """Determine if a given datetime.datetime is aware.
 
     The concept is defined in Python documentation. Assuming the tzinfo is
@@ -40,7 +45,7 @@ def is_localized(value):
     return value.utcoffset() is not None
 
 
-def is_naive(value):
+def is_naive(value: dt.datetime) -> bool:
     """Determine if a given datetime.datetime is naive.
 
     The concept is defined in Python documentation. Assuming the tzinfo is
@@ -102,59 +107,56 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
 
 
 @overload
-def make_aware(value: None, timezone: dt.tzinfo | None = None, dst_rule: str | None = None) -> None:
+def make_aware(value: None, timezone: dt.tzinfo | None = None, *, fold: Literal[0, 1] = 1) -> None:
     ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: dt.tzinfo | None = None, dst_rule: str | None = None) -> DateTime:
-    ...
-
-
-@overload
-def make_aware(
-    value: dt.datetime, timezone: dt.tzinfo | None = None, dst_rule: str | None = None
-) -> dt.datetime:
+def make_aware(value: DT, timezone: dt.tzinfo | None = None, *, fold: Literal[0, 1] = 1) -> DT:
     ...
 
 
 def make_aware(
-    value: dt.datetime | None, timezone: dt.tzinfo | None = None, dst_rule: str | None = None
+    value: dt.datetime | None,
+    timezone: dt.tzinfo | None = None,
+    *,
+    fold: Literal[0, 1] = 1,
 ) -> dt.datetime | None:
     """
-    Make a naive datetime.datetime in a given time zone aware.
+    Make a naive datetime in a given time zone aware.
 
-    :param value: datetime
-    :param timezone: timezone
-    :param dst_rule: str
-    :return: localized datetime in settings.TIMEZONE or timezone
+    :param value: Naive datetime to make aware.
+    :param timezone: Time zone to convert *value* into. If this is *None*, the
+        target time zone defaults to ``settings.TIMEZONE``.
+    :param fold: Whether the result should be a folded time. Ideally we should
+        rely on ``value.fold``, but unfortunately we can't guarantee every usage
+        of this function to set the flag correctly---the default value is 0, but
+        we want to default to 1 instead.
+    :return: Localized datetime in the given time zone.
     """
+    if not value:
+        return None
+    # Check that we won't overwrite the timezone of an aware datetime.
+    if is_localized(value):
+        raise ValueError(f"make_aware expects a naive datetime, got {value}")
+
     if timezone is None:
         from airflow.settings import TIMEZONE
 
         timezone = TIMEZONE
 
-    if not value:
-        return None
+    # Override fold. Ideally we should rely on value.fold, but unfortunately it
+    # defaults to 0, and we can't guarantee every usage of this function to set
+    # the flag correctly. We default to go to the second instance of the clock
+    # time rather than the first, but the caller can explicit set *fold* to 0 if
+    # this is the wrong thing to do.
+    value = value.replace(fold=fold)
 
-    # Check that we won't overwrite the timezone of an aware datetime.
-    if is_localized(value):
-        raise ValueError(f"make_aware expects a naive datetime, got {value}")
-    if hasattr(value, "fold") and (dst_rule is None or dst_rule != pendulum.PRE_TRANSITION):
-        # In case of python 3.6 we want to do the same that pendulum does for python3.5
-        # i.e in case we move clock back we want to schedule the run at the time of the second
-        # instance of the same clock time rather than the first one.
-        # Fold parameter has no impact in other cases so we can safely set it to 1 here
-        value = value.replace(fold=1)
-    localized = getattr(timezone, "localize", None)
-    if localized is not None:
-        # This method is available for pytz time zones
-        return localized(value)
-    convert = getattr(timezone, "convert", None)
-    if convert is not None:
-        # For pendulum
-        return convert(value, dst_rule=dst_rule)
-    # This may be wrong around DST changes!
+    if (localized := getattr(timezone, "localize", None)) is not None:
+        return localized(value)  # For pytz timezones.
+    if (convert := getattr(timezone, "convert", None)) is not None:
+        return convert(value)  # For pendulum.
+    # This may be wrong around DST changes! See comments around fold handling above.
     return value.replace(tzinfo=timezone)
 
 

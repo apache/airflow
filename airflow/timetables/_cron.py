@@ -21,7 +21,7 @@ from typing import Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum import PRE_TRANSITION, DateTime, instance
+from pendulum import DateTime, instance
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
@@ -105,16 +105,12 @@ class CronMixin:
             utc_offset_delta = datetime.timedelta()
 
         # here we need to re-offset UTC because our next calculation was in local time
-        # return convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
-        to_return = convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
+        result = convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
 
-        if to_return == current and utc_offset_delta.total_seconds() == 0:
-            # need to hop over a DST bound
-            to_return = (
-                convert_to_utc(make_aware(scheduled, self._timezone, dst_rule=PRE_TRANSITION))
-                - utc_offset_delta
-            )
-        return to_return
+        # need to hop over a DST bound
+        if result != current or utc_offset_delta.total_seconds() != 0:
+            return result
+        return convert_to_utc(make_aware(scheduled, self._timezone, fold=0)) - utc_offset_delta
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
