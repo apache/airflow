@@ -1024,17 +1024,17 @@ repos:
         name: Run mypy for dev
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
-        files: ^dev/.*\.py$
+        files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-core
         name: Run mypy for core
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1042,7 +1042,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
