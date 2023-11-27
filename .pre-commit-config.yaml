@@ -1063,7 +1063,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc

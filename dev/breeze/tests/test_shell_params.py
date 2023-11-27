@@ -170,6 +170,22 @@ console = Console(width=400, color_system="standard")
             },
             id="ENABLED_SYSTEMS empty by default even if they are None in ShellParams",
         ),
+        pytest.param(
+            {},
+            {},
+            {
+                "PYTHONWARNINGS": None,
+            },
+            id="PYTHONWARNINGS should not be set by default",
+        ),
+        pytest.param(
+            {"PYTHONWARNINGS": "default"},
+            {},
+            {
+                "PYTHONWARNINGS": "default",
+            },
+            id="PYTHONWARNINGS should be set when specified in environment",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
