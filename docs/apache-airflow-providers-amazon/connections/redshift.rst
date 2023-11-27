@@ -97,3 +97,20 @@ inferred by the **Host** field in Connection.
       "database": "dev",
       "profile": "default"
     }
+
+If you want to use IAM with Amazon Redshift Serverless, you need to set **is_serverless** to true and provide
+**serverless_work_group**.
+
+* **Extra**:
+
+.. code-block:: json
+
+    {
+      "iam": true,
+      "is_serverless": true,
+      "serverless_work_group": "default",
+      "port": 5439,
+      "region": "us-east-1",
+      "database": "dev",
+      "profile": "default"
+    }

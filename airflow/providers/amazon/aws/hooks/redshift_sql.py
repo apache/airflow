@@ -81,7 +81,9 @@ class RedshiftSQLHook(DbApiHook):
         conn_params: dict[str, str | int] = {}
 
         if conn.extra_dejson.get("iam", False):
-            conn.login, conn.password, conn.port = self.get_iam_token(conn)
+            conn.login, conn.password, conn.port = self.get_iam_token(
+                conn, is_serverless=conn.extra_dejson.get("is_serverless", False)
+            )
 
         if conn.login:
             conn_params["user"] = conn.login
@@ -96,28 +98,47 @@ class RedshiftSQLHook(DbApiHook):
 
         return conn_params
 
-    def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+    def get_iam_token(self, conn: Connection, is_serverless: bool = False) -> tuple[str, str, int]:
         """Retrieve a temporary password to connect to Redshift.
 
         Port is required. If none is provided, default is used for each service.
         """
         port = conn.port or 5439
-        # Pull the custer-identifier from the beginning of the Redshift URL
-        # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-        cluster_identifier = conn.extra_dejson.get("cluster_identifier")
-        if not cluster_identifier:
-            if conn.host:
-                cluster_identifier = conn.host.split(".", 1)[0]
-            else:
-                raise AirflowException("Please set cluster_identifier or host in redshift connection.")
-        redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
-        cluster_creds = redshift_client.get_cluster_credentials(
-            DbUser=conn.login,
-            DbName=conn.schema,
-            ClusterIdentifier=cluster_identifier,
-            AutoCreate=False,
-        )
+        if is_serverless:
+            serverless_work_group = conn.extra_dejson.get("serverless_work_group")
+            if not serverless_work_group:
+                raise AirflowException(
+                    "Please set serverless_work_group in redshift connection to use IAM with Redshift Serverless."
+                )
+            serverless_token_duration_seconds = conn.extra_dejson.get(
+                "serverless_token_duration_seconds", 3600
+            )
+            redshift_client = AwsBaseHook(
+                aws_conn_id=self.aws_conn_id, client_type="redshift-serverless"
+            ).conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#get-credentials
+            cluster_creds = redshift_client.get_cluster_credentials(
+                DbName=conn.schema,
+                workgroupName=serverless_work_group,
+                durationSeconds=serverless_token_duration_seconds,
+            )
+        else:
+            # Pull the custer-identifier from the beginning of the Redshift URL
+            # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
+            cluster_identifier = conn.extra_dejson.get("cluster_identifier")
+            if not cluster_identifier:
+                if conn.host:
+                    cluster_identifier = conn.host.split(".", 1)[0]
+                else:
+                    raise AirflowException("Please set cluster_identifier or host in redshift connection.")
+            redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
+            cluster_creds = redshift_client.get_cluster_credentials(
+                DbUser=conn.login,
+                DbName=conn.schema,
+                ClusterIdentifier=cluster_identifier,
+                AutoCreate=False,
+            )
         token = cluster_creds["DbPassword"]
         login = cluster_creds["DbUser"]
         return login, token, port
