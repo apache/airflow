@@ -14,12 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Configuration keys
 from __future__ import annotations
 
-CONF_ENABLE_KEY = "enable"
-CONF_SECTION_NAME = "aws_auth_manager"
-CONF_CONN_ID_KEY = "conn_id"
-CONF_SAML_METADATA_URL_KEY = "saml_metadata_url"
-CONF_AVP_POLICY_STORE_ID_KEY = "avp_policy_store_id"
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
+
+
+def test_get_entity_type():
+    assert get_entity_type(AvpEntities.VARIABLE) == "Airflow::Variable"
+
+
+def test_get_action_id():
+    assert get_action_id(AvpEntities.VARIABLE, "GET") == "Variable::GET"
