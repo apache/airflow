@@ -149,7 +149,7 @@ def md5sum_check_if_build_is_needed(
         if build_ci_params.skip_image_upgrade_check:
             if build_ci_params.warn_image_upgrade_needed:
                 get_console().print(
-                    "\n[warning]You are skipping the image upgrade check, but the image needs and upgrade. "
+                    "\n[warning]You are skipping the image upgrade check, but the image needs an upgrade. "
                     "This might lead to out-dated results of the check![/]"
                 )
                 get_console().print(
