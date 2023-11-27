@@ -466,7 +466,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: >
-      Verify CI Images & Generate constraints
+      Generate constraints with CI image verifying
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -608,10 +608,10 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --show-diff-on-failure --color always --initialize-environment
-          --skip-image-check --commit-ref "${{ github.sha }}"
+          --skip-image-upgrade-check --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
-          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP_BREEZE_PRE_COMMITS: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
 
@@ -1694,7 +1694,7 @@ jobs:
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
-    name: "Verify PROD image and docker-compose quick start"
+    name: "Docker-compose quick start with PROD image verifying"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'

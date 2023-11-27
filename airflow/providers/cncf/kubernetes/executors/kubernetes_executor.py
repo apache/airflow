@@ -480,7 +480,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.models.taskinstance import TaskInstance
 
             state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
-            state = TaskInstanceState(state)
+            state = TaskInstanceState(state) if state else None
 
         self.event_buffer[key] = state, None
 

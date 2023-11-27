@@ -429,6 +429,7 @@ repos:
         language: python
         files: ^docs
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -934,7 +935,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging', 'filelock']
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -1023,17 +1024,17 @@ repos:
         name: Run mypy for dev
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
-        files: ^dev/.*\.py$
+        files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-core
         name: Run mypy for core
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1041,7 +1042,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
@@ -1055,7 +1056,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
@@ -1070,5 +1071,5 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

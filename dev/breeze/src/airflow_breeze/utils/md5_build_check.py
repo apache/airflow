@@ -23,11 +23,15 @@ import hashlib
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow_breeze.global_constants import ALL_PROVIDER_YAML_FILES, FILES_FOR_REBUILD_CHECK
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_ci_params import BuildCiParams
 
 
 def check_md5checksum_in_cache_modified(file_hash: str, cache_path: Path, update: bool) -> bool:
@@ -126,20 +130,33 @@ def calculate_md5_checksum_for_files(
     return modified_files, not_modified_files
 
 
-def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, skip_provider_dependencies_check: bool) -> bool:
+def md5sum_check_if_build_is_needed(
+    build_ci_params: BuildCiParams, md5sum_cache_dir: Path, skip_provider_dependencies_check: bool
+) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
 
+    :param build_ci_params: parameters for the build
     :param md5sum_cache_dir: directory where cached md5 sums are stored
     :param skip_provider_dependencies_check: whether to skip regeneration of the provider dependencies
 
     :return: True if build is needed.
     """
-    build_needed = False
     modified_files, not_modified_files = calculate_md5_checksum_for_files(
         md5sum_cache_dir, update=False, skip_provider_dependencies_check=skip_provider_dependencies_check
     )
     if modified_files:
+        if build_ci_params.skip_image_upgrade_check:
+            if build_ci_params.warn_image_upgrade_needed:
+                get_console().print(
+                    "\n[warning]You are skipping the image upgrade check, but the image needs an upgrade. "
+                    "This might lead to out-dated results of the check![/]"
+                )
+                get_console().print(
+                    f"[info]Consider running `breeze ci-image build --python {build_ci_params.python} "
+                    f"at earliest convenience![/]\n"
+                )
+            return False
         get_console().print(
             f"[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} "
             f"since last time image was built: [/]\n\n"
@@ -147,13 +164,15 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, skip_provider_depend
         for file in modified_files:
             get_console().print(f" * [info]{file}[/]")
         get_console().print("\n[warning]Likely CI image needs rebuild[/]\n")
-        build_needed = True
+        return True
     else:
+        if build_ci_params.skip_image_upgrade_check:
+            return False
         get_console().print(
             "[info]Docker image build is not needed for CI build as no important files are changed! "
             "You can add --force-build to force it[/]"
         )
-    return build_needed
+    return False
 
 
 def save_md5_file(cache_path: Path, file_content: str) -> None:
