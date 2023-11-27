@@ -41,5 +41,5 @@ result = subprocess.run(
     cwd=AIRFLOW_SOURCES_DIR / "chart",
 )
 if res_setup.returncode != 0:
-    console.print("[red]\nError while linting.")
+    console.print("[red]\nError while linting charts.")
     sys.exit(res_setup.returncode)
