@@ -92,6 +92,7 @@ class ObjectStoragePath(CloudPath):
         cls: type[PT],
         *args: str | os.PathLike,
         scheme: str | None = None,
+        conn_id: str | None = None,
         **kwargs: typing.Any,
     ) -> PT:
         args_list = list(args)
@@ -137,7 +138,11 @@ class ObjectStoragePath(CloudPath):
         else:
             args_list.insert(0, parsed_url.path)
 
-        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
+        if parsed_url.username is not None:
+            conn_id = conn_id or parsed_url.username or None
+            parsed_url = parsed_url._replace(netloc=parsed_url.netloc.rsplit("@", 1)[-1])
+
+        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:

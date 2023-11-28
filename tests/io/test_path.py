@@ -114,6 +114,12 @@ class TestFs:
         fs.conn_id = "fake"
         return fs
 
+    def test_objectstoragepath_init_conn_id_in_uri(self, fake_fs):
+        fake_fs.stat.return_value = {"stat": "result"}
+        attach(protocol="fake", conn_id="fake", fs=fake_fs)
+        p = ObjectStoragePath("fake://fake@bucket/path")
+        assert p.stat() == {"stat": "result", "conn_id": "fake", "protocol": "fake"}
+
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
