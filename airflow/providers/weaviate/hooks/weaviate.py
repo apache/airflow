@@ -25,10 +25,14 @@ from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
+
 from weaviate import Client as WeaviateClient
+from weaviate import UnexpectedStatusCodeException
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
+
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
+
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -157,6 +161,7 @@ class WeaviateHook(BaseHook):
             self.log.error("Error testing Weaviate connection: %s", e)
             return False, str(e)
 
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def create_class(self, class_json: dict[str, Any]) -> None:
         """Create a new class."""
         client = self.conn

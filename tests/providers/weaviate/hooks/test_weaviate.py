@@ -24,7 +24,12 @@ import pandas as pd
 import pytest
 import requests
 import weaviate
+
 from weaviate import ObjectAlreadyExistsException
+
+import requests
+import weaviate
+
 
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
