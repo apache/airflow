@@ -23,6 +23,8 @@ from typing import Any
 
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
+from weaviate.exceptions import ObjectAlreadyExistsException
+from weaviate.util import generate_uuid5
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -200,3 +202,88 @@ class WeaviateHook(BaseHook):
             .do()
         )
         return results
+
+    def create_object(self, data_object, class_name, **kwargs) -> str | dict[str, Any] | None:
+        """Create a new object.
+
+        data_object: Object to be added. If type is str it should be either a URL or a file.
+        class_name: Class name associated with the object given.
+        **kwargs: Additional parameters to be passed to weaviateclient.data_object.create()
+        """
+        client = self.get_conn()
+        # generate deterministic uuid if not provided
+        uuid = kwargs.pop("uuid", generate_uuid5(data_object))
+        try:
+            return client.data_object.create(data_object, class_name, uuid=uuid, **kwargs)
+        except ObjectAlreadyExistsException:
+            self.log.warning("Object with the UUID %s already exists", uuid)
+            return None
+
+    def get_or_create_object(self, data_object, class_name, **kwargs) -> str | dict[str, Any] | None:
+        """Get or Create a new object.
+
+        Returns the object if already exists
+        data_object: Object to be added. If type is str it should be either a URL or a file.
+        class_name: Class name associated with the object given.
+        **kwargs: Additional parameters to be passed to weaviateclient.data_object.create() and
+        weaviateclient.data_object.get()
+        """
+        vector = kwargs.pop("vector", None)
+        class_name = kwargs.pop("class_name", class_name)
+        obj = self.get_object(class_name=class_name, **kwargs)
+        if not obj:
+            uuid = kwargs.pop("uuid", generate_uuid5(data_object))
+            consistency_level = kwargs.pop("consistency_level", None)
+            tenant = kwargs.pop("tenant", None)
+            return self.create_object(
+                data_object,
+                class_name=class_name,
+                vector=vector,
+                uuid=uuid,
+                consistency_level=consistency_level,
+                tenant=tenant,
+            )
+        return obj
+
+    def get_object(self, **kwargs) -> dict[str, Any] | None:
+        """Get objects or an object from weaviate.
+
+        **kwargs: parameters to be passed to weaviateclient.data_object.get() or
+            weaviateclient.data_object.get_by_id()
+        """
+        client = self.get_conn()
+        return client.data_object.get(**kwargs)
+
+    def delete_object(self, uuid, **kwargs) -> None:
+        """Delete an object from weaviate.
+
+        uuid: uuid of the object to be deleted
+        **kwargs: parameters to be passed to weaviateclient.data_object.delete()
+        """
+        client = self.get_conn()
+        client.data_object.delete(uuid, **kwargs)
+
+    def update_object(self, data_object, class_name, uuid, **kwargs) -> None:
+        """Update an object in weaviate.
+
+        data_object: The object states the fields that should be updated. Fields not specified in the
+            'data_object' remain unchanged. Fields that are None will not be changed.
+            If type is str it should be either an URL or a file.
+        class_name: Class name associated with the object given.
+        uuid: uuid of the object to be updated
+        **kwargs: Additional parameters to be passed to weaviateclient.data_object.update()
+        """
+        client = self.get_conn()
+        client.data_object.update(data_object, class_name, uuid, **kwargs)
+
+    def replace_object(self, data_object, class_name, uuid, **kwargs) -> None:
+        """Replace an object in weaviate.
+
+        data_object: The object states the fields that should be updated. Fields not specified in the
+            'data_object' will be set to None. If type is str it should be either an URL or a file.
+        class_name: Class name associated with the object given.
+        uuid: uuid of the object to be replaced
+        **kwargs: Additional parameters to be passed to weaviateclient.data_object.replace()
+        """
+        client = self.get_conn()
+        client.data_object.replace(data_object, class_name, uuid, **kwargs)
