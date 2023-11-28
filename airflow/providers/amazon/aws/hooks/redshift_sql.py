@@ -81,9 +81,7 @@ class RedshiftSQLHook(DbApiHook):
         conn_params: dict[str, str | int] = {}
 
         if conn.extra_dejson.get("iam", False):
-            conn.login, conn.password, conn.port = self.get_iam_token(
-                conn, is_serverless=conn.extra_dejson.get("is_serverless", False)
-            )
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
         if conn.login:
             conn_params["user"] = conn.login
@@ -98,17 +96,19 @@ class RedshiftSQLHook(DbApiHook):
 
         return conn_params
 
-    def get_iam_token(self, conn: Connection, is_serverless: bool = False) -> tuple[str, str, int]:
+    def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """Retrieve a temporary password to connect to Redshift.
 
         Port is required. If none is provided, default is used for each service.
         """
         port = conn.port or 5439
+        is_serverless = conn.extra_dejson.get("is_serverless", False)
         if is_serverless:
             serverless_work_group = conn.extra_dejson.get("serverless_work_group")
             if not serverless_work_group:
                 raise AirflowException(
-                    "Please set serverless_work_group in redshift connection to use IAM with Redshift Serverless."
+                    "Please set serverless_work_group in redshift connection to use IAM with"
+                    " Redshift Serverless."
                 )
             serverless_token_duration_seconds = conn.extra_dejson.get(
                 "serverless_token_duration_seconds", 3600
