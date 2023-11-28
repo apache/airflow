@@ -82,9 +82,10 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_cleanup(*, client: client_type, mode: str, **kwargs):
+    def on_pod_cleanup(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs):
         """Callback method called after cleaning/deleting the pod.
 
+        :param pod: the completed pod.
         :param client: the Kubernetes client that can be used in the callback.
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         """

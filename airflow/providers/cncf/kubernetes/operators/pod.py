@@ -83,7 +83,7 @@ alphanum_lower = string.ascii_lowercase + string.digits
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-C = TypeVar("C", bound=KubernetesPodOperatorCallback)
+C = TypeVar("C", bound=type[KubernetesPodOperatorCallback])
 
 
 def _rand_str(num):
@@ -653,10 +653,12 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod, istio_enabled, self.base_container_name
             )
         finally:
+            pod_to_clean = self.pod or self.pod_request_obj
             self.cleanup(
-                pod=self.pod or self.pod_request_obj,
+                pod=pod_to_clean,
                 remote_pod=self.remote_pod,
             )
+            self.callbacks.on_pod_cleanup(pod=pod_to_clean, client=self.client, mode=ExecutionMode.SYNC)
         if self.do_xcom_push:
             return result
 
@@ -733,7 +735,6 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     remote_pod=pod,
                 )
-            self.callbacks.on_pod_cleanup(client=self.client, mode=ExecutionMode.SYNC)
 
     def write_logs(self, pod: k8s.V1Pod):
         try:
@@ -758,7 +759,7 @@ class KubernetesPodOperator(BaseOperator):
             pod=pod,
             remote_pod=remote_pod,
         )
-        self.callbacks.on_pod_cleanup(client=self.client, mode=ExecutionMode.SYNC)
+        self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         istio_enabled = self.is_istio_enabled(remote_pod)
