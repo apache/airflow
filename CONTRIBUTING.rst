@@ -681,7 +681,7 @@ microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openai, openfaas, openlineage
 opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pgvector, pinecone, pinot, plexus,
 postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, saml, segment, sendgrid, sentry,
 sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram,
-trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+teradata, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages

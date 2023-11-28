@@ -108,6 +108,7 @@ body:
         - tableau
         - tabular
         - telegram
+        - teradata
         - trino
         - vertica
         - weaviate

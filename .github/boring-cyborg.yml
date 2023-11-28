@@ -497,6 +497,12 @@ labelPRBasedOnFilePath:
     - tests/providers/telegram/**/*
     - tests/system/providers/telegram/**/*
 
+  provider:teradata:
+    - airflow/providers/teradata/**/*
+    - docs/apache-airflow-providers-teradata/**/*
+    - tests/providers/teradata/**/*
+    - tests/system/providers/teradata/**/*
+
   provider:trino:
     - airflow/providers/trino/**/*
     - docs/apache-airflow-providers-trino/**/*
