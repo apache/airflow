@@ -37,17 +37,10 @@ def mock_sm():
 
 
 @pytest.fixture
-def mock_appbuilder(mock_sm):
-    appbuilder = Mock()
-    appbuilder.sm = mock_sm
-    return appbuilder
-
-
-@pytest.fixture
-def mock_app(mock_appbuilder):
-    app = Mock()
-    app.appbuilder = mock_appbuilder
-    return app
+def mock_auth_manager(mock_sm):
+    auth_manager = Mock()
+    auth_manager.security_manager = mock_sm
+    return auth_manager
 
 
 @pytest.fixture
@@ -82,11 +75,9 @@ class TestBasicAuth:
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager")
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_ldap(
-        self, mock_login_user, mock_get_auth_manager, app, mock_app, mock_sm, mock_authorization
+        self, mock_login_user, mock_get_auth_manager, app, mock_sm, mock_auth_manager, mock_authorization
     ):
         mock_sm.auth_type = AUTH_LDAP
-        mock_auth_manager = Mock()
-        mock_auth_manager.security_manager = mock_sm
         mock_get_auth_manager.return_value = mock_auth_manager
         user = Mock()
         mock_sm.auth_user_ldap.return_value = user
@@ -104,10 +95,8 @@ class TestBasicAuth:
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager")
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_db(
-        self, mock_login_user, mock_get_auth_manager, app, mock_app, mock_sm, mock_authorization
+        self, mock_login_user, mock_get_auth_manager, app, mock_sm, mock_auth_manager, mock_authorization
     ):
-        mock_auth_manager = Mock()
-        mock_auth_manager.security_manager = mock_sm
         mock_get_auth_manager.return_value = mock_auth_manager
         user = Mock()
         mock_sm.auth_user_db.return_value = user
