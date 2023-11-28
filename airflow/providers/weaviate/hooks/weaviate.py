@@ -24,21 +24,27 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
-from tenacity import Retrying, retry_if_exception, stop_after_attempt
+from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
+
 from weaviate import Client as WeaviateClient
+from weaviate import UnexpectedStatusCodeException
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
+
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
+
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Sequence, Literal
 
     import pandas as pd
     from weaviate import ConsistencyLevel
     from weaviate.types import UUID
+
+    ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
 
 
 class WeaviateHook(BaseHook):
@@ -132,25 +138,23 @@ class WeaviateHook(BaseHook):
             self.log.error("Error testing Weaviate connection: %s", e)
             return False, str(e)
 
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def create_class(self, class_json: dict[str, Any]) -> None:
         """Create a new class."""
         client = self.conn
         client.schema.create_class(class_json)
 
-    def create_schema(self, schema_json: dict[str, Any]) -> None:
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    def create_schema(self, schema_json: dict[str, Any] | str) -> None:
         """
         Create a new Schema.
 
         Instead of adding classes one by one , you can upload a full schema in JSON format at once.
 
-        :param schema_json: The schema to create
+        :param schema_json: The schema to create or path to the json file holding the schema
         """
         client = self.conn
         client.schema.create(schema_json)
-
-    @staticmethod
-    def check_http_error_should_retry(exc: BaseException):
-        return isinstance(exc, requests.HTTPError) and not exc.response.ok
 
     @staticmethod
     def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame) -> list[dict[str, Any]]:
@@ -165,6 +169,99 @@ class WeaviateHook(BaseHook):
             if isinstance(data, pandas.DataFrame):
                 data = json.loads(data.to_json(orient="records"))
         return cast(List[Dict[str, Any]], data)
+
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    def get_schema(self, class_name: str | None = None):
+        """Get the schema from Weaviate.
+
+        get schema of a class or all classes.
+        """
+        client = self.get_client()
+        return client.schema.get(class_name)
+
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    def delete_class(self, class_name: str):
+        """Delete a schema class from Weaviate. This deletes all associated data."""
+        client = self.get_client()
+        client.schema.delete_class(class_name)
+
+    def delete_schema(
+        self, class_names: list[str] | str | None = None
+    ) -> list[UnexpectedStatusCodeException] | None:
+        """
+        Deletes all or specific class if class_names are provided.
+
+        If no class_name is given remove the entire schema from the Weaviate instance and all data associated
+        with it. If class_names are given, delete schema classes from Weaviate. This deletes all associated data.
+        :return: list of error object if any
+        """
+        client = self.get_client()
+        class_names = [class_names] if class_names and isinstance(class_names, str) else class_names
+        if class_names:
+            error_list = []
+            for class_name in class_names:
+                try:
+                    self.delete_class(class_name=class_name)
+                except UnexpectedStatusCodeException as e:
+                    error_list.append(e)
+            return error_list
+        else:
+            return client.schema.delete_all()
+
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    def update_class(self, class_name: str, config: dict):
+        """Update schema's class."""
+        client = self.get_client()
+        client.schema.update_config(class_name=class_name, config=config)
+
+    def update_multiple_classes(
+        self, schema_json: list[dict]
+    ) -> list[UnexpectedStatusCodeException] | None:
+        """Updated multiple classes.
+
+        :param schema_json: list of class_config objects
+            .. seealso:: `example of class_config <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.update_config>`_.
+        :return: list of error object if any
+        """
+        error_list = []
+        for config in schema_json:
+            try:
+                self.update_class(class_name=config.pop("class"), config=config)
+            except UnexpectedStatusCodeException as e:
+                error_list.append(e)
+        return error_list
+
+    def upsert_classes(self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"):
+        """
+        Create or update the classes in schema of Weaviate database.
+
+        :param schema_json: Json containing the schema. Format {"class_name": "class_dict"}
+            .. seealso:: `example of class_dict <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.create>`_.
+        :param existing: Options to handle the case when the classes exist, possible options
+            'replace', 'fail', 'ignore'.
+        """
+        existing_schema_options = ["replace", "fail", "ignore"]
+        if existing not in existing_schema_options:
+            raise ValueError(f"Param 'existing' should be one of the {existing_schema_options} values.")
+        if isinstance(schema_json, str):
+            schema_json = cast(dict, json.load(open(schema_json)))
+        set__exiting_classes = {class_object["class"] for class_object in self.get_schema()["classes"]}
+        set__to_be_added_classes = {key for key, _ in schema_json.items()}
+        intersection_classes = set__exiting_classes.intersection(set__to_be_added_classes)
+        classes_to_create = set()
+        if existing == "fail" and intersection_classes:
+            raise ValueError(
+                f"Trying to create class {intersection_classes}" f" but this class already exists."
+            )
+        elif existing == "ignore":
+            classes_to_create = set__to_be_added_classes - set__exiting_classes
+        elif existing == "replace":
+            error_list = self.delete_schema(class_names=list(intersection_classes))
+            if error_list:
+                raise ValueError(error_list)
+            classes_to_create = intersection_classes.union(set__to_be_added_classes)
+        classes_to_create_list = [schema_json[item] for item in sorted(list(classes_to_create))]
+        self.create_schema({"classes": classes_to_create_list})
 
     def batch_data(
         self,
@@ -194,7 +291,7 @@ class WeaviateHook(BaseHook):
             for index, data_obj in enumerate(data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
-                    retry=retry_if_exception(self.check_http_error_should_retry),
+                    retry=retry_if_exception_type(requests.exceptions.RequestException),
                 ):
                     with attempt:
                         self.log.debug(
@@ -202,11 +299,6 @@ class WeaviateHook(BaseHook):
                         )
                         vector = data_obj.pop(vector_col, None)
                         batch.add_data_object(data_obj, class_name, vector=vector)
-
-    def delete_class(self, class_name: str) -> None:
-        """Delete an existing class."""
-        client = self.conn
-        client.schema.delete_class(class_name)
 
     def query_with_vector(
         self,

@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
+from contextlib import ExitStack
+
+from unittest.mock import MagicMock, Mock, patch, call
 
 import pandas as pd
 import pytest
-import requests
 from weaviate import ObjectAlreadyExistsException
+
+import requests
+import weaviate
+
 
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
@@ -45,25 +49,25 @@ def weaviate_hook():
 
 @pytest.fixture
 def mock_auth_api_key():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthApiKey") as m:
+    with patch("airflow.providers.weaviate.hooks.weaviate.AuthApiKey") as m:
         yield m
 
 
 @pytest.fixture
 def mock_auth_bearer_token():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthBearerToken") as m:
+    with patch("airflow.providers.weaviate.hooks.weaviate.AuthBearerToken") as m:
         yield m
 
 
 @pytest.fixture
 def mock_auth_client_credentials():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthClientCredentials") as m:
+    with patch("airflow.providers.weaviate.hooks.weaviate.AuthClientCredentials") as m:
         yield m
 
 
 @pytest.fixture
 def mock_auth_client_password():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.AuthClientPassword") as m:
+    with patch("airflow.providers.weaviate.hooks.weaviate.AuthClientPassword") as m:
         yield m
 
 
@@ -124,7 +128,7 @@ class TestWeaviateHook:
         for conn in conns:
             monkeypatch.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
     def test_get_conn_with_api_key_in_extra(self, mock_client, mock_auth_api_key):
         hook = WeaviateHook(conn_id=self.weaviate_api_key1)
         hook.get_conn()
@@ -133,7 +137,7 @@ class TestWeaviateHook:
             url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
     def test_get_conn_with_token_in_extra(self, mock_client, mock_auth_api_key):
         # when token is passed in extra
         hook = WeaviateHook(conn_id=self.weaviate_api_key2)
@@ -143,7 +147,7 @@ class TestWeaviateHook:
             url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
     def test_get_conn_with_access_token_in_extra(self, mock_client, mock_auth_bearer_token):
         hook = WeaviateHook(conn_id=self.client_bearer_token)
         hook.get_conn()
@@ -158,7 +162,7 @@ class TestWeaviateHook:
             additional_headers={},
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
     def test_get_conn_with_client_secret_in_extra(self, mock_client, mock_auth_client_credentials):
         hook = WeaviateHook(conn_id=self.weaviate_client_credentials)
         hook.get_conn()
@@ -171,7 +175,7 @@ class TestWeaviateHook:
             additional_headers={},
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
+    @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
     def test_get_conn_with_client_password_in_extra(self, mock_client, mock_auth_client_password):
         hook = WeaviateHook(conn_id=self.client_password)
         hook.get_conn()
@@ -182,7 +186,7 @@ class TestWeaviateHook:
             additional_headers={},
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    @patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
     def test_create_object(self, mock_gen_uuid, weaviate_hook):
         """
         Test the create_object method of WeaviateHook.
@@ -228,7 +232,7 @@ class TestWeaviateHook:
             tenant=None,
         )
 
-    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    @patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
     def test_create_of_get_or_create_object(self, mock_gen_uuid, weaviate_hook):
         """
         Test the create part of get_or_create_object method of WeaviateHook.
@@ -278,8 +282,8 @@ class TestWeaviateHook:
 
         return_value = weaviate_hook.get_all_objects(class_name="TestClass")
         assert weaviate_hook.get_object.call_args_list == [
-            mock.call(after=None, class_name="TestClass"),
-            mock.call(after=3, class_name="TestClass"),
+            call(after=None, class_name="TestClass"),
+            call(after=3, class_name="TestClass"),
         ]
         assert return_value == [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]
 
@@ -299,8 +303,8 @@ class TestWeaviateHook:
 
         return_value = weaviate_hook.get_all_objects(class_name="TestClass", as_dataframe=True)
         assert weaviate_hook.get_object.call_args_list == [
-            mock.call(after=None, class_name="TestClass"),
-            mock.call(after=3, class_name="TestClass"),
+            call(after=None, class_name="TestClass"),
+            call(after=3, class_name="TestClass"),
         ]
         import pandas
 
@@ -446,3 +450,74 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
     weaviate_hook.batch_data("TestClass", data)
     assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
+
+@pytest.mark.parametrize(
+    argnames=["get_schema_value", "existing", "expected_value"],
+    argvalues=[
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "ignore", [{"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "replace", [{"class": "B"}, {"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "fail", {}),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "invalid_option", {}),
+    ],
+    ids=["ignore", "replace", "fail", "invalid_option"],
+)
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_schema")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_scenarios(
+    get_schema, create_schema, delete_schema, get_schema_value, existing, expected_value, weaviate_hook
+):
+    schema_json = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    with ExitStack() as stack:
+        delete_schema.return_value = None
+        if existing in ["fail", "invalid_option"]:
+            stack.enter_context(pytest.raises(ValueError))
+        get_schema.return_value = get_schema_value
+        weaviate_hook.upsert_classes(schema_json=schema_json, existing=existing)
+        create_schema.assert_called_once_with({"classes": expected_value})
+        if existing == "replace":
+            delete_schema.assert_called_once_with(class_names=["B"])
+
+
+@patch("builtins.open")
+@patch("json.load")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, weaviate_hook):
+    """Test if schema_json is path to a json file"""
+    get_schema.return_value = {"classes": [{"class": "A"}, {"class": "B"}]}
+    load.return_value = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    weaviate_hook.upsert_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
+    create_schema.assert_called_once_with({"classes": [{"class": "C"}]})
+
+
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_class")
+def test_delete_schema(delete_class, get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    delete_class.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    error_list = weaviate_hook.delete_schema(class_names)
+    assert len(error_list) == 1
+
+    weaviate_hook.delete_schema()
+    get_client.return_value.schema.delete_all.assert_called_with()
+
+
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.update_class")
+def test_update_multiple_classes(update_class, weaviate_hook):
+    update_class.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    schema_json = [{"class": "A"}, {"class": "B"}]
+    error_list = weaviate_hook.update_multiple_classes(schema_json)
+    assert len(error_list) == 1
