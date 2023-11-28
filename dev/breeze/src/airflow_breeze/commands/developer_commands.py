@@ -922,7 +922,17 @@ def find_airflow_container() -> str | None:
     shell_params = ShellParams()
     check_docker_resources(shell_params.airflow_image_name)
     shell_params.print_badge_info()
-    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = [
+        "docker",
+        "compose",
+        "--project-name",
+        shell_params.project_name,
+        "ps",
+        "--all",
+        "--filter",
+        "status=running",
+        "airflow",
+    ]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, check=False, env=shell_params.env_variables_for_docker_commands
     )
