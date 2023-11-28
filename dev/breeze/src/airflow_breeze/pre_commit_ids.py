@@ -47,6 +47,7 @@ PRE_COMMIT_LIST = [
     "check-executables-have-shebangs",
     "check-extra-packages-references",
     "check-extras-order",
+    "check-fab-migrations",
     "check-for-inclusive-language",
     "check-google-re2-as-dependency",
     "check-hooks-apply",

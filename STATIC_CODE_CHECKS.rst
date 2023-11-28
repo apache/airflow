@@ -188,6 +188,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
