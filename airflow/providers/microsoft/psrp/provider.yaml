@@ -19,9 +19,9 @@
 package-name: apache-airflow-providers-microsoft-psrp
 name: PowerShell Remoting Protocol (PSRP)
 description: |
-    This package provides remote execution capabilities via the
-    `PowerShell Remoting Protocol (PSRP)
-    <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
+  This package provides remote execution capabilities via the
+  `PowerShell Remoting Protocol (PSRP)
+  <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 suspended: false
 source-date-epoch: 1700827476
