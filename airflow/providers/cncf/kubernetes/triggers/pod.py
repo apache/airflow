@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
 
 
-C = TypeVar("C", bound=KubernetesPodOperatorCallback)
+C = TypeVar("C", bound=type[KubernetesPodOperatorCallback])
 
 
 class ContainerState(str, Enum):
@@ -165,6 +165,15 @@ class KubernetesPodTrigger(BaseTrigger):
                 self.log.debug("Container %s status: %s", self.base_container_name, container_state)
 
                 if container_state == ContainerState.TERMINATED:
+                    if not _is_starting_callback_called:
+                        self.callbacks.on_pod_starting(
+                            pod=pod,
+                            client=self._get_async_hook().core_v1_client,
+                            mode=ExecutionMode.ASYNC,
+                        )
+                    self.callbacks.on_pod_completion(
+                        pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
+                    )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -209,6 +218,12 @@ class KubernetesPodTrigger(BaseTrigger):
                         self.log.info("Sleeping for %s seconds.", self.poll_interval)
                         await asyncio.sleep(self.poll_interval)
                 else:
+                    if not _is_starting_callback_called:
+                        self.callbacks.on_pod_starting(
+                            pod=pod,
+                            client=self._get_async_hook().core_v1_client,
+                            mode=ExecutionMode.ASYNC,
+                        )
                     self.callbacks.on_pod_completion(
                         pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
                     )

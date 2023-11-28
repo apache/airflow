@@ -375,3 +375,55 @@ class TestKubernetesPodTrigger:
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
+    async def test_callbacks(self, mock_hook, mock_method):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+
+        pods_mock = [
+            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.PENDING))),
+            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.RUNNING))),
+            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.SUCCEEDED))),
+        ]
+        mock_hook.return_value.get_pod.side_effect = pods_mock
+        mock_method.side_effect = [ContainerState.WAITING, ContainerState.RUNNING, ContainerState.TERMINATED]
+
+        k = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_file=CONFIG_FILE,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        await k.run().asend(None)
+
+        # check on_pod_starting callback
+        mock_callbacks.on_pod_starting.assert_called_once()
+        assert mock_callbacks.on_pod_starting.call_args.kwargs == {
+            "client": k._get_async_hook().core_v1_client,
+            "mode": ExecutionMode.ASYNC,
+            "pod": pods_mock[1].result(),
+        }
+
+        # check on_pod_completion callback
+        mock_callbacks.on_pod_completion.assert_called_once()
+        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k._get_async_hook().core_v1_client,
+            "mode": ExecutionMode.ASYNC,
+            "pod": pods_mock[2].result(),
+        }

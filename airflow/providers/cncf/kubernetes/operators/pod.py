@@ -525,7 +525,9 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client, progress_callback=self._progress_callback)
+        return PodManager(
+            kube_client=self.client, callbacks=self.callbacks, progress_callback=self._progress_callback
+        )
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:

@@ -51,6 +51,8 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
 
+    from airflow.providers.cncf.kubernetes.operators.pod import C
+
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
 """
 Sentinel for no xcom result.
@@ -288,7 +290,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
-        callbacks: KubernetesPodOperatorCallback = KubernetesPodOperatorCallback(),
+        callbacks: C = KubernetesPodOperatorCallback,
         progress_callback: Callable[[str], None] | None = None,
     ):
         """
