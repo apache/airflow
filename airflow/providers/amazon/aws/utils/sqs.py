@@ -79,7 +79,7 @@ def filter_messages_jsonpath(messages, message_filtering_match_values, message_f
         results = jsonpath_expr.find(body)
         if results and (
             message_filtering_match_values is None
-            or any(result.value in message_filtering_match_values for result in results)
+            or any(result.value["Value"] in message_filtering_match_values for result in results)
         ):
             filtered_messages.append(message)
     return filtered_messages
