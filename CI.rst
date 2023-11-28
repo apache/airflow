@@ -338,7 +338,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build CI images                 | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Verify CI/generate constraints  | Verify CI image and generate constraints for the build   | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
+| Generate constraints/CI verify  | Generate constraints for the build and verify CI image   | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build PROD images               | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -388,7 +388,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Wait for PROD Images            | Waits for and verify PROD Images                         | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Verify PROD/test compose        | Verify PROD image and tests quick-start Docker Compose   | Yes      | Yes      | Yes       | Yes               |
+| Docker Compose test/PROD verify | Tests quick-start Docker Compose and verify PROD image   | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests Kubernetes                | Run Kubernetes test                                      | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -535,7 +535,7 @@ Depending whether the scripts are run locally via `Breeze <BREEZE.rst>`_ or whet
 are run in ``Build Images`` or ``Tests`` workflows they can take different values.
 
 You can use those variables when you try to reproduce the build locally (alternatively you can pass
-those via command line flags passed to ``breeze`` command.
+those via corresponding command line flags passed to ``breeze shell`` command.
 
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | Variable                                | Local       | Build Images | CI         | Comment                                         |

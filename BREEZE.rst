@@ -93,6 +93,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - 5. In some cases you might make sure that "Allow the default Docker socket to
   be used" in "Advanced" tab of "Docker Desktop" settings is checked
 
+
 .. raw:: html
 
    <div align="center">
@@ -1807,7 +1808,7 @@ check if there are any images that need regeneration.
   :alt: Breeze setup regenerate-command-images
 
 Breeze check-all-params-in-groups
-...................
+.................................
 
 When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
 for the command is present and that all parameters are assigned to the right group so they can be
@@ -1818,6 +1819,17 @@ nicely presented in ``--help`` output. You can check that via ``check-all-params
   :width: 100%
   :alt: Breeze setup check-all-params-in-group
 
+Breeze synchronize-local-mounts
+...............................
+
+When you add volumes mounted to docker, they need to be added in ``docker_command_utils.py`` - so that they
+are added by plain ``docker`` command, but they also need to be synchronized with ``local.yml``. This can be
+done via ``synchronize-local-mounts`` command.
+
+.. image:: ./images/breeze/output_setup_synchronize-local-mounts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_synchronize-local-mounts.svg
+  :width: 100%
+  :alt: Breeze setup synchronize-local-mounts
 
 CI tasks
 --------
