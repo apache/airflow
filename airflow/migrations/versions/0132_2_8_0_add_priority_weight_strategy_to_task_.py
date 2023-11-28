@@ -15,34 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from enum import Enum
+"""add priority_weight_strategy to task_instance
 
-from airflow.compat.functools import cache
+Revision ID: 624ecf3b6a5e
+Revises: bd5dfbe21f88
+Create Date: 2023-10-29 02:01:34.774596
+
+"""
+
+import sqlalchemy as sa
+from alembic import op
 
 
-class WeightRule(str, Enum):
-    """
-    Weight rules.
+# revision identifiers, used by Alembic.
+revision = "624ecf3b6a5e"
+down_revision = "bd5dfbe21f88"
+branch_labels = None
+depends_on = None
+airflow_version = "2.8.0"
 
-    This class is deprecated and will be removed in Airflow 3
-    """
 
-    DOWNSTREAM = "downstream"
-    UPSTREAM = "upstream"
-    ABSOLUTE = "absolute"
+def upgrade():
+    """Apply add priority_weight_strategy to task_instance"""
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.add_column(sa.Column("priority_weight_strategy", sa.String(length=1000)))
 
-    @classmethod
-    def is_valid(cls, weight_rule: str) -> bool:
-        """Check if weight rule is valid."""
-        return weight_rule in cls.all_weight_rules()
 
-    @classmethod
-    @cache
-    def all_weight_rules(cls) -> set[str]:
-        """Return all weight rules."""
-        return set(cls.__members__.values())
-
-    def __str__(self) -> str:
-        return self.value
+def downgrade():
+    """Unapply add priority_weight_strategy to task_instance"""
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.drop_column("priority_weight_strategy")

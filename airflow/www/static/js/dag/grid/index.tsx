@@ -167,7 +167,7 @@ const Grid = ({
         position="relative"
         pr={4}
         mt={8}
-        overscrollBehavior="contain"
+        overscrollBehavior="auto"
       >
         <Table pr="10px" borderRightWidth="14px" borderColor="transparent">
           <Thead>
