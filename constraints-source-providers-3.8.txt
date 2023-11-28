@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-28T13:48:59Z
+# This constraints file was automatically generated on 2023-11-28T18:45:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -114,7 +114,7 @@ azure-synapse-spark==0.7.0
 backcall==0.2.0
 backoff==2.2.1
 backports.zoneinfo==0.2.1
-bcrypt==4.0.1
+bcrypt==4.1.1
 beautifulsoup4==4.12.2
 billiard==4.2.0
 bitarray==2.8.3
