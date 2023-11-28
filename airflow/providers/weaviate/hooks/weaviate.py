@@ -76,7 +76,7 @@ class WeaviateHook(BaseHook):
         api_key = extras.get("api_key", None) or extras.get("token", None)
         client_secret = extras.get("client_secret", None)
         additional_headers = extras.pop("additional_headers", {})
-        scope = extras.get("scope", None) or extras.get("oidc_scope", "offline_access")
+        scope = extras.get("scope", None) or extras.get("oidc_scope", None)
         if api_key:
             auth_client_secret = AuthApiKey(api_key)
         elif access_token:

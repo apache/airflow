@@ -55,17 +55,17 @@ Weaviate API Token (optional)
 
 Supported Authentication Methods
 --------------------------------
-* API Key Authentication:* This method uses the Weaviate API Key to authenticate the connection. You can either have the
+* API Key Authentication: This method uses the Weaviate API Key to authenticate the connection. You can either have the
   API key in the ``Weaviate API Token`` field or in the extra field as a dictionary with key ``token`` or ``api_key`` and
   value as the API key.
 
-* Bearer Token Authentication:* This method uses the Access Token to authenticate the connection. You need to
-have the Access Token in the extra field as a dictionary with key ``access_token`` and value as the Access Token. Other
-parameters such as ``expires_in`` and ``refresh_token`` are optional.
+* Bearer Token Authentication: This method uses the Access Token to authenticate the connection. You need to
+  have the Access Token in the extra field as a dictionary with key ``access_token`` and value as the Access Token. Other
+  parameters such as ``expires_in`` and ``refresh_token`` are optional.
 
-* Client Credentials Authentication:* This method uses the Client Credentials to authenticate the connection. You need to
-have the Client Credentials in the extra field as a dictionary with key ``client_secret`` and value as the Client Credentials.
-The ``scope`` is optional.
+* Client Credentials Authentication: This method uses the Client Credentials to authenticate the connection. You need to
+  have the Client Credentials in the extra field as a dictionary with key ``client_secret`` and value as the Client Credentials.
+  The ``scope`` is optional.
 
-* Password Authentication:* This method uses the username and password to authenticate the connection. You can specify the
-scope in the extra field as a dictionary with key ``scope`` and value as the scope. The ``scope`` is optional.
+* Password Authentication: This method uses the username and password to authenticate the connection. You can specify the
+  scope in the extra field as a dictionary with key ``scope`` and value as the scope. The ``scope`` is optional.

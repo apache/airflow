@@ -124,28 +124,28 @@ class TestWeaviateHook:
             monkeypatch.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
-    def test_get_client_with_api_key_in_extra(self, mock_client, mock_auth_api_key):
+    def test_get_conn_with_api_key_in_extra(self, mock_client, mock_auth_api_key):
         hook = WeaviateHook(conn_id=self.weaviate_api_key1)
-        hook.get_client()
+        hook.get_conn()
         mock_auth_api_key.assert_called_once_with(self.api_key)
         mock_client.assert_called_once_with(
             url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
-    def test_get_client_with_token_in_extra(self, mock_client, mock_auth_api_key):
+    def test_get_conn_with_token_in_extra(self, mock_client, mock_auth_api_key):
         # when token is passed in extra
         hook = WeaviateHook(conn_id=self.weaviate_api_key2)
-        hook.get_client()
+        hook.get_conn()
         mock_auth_api_key.assert_called_once_with(self.api_key)
         mock_client.assert_called_once_with(
             url=self.host, auth_client_secret=mock_auth_api_key(api_key=self.api_key), additional_headers={}
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
-    def test_get_client_with_access_token_in_extra(self, mock_client, mock_auth_bearer_token):
+    def test_get_conn_with_access_token_in_extra(self, mock_client, mock_auth_bearer_token):
         hook = WeaviateHook(conn_id=self.client_bearer_token)
-        hook.get_client()
+        hook.get_conn()
         mock_auth_bearer_token.assert_called_once_with(
             self.client_bearer_token, expires_in=30, refresh_token="refresh_token"
         )
@@ -158,9 +158,9 @@ class TestWeaviateHook:
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
-    def test_get_client_with_client_secret_in_extra(self, mock_client, mock_auth_client_credentials):
+    def test_get_conn_with_client_secret_in_extra(self, mock_client, mock_auth_client_credentials):
         hook = WeaviateHook(conn_id=self.weaviate_client_credentials)
-        hook.get_client()
+        hook.get_conn()
         mock_auth_client_credentials.assert_called_once_with(
             client_secret=self.client_secret, scope=self.scope
         )
@@ -171,17 +171,13 @@ class TestWeaviateHook:
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateClient")
-    def test_get_client_with_client_password_in_extra(self, mock_client, mock_auth_client_password):
+    def test_get_conn_with_client_password_in_extra(self, mock_client, mock_auth_client_password):
         hook = WeaviateHook(conn_id=self.client_password)
-        hook.get_client()
-        mock_auth_client_password.assert_called_once_with(
-            username="login", password="password", scope="offline_access"
-        )
+        hook.get_conn()
+        mock_auth_client_password.assert_called_once_with(username="login", password="password", scope=None)
         mock_client.assert_called_once_with(
             url=self.host,
-            auth_client_secret=mock_auth_client_password(
-                username="login", password="password", scope="offline_access"
-            ),
+            auth_client_secret=mock_auth_client_password(username="login", password="password", scope=None),
             additional_headers={},
         )
 
@@ -192,7 +188,7 @@ def test_create_class(weaviate_hook):
     """
     # Mock the Weaviate Client
     mock_client = MagicMock()
-    weaviate_hook.get_client = MagicMock(return_value=mock_client)
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
 
     # Define test class JSON
     test_class_json = {
@@ -213,7 +209,7 @@ def test_create_schema(weaviate_hook):
     """
     # Mock the Weaviate Client
     mock_client = MagicMock()
-    weaviate_hook.get_client = MagicMock(return_value=mock_client)
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
 
     # Define test schema JSON
     test_schema_json = {
@@ -238,7 +234,7 @@ def test_batch_data(weaviate_hook):
     """
     # Mock the Weaviate Client
     mock_client = MagicMock()
-    weaviate_hook.get_client = MagicMock(return_value=mock_client)
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
 
     # Define test data
     test_class_name = "TestClass"
