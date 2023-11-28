@@ -289,5 +289,11 @@ class PsrpHook(BaseHook):
     
     def test_connection(self):
         """Test PSRP Connection."""
-        # To be implemented.
-        pass
+        hook = PsrpHook(psrp_conn_id=self.conn_id)
+        try:
+            hook.invoke_cmdlet(name="Test-Path", parameters={"Path": "C:\\"})
+            message = "Connection tested successfully"
+        except Exception as e:
+            message = str(e)
+
+        return message
