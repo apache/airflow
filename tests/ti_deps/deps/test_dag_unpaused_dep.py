@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+import pytest
+
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDagUnpausedDep:

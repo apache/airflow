@@ -120,6 +120,7 @@ def async_get_operation():
     return func
 
 
+@pytest.mark.db_test
 class TestDataprocClusterTrigger:
     def test_async_cluster_trigger_serialization_should_execute_successfully(self, cluster_trigger):
         classpath, kwargs = cluster_trigger.serialize()
@@ -169,7 +170,7 @@ class TestDataprocClusterTrigger:
             status=ClusterStatus(state=ClusterStatus.State.ERROR),
         )
 
-        actual_event = await (cluster_trigger.run()).asend(None)
+        actual_event = await cluster_trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
         expected_event = TriggerEvent(
@@ -203,6 +204,7 @@ class TestDataprocClusterTrigger:
         assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
 
 
+@pytest.mark.db_test
 class TestDataprocBatchTrigger:
     def test_async_create_batch_trigger_serialization_should_execute_successfully(self, batch_trigger):
         """
@@ -239,7 +241,7 @@ class TestDataprocBatchTrigger:
             }
         )
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -252,7 +254,7 @@ class TestDataprocBatchTrigger:
 
         expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.FAILED})
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -263,7 +265,7 @@ class TestDataprocBatchTrigger:
 
         expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.CANCELLED})
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -314,7 +316,7 @@ class TestDataprocWorkflowTrigger:
                 "message": "Operation is successfully ended.",
             }
         )
-        actual_event = await (workflow_trigger.run()).asend(None)
+        actual_event = await workflow_trigger.run().asend(None)
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
@@ -332,5 +334,5 @@ class TestDataprocWorkflowTrigger:
                 "message": "test_error",
             }
         )
-        actual_event = await (workflow_trigger.run()).asend(None)
+        actual_event = await workflow_trigger.run().asend(None)
         assert expected_event == actual_event

@@ -19,6 +19,7 @@ from __future__ import annotations
 import multiprocessing as mp
 
 import click
+from click import IntRange
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -29,23 +30,27 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
+    ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_DOCKER_COMPOSE_PROJECTS,
+    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PACKAGE_FORMATS,
+    ALLOWED_PARALLEL_TEST_TYPE_CHOICES,
     ALLOWED_PLATFORMS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TEST_TYPE_CHOICES,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
-    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
-    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
-    get_available_documentation_packages,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -54,10 +59,13 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableDefault,
     DryRunOption,
     MySQLBackendVersionType,
+    NotVerifiedBetterChoice,
     UseAirflowVersionType,
     VerboseOption,
 )
+from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.recording import generating_command_images
+from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 
 def _set_default_from_parent(ctx: click.core.Context, option: click.core.Option, value):
@@ -127,13 +135,22 @@ option_python = click.option(
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
+option_debian_version = click.option(
+    "--debian-version",
+    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
+    default=ALLOWED_DEBIAN_VERSIONS[0],
+    show_default=True,
+    help="Debian version used in Airflow image as base for building images.",
+    envvar="DEBIAN_VERSION",
+)
 option_backend = click.option(
     "-b",
     "--backend",
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use.",
+    help="Database backend to use. If 'none' is selected, breeze starts with invalid DB configuration "
+    "and no database and any attempts to connect to Airflow DB will fail.",
     envvar="BACKEND",
 )
 option_integration = click.option(
@@ -279,8 +296,8 @@ option_upgrade_on_failure = click.option(
     help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
     envvar="UPGRADE_ON_FAILURE",
 )
-option_additional_extras = click.option(
-    "--additional-extras",
+option_additional_airflow_extras = click.option(
+    "--additional-airflow-extras",
     help="Additional extra package while installing Airflow in the image.",
     envvar="ADDITIONAL_AIRFLOW_EXTRAS",
 )
@@ -399,7 +416,14 @@ option_load_default_connection = click.option(
 option_version_suffix_for_pypi = click.option(
     "--version-suffix-for-pypi",
     help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
+    envvar="VERSION_SUFFIX_FOR_PYPI",
     default="",
+)
+option_version_suffix_for_pypi_ci = click.option(
+    "--version-suffix-for-pypi",
+    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
+    default="dev0",
+    show_default=True,
     envvar="VERSION_SUFFIX_FOR_PYPI",
 )
 option_package_format = click.option(
@@ -439,25 +463,18 @@ option_parallelism = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
-argument_packages = click.argument(
-    "packages",
+argument_provider_packages = click.argument(
+    "provider_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=NotVerifiedBetterChoice(get_available_packages()),
 )
-argument_packages_plus_all_providers = click.argument(
-    "packages_plus_all_providers",
+argument_doc_packages = click.argument(
+    "doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
-)
-
-argument_packages_plus_all_providers_for_shorthand = click.argument(
-    "packages_plus_all_providers",
-    nargs=-1,
-    required=False,
-    type=BetterChoice(
-        ["all-providers"] + get_available_documentation_packages(short_version=True) + [PROVIDERS_INDEX_KEY]
+    type=NotVerifiedBetterChoice(
+        get_available_packages(include_non_provider_doc_packages=True, include_all_providers=True)
     ),
 )
 
@@ -471,7 +488,6 @@ option_airflow_constraints_reference = click.option(
 option_airflow_constraints_location = click.option(
     "--airflow-constraints-location",
     type=str,
-    default="",
     help="If specified, it is used instead of calculating reference to the constraint file. "
     "It could be full remote URL to the location file, or local file placed in `docker-context-files` "
     "(in this case it has to start with /opt/airflow/docker-context-files).",
@@ -511,7 +527,7 @@ option_pull = click.option(
 option_python_image = click.option(
     "--python-image",
     help="If specified this is the base python image used to build the image. "
-    "Should be something like: python:VERSION-slim-bullseye.",
+    "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
 )
 option_builder = click.option(
@@ -560,11 +576,18 @@ option_debug_resources = click.option(
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
 )
-option_executor = click.option(
+option_executor_start_airflow = click.option(
     "--executor",
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
-    help="Specify the executor to use with airflow.",
-    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    help="Specify the executor to use with start-airflow command.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
+option_executor_shell = click.option(
+    "--executor",
+    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with shell command.",
+    default=DEFAULT_ALLOWED_EXECUTOR,
     show_default=True,
 )
 option_celery_broker = click.option(
@@ -575,6 +598,18 @@ option_celery_broker = click.option(
     show_default=True,
 )
 option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_standalone_dag_processor = click.option(
+    "--standalone-dag-processor",
+    help="Run standalone dag processor for start-airflow.",
+    is_flag=True,
+    envvar="STANDALONE_DAG_PROCESSOR",
+)
+option_database_isolation = click.option(
+    "--database-isolation",
+    help="Run airflow in database isolation mode.",
+    is_flag=True,
+    envvar="DATABASE_ISOLATION",
+)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
@@ -596,7 +631,6 @@ option_historical_python_version = click.option(
 )
 option_commit_sha = click.option(
     "--commit-sha",
-    default=None,
     show_default=True,
     envvar="COMMIT_SHA",
     help="Commit SHA that is used to build the images.",
@@ -635,4 +669,121 @@ option_downgrade_sqlalchemy = click.option(
     help="Downgrade SQLAlchemy to minimum supported version.",
     is_flag=True,
     envvar="DOWNGRADE_SQLALCHEMY",
+)
+option_run_db_tests_only = click.option(
+    "--run-db-tests-only",
+    help="Only runs tests that require a database",
+    is_flag=True,
+    envvar="run_db_tests_only",
+)
+option_skip_db_tests = click.option(
+    "--skip-db-tests",
+    help="Skip tests that require a database",
+    is_flag=True,
+    envvar="SKIP_DB_TESTS",
+)
+option_test_timeout = click.option(
+    "--test-timeout",
+    help="Test timeout in seconds. Set the pytest setup, execution and teardown timeouts to this value",
+    default=60,
+    envvar="TEST_TIMEOUT",
+    type=IntRange(min=0),
+    show_default=True,
+)
+option_enable_coverage = click.option(
+    "--enable-coverage",
+    help="Enable coverage capturing for tests in the form of XML files",
+    is_flag=True,
+    envvar="ENABLE_COVERAGE",
+)
+option_skip_provider_tests = click.option(
+    "--skip-provider-tests",
+    help="Skip provider tests",
+    is_flag=True,
+    envvar="SKIP_PROVIDER_TESTS",
+)
+option_use_xdist = click.option(
+    "--use-xdist",
+    help="Use xdist plugin for pytest",
+    is_flag=True,
+    envvar="USE_XDIST",
+)
+option_test_type = click.option(
+    "--test-type",
+    help="Type of test to run. With Providers, you can specify tests of which providers "
+    "should be run: `Providers[airbyte,http]` or "
+    "excluded from the full test suite: `Providers[-amazon,google]`",
+    default="Default",
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
+)
+option_parallel_test_types = click.option(
+    "--parallel-test-types",
+    help="Space separated list of test types used for testing in parallel",
+    default=ALL_CI_SELECTIVE_TEST_TYPES,
+    show_default=True,
+    envvar="PARALLEL_TEST_TYPES",
+    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+)
+option_excluded_parallel_test_types = click.option(
+    "--excluded-parallel-test-types",
+    help="Space separated list of test types that will be excluded from parallel tes runs.",
+    default="",
+    show_default=True,
+    envvar="EXCLUDED_PARALLEL_TEST_TYPES",
+    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+)
+option_collect_only = click.option(
+    "--collect-only",
+    help="Collect tests only, do not run them.",
+    is_flag=True,
+    envvar="COLLECT_ONLY",
+)
+option_remove_arm_packages = click.option(
+    "--remove-arm-packages",
+    help="Removes arm packages from the image to test if ARM collection works",
+    is_flag=True,
+    envvar="REMOVE_ARM_PACKAGES",
+)
+option_skip_docker_compose_down = click.option(
+    "--skip-docker-compose-down",
+    help="Skips running docker-compose down after tests",
+    is_flag=True,
+    envvar="SKIP_DOCKER_COMPOSE_DOWN",
+)
+option_skip_image_upgrade_check = click.option(
+    "--skip-image-upgrade-check",
+    help="Skip checking if the CI image is up to date.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_UPGRADE_CHECK",
+)
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
+option_skip_environment_initialization = click.option(
+    "--skip-environment-initialization",
+    help="Skip running breeze entrypoint initialization - no user output, no db checks.",
+    is_flag=True,
+    envvar="SKIP_ENVIRONMENT_INITIALIZATION",
+)
+option_project_name = click.option(
+    "--project-name",
+    help="Name of the docker-compose project to bring down. "
+    "The `docker-compose` is for legacy breeze project name and you can use "
+    "`breeze down --project-name docker-compose` to stop all containers belonging to it.",
+    show_default=True,
+    type=NotVerifiedBetterChoice(ALLOWED_DOCKER_COMPOSE_PROJECTS),
+    default=ALLOWED_DOCKER_COMPOSE_PROJECTS[0],
+    envvar="PROJECT_NAME",
+)
+option_restart = click.option(
+    "--restart",
+    "--remove-orphans",
+    help="Restart all containers before entering shell (also removes orphan containers).",
+    is_flag=True,
+    envvar="RESTART",
 )

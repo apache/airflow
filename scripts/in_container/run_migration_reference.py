@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 from alembic.script import ScriptDirectory
+from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
@@ -35,6 +36,8 @@ from airflow.utils.db import _get_alembic_config
 
 if TYPE_CHECKING:
     from alembic.script import Script
+
+console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
@@ -180,9 +183,14 @@ def ensure_filenames_are_sorted(revisions):
 
 
 if __name__ == "__main__":
+    console.print("[bright_blue]Updating migration reference")
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure airflow version updated")
     ensure_airflow_version(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure filenames are sorted")
     ensure_filenames_are_sorted(revisions=revisions)
     revisions = list(get_revisions())
+    console.print("[bright_blue]Updating documentation")
     update_docs(revisions=revisions)
+    console.print("[green]Migrations OK")

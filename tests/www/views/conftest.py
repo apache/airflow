@@ -159,6 +159,7 @@ class _TemplateWithContext(NamedTuple):
             "default_ui_timezone",
             "hostname",
             "navbar_color",
+            "navbar_text_color",
             "log_fetch_delay_sec",
             "log_auto_tailing_offset",
             "log_animation_speed",

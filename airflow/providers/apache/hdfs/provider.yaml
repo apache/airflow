@@ -23,7 +23,9 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 suspended: false
+source-date-epoch: 1700827436
 versions:
+  - 4.2.0
   - 4.1.1
   - 4.1.0
   - 4.0.0
@@ -43,7 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - hdfs[avro,dataframe,kerberos]>=2.0.4
 
 integrations:

@@ -21,7 +21,7 @@ Transfer data in Google Cloud Storage
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
 Note that files are called objects in GCS terminology, so the use of the term "object" and "file" in this guide is
 interchangeable. There are several operators for whose purpose is to copy data as part of the Google Cloud Service.
-This page shows how to use these operators.
+This page shows how to use these operators. See also :doc:`/operators/cloud/gcs` for operators used to manage Google Cloud Storage buckets.
 
 
 Cloud Storage Transfer Service
@@ -48,6 +48,12 @@ Source objects can be specified using include and exclusion prefixes, as well as
 modification date.
 
 If you need information on how to use it, look at the guide: :doc:`/operators/cloud/cloud_storage_transfer_service`
+
+Specialized transfer operators for Google Cloud Storage
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+See :doc:`/operators/transfer/index` for a list of specialized transfer operators to and from Google Cloud Storage.
+
 
 Local transfer
 ~~~~~~~~~~~~~~
@@ -189,12 +195,12 @@ the ``delimiter`` argument apply to moves as well as copies.
     :end-before: [END howto_operator_gcs_to_gcs_list_move]
 
 
-.. _howto/operator:GCSSynchronizeBuckets:
+.. _howto/operator:GCSSynchronizeBucketsOperator:
 
-GCSSynchronizeBuckets
-~~~~~~~~~~~~~~~~~~~~~
+GCSSynchronizeBucketsOperator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The :class:`~airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSSynchronizeBuckets`
+The :class:`~airflow.providers.google.cloud.operators.gcs.GCSSynchronizeBucketsOperator`
 operator checks the initial state of the destination bucket, and then compares it with the source bucket.
 Based on this, it creates an operation plan that describes which objects should be deleted from
 the destination bucket, which should be overwritten, and which should be copied.

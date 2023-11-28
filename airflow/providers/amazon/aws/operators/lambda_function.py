@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LambdaCreateFunctionOperator(BaseOperator):
+class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
     Creates an AWS Lambda function.
 
@@ -62,7 +62,8 @@ class LambdaCreateFunctionOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = LambdaHook
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "runtime",
         "role",
@@ -82,12 +83,11 @@ class LambdaCreateFunctionOperator(BaseOperator):
         code: dict,
         description: str | None = None,
         timeout: int | None = None,
-        config: dict = {},
+        config: dict | None = None,
         wait_for_completion: bool = False,
         waiter_max_attempts: int = 60,
         waiter_delay: int = 15,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -98,16 +98,11 @@ class LambdaCreateFunctionOperator(BaseOperator):
         self.code = code
         self.description = description
         self.timeout = timeout
-        self.config = config
+        self.config = config or {}
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
         self.log.info("Creating AWS Lambda function: %s", self.function_name)
@@ -131,6 +126,9 @@ class LambdaCreateFunctionOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -152,7 +150,7 @@ class LambdaCreateFunctionOperator(BaseOperator):
         return event["function_arn"]
 
 
-class LambdaInvokeFunctionOperator(BaseOperator):
+class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
     Invokes an AWS Lambda function.
 
@@ -176,7 +174,13 @@ class LambdaInvokeFunctionOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use
     """
 
-    template_fields: Sequence[str] = ("function_name", "payload", "qualifier", "invocation_type")
+    aws_hook_class = LambdaHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "function_name",
+        "payload",
+        "qualifier",
+        "invocation_type",
+    )
     ui_color = "#ff7300"
 
     def __init__(
@@ -189,7 +193,6 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         invocation_type: str | None = None,
         client_context: str | None = None,
         payload: bytes | str | None = None,
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -200,11 +203,6 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
         """

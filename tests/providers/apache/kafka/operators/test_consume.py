@@ -21,11 +21,16 @@ import logging
 from typing import Any
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +61,6 @@ class TestConsumeFromTopic:
         )
 
     def test_operator(self):
-
         operator = ConsumeFromTopicOperator(
             kafka_config_id="kafka_d",
             topics=["test"],
@@ -69,7 +73,6 @@ class TestConsumeFromTopic:
         operator.execute(context={})
 
     def test_operator_callable(self):
-
         operator = ConsumeFromTopicOperator(
             kafka_config_id="kafka_d",
             topics=["test"],

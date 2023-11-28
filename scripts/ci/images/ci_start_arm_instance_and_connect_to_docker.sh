@@ -38,6 +38,7 @@ function start_arm_instance() {
         --image-id "${ARM_AMI}" \
         --count 1 \
         --instance-type "${INSTANCE_TYPE}" \
+        --block-device-mappings 'DeviceName=/dev/xvda,Ebs={VolumeSize=16}' \
         --user-data "file://${USER_DATA_FILE}" \
         --instance-market-options "${MARKET_OPTIONS}" \
         --instance-initiated-shutdown-behavior terminate \

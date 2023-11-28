@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -36,7 +36,7 @@ class JobStatus(Enum):
     SUCCEEDED = "Succeeded"
 
 
-class GlacierJobOperationSensor(BaseSensorOperator):
+class GlacierJobOperationSensor(AwsBaseSensor[GlacierHook]):
     """
     Glacier sensor for checking job state. This operator runs only in reschedule mode.
 
@@ -63,12 +63,12 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         prevent too much load on the scheduler.
     """
 
-    template_fields: Sequence[str] = ("vault_name", "job_id")
+    aws_hook_class = GlacierHook
+    template_fields: Sequence[str] = aws_template_fields("vault_name", "job_id")
 
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
         vault_name: str,
         job_id: str,
         poke_interval: int = 60 * 20,
@@ -76,15 +76,10 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.vault_name = vault_name
         self.job_id = job_id
         self.poke_interval = poke_interval
         self.mode = mode
-
-    @cached_property
-    def hook(self):
-        return GlacierHook(aws_conn_id=self.aws_conn_id)
 
     def poke(self, context: Context) -> bool:
         response = self.hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)

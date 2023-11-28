@@ -28,9 +28,7 @@ from pathlib import Path
 from tempfile import gettempdir
 from time import sleep
 
-import daemon
 import psutil
-from daemon.pidfile import TimeoutPIDLockFile
 from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
@@ -40,14 +38,14 @@ from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging
-from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
@@ -75,19 +73,12 @@ def internal_api(args):
         log.info(f"Starting the Internal API server on port {args.port} and host {args.hostname}.")
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,
+            debug=True,  # nosec
             use_reloader=not app.config["TESTING"],
             port=args.port,
             host=args.hostname,
         )
     else:
-        pid_file, stdout, stderr, log_file = setup_locations(
-            "internal-api", args.pid, args.stdout, args.stderr, args.log_file
-        )
-
-        # Check if Internal APi is already running if not, remove old pidfile
-        check_if_pidfile_process_is_running(pid_file=pid_file, process_name="internal-api")
-
         log.info(
             textwrap.dedent(
                 f"""\
@@ -100,6 +91,8 @@ def internal_api(args):
                 ================================================================="""
             )
         )
+
+        pid_file, _, _, _ = setup_locations("internal-api", pid=args.pid)
 
         run_args = [
             sys.executable,
@@ -137,25 +130,27 @@ def internal_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        gunicorn_master_proc: psutil.Process | None = None
-
-        def kill_proc(signum, _):
+        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.is_running():
+            if isinstance(gunicorn_master_proc, subprocess.Popen):
+                still_running = gunicorn_master_proc.poll() is not None
+            else:
+                still_running = gunicorn_master_proc.is_running()
+            if still_running:
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_pid: int):
+        def monitor_gunicorn(gunicorn_master_proc: psutil.Process | subprocess.Popen):
             # Register signal handlers
-            signal.signal(signal.SIGINT, kill_proc)
-            signal.signal(signal.SIGTERM, kill_proc)
+            signal.signal(signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
+            signal.signal(signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
-                gunicorn_master_pid=gunicorn_master_pid,
+                gunicorn_master_pid=gunicorn_master_proc.pid,
                 num_workers_expected=num_workers,
                 master_timeout=120,
                 worker_refresh_interval=30,
@@ -163,45 +158,39 @@ def internal_api(args):
                 reload_on_plugin_change=False,
             ).start()
 
+        def start_and_monitor_gunicorn(args):
+            if args.daemon:
+                subprocess.Popen(run_args, close_fds=True)
+
+                # Reading pid of gunicorn master as it will be different that
+                # the one of process spawned above.
+                gunicorn_master_proc_pid = None
+                while not gunicorn_master_proc_pid:
+                    sleep(0.1)
+                    gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
+
+                # Run Gunicorn monitor
+                gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
+                monitor_gunicorn(gunicorn_master_proc)
+            else:
+                with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
+                    monitor_gunicorn(gunicorn_master_proc)
+
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            app = create_app(None)
+            create_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
-            handle = setup_logging(log_file)
-
-            pid_path = Path(pid_file)
-            pidlock_path = pid_path.with_name(f"{pid_path.stem}-monitor{pid_path.suffix}")
-
-            with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
-                stdout.truncate(0)
-                stderr.truncate(0)
-
-                ctx = daemon.DaemonContext(
-                    pidfile=TimeoutPIDLockFile(pidlock_path, -1),
-                    files_preserve=[handle],
-                    stdout=stdout,
-                    stderr=stderr,
-                    umask=int(settings.DAEMON_UMASK, 8),
-                )
-                with ctx:
-                    subprocess.Popen(run_args, close_fds=True)
-
-                    # Reading pid of gunicorn main process as it will be different that
-                    # the one of process spawned above.
-                    gunicorn_master_proc_pid = None
-                    while not gunicorn_master_proc_pid:
-                        sleep(0.1)
-                        gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
-
-                    # Run Gunicorn monitor
-                    gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                    monitor_gunicorn(gunicorn_master_proc.pid)
-
-        else:
-            with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
-                monitor_gunicorn(gunicorn_master_proc.pid)
+        pid_file_path = Path(pid_file)
+        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
+        run_command_with_daemon_option(
+            args=args,
+            process_name="internal-api",
+            callback=lambda: start_and_monitor_gunicorn(args),
+            should_setup_logging=True,
+            pid_file=monitor_pid_file,
+        )
 
 
 def create_app(config=None, testing=False):

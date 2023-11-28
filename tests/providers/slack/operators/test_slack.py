@@ -31,17 +31,43 @@ from airflow.providers.slack.operators.slack import (
 )
 
 SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
+DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
 
 class TestSlackAPIOperator:
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
-    def test_hook(self, mock_slack_hook_cls):
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
+            pytest.param(
+                {
+                    "base_url": "https://foo.bar",
+                    "timeout": 42,
+                    "proxy": "http://spam.egg",
+                    "retry_handlers": [],
+                },
+                {
+                    "base_url": "https://foo.bar",
+                    "timeout": 42,
+                    "proxy": "http://spam.egg",
+                    "retry_handlers": [],
+                },
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
+    def test_hook(self, mock_slack_hook_cls, slack_op_kwargs, hook_extra_kwargs):
         mock_slack_hook = mock_slack_hook_cls.return_value
-        op = SlackAPIOperator(task_id="test-mask-token", slack_conn_id=SLACK_API_TEST_CONNECTION_ID)
+        op = SlackAPIOperator(
+            task_id="test-mask-token", slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **slack_op_kwargs
+        )
         hook = op.hook
         assert hook == mock_slack_hook
         assert hook is op.hook
-        mock_slack_hook_cls.assert_called_once_with(slack_conn_id=SLACK_API_TEST_CONNECTION_ID)
+        mock_slack_hook_cls.assert_called_once_with(
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **hook_extra_kwargs
+        )
 
 
 class TestSlackAPIPostOperator:

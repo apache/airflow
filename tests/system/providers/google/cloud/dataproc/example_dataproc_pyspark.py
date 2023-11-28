@@ -70,7 +70,6 @@ with DAG(
     catchup=False,
     tags=["example", "dataproc", "pyspark"],
 ) as dag:
-
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
         project_id=PROJECT_ID,

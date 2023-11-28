@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Consolidate stacklevel in ssh operator warning (#35151)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``add warn stacklevel=2 to ssh hook (#34527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Consolidate hook management in SSHOperator (#34428)``
+
 3.7.3
 .....
 

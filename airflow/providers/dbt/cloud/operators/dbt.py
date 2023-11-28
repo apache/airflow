@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
@@ -189,15 +188,13 @@ class DbtCloudRunJobOperator(BaseOperator):
             return self.run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
-        """
-        Callback for when the trigger fires - returns immediately.
-
-        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        self.log.info(event["message"])
+        """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
+        if event["status"] == "cancelled":
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
+        elif event["status"] == "error":
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
+        self.log.info(event["message"])
         return int(event["run_id"])
 
     def on_kill(self) -> None:
@@ -220,7 +217,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """
-        Implementing _on_complete because job_run needs to be triggered first in execute method.
+        Implement _on_complete because job_run needs to be triggered first in execute method.
 
         This should send additional events only if operator `wait_for_termination` is set to True.
         """

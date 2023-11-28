@@ -36,7 +36,7 @@ from docker_tests.docker_tests_utils import (
 # isort:on (needed to workaround isort bug)
 from setup import PREINSTALLED_PROVIDERS
 
-INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
+INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "airflow" / "providers" / "installed_providers.txt"
 
 
 class TestCommands:

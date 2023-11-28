@@ -24,12 +24,14 @@ description: |
     `InfluxDB <https://www.influxdata.com/>`__
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - influxdb-client>=1.19.0
   - requests>=2.26.0
 
 suspended: false
+source-date-epoch: 1700827470
 versions:
+  - 2.3.0
   - 2.2.3
   - 2.2.2
   - 2.2.1

@@ -374,6 +374,28 @@ class TestPodManager:
                 startup_timeout=0,
             )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
+    def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
+        pod_info_pending = mock.MagicMock(**{"status.phase": PodPhase.PENDING})
+        pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
+
+        def pod_state_gen():
+            yield pod_info_pending
+            yield pod_info_pending
+            while True:
+                yield pod_info_succeeded
+
+        self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
+        startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
+        mock_pod = MagicMock()
+        self.pod_manager.await_pod_start(
+            pod=mock_pod,
+            startup_timeout=60,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+            startup_check_interval=startup_check_interval,
+        )
+        mock_time_sleep.assert_called_with(startup_check_interval)
+        assert mock_time_sleep.call_count == 2
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
         mock_pod = MagicMock()
@@ -408,7 +430,7 @@ class TestPodManager:
         )
 
         ret_values = self.pod_manager.fetch_requested_container_logs(
-            pod=mock_pod, container_logs=container_logs, follow_logs=follow
+            pod=mock_pod, containers=container_logs, follow_logs=follow
         )
         for ret in ret_values:
             assert ret.running is False
@@ -428,7 +450,7 @@ class TestPodManager:
 
         ret_values = self.pod_manager.fetch_requested_container_logs(
             pod=mock_pod,
-            container_logs=container_logs,
+            containers=container_logs,
         )
 
         assert len(ret_values) == 0

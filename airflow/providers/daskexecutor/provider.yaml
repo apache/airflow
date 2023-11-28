@@ -22,12 +22,14 @@ description: |
     `Dask <https://www.dask.org/>`__
 
 suspended: false
+source-date-epoch: 1700827453
 versions:
+  - 1.1.0
   - 1.0.1
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
   # Supporting it in the future
   - cloudpickle>=1.4.1

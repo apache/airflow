@@ -101,7 +101,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return endpoint
 
     def get_conn(self) -> Connection:
-        """Returns a Databricks SQL connection object."""
+        """Return a Databricks SQL connection object."""
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
@@ -178,7 +178,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
     ) -> T | list[T] | None:
-        """Runs a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
         execute sequentially.
@@ -221,7 +222,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 with closing(conn.cursor()) as cur:
                     self._run_command(cur, sql_statement, parameters)
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_serializable(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
@@ -238,6 +239,13 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return results[-1]
         else:
             return results
+
+    @staticmethod
+    def _make_serializable(result):
+        """Transform the databricks Row objects into a JSON-serializable list of rows."""
+        if result is not None:
+            return [list(row) for row in result]
+        return result
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

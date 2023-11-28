@@ -496,9 +496,7 @@ class TestGoogleDisplayVideo360v2Hook:
         report_id = "REPORT_ID"
 
         return_value = "TEST"
-        get_conn_mock.return_value.queries.return_value.reports.return_value.get.return_value.execute.return_value = (  # noqa
-            return_value
-        )
+        get_conn_mock.return_value.queries.return_value.reports.return_value.get.return_value.execute.return_value = return_value
 
         self.hook.get_report(query_id=query_id, report_id=report_id)
 

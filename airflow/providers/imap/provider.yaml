@@ -23,7 +23,9 @@ description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 suspended: false
+source-date-epoch: 1700827469
 versions:
+  - 3.4.0
   - 3.3.2
   - 3.3.1
   - 3.3.0
@@ -44,7 +46,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
 
 integrations:
   - integration-name: Internet Message Access Protocol (IMAP)

@@ -32,8 +32,8 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 11, 12, 13, 14, 15
-* MySQL: 5.7, 8
+* PostgreSQL: 12, 13, 14, 15, 16
+* MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
 * MSSQL (Experimental, **Discontinued soon**): 2017, 2019
 * SQLite: 3.15.0+
 
@@ -298,18 +298,9 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
 
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
-We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
-
-.. code-block:: text
-
-   $ pip install mysql-connector-python
-
-The connection string in this case should look like:
-
-.. code-block:: text
-
-   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
+.. important::
+    The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
+    during Apache Airflow's continuous integration (CI) process.
 
 If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/14/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
@@ -318,7 +309,11 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
 
 .. note::
 
-   In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value). To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server. Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it. See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+    In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like
+    ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value).
+    To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server.
+    Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
+    See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
 
 Setting up a MsSQL Database
 ---------------------------

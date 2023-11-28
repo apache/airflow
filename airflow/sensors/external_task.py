@@ -27,7 +27,7 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -329,7 +329,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
-        """Runs on the worker and defers using the triggers if deferrable is set to True."""
+        """Run on the worker and defer using the triggers if deferrable is set to True."""
         if not self.deferrable:
             super().execute(context)
         else:

@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
 4.1.1
 .....
 
@@ -84,7 +97,7 @@ The 3.* version of the provider is still available and can be used if you need t
 sensors.
 
 The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
-this provider and they are not available any more. If you want to continue using them,
+this provider and they are not available anymore. If you want to continue using them,
 you can use 3.* version of the provider, but the recommendation is to switch to the new
 ``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
 

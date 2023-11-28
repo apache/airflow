@@ -434,7 +434,7 @@ class DagBag(LoggingMixin):
 
         found_dags = []
 
-        for (dag, mod) in top_level_dags:
+        for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
             try:
                 dag.validate()
@@ -622,7 +622,7 @@ class DagBag(LoggingMixin):
 
         log = cls.logger()
 
-        def _serialize_dag_capturing_errors(dag, session):
+        def _serialize_dag_capturing_errors(dag, session, processor_subdir):
             """
             Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -636,6 +636,7 @@ class DagBag(LoggingMixin):
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
+                    processor_subdir=processor_subdir,
                 )
                 if dag_was_updated:
                     DagBag._sync_perm_for_dag(dag, session=session)
@@ -665,7 +666,9 @@ class DagBag(LoggingMixin):
                 try:
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
-                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
+                        serialize_errors.extend(
+                            _serialize_dag_capturing_errors(dag, session, processor_subdir)
+                        )
 
                     DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:

@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
+    DatabricksCreateJobsOperator,
     DatabricksRunNowDeferrableOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunDeferrableOperator,
@@ -34,6 +35,8 @@ from airflow.providers.databricks.operators.databricks import (
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils import databricks as utils
+
+pytestmark = pytest.mark.db_test
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
@@ -71,6 +74,152 @@ DBT_TASK = {
     "schema": "jaffle_shop",
     "warehouse_id": "123456789abcdef0",
 }
+TAGS = {
+    "cost-center": "engineering",
+    "team": "jobs",
+}
+TASKS = [
+    {
+        "task_key": "Sessionize",
+        "description": "Extracts session data from events",
+        "existing_cluster_id": "0923-164208-meows279",
+        "spark_jar_task": {
+            "main_class_name": "com.databricks.Sessionize",
+            "parameters": [
+                "--data",
+                "dbfs:/path/to/data.json",
+            ],
+        },
+        "libraries": [
+            {"jar": "dbfs:/mnt/databricks/Sessionize.jar"},
+        ],
+        "timeout_seconds": 86400,
+        "max_retries": 3,
+        "min_retry_interval_millis": 2000,
+        "retry_on_timeout": False,
+    },
+    {
+        "task_key": "Orders_Ingest",
+        "description": "Ingests order data",
+        "job_cluster_key": "auto_scaling_cluster",
+        "spark_jar_task": {
+            "main_class_name": "com.databricks.OrdersIngest",
+            "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+        },
+        "libraries": [
+            {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"},
+        ],
+        "timeout_seconds": 86400,
+        "max_retries": 3,
+        "min_retry_interval_millis": 2000,
+        "retry_on_timeout": False,
+    },
+    {
+        "task_key": "Match",
+        "description": "Matches orders with user sessions",
+        "depends_on": [
+            {"task_key": "Orders_Ingest"},
+            {"task_key": "Sessionize"},
+        ],
+        "new_cluster": {
+            "spark_version": "7.3.x-scala2.12",
+            "node_type_id": "i3.xlarge",
+            "spark_conf": {
+                "spark.speculation": True,
+            },
+            "aws_attributes": {
+                "availability": "SPOT",
+                "zone_id": "us-west-2a",
+            },
+            "autoscale": {
+                "min_workers": 2,
+                "max_workers": 16,
+            },
+        },
+        "notebook_task": {
+            "notebook_path": "/Users/user.name@databricks.com/Match",
+            "source": "WORKSPACE",
+            "base_parameters": {
+                "name": "John Doe",
+                "age": "35",
+            },
+        },
+        "timeout_seconds": 86400,
+        "max_retries": 3,
+        "min_retry_interval_millis": 2000,
+        "retry_on_timeout": False,
+    },
+]
+JOB_CLUSTERS = [
+    {
+        "job_cluster_key": "auto_scaling_cluster",
+        "new_cluster": {
+            "spark_version": "7.3.x-scala2.12",
+            "node_type_id": "i3.xlarge",
+            "spark_conf": {
+                "spark.speculation": True,
+            },
+            "aws_attributes": {
+                "availability": "SPOT",
+                "zone_id": "us-west-2a",
+            },
+            "autoscale": {
+                "min_workers": 2,
+                "max_workers": 16,
+            },
+        },
+    },
+]
+EMAIL_NOTIFICATIONS = {
+    "on_start": [
+        "user.name@databricks.com",
+    ],
+    "on_success": [
+        "user.name@databricks.com",
+    ],
+    "on_failure": [
+        "user.name@databricks.com",
+    ],
+    "no_alert_for_skipped_runs": False,
+}
+WEBHOOK_NOTIFICATIONS = {
+    "on_start": [
+        {
+            "id": "03dd86e4-57ef-4818-a950-78e41a1d71ab",
+        },
+        {
+            "id": "0481e838-0a59-4eff-9541-a4ca6f149574",
+        },
+    ],
+    "on_success": [
+        {
+            "id": "03dd86e4-57ef-4818-a950-78e41a1d71ab",
+        }
+    ],
+    "on_failure": [
+        {
+            "id": "0481e838-0a59-4eff-9541-a4ca6f149574",
+        }
+    ],
+}
+TIMEOUT_SECONDS = 86400
+SCHEDULE = {
+    "quartz_cron_expression": "20 30 * * * ?",
+    "timezone_id": "Europe/London",
+    "pause_status": "PAUSED",
+}
+MAX_CONCURRENT_RUNS = 10
+GIT_SOURCE = {
+    "git_url": "https://github.com/databricks/databricks-cli",
+    "git_branch": "main",
+    "git_provider": "gitHub",
+}
+ACCESS_CONTROL_LIST = [
+    {
+        "user_name": "jsmith@example.com",
+        "permission_level": "CAN_MANAGE",
+    }
+]
 
 
 def mock_dict(d: dict):
@@ -93,6 +242,267 @@ def make_run_with_state_mock(
             },
         }
     )
+
+
+class TestDatabricksCreateJobsOperator:
+    def test_init_with_named_parameters(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            name=JOB_NAME,
+            tags=TAGS,
+            tasks=TASKS,
+            job_clusters=JOB_CLUSTERS,
+            email_notifications=EMAIL_NOTIFICATIONS,
+            webhook_notifications=WEBHOOK_NOTIFICATIONS,
+            timeout_seconds=TIMEOUT_SECONDS,
+            schedule=SCHEDULE,
+            max_concurrent_runs=MAX_CONCURRENT_RUNS,
+            git_source=GIT_SOURCE,
+            access_control_list=ACCESS_CONTROL_LIST,
+        )
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tags": TAGS,
+                "tasks": TASKS,
+                "job_clusters": JOB_CLUSTERS,
+                "email_notifications": EMAIL_NOTIFICATIONS,
+                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "timeout_seconds": TIMEOUT_SECONDS,
+                "schedule": SCHEDULE,
+                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+                "git_source": GIT_SOURCE,
+                "access_control_list": ACCESS_CONTROL_LIST,
+            }
+        )
+
+        assert expected == op.json
+
+    def test_init_with_json(self):
+        """
+        Test the initializer with json data.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tags": TAGS,
+                "tasks": TASKS,
+                "job_clusters": JOB_CLUSTERS,
+                "email_notifications": EMAIL_NOTIFICATIONS,
+                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "timeout_seconds": TIMEOUT_SECONDS,
+                "schedule": SCHEDULE,
+                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+                "git_source": GIT_SOURCE,
+                "access_control_list": ACCESS_CONTROL_LIST,
+            }
+        )
+
+        assert expected == op.json
+
+    def test_init_with_merging(self):
+        """
+        Test the initializer when json and other named parameters are both
+        provided. The named parameters should override top level keys in the
+        json dict.
+        """
+        override_name = "override"
+        override_tags = {}
+        override_tasks = []
+        override_job_clusters = []
+        override_email_notifications = {}
+        override_webhook_notifications = {}
+        override_timeout_seconds = 0
+        override_schedule = {}
+        override_max_concurrent_runs = 0
+        override_git_source = {}
+        override_access_control_list = []
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+        }
+
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            json=json,
+            name=override_name,
+            tags=override_tags,
+            tasks=override_tasks,
+            job_clusters=override_job_clusters,
+            email_notifications=override_email_notifications,
+            webhook_notifications=override_webhook_notifications,
+            timeout_seconds=override_timeout_seconds,
+            schedule=override_schedule,
+            max_concurrent_runs=override_max_concurrent_runs,
+            git_source=override_git_source,
+            access_control_list=override_access_control_list,
+        )
+
+        expected = utils.normalise_json_content(
+            {
+                "name": override_name,
+                "tags": override_tags,
+                "tasks": override_tasks,
+                "job_clusters": override_job_clusters,
+                "email_notifications": override_email_notifications,
+                "webhook_notifications": override_webhook_notifications,
+                "timeout_seconds": override_timeout_seconds,
+                "schedule": override_schedule,
+                "max_concurrent_runs": override_max_concurrent_runs,
+                "git_source": override_git_source,
+                "access_control_list": override_access_control_list,
+            }
+        )
+
+        assert expected == op.json
+
+    def test_init_with_templating(self):
+        json = {"name": "test-{{ ds }}"}
+
+        dag = DAG("test", start_date=datetime.now())
+        op = DatabricksCreateJobsOperator(dag=dag, task_id=TASK_ID, json=json)
+        op.render_template_fields(context={"ds": DATE})
+        expected = utils.normalise_json_content({"name": f"test-{DATE}"})
+        assert expected == op.json
+
+    def test_init_with_bad_type(self):
+        json = {"test": datetime.now()}
+        # Looks a bit weird since we have to escape regex reserved symbols.
+        exception_message = (
+            r"Type \<(type|class) \'datetime.datetime\'\> used "
+            r"for parameter json\[test\] is not a number or a string"
+        )
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_create(self, db_mock_class):
+        """
+        Test the execute function in case where the job does not exist.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+        db_mock = db_mock_class.return_value
+        db_mock.create_job.return_value = JOB_ID
+
+        db_mock.find_job_id_by_name.return_value = None
+
+        return_result = op.execute({})
+
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tags": TAGS,
+                "tasks": TASKS,
+                "job_clusters": JOB_CLUSTERS,
+                "email_notifications": EMAIL_NOTIFICATIONS,
+                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "timeout_seconds": TIMEOUT_SECONDS,
+                "schedule": SCHEDULE,
+                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+                "git_source": GIT_SOURCE,
+                "access_control_list": ACCESS_CONTROL_LIST,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksCreateJobsOperator",
+        )
+
+        db_mock.create_job.assert_called_once_with(expected)
+        assert JOB_ID == return_result
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_reset(self, db_mock_class):
+        """
+        Test the execute function in case where the job already exists.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
+
+        return_result = op.execute({})
+
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tags": TAGS,
+                "tasks": TASKS,
+                "job_clusters": JOB_CLUSTERS,
+                "email_notifications": EMAIL_NOTIFICATIONS,
+                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "timeout_seconds": TIMEOUT_SECONDS,
+                "schedule": SCHEDULE,
+                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+                "git_source": GIT_SOURCE,
+                "access_control_list": ACCESS_CONTROL_LIST,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksCreateJobsOperator",
+        )
+
+        db_mock.reset_job.assert_called_once_with(JOB_ID, expected)
+        assert JOB_ID == return_result
 
 
 class TestDatabricksSubmitRunOperator:
@@ -269,6 +679,7 @@ class TestDatabricksSubmitRunOperator:
         )
         assert expected == utils.normalise_json_content(op.json)
 
+    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {
             "new_cluster": NEW_CLUSTER,
@@ -610,6 +1021,7 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
+    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 

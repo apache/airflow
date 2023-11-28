@@ -340,14 +340,14 @@ class CeleryExecutor(BaseExecutor):
         self.update_all_task_states()
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Debug dump; called in response to SIGUSR2 by the scheduler."""
         super().debug_dump()
         self.log.info(
             "executor.tasks (%d)\n\t%s", len(self.tasks), "\n\t".join(map(repr, self.tasks.items()))
         )
 
     def update_all_task_states(self) -> None:
-        """Updates states of the tasks."""
+        """Update states of the tasks."""
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
         state_and_info_by_celery_task_id = self.bulk_state_fetcher.get_many(self.tasks.values())
 
@@ -362,7 +362,7 @@ class CeleryExecutor(BaseExecutor):
         self.tasks.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
-        """Updates state of a single task."""
+        """Update state of a single task."""
         try:
             if state == celery_states.SUCCESS:
                 self.success(key, info)
@@ -483,7 +483,8 @@ class CeleryExecutor(BaseExecutor):
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    """This method is used by Sphinx to generate documentation.
+    """
+    Generate documentation; used by Sphinx.
 
     :meta private:
     """

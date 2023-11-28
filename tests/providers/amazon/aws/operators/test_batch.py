@@ -46,7 +46,6 @@ RESPONSE_WITHOUT_FAILURES = {
 
 
 class TestBatchOperator:
-
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
 
@@ -64,6 +63,7 @@ class TestBatchOperator:
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
             parameters=None,
+            retry_strategy=None,
             container_overrides={},
             array_properties=None,
             aws_conn_id="airflow_test",
@@ -97,6 +97,7 @@ class TestBatchOperator:
         assert self.batch.hook.max_retries == self.MAX_RETRIES
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
+        assert self.batch.retry_strategy == {"attempts": 1}
         assert self.batch.container_overrides == {}
         assert self.batch.array_properties is None
         assert self.batch.node_overrides is None
@@ -120,6 +121,7 @@ class TestBatchOperator:
             "array_properties",
             "node_overrides",
             "parameters",
+            "retry_strategy",
             "waiters",
             "tags",
             "wait_for_completion",
@@ -144,6 +146,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -167,6 +170,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -233,6 +237,7 @@ class TestBatchOperator:
             "jobName": JOB_NAME,
             "jobDefinition": "hello-world",
             "parameters": {},
+            "retryStrategy": {"attempts": 1},
             "tags": {},
         }
         if override == "overrides":

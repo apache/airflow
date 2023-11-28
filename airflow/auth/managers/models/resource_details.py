@@ -22,17 +22,57 @@ from enum import Enum
 
 
 @dataclass
+class ConfigurationDetails:
+    """Represents the details of a configuration."""
+
+    section: str | None = None
+
+
+@dataclass
 class ConnectionDetails:
     """Represents the details of a connection."""
 
-    conn_id: str
+    conn_id: str | None = None
 
 
 @dataclass
 class DagDetails:
     """Represents the details of a DAG."""
 
-    id: str
+    id: str | None = None
+
+
+@dataclass
+class DatasetDetails:
+    """Represents the details of a dataset."""
+
+    uri: str | None = None
+
+
+@dataclass
+class PoolDetails:
+    """Represents the details of a pool."""
+
+    name: str | None = None
+
+
+@dataclass
+class VariableDetails:
+    """Represents the details of a variable."""
+
+    key: str | None = None
+
+
+class AccessView(Enum):
+    """Enum of specific views the user tries to access."""
+
+    CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
+    DOCS = "DOCS"
+    JOBS = "JOBS"
+    PLUGINS = "PLUGINS"
+    PROVIDERS = "PROVIDERS"
+    TRIGGERS = "TRIGGERS"
+    WEBSITE = "WEBSITE"
 
 
 class DagAccessEntity(Enum):
@@ -40,9 +80,13 @@ class DagAccessEntity(Enum):
 
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
-    DATASET = "DATASET"
     DEPENDENCIES = "DEPENDENCIES"
+    IMPORT_ERRORS = "IMPORT_ERRORS"
     RUN = "RUN"
+    SLA_MISS = "SLA_MISS"
+    TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_RESCHEDULE = "TASK_RESCHEDULE"
     TASK_LOGS = "TASK_LOGS"
+    WARNING = "WARNING"
     XCOM = "XCOM"

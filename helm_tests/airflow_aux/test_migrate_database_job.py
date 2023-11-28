@@ -351,7 +351,7 @@ class TestMigrateDatabaseJobServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {

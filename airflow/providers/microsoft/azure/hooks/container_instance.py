@@ -19,18 +19,23 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
-from azure.common.credentials import ServicePrincipalCredentials
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
 if TYPE_CHECKING:
-    from azure.mgmt.containerinstance.models import ContainerGroup
+    from azure.mgmt.containerinstance.models import (
+        ContainerGroup,
+        ContainerPropertiesInstanceView,
+        ContainerState,
+        Event,
+    )
 
 
 class AzureContainerInstanceHook(AzureBaseHook):
@@ -67,23 +72,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get("tenantId")
-        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
-            warnings.warn(
-                "`extra__azure__tenantId` is deprecated in azure connection extra, "
-                "please use `tenantId` instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            tenant = conn.extra_dejson.get("extra__azure__tenantId")
-        subscription_id = conn.extra_dejson.get("subscriptionId")
-        if not subscription_id and conn.extra_dejson.get("extra__azure__subscriptionId"):
-            warnings.warn(
-                "`extra__azure__subscriptionId` is deprecated in azure connection extra, "
-                "please use `subscriptionId` instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId")
 
         key_path = conn.extra_dejson.get("key_path")
         if key_path:
@@ -97,16 +85,22 @@ class AzureContainerInstanceHook(AzureBaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        credential: ServicePrincipalCredentials | DefaultAzureCredential
+        credential: ClientSecretCredential | DefaultAzureCredential
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
-            credential = ServicePrincipalCredentials(
-                client_id=conn.login, secret=conn.password, tenant=tenant
+            credential = ClientSecretCredential(
+                client_id=conn.login, client_secret=conn.password, tenant_id=cast(str, tenant)
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
+        subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
         return ContainerInstanceManagementClient(
             credential=credential,
             subscription_id=subscription_id,
@@ -137,8 +131,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
             stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
-        c_state = cg_state.containers[0].instance_view.current_state
-        return (c_state.state, c_state.exit_code, c_state.detail_status)
+        container = cg_state.containers[0]
+        instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]
+        c_state: ContainerState = instance_view.current_state  # type: ignore[assignment]
+        return c_state.state, c_state.exit_code, c_state.detail_status
 
     def get_messages(self, resource_group: str, name: str) -> list:
         """
@@ -154,8 +150,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
             stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
-        instance_view = cg_state.containers[0].instance_view
-        return [event.message for event in instance_view.events]
+        container = cg_state.containers[0]
+        instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]
+        events: list[Event] = instance_view.events  # type: ignore[assignment]
+        return [event.message for event in events]
 
     def get_state(self, resource_group: str, name: str) -> ContainerGroup:
         """
@@ -177,6 +175,8 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :return: A list of log messages
         """
         logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
+        if logs.content is None:
+            return [None]
         return logs.content.splitlines(True)
 
     def delete(self, resource_group: str, name: str) -> None:

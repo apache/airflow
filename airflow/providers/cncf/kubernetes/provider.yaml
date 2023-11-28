@@ -22,7 +22,12 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 suspended: false
+source-date-epoch: 1700827450
 versions:
+  - 7.10.0
+  - 7.9.0
+  - 7.8.0
+  - 7.7.0
   - 7.6.0
   - 7.5.1
   - 7.5.0
@@ -68,7 +73,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - aiofiles>=23.2.0
+  - apache-airflow>=2.5.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -339,3 +345,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

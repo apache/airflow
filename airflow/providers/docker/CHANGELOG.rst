@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+3.8.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor docker operator attribute validations and docs (#35571)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix '_DockerDecoratedOperator' module type attribute pickle error (#35293)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add ulimits parameter to DockerOperator (#34284)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Deprecate get_hook method in DockerOperator (#34432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor consolidate import from io in providers (#34378)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor: Consolidate import textwrap in providers (#34220)``
+
 3.7.5
 .....
 

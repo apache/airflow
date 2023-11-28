@@ -83,6 +83,7 @@ class TestOracleStoredProcedureOperator:
             handler=mock.ANY,
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
     def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same

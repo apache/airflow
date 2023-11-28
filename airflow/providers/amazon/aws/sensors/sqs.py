@@ -197,7 +197,6 @@ class SqsSensor(BaseSensorOperator):
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [

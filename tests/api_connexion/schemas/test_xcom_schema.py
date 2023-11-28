@@ -31,6 +31,8 @@ from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module", autouse=True)
 def clean_xcom():

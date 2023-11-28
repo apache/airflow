@@ -44,6 +44,15 @@ export interface paths {
     /**
      * Test a connection.
      *
+     * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+     * For more information on capabilities of users, see the documentation:
+     * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+     * It is strongly advised to not enable the feature until you make sure that only
+     * highly trusted UI/API users have "edit connection" permissions.
+     *
+     * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+     * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+     *
      * *New in version 2.2.0*
      */
     post: operations["test_connection"];
@@ -1474,7 +1483,7 @@ export interface components {
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"];
       doc_md?: string | null;
-      default_view?: string;
+      default_view?: string | null;
       /**
        * @description User-specified DAG params.
        *
@@ -1575,19 +1584,25 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
-      flask_blueprints?: ({ [key: string]: unknown } | null)[];
+      flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
       appbuilder_menu_items?: ({ [key: string]: unknown } | null)[];
       /** @description The global operator extra links */
-      global_operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      global_operator_extra_links?: (string | null)[];
       /** @description Operator extra links */
-      operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
@@ -2192,7 +2207,13 @@ export interface components {
     /**
      * @description Trigger rule.
      *
-     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+     *
+     * *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+     *
+     * *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+     *
+     * *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
      *
      * @enum {string}
      */
@@ -2200,13 +2221,17 @@ export interface components {
       | "all_success"
       | "all_failed"
       | "all_done"
+      | "all_done_setup_success"
       | "one_success"
       | "one_failed"
+      | "one_done"
       | "none_failed"
       | "none_skipped"
       | "none_failed_or_skipped"
       | "none_failed_min_one_success"
-      | "dummy";
+      | "dummy"
+      | "all_skipped"
+      | "always";
     /**
      * @description Weight rule.
      * @enum {string}
@@ -2567,6 +2592,15 @@ export interface operations {
   };
   /**
    * Test a connection.
+   *
+   * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+   * For more information on capabilities of users, see the documentation:
+   * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+   * It is strongly advised to not enable the feature until you make sure that only
+   * highly trusted UI/API users have "edit connection" permissions.
+   *
+   * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+   * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
    *
    * *New in version 2.2.0*
    */
