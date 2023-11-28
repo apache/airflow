@@ -227,7 +227,9 @@ class TestGoogleCloudStorageObjectAsyncSensor:
 class TestTsFunction:
     def test_should_support_datetime(self):
         context = {
-            "dag": DAG(dag_id=TEST_DAG_ID, schedule=timedelta(days=5)),
+            "dag": DAG(
+                dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
+            ),
             "execution_date": datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
