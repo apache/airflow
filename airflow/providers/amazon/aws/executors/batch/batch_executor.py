@@ -50,7 +50,7 @@ class AwsBatchExecutor(BaseExecutor):
 
     def start(self):
         """Initialize Boto3 Batch Client, and other internal variables"""
-        region = conf.get('batch', 'region')
+        region = conf.get('batch', 'region', fallback="us-west-2")
         self.active_workers = BatchJobCollection()
         self.batch = boto3.client('batch', region_name=region)
         self.submit_job_kwargs = self._load_submit_kwargs()
@@ -113,6 +113,8 @@ class AwsBatchExecutor(BaseExecutor):
         before calling Boto3's "submit_job" function.
         """
         submit_job_api = self._submit_job_kwargs(key, cmd, queue, exec_config)
+        self.log.info(f"submitting job with these args: {submit_job_api}")
+        
         boto_run_task = self.batch.submit_job(**submit_job_api)
         try:
             submit_job_response = BatchSubmitJobResponseSchema().load(boto_run_task)
@@ -172,12 +174,12 @@ class AwsBatchExecutor(BaseExecutor):
             conf.get(
                 'batch',
                 'submit_job_kwargs',
-                fallback='airflow.providers.amazon.aws.executors.batch_conf.BATCH_SUBMIT_JOB_KWARGS'
+                fallback='airflow.providers.amazon.aws.executors.batch.batch_conf.BATCH_SUBMIT_JOB_KWARGS'
             )
         )
         # Sanity check with some helpful errors
         assert isinstance(submit_kwargs, dict)
-
+        # from pdb import set_trace; set_trace()
         if 'containerOverrides' not in submit_kwargs or 'command' not in submit_kwargs['containerOverrides']:
             raise KeyError('SubmitJob API needs kwargs["containerOverrides"]["command"] field,'
                            ' and value should be NULL or empty.')

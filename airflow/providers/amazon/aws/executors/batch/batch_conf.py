@@ -21,12 +21,12 @@ def has_option(section, config_name) -> bool:
 
 
 BATCH_SUBMIT_JOB_KWARGS = {}
-if conf.has_option('batch', 'region'):
-    BATCH_SUBMIT_JOB_KWARGS = {
-        'jobName': conf.get('batch', 'job_name'),
-        'jobQueue': conf.get('batch', 'job_queue'),
-        'jobDefinition': conf.get('batch', 'job_definition'),
-        'containerOverrides': {
-            'command': []
-        }
+# if conf.has_option('batch', 'region'):
+BATCH_SUBMIT_JOB_KWARGS = {
+    'jobName': conf.get('batch', 'job_name', fallback="my-test-batch-job"),
+    'jobQueue': conf.get('batch', 'job_queue', fallback="getting-started-wizard-job-queue"),
+    'jobDefinition': conf.get('batch', 'job_definition', fallback="test-job-definintion-with-public-ip"),
+    'containerOverrides': {
+        'command': []
     }
+}
