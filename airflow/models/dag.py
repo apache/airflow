@@ -548,6 +548,13 @@ class DAG(LoggingMixin):
 
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule]
+
+        has_scheduling_args = any(a is not NOTSET and bool(a) for a in scheduling_args)
+        has_empty_start_date = not ("start_date" in self.default_args or self.start_date)
+
+        if has_scheduling_args and has_empty_start_date:
+            raise ValueError("DAG is missing the start_date parameter")
+
         if not at_most_one(*scheduling_args):
             raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
         if schedule_interval is not NOTSET:
@@ -2618,10 +2625,8 @@ class DAG(LoggingMixin):
 
         from airflow.utils.task_group import TaskGroupContext
 
-        if not self.start_date and not task.start_date:
-            raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
-        elif not task.start_date:
+        if not task.start_date:
             task.start_date = self.start_date
         # otherwise, the task will start on the later of its own start date and
         # the DAG's start date
