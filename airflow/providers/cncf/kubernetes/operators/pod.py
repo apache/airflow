@@ -28,7 +28,7 @@ import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Type, TypeVar
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -83,7 +83,7 @@ alphanum_lower = string.ascii_lowercase + string.digits
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-C = TypeVar("C", bound=type[KubernetesPodOperatorCallback])
+C = TypeVar("C", bound=Type[KubernetesPodOperatorCallback])
 
 
 def _rand_str(num):

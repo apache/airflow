@@ -21,7 +21,7 @@ import datetime
 import warnings
 from asyncio import CancelledError
 from enum import Enum
-from typing import TYPE_CHECKING, Any, AsyncIterator, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncIterator, Type, TypeVar
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
 
 
-C = TypeVar("C", bound=type[KubernetesPodOperatorCallback])
+C = TypeVar("C", bound=Type[KubernetesPodOperatorCallback])
 
 
 class ContainerState(str, Enum):
