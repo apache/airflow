@@ -312,6 +312,13 @@ Extra Links
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
 
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperatorlink/index
+
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
 Using Public Interface to integrate with external services and applications

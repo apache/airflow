@@ -70,7 +70,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 3.8.1
+Release: 3.8.2
 
 Provider package
 ----------------

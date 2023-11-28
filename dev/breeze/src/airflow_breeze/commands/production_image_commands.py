@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
+from copy import deepcopy
 
 import click
 
@@ -27,10 +27,10 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
+    option_additional_airflow_extras,
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
-    option_additional_extras,
     option_additional_pip_install_flags,
     option_additional_python_deps,
     option_additional_runtime_apt_command,
@@ -39,6 +39,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
+    option_answer,
     option_build_progress,
     option_builder,
     option_commit_sha,
@@ -85,12 +86,17 @@ from airflow_breeze.utils.docker_command_utils import (
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
-from airflow_breeze.utils.parallel import DockerBuildxProgressMatcher, check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import (
+    DockerBuildxProgressMatcher,
+    ShowLastLineProgressMatcher,
+    check_async_run_results,
+    run_with_pool,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
-from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
+from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 
@@ -151,26 +157,38 @@ def prod_image():
 @prod_image.command(name="build")
 @option_python
 @option_debian_version
-@option_run_in_parallel
-@option_parallelism
-@option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_python_versions
 @option_platform_multiple
 @option_github_token
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push
+@option_install_providers_from_sources
+@click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
+@option_additional_airflow_extras
+@option_additional_dev_apt_deps
+@option_additional_runtime_apt_deps
+@option_additional_python_deps
+@option_additional_dev_apt_command
+@option_additional_dev_apt_env
+@option_additional_runtime_apt_env
+@option_additional_runtime_apt_command
+@option_builder
+@option_build_progress
+@option_commit_sha
+@option_dev_apt_command
+@option_dev_apt_deps
+@option_runtime_apt_command
+@option_runtime_apt_deps
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @click.option(
     "--installation-method",
     help="Install Airflow from: sources or PyPI.",
     type=BetterChoice(ALLOWED_INSTALLATION_METHODS),
+    default=ALLOWED_INSTALLATION_METHODS[0],
+    show_default=True,
 )
-@option_install_providers_from_sources
 @click.option(
     "--install-packages-from-context",
     help="Install wheels from local docker-context-files when building image. "
@@ -208,37 +226,72 @@ def prod_image():
     help="Install Airflow using GitHub tag or branch.",
 )
 @option_airflow_constraints_reference_build
-@click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
-@option_additional_extras
-@option_additional_dev_apt_deps
-@option_additional_runtime_apt_deps
-@option_additional_python_deps
-@option_additional_dev_apt_command
-@option_additional_dev_apt_env
-@option_additional_runtime_apt_env
-@option_additional_runtime_apt_command
-@option_builder
-@option_build_progress
-@option_dev_apt_command
-@option_dev_apt_deps
-@option_python_image
-@option_runtime_apt_command
-@option_runtime_apt_deps
 @option_tag_as_latest
 @option_additional_pip_install_flags
 @option_github_repository
+@option_python_image
 @option_version_suffix_for_pypi
-@option_commit_sha
+@option_run_in_parallel
+@option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
+@option_python_versions
 @option_verbose
 @option_dry_run
+@option_answer
 def build(
+    # build options
+    python: str,
+    debian_version: str,
+    platform: str | None,
+    github_token: str | None,
+    docker_cache: str,
+    image_tag: str,
+    prepare_buildx_cache: bool,
+    push: bool,
+    install_providers_from_sources: bool,
+    install_airflow_version: str | None,
+    additional_airflow_extras: str | None,
+    additional_dev_apt_deps: str | None,
+    additional_runtime_apt_deps: str | None,
+    additional_python_deps: str | None,
+    additional_dev_apt_command: str | None,
+    additional_dev_apt_env: str | None,
+    additional_runtime_apt_command: str | None,
+    additional_runtime_apt_env: str | None,
+    builder: str,
+    build_progress: str,
+    commit_sha: str | None,
+    dev_apt_command: str | None,
+    dev_apt_deps: str | None,
+    runtime_apt_command: str | None,
+    runtime_apt_deps: str | None,
+    airflow_constraints_location: str | None,
+    airflow_constraints_mode: str,
+    installation_method: str,
+    install_packages_from_context: bool,
+    use_constraints_for_context_packages: bool,
+    cleanup_context: bool,
+    airflow_extras: str,
+    disable_mysql_client_installation: bool,
+    disable_mssql_client_installation: bool,
+    disable_postgres_client_installation: bool,
+    disable_airflow_repo_cache: bool,
+    install_airflow_reference: str | None,
+    airflow_constraints_reference: str | None,
+    tag_as_latest: bool,
+    additional_pip_install_flags: str | None,
+    github_repository: str,
+    python_image: str | None,
+    version_suffix_for_pypi: str,
+    # Parallel building
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
     debug_resources: bool,
-    include_success_outputs: bool,
+    include_success_outputs,
     python_versions: str,
-    **kwargs: dict[str, Any],
 ):
     """
     Build Production image. Include building multiple images for all or selected Python versions sequentially.
@@ -252,14 +305,59 @@ def build(
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    parameters_passed = filter_out_none(**kwargs)
 
+    base_build_params = BuildProdParams(
+        python=python,
+        debian_version=debian_version,
+        github_token=github_token,
+        docker_cache=docker_cache,
+        image_tag=image_tag,
+        prepare_buildx_cache=prepare_buildx_cache,
+        push=push,
+        install_providers_from_sources=install_providers_from_sources,
+        install_airflow_version=install_airflow_version,
+        additional_airflow_extras=additional_airflow_extras,
+        additional_dev_apt_deps=additional_dev_apt_deps,
+        additional_runtime_apt_deps=additional_runtime_apt_deps,
+        additional_python_deps=additional_python_deps,
+        additional_dev_apt_command=additional_dev_apt_command,
+        additional_dev_apt_env=additional_dev_apt_env,
+        additional_runtime_apt_command=additional_runtime_apt_command,
+        additional_runtime_apt_env=additional_runtime_apt_env,
+        builder=builder,
+        build_progress=build_progress,
+        commit_sha=commit_sha,
+        dev_apt_command=dev_apt_command,
+        dev_apt_deps=dev_apt_deps,
+        runtime_apt_command=runtime_apt_command,
+        runtime_apt_deps=runtime_apt_deps,
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
+        installation_method=installation_method,
+        install_packages_from_context=install_packages_from_context,
+        use_constraints_for_context_packages=use_constraints_for_context_packages,
+        cleanup_context=cleanup_context,
+        airflow_extras=airflow_extras,
+        disable_mysql_client_installation=disable_mysql_client_installation,
+        disable_mssql_client_installation=disable_mssql_client_installation,
+        disable_postgres_client_installation=disable_postgres_client_installation,
+        disable_airflow_repo_cache=disable_airflow_repo_cache,
+        install_airflow_reference=install_airflow_reference,
+        airflow_constraints_reference=airflow_constraints_reference,
+        tag_as_latest=tag_as_latest,
+        additional_pip_install_flags=additional_pip_install_flags,
+        github_repository=github_repository,
+        python_image=python_image,
+        version_suffix_for_pypi=version_suffix_for_pypi,
+    )
+    if platform:
+        base_build_params.platform = platform
     fix_group_permissions()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         params_list: list[BuildProdParams] = []
         for python in python_version_list:
-            params = BuildProdParams(**parameters_passed)
+            params = deepcopy(base_build_params)
             params.python = python
             params_list.append(params)
         prepare_for_building_prod_image(prod_image_params=params_list[0])
@@ -272,9 +370,8 @@ def build(
             include_success_outputs=include_success_outputs,
         )
     else:
-        params = BuildProdParams(**parameters_passed)
-        prepare_for_building_prod_image(prod_image_params=params)
-        run_build(prod_image_params=params)
+        prepare_for_building_prod_image(prod_image_params=base_build_params)
+        run_build(prod_image_params=base_build_params)
 
 
 @prod_image.command(name="pull")
@@ -356,6 +453,45 @@ def pull_prod_image(
             sys.exit(return_code)
 
 
+def run_verify_in_parallel(
+    image_params_list: list[BuildProdParams],
+    python_version_list: list[str],
+    extra_pytest_args: tuple[str, ...],
+    include_success_outputs: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+) -> None:
+    with ci_group(f"Verifying PROD images for {python_version_list}"):
+        all_params = [f"PROD {image_params.python}" for image_params in image_params_list]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=ShowLastLineProgressMatcher(),
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    verify_an_image,
+                    kwds={
+                        "image_name": image_params.airflow_image_name_with_tag,
+                        "image_type": "PROD",
+                        "slim_image": False,
+                        "extra_pytest_args": extra_pytest_args,
+                        "output": outputs[index],
+                    },
+                )
+                for index, image_params in enumerate(image_params_list)
+            ]
+    check_async_run_results(
+        results=results,
+        success="All images verified",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
+
+
 @prod_image.command(
     name="verify",
     context_settings=dict(
@@ -363,22 +499,29 @@ def pull_prod_image(
         allow_extra_args=True,
     ),
 )
-@option_python
-@option_image_tag_for_verifying
-@option_image_name
-@option_pull
 @click.option(
     "--slim-image",
     help="The image to verify is slim and non-slim tests should be skipped.",
     is_flag=True,
 )
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@option_python
+@option_python_versions
+@option_image_tag_for_verifying
+@option_image_name
+@option_pull
 @option_github_repository
 @option_github_token
+@option_run_in_parallel
+@option_parallelism
+@option_skip_cleanup
+@option_include_success_outputs
+@option_debug_resources
 @option_verbose
 @option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def verify(
     python: str,
+    python_versions: str,
     github_repository: str,
     image_name: str,
     image_tag: str | None,
@@ -386,6 +529,11 @@ def verify(
     slim_image: bool,
     github_token: str,
     extra_pytest_args: tuple,
+    run_in_parallel: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
 ):
     """Verify Production image."""
     perform_environment_checks()
@@ -393,27 +541,54 @@ def verify(
         github_token=github_token,
         output=None,
     )
-    if image_name is None:
-        build_params = BuildProdParams(
-            python=python,
-            image_tag=image_tag,
-            github_repository=github_repository,
-            github_token=github_token,
+    if (pull or image_name) and run_in_parallel:
+        get_console().print(
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
         )
-        image_name = build_params.airflow_image_name_with_tag
-    if pull:
-        check_remote_ghcr_io_commands()
-        command_to_run = ["docker", "pull", image_name]
-        run_command(command_to_run, check=True)
-    get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
-    return_code, info = verify_an_image(
-        image_name=image_name,
-        output=None,
-        image_type="PROD",
-        extra_pytest_args=extra_pytest_args,
-        slim_image=slim_image,
-    )
-    sys.exit(return_code)
+        sys.exit(1)
+    if run_in_parallel:
+        base_build_params = BuildProdParams(
+            python=python,
+            github_repository=github_repository,
+            image_tag=image_tag,
+        )
+        python_version_list = get_python_version_list(python_versions)
+        params_list: list[BuildProdParams] = []
+        for python in python_version_list:
+            build_params = deepcopy(base_build_params)
+            build_params.python = python
+            params_list.append(build_params)
+        run_verify_in_parallel(
+            image_params_list=params_list,
+            python_version_list=python_version_list,
+            extra_pytest_args=extra_pytest_args,
+            include_success_outputs=include_success_outputs,
+            parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
+        )
+    else:
+        if image_name is None:
+            build_params = BuildProdParams(
+                python=python,
+                image_tag=image_tag,
+                github_repository=github_repository,
+                github_token=github_token,
+            )
+            image_name = build_params.airflow_image_name_with_tag
+        if pull:
+            check_remote_ghcr_io_commands()
+            command_to_run = ["docker", "pull", image_name]
+            run_command(command_to_run, check=True)
+        get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
+        return_code, info = verify_an_image(
+            image_name=image_name,
+            output=None,
+            image_type="PROD",
+            extra_pytest_args=extra_pytest_args,
+            slim_image=slim_image,
+        )
+        sys.exit(return_code)
 
 
 def clean_docker_context_files():

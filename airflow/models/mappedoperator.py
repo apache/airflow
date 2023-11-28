@@ -32,6 +32,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -48,6 +49,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
@@ -66,7 +68,8 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import (
         TaskStateChangeCallback,
     )
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.expandinput import (
         ExpandInput,
@@ -328,6 +331,8 @@ class MappedOperator(AbstractOperator):
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
             )
+        # validate the priority weight strategy
+        get_priority_weight_strategy(self.priority_weight_strategy)
 
     @classmethod
     @cache
@@ -470,8 +475,16 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> str | None:  # type: ignore[override]
+        return self.partial_kwargs.get("weight_rule") or DEFAULT_WEIGHT_RULE
+
+    @property
+    def priority_weight_strategy(self) -> str:  # type: ignore[override]
+        return (
+            self.weight_rule  # for backward compatibility
+            or self.partial_kwargs.get("priority_weight_strategy")
+            or DEFAULT_PRIORITY_WEIGHT_STRATEGY
+        )
 
     @property
     def sla(self) -> datetime.timedelta | None:

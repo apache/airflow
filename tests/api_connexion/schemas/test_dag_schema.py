@@ -183,6 +183,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "schedule_interval": {"__type": "TimeDelta", "days": 1, "seconds": 0, "microseconds": 0},
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
+        "template_searchpath": None,
         "timezone": "Timezone('UTC')",
         "max_active_runs": 16,
         "pickle_id": None,

@@ -27,7 +27,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, Generator, NamedTuple
+from typing import IO, Any, Generator, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -36,15 +36,27 @@ from rich.syntax import Syntax
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_ALL,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.prepare_providers.provider_packages import (
+    PrepareReleasePackageErrorBuildingPackageException,
+    PrepareReleasePackageTagExistException,
+    PrepareReleasePackageWrongSetupException,
+    build_provider_package,
+    cleanup_build_remnants,
+    copy_provider_sources_to_target,
+    generate_build_files,
+    get_packages_list_to_act_on,
+    move_built_packages_and_cleanup,
+    should_skip_the_package,
+)
 from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
@@ -84,18 +96,19 @@ from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
-    get_env_variables_for_docker_commands,
+    fix_ownership_using_docker,
     get_extra_docker_flags,
     perform_environment_checks,
 )
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
+    PackageSuspendedException,
     expand_all_provider_packages,
     find_matching_long_package_names,
     get_available_packages,
     get_provider_details,
     get_provider_packages_metadata,
-    get_removed_provider_ids,
+    make_sure_remote_apache_exists_and_fetch,
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
@@ -105,6 +118,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_WWW_DIR,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
     PROVIDER_METADATA_JSON_FILE_PATH,
@@ -119,7 +133,7 @@ from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
-    assert_pre_commit_installed,
+    clean_www_assets,
     run_command,
     run_compile_www_assets,
 )
@@ -134,15 +148,15 @@ option_debug_release_management = click.option(
 
 
 def run_docker_command_with_debug(
-    params: ShellParams,
+    shell_params: ShellParams,
     command: list[str],
     debug: bool,
     enable_input: bool = False,
     output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
-    env_variables = get_env_variables_for_docker_commands(params)
-    extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
+    env = shell_params.env_variables_for_docker_commands
+    extra_docker_flags = get_extra_docker_flags(mount_sources=shell_params.mount_sources)
     if enable_input or debug:
         term_flag = "-it"
     else:
@@ -154,7 +168,7 @@ def run_docker_command_with_debug(
         *extra_docker_flags,
         "--pull",
         "never",
-        params.airflow_image_name_with_tag,
+        shell_params.airflow_image_name_with_tag,
     ]
     if debug:
         cmd_string = " ".join([shlex.quote(s) for s in command if s != "-c"])
@@ -172,19 +186,70 @@ echo -e '\\e[34mRun this command to debug:
         )
         return run_command(
             base_command,
-            env=env_variables,
             output_outside_the_group=output_outside_the_group,
+            env=env,
             **kwargs,
         )
     else:
         base_command.extend(command)
         return run_command(
             base_command,
-            env=env_variables,
             check=False,
+            env=env,
             output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
+
+
+AIRFLOW_PIP_VERSION = "23.3.1"
+WHEEL_VERSION = "0.36.2"
+GITPYTHON_VERSION = "3.1.40"
+RICH_VERSION = "13.7.0"
+
+
+AIRFLOW_BUILD_DOCKERFILE = f"""
+FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
+RUN apt-get update && apt-get install -y --no-install-recommends git
+RUN pip install pip=={AIRFLOW_PIP_VERSION} wheel=={WHEEL_VERSION} \\
+   gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION}
+"""
+
+AIRFLOW_BUILD_IMAGE_TAG = "apache/airflow:local-build-image"
+NODE_BUILD_IMAGE_TAG = "node:21.2.0-bookworm-slim"
+
+
+def _compile_assets_in_docker():
+    clean_www_assets()
+    get_console().print("[info]Compiling assets in docker container\n")
+    result = run_command(
+        [
+            "docker",
+            "run",
+            "-t",
+            "-v",
+            f"{AIRFLOW_WWW_DIR}:/opt/airflow/airflow/www/",
+            "-e",
+            "FORCE_COLOR=true",
+            NODE_BUILD_IMAGE_TAG,
+            "bash",
+            "-c",
+            "cd /opt/airflow/airflow/www && yarn install --frozen-lockfile && yarn run build",
+        ],
+        text=True,
+        capture_output=not get_verbose(),
+        check=False,
+    )
+    if result.returncode != 0:
+        get_console().print("[error]Error compiling assets[/]")
+        get_console().print(result.stdout)
+        get_console().print(result.stderr)
+        fix_ownership_using_docker()
+        sys.exit(result.returncode)
+
+    get_console().print("[success]compiled assets in docker container\n")
+    get_console().print("[info]Fixing ownership of compiled assets\n")
+    fix_ownership_using_docker()
+    get_console().print("[success]Fixing ownership of compiled assets\n")
 
 
 @release_management.command(
@@ -192,43 +257,68 @@ echo -e '\\e[34mRun this command to debug:
     help="Prepare sdist/whl package of Airflow.",
 )
 @option_package_format
+@click.option(
+    "--use-container-for-assets-compilation",
+    is_flag=True,
+    help="If set, the assets are compiled in docker container. On MacOS, asset compilation in containers "
+    "is slower, due to slow mounted filesystem and number of node_module files so by default asset "
+    "compilation is done locally. This option is useful for officially building packages by release "
+    "manager on MacOS to make sure it is a reproducible build.",
+)
 @option_version_suffix_for_pypi
-@option_debug_release_management
-@option_github_repository
 @option_verbose
 @option_dry_run
 def prepare_airflow_packages(
     package_format: str,
     version_suffix_for_pypi: str,
-    debug: bool,
-    github_repository: str,
+    use_container_for_assets_compilation: bool,
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
-    assert_pre_commit_installed()
-    run_compile_www_assets(dev=False, run_in_background=False)
-    shell_params = ShellParams(
-        github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        package_format=package_format,
-        version_suffix_for_pypi=version_suffix_for_pypi,
-        skip_environment_initialization=True,
-        install_providers_from_sources=False,
-        mount_sources=MOUNT_ALL,
+    get_console().print("[info]Compiling assets\n")
+    from sys import platform
+
+    if platform == "darwin" and not use_container_for_assets_compilation:
+        run_compile_www_assets(dev=False, run_in_background=False, force_clean=True)
+    else:
+        _compile_assets_in_docker()
+    get_console().print("[success]Assets compiled successfully[/]")
+    run_command(
+        ["docker", "build", "--tag", AIRFLOW_BUILD_IMAGE_TAG, "-"],
+        input=AIRFLOW_BUILD_DOCKERFILE,
+        text=True,
+        check=True,
+        env={"DOCKER_CLI_HINTS": "false"},
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    result_command = run_docker_command_with_debug(
-        params=shell_params,
-        command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
-        debug=debug,
-        output_outside_the_group=True,
+    run_command(
+        cmd=[
+            "docker",
+            "run",
+            "-t",
+            "-v",
+            f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow:cached",
+            "-e",
+            f"VERSION_SUFFIX_FOR_PYPI={version_suffix_for_pypi}",
+            "-e",
+            "GITHUB_ACTIONS",
+            "-e",
+            f"PACKAGE_FORMAT={package_format}",
+            AIRFLOW_BUILD_IMAGE_TAG,
+            "python",
+            "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.py",
+        ],
+        check=True,
     )
-    sys.exit(result_command.returncode)
+    get_console().print("[success]Successfully prepared Airflow package!\n\n")
+    get_console().print("\n[info]Cleaning ownership of generated files\n")
+    fix_ownership_using_docker()
+    get_console().print("\n[success]Cleaned ownership of generated files\n")
 
 
-def provider_documentation_summary(documentation: str, message_type: MessageType, packages: list[str]):
+def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
     if packages:
-        get_console().print(f"{documentation}: {len(packages)}\n")
+        get_console().print(f"{description}: {len(packages)}\n")
         get_console().print(f"[{message_type.value}]{' '.join(packages)}")
         get_console().print()
 
@@ -287,12 +377,13 @@ def prepare_provider_documentation(
         PrepareReleaseDocsNoChangesException,
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
-        make_sure_remote_apache_exists_and_fetch,
         update_changelog,
         update_min_airflow_version,
         update_release_notes,
     )
 
+    perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if not provider_packages:
         provider_packages = get_available_packages()
@@ -300,7 +391,6 @@ def prepare_provider_documentation(
     if not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
-    provider_packages_metadata = get_provider_packages_metadata()
     no_changes_packages = []
     doc_only_packages = []
     error_packages = []
@@ -308,76 +398,62 @@ def prepare_provider_documentation(
     success_packages = []
     suspended_packages = []
     removed_packages = []
-    for provider_package_id in provider_packages:
-        provider_metadata = provider_packages_metadata.get(provider_package_id)
-        if not provider_metadata:
-            get_console().print(
-                f"[error]The package {provider_package_id} is not a provider package. Exiting[/]"
-            )
-            sys.exit(1)
-        if provider_metadata.get("removed", False):
-            get_console().print(
-                f"[warning]The package: {provider_package_id} is scheduled for removal, but "
-                f"since you asked for it, it will be built [/]\n"
-            )
-        elif provider_metadata.get("suspended"):
-            get_console().print(
-                f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n"
-            )
-            suspended_packages.append(provider_package_id)
-            continue
+    for provider_id in provider_packages:
+        provider_metadata = basic_provider_checks(provider_id)
         if os.environ.get("GITHUB_ACTIONS", "false") != "true":
             get_console().print("-" * get_console().width)
         try:
             with_breaking_changes = False
             maybe_with_new_features = False
-            with ci_group(f"Update release notes for package '{provider_package_id}' "):
+            with ci_group(f"Update release notes for package '{provider_id}' "):
                 get_console().print("Updating documentation for the latest release version.")
                 if not only_min_version_update:
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
-                        provider_package_id,
+                        provider_id,
                         reapply_templates_only=reapply_templates_only,
                         base_branch=base_branch,
                         regenerate_missing_docs=reapply_templates_only,
                         non_interactive=non_interactive,
                     )
                 update_min_airflow_version(
-                    provider_package_id=provider_package_id,
+                    provider_package_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            with ci_group(f"Updates changelog for last release of package '{provider_package_id}'"):
+            with ci_group(f"Updates changelog for last release of package '{provider_id}'"):
                 update_changelog(
-                    package_id=provider_package_id,
+                    package_id=provider_id,
                     base_branch=base_branch,
                     reapply_templates_only=reapply_templates_only,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
         except PrepareReleaseDocsNoChangesException:
-            no_changes_packages.append(provider_package_id)
+            no_changes_packages.append(provider_id)
         except PrepareReleaseDocsChangesOnlyException:
-            doc_only_packages.append(provider_package_id)
+            doc_only_packages.append(provider_id)
         except PrepareReleaseDocsErrorOccurredException:
-            error_packages.append(provider_package_id)
+            error_packages.append(provider_id)
         except PrepareReleaseDocsUserSkippedException:
-            user_skipped_packages.append(provider_package_id)
+            user_skipped_packages.append(provider_id)
+        except PackageSuspendedException:
+            suspended_packages.append(provider_id)
         except PrepareReleaseDocsUserQuitException:
             break
         else:
             if provider_metadata.get("removed"):
-                removed_packages.append(provider_package_id)
+                removed_packages.append(provider_id)
             else:
-                success_packages.append(provider_package_id)
+                success_packages.append(provider_id)
     get_console().print()
-    get_console().print("\n[info]Summary of prepared packages:\n")
-    provider_documentation_summary("Success", MessageType.SUCCESS, success_packages)
-    provider_documentation_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
-    provider_documentation_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
-    provider_documentation_summary("Skipped on no changes", MessageType.WARNING, no_changes_packages)
-    provider_documentation_summary("Suspended", MessageType.WARNING, suspended_packages)
-    provider_documentation_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
-    provider_documentation_summary("Errors", MessageType.ERROR, error_packages)
+    get_console().print("\n[info]Summary of prepared documentation:\n")
+    provider_action_summary("Success", MessageType.SUCCESS, success_packages)
+    provider_action_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
+    provider_action_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
+    provider_action_summary("Skipped on no changes", MessageType.WARNING, no_changes_packages)
+    provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
+    provider_action_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
+    provider_action_summary("Errors", MessageType.ERROR, error_packages)
     if error_packages:
         get_console().print("\n[errors]There were errors when generating packages. Exiting!\n")
         sys.exit(1)
@@ -386,8 +462,25 @@ def prepare_provider_documentation(
         sys.exit(0)
     get_console().print("\n[success]Successfully prepared documentation for packages!\n\n")
     get_console().print(
-        "\n[info]Please review the updated files, classify " "the changelog entries and commit the changes.\n"
+        "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+
+
+def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
+    provider_packages_metadata = get_provider_packages_metadata()
+    provider_metadata = provider_packages_metadata.get(provider_package_id)
+    if not provider_metadata:
+        get_console().print(f"[error]The package {provider_package_id} is not a provider package. Exiting[/]")
+        sys.exit(1)
+    if provider_metadata.get("removed", False):
+        get_console().print(
+            f"[warning]The package: {provider_package_id} is scheduled for removal, but "
+            f"since you asked for it, it will be built [/]\n"
+        )
+    elif provider_metadata.get("suspended"):
+        get_console().print(f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n")
+        raise PackageSuspendedException()
+    return provider_metadata
 
 
 @release_management.command(
@@ -401,48 +494,110 @@ def prepare_provider_documentation(
     type=click.File("rt"),
     help="Read list of packages from text file (one package per line).",
 )
-@option_debug_release_management
-@argument_provider_packages
+@click.option(
+    "--skip-tag-check",
+    default=False,
+    is_flag=True,
+    help="Skip checking if the tag already exists in the remote repository",
+)
+@click.option(
+    "--skip-deleting-generated-files",
+    default=False,
+    is_flag=True,
+    help="Skip deleting files that were used to generate provider package. Useful for debugging and "
+    "developing changes to the build process.",
+)
+@click.option(
+    "--clean-dist",
+    default=False,
+    is_flag=True,
+    help="Clean dist directory before building packages. Useful when you want to build multiple packages "
+    " in a clean environment",
+)
 @option_github_repository
+@argument_provider_packages
 @option_verbose
 @option_dry_run
 def prepare_provider_packages(
     package_format: str,
     version_suffix_for_pypi: str,
-    package_list_file: IO,
-    debug: bool,
-    provider_packages: tuple[str, ...],
+    package_list_file: IO | None,
+    skip_tag_check: bool,
+    skip_deleting_generated_files: bool,
+    clean_dist: bool,
     github_repository: str,
+    provider_packages: tuple[str, ...],
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
-    packages_list = list(provider_packages)
-
-    removed_provider_ids = get_removed_provider_ids()
-    if package_list_file:
-        packages_list.extend(
-            [
-                package.strip()
-                for package in package_list_file.readlines()
-                if package.strip() not in removed_provider_ids
-            ]
-        )
-    shell_params = ShellParams(
-        mount_sources=MOUNT_ALL,
-        github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        package_format=package_format,
-        skip_environment_initialization=True,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+    packages_list = get_packages_list_to_act_on(package_list_file, provider_packages)
+    if not skip_tag_check:
+        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
+    success_packages = []
+    skipped_as_already_released_packages = []
+    suspended_packages = []
+    wrong_setup_packages = []
+    error_packages = []
+    if clean_dist:
+        get_console().print("\n[warning]Cleaning dist directory before building packages[/]\n")
+        shutil.rmtree(DIST_DIR, ignore_errors=True)
+        DIST_DIR.mkdir(parents=True, exist_ok=True)
+    for provider_id in packages_list:
+        try:
+            basic_provider_checks(provider_id)
+            if not skip_tag_check and should_skip_the_package(provider_id, version_suffix_for_pypi):
+                continue
+            get_console().print()
+            with ci_group(f"Preparing provider package [special]{provider_id}"):
+                get_console().print()
+                target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
+                generate_build_files(
+                    provider_id=provider_id,
+                    version_suffix=version_suffix_for_pypi,
+                    target_provider_root_sources_path=target_provider_root_sources_path,
+                )
+                cleanup_build_remnants(target_provider_root_sources_path)
+                build_provider_package(
+                    provider_id=provider_id,
+                    package_format=package_format,
+                    target_provider_root_sources_path=target_provider_root_sources_path,
+                )
+                move_built_packages_and_cleanup(
+                    target_provider_root_sources_path, DIST_DIR, skip_cleanup=skip_deleting_generated_files
+                )
+        except PrepareReleasePackageTagExistException:
+            skipped_as_already_released_packages.append(provider_id)
+        except PrepareReleasePackageWrongSetupException:
+            wrong_setup_packages.append(provider_id)
+        except PrepareReleasePackageErrorBuildingPackageException:
+            error_packages.append(provider_id)
+        except PackageSuspendedException:
+            suspended_packages.append(provider_id)
+        else:
+            get_console().print(f"\n[success]Generated package [special]{provider_id}")
+            success_packages.append(provider_id)
+    get_console().print()
+    get_console().print("\n[info]Summary of prepared packages:\n")
+    provider_action_summary("Success", MessageType.SUCCESS, success_packages)
+    provider_action_summary(
+        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh", *packages_list]
-    result_command = run_docker_command_with_debug(
-        params=shell_params,
-        command=cmd_to_run,
-        debug=debug,
-    )
-    sys.exit(result_command.returncode)
+    provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
+    provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
+    provider_action_summary("Errors", MessageType.ERROR, error_packages)
+    if error_packages or wrong_setup_packages:
+        get_console().print("\n[errors]There were errors when generating packages. Exiting!\n")
+        sys.exit(1)
+    if not success_packages and not skipped_as_already_released_packages:
+        get_console().print("\n[warning]No packages prepared!\n")
+        sys.exit(0)
+    get_console().print("\n[success]Successfully built packages!\n\n")
+    get_console().print("\n[info]Packages available in dist:\n")
+    for file in sorted(DIST_DIR.glob("apache*")):
+        get_console().print(file.name)
+    get_console().print()
 
 
 def run_generate_constraints(
@@ -454,12 +609,13 @@ def run_generate_constraints(
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
     generate_constraints_result = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output=output,
         output_outside_the_group=True,
     )
+    fix_ownership_using_docker()
     return (
         generate_constraints_result.returncode,
         f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
@@ -546,6 +702,7 @@ def generate_constraints(
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
@@ -602,6 +759,8 @@ def generate_constraints(
             python=python,
             github_repository=github_repository,
             skip_environment_initialization=True,
+            skip_image_upgrade_check=True,
+            quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
         )
         return_code, info = run_generate_constraints(
@@ -667,7 +826,7 @@ def _run_command_for_providers(
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
     result_command = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=False,
         output=output,
@@ -713,6 +872,7 @@ def install_provider_packages(
     include_success_outputs: bool,
 ):
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
@@ -798,11 +958,12 @@ def install_provider_packages(
         )
     else:
         result_command = run_docker_command_with_debug(
-            params=shell_params,
+            shell_params=shell_params,
             command=cmd_to_run,
             debug=debug,
             output_outside_the_group=True,
         )
+        fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
 
@@ -836,8 +997,11 @@ def verify_provider_packages(
         get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
         use_packages_from_dist = True
     perform_environment_checks()
+    fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        backend="sqlite",
+        executor="SequentialExecutor",
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -854,11 +1018,12 @@ def verify_provider_packages(
         "python /opt/airflow/scripts/in_container/verify_providers.py",
     ]
     result_command = run_docker_command_with_debug(
-        params=shell_params,
+        shell_params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output_outside_the_group=True,
     )
+    fix_ownership_using_docker()
     sys.exit(result_command.returncode)
 
 
@@ -1079,7 +1244,6 @@ def release_prod_images(
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
     if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"

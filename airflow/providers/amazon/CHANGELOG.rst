@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'EC2HibernateInstanceOperator' and 'EC2RebootInstanceOperator' (#35790)``
+* ``Add OpenLineage support to 'S3FileTransformOperator' (#35819)``
+* ``Add OpenLineage support to S3Operators - Copy, Delete and Create Object (#35796)``
+* ``Added retry strategy parameter to Amazon AWS provider Batch Operator to allow dynamic Batch retry strategies (#35789)``
+* ``Added name field to template_fields in EmrServerlessStartJobOperator (#35648)``
+* ``openlineage, aws: Add OpenLineage support for AthenaOperator. (#35090)``
+* ``Implement login and logout in AWS auth manager (#35488)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Batch operator's retry_strategy (#35808)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Make EksPodOperator exec config not rely on log level (#35771)``
+* ``Fix 'configuration_overrides' parameter in 'EmrServerlessStartJobOperator' (#35787)``
+
+Misc
+~~~~
+
+* ``Updated docstring: 'check_key_async' is now in line with description of '_check_key_async' (#35799)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Allow a wider range of watchtower versions (#35713)``
+* ``Extend task context logging support for remote logging using AWS S3 (#32950)``
+* ``Log failure reason for containers if a task fails for ECS Executor (#35496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Update http to s3 system test (#35711)``
+
 8.11.0
 ......
 

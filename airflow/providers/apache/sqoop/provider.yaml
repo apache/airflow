@@ -22,6 +22,7 @@ description: |
   `Apache Sqoop <https://sqoop.apache.org/>`__
 
 suspended: false
+source-date-epoch: 1700827444
 versions:
   - 4.1.0
   - 4.0.0
