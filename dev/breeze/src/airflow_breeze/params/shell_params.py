@@ -315,7 +315,7 @@ class ShellParams:
                 f"from sources but from {self.use_airflow_version}[/]"
             )
             self.mount_sources = MOUNT_REMOVE
-        if self.forward_ports:
+        if self.forward_ports and not self.project_name == "pre-commit":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
