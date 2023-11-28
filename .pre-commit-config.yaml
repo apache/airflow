@@ -1018,6 +1018,38 @@ repos:
           - "B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-fab-migrations
+        language: pygrep
+        name: Check no migration is done on FAB related table
+        description: >
+          FAB tables are no longer used in core Airflow but in FAB provider.
+          As such, it is forbidden to create migrations related to FAB tables in core Airflow.
+          Such migrations should be in FAB provider. To achieve this, a new capability must be implemented:
+          support migrations for providers. In other words, providers need to be able to specify migrations
+          so that, any FAB related migration (besides the legacy ones) is defined in FAB provider.
+          See https://github.com/apache/airflow/issues/32210
+        entry: >
+          (?ix)
+          \bab_permission\b|
+          \bab_view_menu\b|
+          \bab_role\b|
+          \bab_permission_view\b|
+          \bab_permission_view_role\b|
+          \bab_user\b|
+          \bab_user_role\b|
+          \bab_register_user\b
+        pass_filenames: true
+        files: ^airflow/migrations/versions/.*\.py$
+        # These migrations contain FAB related changes but existed before moving FAB auth manager
+        # to its own provider
+        exclude: >
+          (?ix)
+          ^airflow/migrations/versions/00.*\.py$|
+          ^airflow/migrations/versions/0106.*\.py$|
+          ^airflow/migrations/versions/0118.*\.py$|
+          ^airflow/migrations/versions/0119.*\.py$|
+          ^airflow/migrations/versions/0121.*\.py$|
+          ^airflow/migrations/versions/0124.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
