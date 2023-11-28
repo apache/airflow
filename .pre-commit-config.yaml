@@ -1050,8 +1050,8 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
-      - id:   check-provider-yaml-valid
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
@@ -1064,7 +1064,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema', 'filelock', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
         language: python
