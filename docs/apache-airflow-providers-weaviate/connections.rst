@@ -42,6 +42,8 @@ OIDC Password (optional)
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in the
     connection. All parameters are optional.
+    The extras are those parameters that are acceptable in the different authentication methods
+    here: `Authentication <https://weaviate-python-client.readthedocs.io/en/stable/weaviate.auth.html>`__
 
     * If you'd like to use Vectorizers for your class, configure the API keys to use the corresponding
       embedding API. The extras accepts a key ``additional_headers`` containing the dictionary
@@ -50,3 +52,20 @@ Extra (optional)
 
 Weaviate API Token (optional)
     Specify your Weaviate API Key to connect when API Key option is to be used for authentication.
+
+Supported Authentication Methods
+--------------------------------
+* API Key Authentication:* This method uses the Weaviate API Key to authenticate the connection. You can either have the
+  API key in the ``Weaviate API Token`` field or in the extra field as a dictionary with key ``token`` or ``api_key`` and
+  value as the API key.
+
+* Bearer Token Authentication:* This method uses the Access Token to authenticate the connection. You need to
+have the Access Token in the extra field as a dictionary with key ``access_token`` and value as the Access Token. Other
+parameters such as ``expires_in`` and ``refresh_token`` are optional.
+
+* Client Credentials Authentication:* This method uses the Client Credentials to authenticate the connection. You need to
+have the Client Credentials in the extra field as a dictionary with key ``client_secret`` and value as the Client Credentials.
+The ``scope`` is optional.
+
+* Password Authentication:* This method uses the username and password to authenticate the connection. You can specify the
+scope in the extra field as a dictionary with key ``scope`` and value as the scope. The ``scope`` is optional.

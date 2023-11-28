@@ -41,19 +41,19 @@ class WeaviateHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField
 
         return {
-            "token": PasswordField(lazy_gettext("Weaviate API Token"), widget=BS3PasswordFieldWidget()),
+            "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
@@ -63,7 +63,7 @@ class WeaviateHook(BaseHook):
             },
         }
 
-    def get_client(self) -> WeaviateClient:
+    def get_conn(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
         url = conn.host
         username = conn.login or ""
@@ -91,6 +91,10 @@ class WeaviateHook(BaseHook):
         return WeaviateClient(
             url=url, auth_client_secret=auth_client_secret, additional_headers=additional_headers
         )
+
+    def get_client(self) -> WeaviateClient:
+        # Keeping this for backwards compatibility
+        return self.get_conn()
 
     def test_connection(self) -> tuple[bool, str]:
         try:
