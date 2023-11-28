@@ -52,6 +52,13 @@ class FakeRemoteFileSystem(LocalFileSystem):
 
 
 class TestFs:
+    def setup_class(self):
+        self._store_cache = _STORE_CACHE.copy()
+
+    def teardown(self):
+        _STORE_CACHE.clear()
+        _STORE_CACHE.update(self._store_cache)
+
     def test_alias(self):
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
@@ -100,6 +107,13 @@ class TestFs:
 
         assert not o.exists()
 
+    @pytest.fixture()
+    def fake_fs(self):
+        fs = mock.Mock()
+        fs._strip_protocol.return_value = "/"
+        fs.conn_id = "fake"
+        return fs
+
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
@@ -124,12 +138,8 @@ class TestFs:
             ),
         ],
     )
-    def test_standard_extended_api(self, monkeypatch, fn, args, fn2, path, expected_args, expected_kwargs):
-        _fs = mock.Mock()
-        _fs._strip_protocol.return_value = "/"
-        _fs.conn_id = "fake"
-
-        store = attach(protocol="file", conn_id="fake", fs=_fs)
+    def test_standard_extended_api(self, fake_fs, fn, args, fn2, path, expected_args, expected_kwargs):
+        store = attach(protocol="file", conn_id="fake", fs=fake_fs)
         o = ObjectStoragePath(path, conn_id="fake")
 
         getattr(o, fn)(**args)
