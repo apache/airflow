@@ -765,13 +765,10 @@ def compile_www_assets(dev: bool, force_clean: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
     perform_environment_checks()
-    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
-    if not preserve_volumes:
-        command_to_execute.append("--volumes")
     shell_params = ShellParams(
         backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
     )
-    run_command(command_to_execute, env=shell_params.env_variables_for_docker_commands)
+    bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
@@ -828,7 +825,15 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-
+    if shell_params.use_airflow_version:
+        # in case you use specific version of Airflow, you want to bring airflow down automatically before
+        # using it. This prevents the problem that if you have newer DB, airflow will not know how
+        # to migrate to it and fail with "Can't locate revision identified by 'xxxx'".
+        get_console().print(
+            f"[warning]Bringing the project down as {shell_params.use_airflow_version} "
+            f"airflow version is used[/]"
+        )
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.backend == "sqlite":
         get_console().print(
             f"\n[warning]backend: sqlite is not "
@@ -851,7 +856,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
             )
             shell_params.airflow_extras = "celery"
     if shell_params.restart:
-        bring_compose_project_down(shell_params)
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
@@ -900,10 +905,13 @@ def enter_shell(**kwargs) -> RunCommandResult:
         return command_result
 
 
-def bring_compose_project_down(shell_params):
-    down_command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
+def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams):
+    down_command_to_execute = ["docker", "compose"]
     if shell_params.project_name:
         down_command_to_execute.extend(["--project-name", shell_params.project_name])
+    down_command_to_execute.extend(["down", "--remove-orphans"])
+    if not preserve_volumes:
+        down_command_to_execute.append("--volumes")
     run_command(
         down_command_to_execute,
         text=True,
