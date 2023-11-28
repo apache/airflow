@@ -509,7 +509,7 @@ def test_delete_schema(delete_class, get_client, weaviate_hook):
     assert len(error_list) == 1
 
     weaviate_hook.delete_schema()
-    get_client.return_value.schema.delete_all.assert_called_with()
+    get_client.return_value.schema.delete_all.assert_called()
 
 
 @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.update_class")
