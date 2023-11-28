@@ -286,14 +286,8 @@ class PsrpHook(BaseHook):
             log(INFO, "Progress: %s (%s)", record.activity, record.description)
         else:
             log(WARNING, "Unsupported message type: %s", message_type)
-    
+
     def test_connection(self):
         """Test PSRP Connection."""
-        hook = PsrpHook(psrp_conn_id=self.conn_id)
-        try:
-            hook.invoke_cmdlet(name="Test-Path", parameters={"Path": "C:\\"})
-            message = "Connection tested successfully"
-        except Exception as e:
-            message = e
-
-        return message
+        with PsrpHook(psrp_conn_id=self.conn_id):
+            pass
