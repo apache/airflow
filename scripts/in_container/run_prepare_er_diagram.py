@@ -54,7 +54,8 @@ if __name__ == "__main__":
         )
         HASH_FILE.write_text(sha256hash)
         host_os = os.environ.get("HOST_OS")
-        if host_os and host_os.lower() == "linux":
+        docker_is_rootless = os.environ.get("DOCKER_IS_ROOTLESS", "false") == "true"
+        if host_os and host_os.lower() == "linux" and not docker_is_rootless:
             try:
                 host_uid = int(os.environ["HOST_USER_ID"])
                 host_gid = int(os.environ["HOST_GROUP_ID"])

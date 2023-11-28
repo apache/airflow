@@ -24,7 +24,9 @@ readonly TMUX_CONF_FILE=".tmux.conf"
 if [[ -d "${FILES_DIR}" ]]; then
     export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
     mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
-    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}" || true
+    if [[ ${HOST_OS} == "linux" && ${DOCKER_IS_ROOTLESS} != "true" ]]; then
+        sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}" || true
+    fi
 else
     export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
 fi
