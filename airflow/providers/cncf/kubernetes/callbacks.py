@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Union
 
 import kubernetes.client as k8s
 import kubernetes_asyncio.client as async_k8s
 
-client_type = k8s.CoreV1Api | async_k8s.CoreV1Api
+client_type = Union[k8s.CoreV1Api, async_k8s.CoreV1Api]
 
 
 class ExecutionMode(str, Enum):
