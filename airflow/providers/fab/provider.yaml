@@ -34,7 +34,7 @@ integrations:
   - integration-name: Flask App Builder
     external-doc-url: https://flask-appbuilder.readthedocs.io
     how-to-guide:
-      - /docs/apache-airflow-providers-fab/TBD
+      - /docs/apache-airflow-providers-fab/auth-manager
     tags: [software]
 
 dependencies:
