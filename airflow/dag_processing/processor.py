@@ -23,7 +23,7 @@ import signal
 import threading
 import time
 import zipfile
-from contextlib import redirect_stderr, redirect_stdout, suppress
+from contextlib import suppress
 from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable, Iterator
 
@@ -50,7 +50,7 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import iter_airflow_imports, might_contain_dag
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -168,18 +168,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             result_channel.send(result)
 
         try:
-            DAG_PROCESSOR_LOG_TARGET = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
-            if DAG_PROCESSOR_LOG_TARGET == "stdout":
-                with Stats.timer() as timer:
-                    _handle_dag_file_processing()
-            else:
-                # The following line ensures that stdout goes to the same destination as the logs. If stdout
-                # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
-                # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
-                with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                    StreamLogWriter(log, logging.WARN)
-                ), Stats.timer() as timer:
-                    _handle_dag_file_processing()
+            with Stats.timer() as timer:
+                _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
         except Exception:
             # Log exceptions through the logging framework.
