@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -94,6 +96,11 @@ class WeaviateHook(BaseHook):
 
     def get_client(self) -> WeaviateClient:
         # Keeping this for backwards compatibility
+        warnings.warn(
+            "The `get_client` method has been renamed to `get_conn`",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self.get_conn()
 
     def test_connection(self) -> tuple[bool, str]:
