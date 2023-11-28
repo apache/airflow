@@ -65,6 +65,8 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
         *ALL_INTEGRATIONS,
     ]
 )
+ALLOWED_TTY = ["auto", "enabled", "disabled"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -72,9 +74,16 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
-ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
-START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
-START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
+ALLOWED_EXECUTORS = [
+    "LocalExecutor",
+    "KubernetesExecutor",
+    "CeleryExecutor",
+    "CeleryKubernetesExecutor",
+    "SequentialExecutor",
+]
+DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
+START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
+START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
@@ -396,8 +405,8 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "23.0.0"
-MIN_DOCKER_COMPOSE_VERSION = "2.14.0"
+MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"

@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from typing import TYPE_CHECKING
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 from flask import Flask, session
 
+from airflow.auth.managers.models.resource_details import VariableDetails
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
@@ -28,6 +31,11 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from tests.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
+
+mock = Mock()
 
 
 @pytest.fixture
@@ -66,6 +74,9 @@ def test_user():
 
 
 class TestAwsAuthManager:
+    def test_avp_facade(self, auth_manager):
+        assert hasattr(auth_manager, "avp_facade")
+
     @pytest.mark.db_test
     @patch.object(AwsAuthManager, "is_logged_in")
     def test_get_user(self, mock_is_logged_in, auth_manager, app, test_user):
@@ -98,6 +109,31 @@ class TestAwsAuthManager:
             result = auth_manager.is_logged_in()
 
         assert result is False
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, None, ANY, None),
+            (VariableDetails(key="var1"), mock, mock, "var1"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_variable(
+        self, mock_get_user, mock_avp_facade, details, user, expected_user, expected_entity_id, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+
+        auth_manager.is_authorized_variable(method=method, details=details, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method=method, entity_type=AvpEntities.VARIABLE, user=expected_user, entity_id=expected_entity_id
+        )
 
     @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):

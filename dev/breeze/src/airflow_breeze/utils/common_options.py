@@ -31,6 +31,8 @@ from airflow_breeze.global_constants import (
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_DOCKER_COMPOSE_PROJECTS,
+    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
@@ -43,10 +45,11 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
-    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -564,11 +567,18 @@ option_debug_resources = click.option(
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
 )
-option_executor = click.option(
+option_executor_start_airflow = click.option(
     "--executor",
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
-    help="Specify the executor to use with airflow.",
-    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    help="Specify the executor to use with start-airflow command.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
+option_executor_shell = click.option(
+    "--executor",
+    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with shell command.",
+    default=DEFAULT_ALLOWED_EXECUTOR,
     show_default=True,
 )
 option_celery_broker = click.option(
@@ -732,4 +742,39 @@ option_skip_docker_compose_down = click.option(
     help="Skips running docker-compose down after tests",
     is_flag=True,
     envvar="SKIP_DOCKER_COMPOSE_DOWN",
+)
+option_skip_image_upgrade_check = click.option(
+    "--skip-image-upgrade-check",
+    help="Skip checking if the CI image is up to date.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_UPGRADE_CHECK",
+)
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
+option_skip_environment_initialization = click.option(
+    "--skip-environment-initialization",
+    help="Skip running breeze entrypoint initialization - no user output, no db checks.",
+    is_flag=True,
+    envvar="SKIP_ENVIRONMENT_INITIALIZATION",
+)
+option_project_name = click.option(
+    "--project-name",
+    help="Name of the docker-compose project to bring down. "
+    "The `docker-compose` is for legacy breeze project name and you can use "
+    "`breeze down --project-name docker-compose` to stop all containers belonging to it.",
+    show_default=True,
+    type=NotVerifiedBetterChoice(ALLOWED_DOCKER_COMPOSE_PROJECTS),
+    default=ALLOWED_DOCKER_COMPOSE_PROJECTS[0],
+    envvar="PROJECT_NAME",
+)
+option_restart = click.option(
+    "--restart",
+    "--remove-orphans",
+    help="Restart all containers before entering shell (also removes orphan containers).",
+    is_flag=True,
+    envvar="RESTART",
 )

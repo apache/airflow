@@ -41,6 +41,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+            ],
+        },
+        {
             "name": "Database",
             "options": [
                 "--backend",
@@ -72,6 +79,23 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--standalone-dag-processor",
                 "--database-isolation",
+            ],
+        },
+        {
+            "name": "Docker Compose project management",
+            "options": [
+                "--project-name",
+                "--restart",
+            ],
+        },
+        {
+            "name": "Scripts execution",
+            "options": [
+                "--quiet",
+                "--skip-image-upgrade-check",
+                "--warn-image-upgrade-needed",
+                "--skip-environment-initialization",
+                "--tty",
             ],
         },
         {
@@ -138,6 +162,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--forward-credentials",
                 "--max-time",
+                "--verbose-commands",
             ],
         },
     ],
@@ -161,6 +186,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
+            ],
+        },
+        {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
             ],
         },
         {
@@ -228,6 +260,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--project-name",
             ],
         },
     ],
@@ -268,7 +301,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Building image before running checks",
             "options": [
-                "--skip-image-check",
+                "--skip-image-upgrade-check",
                 "--force-build",
                 "--image-tag",
                 "--github-repository",

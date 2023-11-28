@@ -23,6 +23,8 @@ from flask import session, url_for
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
+from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_ENABLE_KEY,
     CONF_SECTION_NAME,
@@ -71,6 +73,10 @@ class AwsAuthManager(BaseAuthManager):
             raise NotImplementedError(
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
             )
+
+    @cached_property
+    def avp_facade(self):
+        return AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None
@@ -122,7 +128,13 @@ class AwsAuthManager(BaseAuthManager):
     def is_authorized_variable(
         self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self.is_logged_in()
+        variable_key = details.key if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.VARIABLE,
+            user=user or self.get_user(),
+            entity_id=variable_key,
+        )
 
     def is_authorized_view(
         self,

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Any, Sequence
@@ -154,7 +155,8 @@ class CacheableChoice(click.Choice):
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:
                 new_value = value
-                write_to_cache_file(param_name, new_value, check_allowed_values=False)
+                if not os.environ.get("SKIP_SAVING_CHOICES"):
+                    write_to_cache_file(param_name, new_value, check_allowed_values=False)
             else:
                 new_value = allowed_values[0]
                 get_console().print(
