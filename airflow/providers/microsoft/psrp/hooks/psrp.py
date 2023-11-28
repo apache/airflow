@@ -294,6 +294,6 @@ class PsrpHook(BaseHook):
             hook.invoke_cmdlet(name="Test-Path", parameters={"Path": "C:\\"})
             message = "Connection tested successfully"
         except Exception as e:
-            message = str(e)
+            message = e
 
         return message
