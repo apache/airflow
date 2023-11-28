@@ -24,8 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
-pytestmark = pytest.mark.db_test
-
 TEST_CONN_ID = "test_weaviate_conn"
 
 
