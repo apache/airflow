@@ -55,7 +55,7 @@ GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get(
 GCSQL_POSTGRES_DATABASE_NAME = os.environ.get("GCSQL_POSTGRES_DATABASE_NAME", "postgresdb")
 GCSQL_POSTGRES_USER = os.environ.get("GCSQL_POSTGRES_USER", "postgres_user")
 GCSQL_POSTGRES_PASSWORD = os.environ.get("GCSQL_POSTGRES_PASSWORD", "JoxHlwrPzwch0gz9")
-GCSQL_POSTGRES_PUBLIC_IP = os.environ.get("GCSQL_POSTGRES_PUBLIC_IP", "0.0.0.0")
+GCSQL_POSTGRES_PUBLIC_IP = os.environ.get("GCSQL_POSTGRES_PUBLIC_IP", "0.0.0.0")  # nosec
 GCSQL_POSTGRES_PUBLIC_PORT = os.environ.get("GCSQL_POSTGRES_PUBLIC_PORT", 5432)
 GCSQL_POSTGRES_CLIENT_CERT_FILE = os.environ.get(
     "GCSQL_POSTGRES_CLIENT_CERT_FILE", ".key/postgres-client-cert.pem"
@@ -69,7 +69,7 @@ GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get("GCSQL_MYSQL_INSTANCE_NAME_QUER
 GCSQL_MYSQL_DATABASE_NAME = os.environ.get("GCSQL_MYSQL_DATABASE_NAME", "mysqldb")
 GCSQL_MYSQL_USER = os.environ.get("GCSQL_MYSQL_USER", "mysql_user")
 GCSQL_MYSQL_PASSWORD = os.environ.get("GCSQL_MYSQL_PASSWORD", "JoxHlwrPzwch0gz9")
-GCSQL_MYSQL_PUBLIC_IP = os.environ.get("GCSQL_MYSQL_PUBLIC_IP", "0.0.0.0")
+GCSQL_MYSQL_PUBLIC_IP = os.environ.get("GCSQL_MYSQL_PUBLIC_IP", "0.0.0.0")  # nosec
 GCSQL_MYSQL_PUBLIC_PORT = os.environ.get("GCSQL_MYSQL_PUBLIC_PORT", 3306)
 GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get("GCSQL_MYSQL_CLIENT_CERT_FILE", ".key/mysql-client-cert.pem")
 GCSQL_MYSQL_CLIENT_KEY_FILE = os.environ.get("GCSQL_MYSQL_CLIENT_KEY_FILE", ".key/mysql-client-key.pem")
@@ -193,7 +193,7 @@ os.environ["AIRFLOW_CONN_PROXY_MYSQL_TCP"] = (
 try:
     sql_proxy_binary_path = subprocess.check_output(["which", "cloud_sql_proxy"]).decode("utf-8").rstrip()
 except subprocess.CalledProcessError:
-    sql_proxy_binary_path = "/tmp/anyhow_download_cloud_sql_proxy"
+    sql_proxy_binary_path = "/tmp/anyhow_download_cloud_sql_proxy"  # nosec
 
 os.environ["AIRFLOW_CONN_PROXY_MYSQL_SOCKET"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"

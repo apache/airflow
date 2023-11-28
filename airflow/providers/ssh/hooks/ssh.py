@@ -488,7 +488,7 @@ class SSHHook(BaseHook):
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
-            command=command,
+            command=command,  # nosec
             get_pty=get_pty,
             timeout=cmd_timeout,
             environment=environment,
@@ -556,7 +556,7 @@ class SSHHook(BaseHook):
         """Test the ssh connection by execute remote bash commands."""
         try:
             with self.get_conn() as conn:
-                conn.exec_command("pwd")
+                conn.exec_command("pwd")  # nosec
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

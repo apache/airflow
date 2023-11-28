@@ -664,15 +664,15 @@ class TestAwsBaseHook:
         mock_requests_gssapi = mock.Mock()
         mock_auth = mock_requests_gssapi.HTTPSPNEGOAuth()
 
-        mock_lxml = mock.Mock()
-        mock_xpath = mock_lxml.etree.fromstring.return_value.xpath
+        mock_defusedxml = mock.Mock()
+        mock_xpath = mock_defusedxml.ElementTree.fromstring.return_value.xpath
         mock_xpath.return_value = encoded_saml_assertion
 
         def import_mock(name, *args, **kwargs):
             if name == "requests_gssapi":
                 return mock_requests_gssapi
-            if name == "lxml":
-                return mock_lxml
+            if name == "defusedxml":
+                return mock_defusedxml
             return orig_import(name, *args, **kwargs)
 
         def mock_assume_role_with_saml(**kwargs):

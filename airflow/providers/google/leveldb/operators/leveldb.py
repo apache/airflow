@@ -54,7 +54,7 @@ class LevelDBOperator(BaseOperator):
         keys: list[bytes] | None = None,
         values: list[bytes] | None = None,
         leveldb_conn_id: str = "leveldb_default",
-        name: str = "/tmp/testdb/",
+        name: str = "/tmp/testdb/",  # nosec
         create_if_missing: bool = True,
         create_db_extra_options: dict[str, Any] | None = None,
         **kwargs,

@@ -1015,9 +1015,9 @@ repos:
           airflow/example_dags/.*
         args:
           - "--skip"
-          - "B301,B324,B403,B404,B603"
+          - "B108,B113,B301,B324,B403,B404,B603,B604"
           - "--severity-level"
-          - "high"  # TODO: remove this line when we fix all the issues
+          - "medium"  # TODO: remove this line when we fix all the issues
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev

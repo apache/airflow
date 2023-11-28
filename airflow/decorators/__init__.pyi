@@ -338,7 +338,7 @@ class TaskDecoratorCollection:
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
-        tmp_dir: str = "/tmp/airflow",
+        tmp_dir: str = "/tmp/airflow",  # nosec
         user: str | int | None = None,
         mounts: list[str] | None = None,
         entrypoint: str | list[str] | None = None,
