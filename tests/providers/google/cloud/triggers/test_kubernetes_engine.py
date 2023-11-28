@@ -27,6 +27,7 @@ import pytest
 from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.triggers.base import TriggerEvent
@@ -101,6 +102,7 @@ class TestGKEStartPodTrigger:
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": SHOULD_DELETE_POD,
+            "callbacks": KubernetesPodOperatorCallback,
         }
 
     @pytest.mark.asyncio
