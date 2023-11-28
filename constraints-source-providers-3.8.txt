@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-27T19:33:56Z
+# This constraints file was automatically generated on 2023-11-28T05:31:38Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -153,7 +153,7 @@ coverage==7.3.2
 crcmod==1.7
 cron-descriptor==1.4.0
 croniter==2.0.1
-cryptography==41.0.5
+cryptography==41.0.7
 curlify==2.2.1
 dask==2023.4.1
 databricks-sql-connector==2.9.3
@@ -521,7 +521,7 @@ sphinx-argparse==0.4.0
 sphinx-autoapi==2.1.1
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
-sphinx-rtd-theme==1.3.0
+sphinx-rtd-theme==2.0.0
 sphinxcontrib-applehelp==1.0.4
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==2.0.1
@@ -605,7 +605,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.244.0
+yandexcloud==0.245.0
 yarl==1.9.3
 zeep==4.2.1
 zenpy==2.0.41
