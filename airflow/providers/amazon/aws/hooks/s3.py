@@ -916,15 +916,6 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
         """
-
-        def sanitize_extra_args() -> dict[str, str]:
-            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
-            return {
-                arg_name: arg_value
-                for (arg_name, arg_value) in self.extra_args.items()
-                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
-            }
-
         s3_resource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
@@ -933,7 +924,7 @@ class S3Hook(AwsBaseHook):
         )
         obj = s3_resource.Object(bucket_name, key)
 
-        obj.load(**sanitize_extra_args())
+        obj.load()
         return obj
 
     @unify_bucket_name_and_key
@@ -1367,6 +1358,15 @@ class S3Hook(AwsBaseHook):
             Default: True.
         :return: the file name.
         """
+
+        def sanitize_extra_args() -> dict[str, str]:
+            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
+            return {
+                arg_name: arg_value
+                for (arg_name, arg_value) in self.extra_args.items()
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
+            }
+
         self.log.info(
             "This function shadows the 'download_file' method of S3 API, but it is not the same. If you "
             "want to use the original method from S3 API, please call "
@@ -1404,7 +1404,7 @@ class S3Hook(AwsBaseHook):
         with file:
             s3_obj.download_fileobj(
                 file,
-                ExtraArgs=self.extra_args,
+                ExtraArgs=sanitize_extra_args(),
                 Config=self.transfer_config,
             )
 

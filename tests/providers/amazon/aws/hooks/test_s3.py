@@ -23,7 +23,7 @@ import os
 import re
 import unittest
 from unittest import mock, mock as async_mock
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 from urllib.parse import parse_qs
 
 import boto3
@@ -1073,9 +1073,14 @@ class TestAwsS3Hook:
         s3_hook.download_file(key=s3_key, bucket_name=bucket)
 
         mock_obj.assert_called_once_with(bucket, s3_key)
-        mock_obj.return_value.load.assert_called_once_with(
-            SSECustomerKey=encryption_key,
-            SSECustomerAlgorithm=encryption_algorithm,
+        mock_obj.return_value.load.assert_called_once_with()
+        mock_obj().download_fileobj.assert_called_once_with(
+            ANY,  # File-like object
+            ExtraArgs={
+                "SSECustomerKey": encryption_key,
+                "SSECustomerAlgorithm": encryption_algorithm,
+            },
+            Config=s3_hook.transfer_config,
         )
 
     def test_generate_presigned_url(self, s3_bucket):
