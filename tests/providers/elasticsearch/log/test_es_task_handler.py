@@ -691,7 +691,7 @@ def test_retrieve_retry_on_timeout():
     """
     with conf_vars(
         {
-            ("elasticsearch_configs", "retry_on_timeout"): "True",
+            ("elasticsearch_configs", "retry_timeout"): "True",
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()

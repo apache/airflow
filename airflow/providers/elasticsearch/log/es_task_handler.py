@@ -70,6 +70,20 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
+    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
+    if (
+        elastic_search_config
+        and "retry_timeout" in elastic_search_config
+        and not kwargs_dict.get("retry_on_timeout")
+    ):
+        warnings.warn(
+            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        retry_timeout = elastic_search_config.get("retry_timeout")
+        if retry_timeout is not None:
+            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
