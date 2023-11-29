@@ -25,22 +25,22 @@ from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateAssetOperator,
     DataplexCreateLakeOperator,
-    DataplexCreateOrUpdateDataQualityScanOperator,
     DataplexCreateOrUpdateDataProfileScanOperator,
+    DataplexCreateOrUpdateDataQualityScanOperator,
     DataplexCreateTaskOperator,
     DataplexCreateZoneOperator,
     DataplexDeleteAssetOperator,
-    DataplexDeleteDataQualityScanOperator,
     DataplexDeleteDataProfileScanOperator,
+    DataplexDeleteDataQualityScanOperator,
     DataplexDeleteLakeOperator,
     DataplexDeleteTaskOperator,
     DataplexDeleteZoneOperator,
-    DataplexGetDataQualityScanResultOperator,
     DataplexGetDataProfileScanResultOperator,
+    DataplexGetDataQualityScanResultOperator,
     DataplexGetTaskOperator,
     DataplexListTasksOperator,
-    DataplexRunDataQualityScanOperator,
     DataplexRunDataProfileScanOperator,
+    DataplexRunDataQualityScanOperator,
 )
 from airflow.providers.google.cloud.triggers.dataplex import DataplexDataQualityJobTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
@@ -268,6 +268,7 @@ class TestDataplexCreateLakeOperator:
             metadata=(),
         )
 
+
 class TestDataplexRunDataQualityScanOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(DATASCANJOB_STR)
@@ -331,6 +332,7 @@ class TestDataplexRunDataQualityScanOperator:
         assert isinstance(exc.value.trigger, DataplexDataQualityJobTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+
 class TestDataplexRunDataProfileScanOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(DATASCANJOB_STR)
@@ -358,6 +360,7 @@ class TestDataplexRunDataProfileScanOperator:
             timeout=None,
             metadata=(),
         )
+
 
 class TestDataplexGetDataQualityScanResultOperator:
     @mock.patch(HOOK_STR)
@@ -453,8 +456,6 @@ class TestDataplexGetDataProfileScanResultOperator:
             timeout=None,
             metadata=(),
         )
-
-
 
 
 class TestDataplexCreateAssetOperator:
@@ -621,6 +622,7 @@ class TestDataplexDeleteDataQualityScanOperator:
             metadata=(),
         )
 
+
 class TestDataplexDeleteDataProfileScanOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
@@ -679,6 +681,7 @@ class TestDataplexCreateDataQualityScanOperator:
             timeout=None,
             metadata=(),
         )
+
 
 class TestDataplexCreateDataProfileScanOperator:
     @mock.patch(HOOK_STR)

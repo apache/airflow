@@ -25,8 +25,8 @@ from google.cloud.dataplex_v1.types import DataScanJob
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanResultTimeoutException
 from airflow.providers.google.cloud.sensors.dataplex import (
-    DataplexDataQualityJobStatusSensor,
     DataplexDataProfileJobStatusSensor,
+    DataplexDataQualityJobStatusSensor,
     DataplexTaskStateSensor,
     TaskState,
 )
@@ -192,6 +192,7 @@ class TestDataplexDataQualityJobStatusSensor:
 
         with pytest.raises(AirflowDataQualityScanResultTimeoutException):
             sensor.poke(context={})
+
 
 class TestDataplexDataProfileJobStatusSensor:
     def run_job(self, state: int):
