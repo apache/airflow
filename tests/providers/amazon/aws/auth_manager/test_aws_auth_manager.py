@@ -22,7 +22,14 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 from flask import Flask, session
 
-from airflow.auth.managers.models.resource_details import VariableDetails
+from airflow.auth.managers.models.resource_details import (
+    AccessView,
+    ConfigurationDetails,
+    ConnectionDetails,
+    DatasetDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
@@ -114,6 +121,108 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, None, ANY, None),
+            (ConfigurationDetails(section="test"), mock, mock, "test"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_configuration(
+        self, mock_get_user, mock_avp_facade, details, user, expected_user, expected_entity_id, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        auth_manager.is_authorized_configuration(method=method, details=details, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method=method,
+            entity_type=AvpEntities.CONFIGURATION,
+            user=expected_user,
+            entity_id=expected_entity_id,
+        )
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, None, ANY, None),
+            (ConnectionDetails(conn_id="conn_id"), mock, mock, "conn_id"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_connection(
+        self, mock_get_user, mock_avp_facade, details, user, expected_user, expected_entity_id, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        auth_manager.is_authorized_connection(method=method, details=details, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method=method,
+            entity_type=AvpEntities.CONNECTION,
+            user=expected_user,
+            entity_id=expected_entity_id,
+        )
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, None, ANY, None),
+            (DatasetDetails(uri="uri"), mock, mock, "uri"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_dataset(
+        self, mock_get_user, mock_avp_facade, details, user, expected_user, expected_entity_id, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        auth_manager.is_authorized_dataset(method=method, details=details, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method=method, entity_type=AvpEntities.DATASET, user=expected_user, entity_id=expected_entity_id
+        )
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, None, ANY, None),
+            (PoolDetails(name="pool1"), mock, mock, "pool1"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_pool(
+        self, mock_get_user, mock_avp_facade, details, user, expected_user, expected_entity_id, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        auth_manager.is_authorized_pool(method=method, details=details, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method=method, entity_type=AvpEntities.POOL, user=expected_user, entity_id=expected_entity_id
+        )
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, None, ANY, None),
             (VariableDetails(key="var1"), mock, mock, "var1"),
         ],
     )
@@ -126,13 +235,35 @@ class TestAwsAuthManager:
         mock_avp_facade.is_authorized = is_authorized
 
         method: ResourceMethod = "GET"
-
         auth_manager.is_authorized_variable(method=method, details=details, user=user)
 
         if not user:
             mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.VARIABLE, user=expected_user, entity_id=expected_entity_id
+        )
+
+    @pytest.mark.parametrize(
+        "access_view, user, expected_user",
+        [
+            (AccessView.CLUSTER_ACTIVITY, None, ANY),
+            (AccessView.PLUGINS, mock, mock),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    @patch.object(AwsAuthManager, "get_user")
+    def test_is_authorized_view(
+        self, mock_get_user, mock_avp_facade, access_view, user, expected_user, auth_manager
+    ):
+        is_authorized = Mock()
+        mock_avp_facade.is_authorized = is_authorized
+
+        auth_manager.is_authorized_view(access_view=access_view, user=user)
+
+        if not user:
+            mock_get_user.assert_called_once()
+        is_authorized.assert_called_once_with(
+            method="GET", entity_type=AvpEntities.VIEW, user=expected_user, entity_id=access_view.value
         )
 
     @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
