@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import shutil
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
@@ -28,6 +30,9 @@ from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 def get_default_delete_local_copy():
@@ -55,6 +60,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None, **kwargs
     ):
         super().__init__(base_log_folder, filename_template)
+        self.handler: logging.FileHandler | None = None
         self.remote_base = s3_log_folder
         self.log_relative_path = ""
         self._hook = None
@@ -71,14 +77,22 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), transfer_config_args={"use_threads": False}
         )
 
-    def set_context(self, ti):
-        super().set_context(ti)
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
+        if getattr(super(), "supports_task_context_logging", False):
+            super().set_context(ti, identifier=identifier)
+        else:
+            super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
+        if TYPE_CHECKING:
+            assert self.handler is not None
+
         full_path = self.handler.baseFilename
         self.log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
         # Clear the file first so that duplicate data is not uploaded
         # when re-using the same path (e.g. with rescheduled sensors)
         if self.upload_on_close:

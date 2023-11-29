@@ -118,6 +118,7 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
@@ -272,6 +273,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -549,6 +551,7 @@ env
 envFrom
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -1354,6 +1357,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl

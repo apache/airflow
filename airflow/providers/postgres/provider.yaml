@@ -22,6 +22,7 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 suspended: false
+source-date-epoch: 1700827489
 versions:
   - 5.8.0
   - 5.7.1

@@ -22,7 +22,9 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 suspended: false
+source-date-epoch: 1700827430
 versions:
+  - 8.12.0
   - 8.11.0
   - 8.10.0
   - 8.9.0
@@ -86,7 +88,8 @@ dependencies:
   # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
   - inflection>=0.5.1
-  - watchtower~=3.0.1
+  # Allow a wider range of watchtower versions for flexibility among users
+  - watchtower>=2.0.1,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
@@ -298,6 +301,10 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glue_databrew.rst
     logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
+    tags: [aws]
+  - integration-name: Amazon Verified Permissions
+    external-doc-url: https://aws.amazon.com/verified-permissions/
+    logo: /integration-logos/aws/Amazon-Verified-Permissions.png
     tags: [aws]
 
 operators:
@@ -560,6 +567,9 @@ hooks:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue_databrew
+  - integration-name: Amazon Verified Permissions
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.verified_permissions
 
 triggers:
   - integration-name: Amazon Web Services
@@ -744,6 +754,9 @@ additional-extras:
   - name: s3fs
     dependencies:
       - s3fs>=2023.9.2
+  - name: python3-saml
+    dependencies:
+      - python3-saml>=1.16.0
 
 config:
   aws:
@@ -895,6 +908,44 @@ config:
         type: boolean
         example: "True"
         default: "True"
+  aws_auth_manager:
+    description: |
+      This section only applies if you are using the AwsAuthManager. In other words, if you set
+      ``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in
+      Airflow's configuration.
+    options:
+      enable:
+        description: |
+          AWS auth manager is not ready to be used. Turn on this flag to use it anyway.
+          Do that at your own risk since the AWS auth manager is not in an usable state.
+        version_added: 8.12.0
+        type: boolean
+        example: "True"
+        default: "False"
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS
+          Identity Center and Amazon Verified Permissions.
+        version_added: 8.12.0
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      saml_metadata_url:
+        description: |
+          SAML metadata XML file provided by AWS Identity Center.
+          This URL can be found in the AWS Identity Center console. Required.
+        version_added: 8.12.0
+        type: string
+        example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
+        default: ~
+      avp_policy_store_id:
+        description: |
+          Amazon Verified Permissions' policy store ID where all the policies defining user permissions
+          in Airflow are stored. Required.
+        version_added: 8.12.0
+        type: string
+        example: ~
+        default: ~
 
 executors:
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

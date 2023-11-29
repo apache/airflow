@@ -69,9 +69,6 @@ services:
         source: ../../../constraints
         target: /opt/airflow/constraints
       - type: bind
-        source: ../../../provider_packages
-        target: /opt/airflow/provider_packages
-      - type: bind
         source: ../../../dags
         target: /opt/airflow/dags
       - type: bind

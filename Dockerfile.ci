@@ -57,7 +57,7 @@ function get_dev_apt_deps() {
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
+libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
@@ -83,7 +83,7 @@ function get_runtime_apt_deps() {
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
 curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
-ldap-utils libsasl2-2 libsasl2-modules locales ${debian_version_apt_deps} \
+ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
     fi
@@ -307,8 +307,6 @@ COPY <<"EOF" /install_mssql.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -344,40 +342,6 @@ function install_mssql_client() {
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Workaround an issue with installing pymssql on ARM architecture triggered by Cython 3.0.0 release as of
-    # 18 July 2023. The problem is that pip uses latest Cython to compile pymssql and since we are using
-    # setuptools, there is no easy way to fix version of Cython used to compile packages.
-    #
-    # This triggers a problem with newer `pip` versions that have build isolation enabled by default because
-    # There is no (easy) way to pin build dependencies for dependent packages. If a package does not have
-    # limit on build dependencies, it will use the latest version of them to build that particular package.
-    #
-    # The workaround to the problem suggest in the last thread by Pradyun Gedam - pip maintainer - is to
-    # use PIP_CONSTRAINT environment variable and constraint the version of Cython used while installing
-    # the package. Which is precisely what we are doing here.
-    #
-    # Note that it does not work if we pass ``--constraint`` option to pip because it will not be passed to
-    # the package being build in isolation. The fact that the PIP_CONSTRAINT env variable works in the isolation
-    # is a bit of side-effect on how env variables work and that they are passed to subprocesses as pip
-    # launches a subprocess `pip` to build the package.
-    #
-    # This is a temporary solution until the issue is resolved in pymssql or Cython
-    # Issues/discussions that track it:
-    #
-    # * https://github.com/cython/cython/issues/5541
-    # * https://github.com/pymssql/pymssql/pull/827
-    # * https://discuss.python.org/t/no-way-to-pin-build-dependencies/29833
-    #
-    # TODO: Remove this workaround when the issue is resolved.
-    #       ALSO REMOVE THE TOP LINES ABOVE WITH common.sh IMPORT AS WELL AS COPYING common.sh ib
-    #       Dockerfile AND Dockerfile.ci (look for capital PYMSSQL - there are several places to remove)
-    if [[ "${1}" == "dev" ]]; then
-        common::install_pip_version
-        echo "Cython==0.29.36" >> /tmp/mssql-constraints.txt
-        PIP_CONSTRAINT=/tmp/mssql-constraints.txt pip install pymssql
-        rm /tmp/mssql-constraints.txt
-    fi
 }
 
 install_mssql_client "${@}"
@@ -997,8 +961,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
-
-    in_container_fix_ownership
 
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
         # Set up ssh keys

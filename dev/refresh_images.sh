@@ -42,7 +42,7 @@ breeze release-management prepare-provider-packages \
 
 breeze release-management prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
 
-mv -v ./dist/*.whl ./docker-context-files
+mv -v ./dist/*.whl ./docker-context-files && chmod a+r ./docker-context-files/*
 
 breeze prod-image build \
      --builder airflow_cache \

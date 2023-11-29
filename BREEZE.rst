@@ -93,6 +93,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - 5. In some cases you might make sure that "Allow the default Docker socket to
   be used" in "Advanced" tab of "Docker Desktop" settings is checked
 
+
 .. raw:: html
 
    <div align="center">
@@ -338,6 +339,15 @@ that Breeze works on
 
             pipx install --force -e dev\breeze
 
+    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
+
+        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -449,8 +459,13 @@ The choices you make are persisted in the ``./.build/`` cache directory so that 
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
+You can also run breeze with ``SKIP_SAVING_CHOICES`` to non-empty value and breeze invocation will not save
+used cache value to cache - this is useful when you run non-interactive scripts with ``breeze shell`` and
+want to - for example - force Python version used only for that execution without changing the Python version
+that user used last time.
+
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
-in the help of the commands.
+in the help of the commands (for example in output of ``breeze config --help``).
 
 Building the documentation
 --------------------------
@@ -1626,7 +1641,7 @@ but here typical examples are presented:
 
 .. code-block:: bash
 
-     breeze prod-image build --additional-extras "jira"
+     breeze prod-image build --additional-airflow-extras "jira"
 
 This installs additional ``jira`` extra while installing airflow in the image.
 
@@ -1793,7 +1808,7 @@ check if there are any images that need regeneration.
   :alt: Breeze setup regenerate-command-images
 
 Breeze check-all-params-in-groups
-...................
+.................................
 
 When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
 for the command is present and that all parameters are assigned to the right group so they can be
@@ -1804,6 +1819,17 @@ nicely presented in ``--help`` output. You can check that via ``check-all-params
   :width: 100%
   :alt: Breeze setup check-all-params-in-group
 
+Breeze synchronize-local-mounts
+...............................
+
+When you add volumes mounted to docker, they need to be added in ``docker_command_utils.py`` - so that they
+are added by plain ``docker`` command, but they also need to be synchronized with ``local.yml``. This can be
+done via ``synchronize-local-mounts`` command.
+
+.. image:: ./images/breeze/output_setup_synchronize-local-mounts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_synchronize-local-mounts.svg
+  :width: 100%
+  :alt: Breeze setup synchronize-local-mounts
 
 CI tasks
 --------
@@ -2790,7 +2816,7 @@ make sure to follow these steps:
 * choose ``module`` to run and set it to ``airflow_breeze.breeze`` - this is the entrypoint of breeze
 * add parameters you want to run breeze with (for example ``ci-image build`` if you want to debug
   how breeze builds the CI image
-* set ``SKIP_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
+* set ``SKIP_BREEZE_SELF_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for

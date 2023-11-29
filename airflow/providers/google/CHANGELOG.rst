@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+10.12.0
+.......
+
+Features
+~~~~~~~~
+
+* ``added Topic params for schema_settings and message_retention_duration. (#35767)``
+* ``Add OpenLineage support to GCSToBigQueryOperator (#35778)``
+* ``Add OpenLineage support to BigQueryToGCSOperator (#35660)``
+* ``Add support for driver pool, instance flexibility policy, and min_num_instances for Dataproc (#34172)``
+* ``Add "NON_PREEMPTIBLE" as a valid preemptibility type for Dataproc workers (#35669)``
+* ``Add ability to pass impersonation_chain to BigQuery triggers (#35629)``
+* ``Add a filter for local files in GoogleDisplayVideo360CreateQueryOperator (#35635)``
+* ``Extend task context logging support for remote logging using GCP GCS (#32970)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Fix the logic of checking dataflow job state (#34785)``
+
+Misc
+~~~~
+
+* ``Remove usage of deprecated method from BigQueryToBigQueryOperator (#35605)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+* ``Restore delegate_to param in GoogleDiscoveryApiHook (#35728)``
+* ``Remove usage of deprecated methods from BigQueryCursor (#35606)``
+* ``Align documentation of 'MSSQLToGCSOperator' (#35715)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+
 10.11.1
 .......
 

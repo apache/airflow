@@ -322,10 +322,12 @@ class TestSecurityContext:
             values={
                 "scheduler": {**spec},
                 "workers": {**spec},
+                "dagProcessor": {**spec},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
 

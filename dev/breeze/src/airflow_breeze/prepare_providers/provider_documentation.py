@@ -28,32 +28,29 @@ from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from shutil import copyfile
-from typing import Any, Iterable, NamedTuple
+from time import time
+from typing import Any, NamedTuple
 
 import jinja2
 import semver
 from rich.syntax import Syntax
 
-from airflow_breeze.global_constants import PROVIDER_DEPENDENCIES
 from airflow_breeze.utils.black_utils import black_format
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
+    HTTPS_REMOTE,
     ProviderPackageDetails,
     get_provider_details,
     get_provider_jinja_context,
-    get_provider_packages_metadata,
-    get_provider_requirements,
-    get_removed_provider_ids,
     get_source_package_path,
-)
-from airflow_breeze.utils.path_utils import (
-    BREEZE_SOURCES_ROOT,
+    refresh_provider_metadata_from_yaml_file,
+    refresh_provider_metadata_with_provider_id,
+    render_template,
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
-
-HTTPS_REMOTE = "apache-https-for-providers"
+from airflow_breeze.utils.versions import get_version_tag
 
 PR_PATTERN = re.compile(r".*\(#(\d+)\)")
 
@@ -160,69 +157,6 @@ TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
 }
-
-
-def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/airflow"):
-    """Make sure that apache remote exist in git.
-
-    We need to take a log from the apache repository main branch - not locally because we might
-    not have the latest version. Also, the local repo might be shallow, so we need to
-    un-shallow it to see all the history.
-
-    This will:
-    * check if the remote exists and add if it does not
-    * check if the local repo is shallow, mark it to un-shallow in this case
-    * fetch from the remote including all tags and overriding local tags in case
-      they are set differently
-
-    """
-    try:
-        run_command(["git", "remote", "get-url", HTTPS_REMOTE], text=True, capture_output=True)
-    except subprocess.CalledProcessError as ex:
-        if ex.returncode == 128 or ex.returncode == 2:
-            run_command(
-                [
-                    "git",
-                    "remote",
-                    "add",
-                    HTTPS_REMOTE,
-                    f"https://github.com/{github_repository}.git",
-                ],
-                check=True,
-            )
-        else:
-            get_console().print(
-                f"[error]Error {ex}[/]\n" f"[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
-            )
-            sys.exit(1)
-    get_console().print("[info]Fetching full history and tags from remote.")
-    get_console().print("[info]This might override your local tags!")
-    result = run_command(
-        ["git", "rev-parse", "--is-shallow-repository"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    is_shallow_repo = result.stdout.strip() == "true"
-    fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
-    if is_shallow_repo:
-        fetch_command.append("--unshallow")
-    try:
-        run_command(fetch_command)
-    except subprocess.CalledProcessError as e:
-        get_console().print(
-            f"[error]Error {e}[/]\n"
-            f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
-            f'[warning]Please refresh the tags manually via:[/]\n\n"'
-            f'{" ".join(fetch_command)}\n\n'
-        )
-        sys.exit(1)
-
-
-def _get_version_tag(version: str, provider_package_id: str, version_suffix: str = ""):
-    if version_suffix is None:
-        version_suffix = ""
-    return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"
 
 
 def _get_git_log_command(from_commit: str | None = None, to_commit: str | None = None) -> list[str]:
@@ -340,7 +274,7 @@ def _get_all_changes_for_package(
     """
     provider_details = get_provider_details(provider_package_id)
     current_version = provider_details.versions[0]
-    current_tag_no_suffix = _get_version_tag(current_version, provider_package_id)
+    current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
     if get_verbose():
         get_console().print(f"[info]Checking if tag '{current_tag_no_suffix}' exist.")
     result = run_command(
@@ -420,7 +354,7 @@ def _get_all_changes_for_package(
     current_version = provider_details.versions[0]
     list_of_list_of_changes: list[list[Change]] = []
     for version in provider_details.versions[1:]:
-        version_tag = _get_version_tag(version, provider_package_id)
+        version_tag = get_version_tag(version, provider_package_id)
         result = run_command(
             _get_git_log_command(next_version_tag, version_tag),
             cwd=provider_details.source_provider_package_path,
@@ -526,11 +460,27 @@ def _update_version_in_provider_yaml(
     original_text = provider_yaml_path.read_text()
     new_text = re.sub(r"versions:", f"versions:\n  - {v}", original_text, 1)
     provider_yaml_path.write_text(new_text)
-    # IMPORTANT!!! Whenever we update provider.yaml files, we MUST clear cache for
-    # get_provider_packages_metadata function, because otherwise anything next will not use it
-    get_provider_packages_metadata.cache_clear()
     get_console().print(f"[special]Bumped version to {v}\n")
     return with_breaking_changes, maybe_with_new_features
+
+
+def _update_source_date_epoch_in_provider_yaml(
+    provider_package_id: str,
+) -> None:
+    """
+    Updates source date epoch in provider yaml that then can be used to generate reproducible packages.
+
+    :param provider_package_id: provider package
+    """
+    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    original_text = provider_yaml_path.read_text()
+    source_date_epoch = int(time())
+    new_text = re.sub(
+        r"source-date-epoch: [0-9]*", f"source-date-epoch: {source_date_epoch}", original_text, 1
+    )
+    provider_yaml_path.write_text(new_text)
+    refresh_provider_metadata_with_provider_id(provider_package_id)
+    get_console().print(f"[special]Updated source-date-epoch to {source_date_epoch}\n")
 
 
 def _verify_changelog_exists(package: str) -> Path:
@@ -554,63 +504,6 @@ def _verify_changelog_exists(package: str) -> Path:
     return changelog_path
 
 
-def _convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool = True) -> str:
-    """
-    Converts PIP requirement list to a Markdown table.
-    :param requirements: requirements list
-    :param markdown: if True, Markdown format is used else rst
-    :return: formatted table
-    """
-    from tabulate import tabulate
-
-    headers = ["PIP package", "Version required"]
-    table_data = []
-    for dependency in requirements:
-        found = re.match(r"(^[^<=>~!]*)([^<=>~!]?.*)$", dependency)
-        if found:
-            package = found.group(1)
-            version_required = found.group(2)
-            if version_required != "":
-                version_required = f"`{version_required}`" if markdown else f"``{version_required}``"
-            table_data.append((f"`{package}`" if markdown else f"``{package}``", version_required))
-        else:
-            table_data.append((dependency, ""))
-    return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
-
-
-def _convert_cross_package_dependencies_to_table(
-    cross_package_dependencies: list[str],
-    markdown: bool = True,
-) -> str:
-    """
-    Converts cross-package dependencies to a Markdown table
-    :param cross_package_dependencies: list of cross-package dependencies
-    :param markdown: if True, Markdown format is used else rst
-    :return: formatted table
-    """
-    from tabulate import tabulate
-
-    headers = ["Dependent package", "Extra"]
-    table_data = []
-    prefix = "apache-airflow-providers-"
-    base_url = "https://airflow.apache.org/docs/"
-    for dependency in cross_package_dependencies:
-        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
-        if markdown:
-            url = f"[{pip_package_name}]({base_url}{url_suffix})"
-        else:
-            url = f"`{pip_package_name} <{base_url}{prefix}{url_suffix}>`_"
-        table_data.append((url, f"`{dependency}`" if markdown else f"``{dependency}``"))
-    return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
-
-
-def _get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]:
-    if provider_package_id in get_removed_provider_ids():
-        return []
-    return PROVIDER_DEPENDENCIES[provider_package_id]["cross-providers-deps"]
-
-
 def _get_additional_package_info(provider_package_path: Path) -> str:
     """Returns additional info for the package.
 
@@ -630,38 +523,6 @@ def _get_additional_package_info(provider_package_path: Path) -> str:
                 result += line
         return result
     return ""
-
-
-def render_template(
-    template_name: str,
-    context: dict[str, Any],
-    extension: str,
-    autoescape: bool = True,
-    keep_trailing_newline: bool = False,
-) -> str:
-    """
-    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
-    :param template_name: name of the template to use
-    :param context: Jinja2 context
-    :param extension: Target file extension
-    :param autoescape: Whether to autoescape HTML
-    :param keep_trailing_newline: Whether to keep the newline in rendered output
-    :return: rendered template
-    """
-    import jinja2
-
-    template_loader = jinja2.FileSystemLoader(
-        searchpath=BREEZE_SOURCES_ROOT / "src" / "airflow_breeze" / "templates"
-    )
-    template_env = jinja2.Environment(
-        loader=template_loader,
-        undefined=jinja2.StrictUndefined,
-        autoescape=autoescape,
-        keep_trailing_newline=keep_trailing_newline,
-    )
-    template = template_env.get_template(f"{template_name}_TEMPLATE{extension}.jinja2")
-    content: str = template.render(context)
-    return content
 
 
 def replace_content(file_path: Path, old_text: str, new_text: str, provider_id: str):
@@ -844,11 +705,14 @@ def update_release_notes(
                 with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
                     provider_package_id=provider_package_id, type_of_change=type_of_change
                 )
+                _update_source_date_epoch_in_provider_yaml(provider_package_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_package_id=provider_package_id,
                 base_branch=base_branch,
                 reapply_templates_only=reapply_templates_only,
             )
+    else:
+        _update_source_date_epoch_in_provider_yaml(provider_package_id)
     provider_details = get_provider_details(provider_package_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(
@@ -1022,30 +886,16 @@ def get_provider_documentation_jinja_context(
     provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
 ) -> dict[str, Any]:
     provider_details = get_provider_details(provider_id)
-    current_release_version = provider_details.versions[0]
     jinja_context = get_provider_jinja_context(
         provider_id=provider_id,
-        current_release_version=current_release_version,
+        current_release_version=provider_details.versions[0],
         version_suffix="",
-        with_breaking_changes=with_breaking_changes,
-        maybe_with_new_features=maybe_with_new_features,
     )
+    jinja_context["WITH_BREAKING_CHANGES"] = with_breaking_changes
+    jinja_context["MAYBE_WITH_NEW_FEATURES"] = maybe_with_new_features
+
     jinja_context["ADDITIONAL_INFO"] = (
         _get_additional_package_info(provider_package_path=provider_details.source_provider_package_path),
-    )
-    jinja_context["CROSS_PROVIDERS_DEPENDENCIES"] = _get_cross_provider_dependent_packages(provider_id)
-    cross_providers_dependencies = _get_cross_provider_dependent_packages(provider_package_id=provider_id)
-    jinja_context["CROSS_PROVIDERS_DEPENDENCIES_TABLE"] = _convert_cross_package_dependencies_to_table(
-        cross_providers_dependencies
-    )
-    jinja_context["CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST"] = _convert_cross_package_dependencies_to_table(
-        cross_providers_dependencies, markdown=False
-    )
-    jinja_context["PIP_REQUIREMENTS_TABLE"] = _convert_pip_requirements_to_table(
-        get_provider_requirements(provider_id)
-    )
-    jinja_context["PIP_REQUIREMENTS_TABLE_RST"] = _convert_pip_requirements_to_table(
-        get_provider_requirements(provider_id), markdown=False
     )
     return jinja_context
 
@@ -1122,9 +972,7 @@ def _replace_min_airflow_version_in_provider_yaml(
         provider_yaml_txt,
     )
     provider_yaml_path.write_text(provider_yaml_txt)
-    # IMPORTANT!!! Whenever we update provider.yaml files, we MUST clear cache for
-    # get_provider_packages_metadata function, because otherwise anything next will not use it
-    get_provider_packages_metadata.cache_clear()
+    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
 def update_min_airflow_version(

@@ -267,6 +267,8 @@ class GoogleBaseHook(BaseHook):
 
         if not self.impersonation_chain:
             self.impersonation_chain = self._get_field("impersonation_chain", None)
+            if isinstance(self.impersonation_chain, str) and "," in self.impersonation_chain:
+                self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 

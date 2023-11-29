@@ -250,7 +250,7 @@ If release name contains chart name it will be used as a full name.
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
+  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
   volumeMounts:
   - name: dags
     mountPath: /git

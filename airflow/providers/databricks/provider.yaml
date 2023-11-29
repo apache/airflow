@@ -22,7 +22,9 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 suspended: false
+source-date-epoch: 1700827454
 versions:
+  - 5.0.1
   - 5.0.0
   - 4.7.0
   - 4.6.0

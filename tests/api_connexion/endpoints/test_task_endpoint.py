@@ -123,6 +123,7 @@ class TestGetTask(TestTaskEndpoint):
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
+            "priority_weight_strategy": "downstream",
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -134,7 +135,7 @@ class TestGetTask(TestTaskEndpoint):
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
-            "weight_rule": "downstream",
+            "weight_rule": None,
             "is_mapped": False,
         }
         response = self.client.get(
@@ -158,6 +159,7 @@ class TestGetTask(TestTaskEndpoint):
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
+            "priority_weight_strategy": "downstream",
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
@@ -169,7 +171,7 @@ class TestGetTask(TestTaskEndpoint):
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
-            "weight_rule": "downstream",
+            "weight_rule": None,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
@@ -209,6 +211,7 @@ class TestGetTask(TestTaskEndpoint):
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
+            "priority_weight_strategy": "downstream",
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -220,7 +223,7 @@ class TestGetTask(TestTaskEndpoint):
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
-            "weight_rule": "downstream",
+            "weight_rule": None,
             "is_mapped": False,
         }
         response = self.client.get(
@@ -284,6 +287,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -295,7 +299,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                     "is_mapped": False,
                 },
                 {
@@ -314,6 +318,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -325,7 +330,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                     "is_mapped": False,
                 },
             ],
@@ -354,6 +359,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
@@ -365,7 +371,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                 },
                 {
                     "class_ref": {
@@ -383,6 +389,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -394,7 +401,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                     "is_mapped": False,
                 },
             ],

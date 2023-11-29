@@ -56,7 +56,7 @@ class HttpTrigger(BaseTrigger):
         method: str = "POST",
         endpoint: str | None = None,
         headers: dict[str, str] | None = None,
-        data: Any = None,
+        data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
     ):
         super().__init__()
