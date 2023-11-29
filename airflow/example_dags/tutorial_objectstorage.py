@@ -47,7 +47,6 @@ base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
 # [END create_object_storage_path]
 
 
-# [START instantiate_dag]
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
