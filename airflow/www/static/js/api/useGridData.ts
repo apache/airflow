@@ -105,7 +105,6 @@ const useGridData = () => {
       };
       const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, {
         params,
-        paramsSerializer: { indexes: null },
       });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(response.dagRuns)) stopRefresh();

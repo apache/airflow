@@ -67,8 +67,8 @@ describe("Test useFilters hook", () => {
 
     expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber.toString());
-    expect(runType).toBeNull();
-    expect(runState).toBeNull();
+    expect(runType).toEqual([]);
+    expect(runState).toEqual([]);
     expect(root).toBeUndefined();
     expect(filterUpstream).toBeUndefined();
     expect(filterDownstream).toBeUndefined();
@@ -118,7 +118,7 @@ describe("Test useFilters hook", () => {
       );
     });
 
-    expect(result.current.filters[paramName]).toBe(paramValue);
+    expect(result.current.filters[paramName]).toEqual(paramValue);
 
     // clearFilters
     await act(async () => {
@@ -132,7 +132,7 @@ describe("Test useFilters hook", () => {
         global.defaultDagRunDisplayNumber.toString()
       );
     } else {
-      expect(result.current.filters[paramName]).toBeNull();
+      expect(result.current.filters[paramName]).toEqual([]);
     }
   });
 
