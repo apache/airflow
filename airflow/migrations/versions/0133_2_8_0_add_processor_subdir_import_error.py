@@ -50,5 +50,5 @@ def upgrade():
 def downgrade():
     """Unapply Add processor_subdir to ImportError."""
     conn = op.get_bind()
-    with op.batch_alter_table("dag", schema=None) as batch_op:
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
         batch_op.drop_column("processor_subdir")

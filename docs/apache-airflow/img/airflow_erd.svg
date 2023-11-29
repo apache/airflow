@@ -1345,14 +1345,14 @@
 <g id="edge41" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1172.02,-778.04C1202.76,-773.36 1234.65,-769.22 1264.48,-766.05"/>
-<text text-anchor="start" x="1254.48" y="-754.85" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1233.48" y="-754.85" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1172.02" y="-766.84" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge42" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1172.02,-791.36C1202.76,-787.01 1234.65,-782.74 1264.48,-778.98"/>
-<text text-anchor="start" x="1233.48" y="-782.78" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1254.48" y="-782.78" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1172.02" y="-795.16" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
