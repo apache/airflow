@@ -164,6 +164,7 @@ with DAG(
         task_id="hibernate_instace",
         instance_ids=instance_id,
         wait_for_completion=True,
+        max_attempts=75,
     )
     # [END howto_operator_ec2_hibernate_instance]
 
