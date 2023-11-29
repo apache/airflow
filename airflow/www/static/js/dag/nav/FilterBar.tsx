@@ -46,7 +46,7 @@ const FilterBar = () => {
     onRunTypeChange,
     onRunStateChange,
     clearFilters,
-    transformCsvToMultiSelectOptions,
+    transformArrayToMultiSelectOptions,
   } = useFilters();
 
   const { timezone } = useTimezone();
@@ -109,18 +109,18 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={transformCsvToMultiSelectOptions(filters.runType)}
+            value={transformArrayToMultiSelectOptions(filters.runType)}
             onChange={(typeOptions) => {
               if (
                 Array.isArray(typeOptions) &&
                 typeOptions.every((typeOption) => "value" in typeOption)
               ) {
                 onRunTypeChange(
-                  typeOptions.map((typeOption) => typeOption.value).join(",")
+                  typeOptions.map((typeOption) => typeOption.value)
                 );
               }
             }}
-            options={transformCsvToMultiSelectOptions(filters.runTypeOptions)}
+            options={transformArrayToMultiSelectOptions(filters.runTypeOptions)}
             placeholder="All Run Types"
           />
         </Box>
@@ -128,18 +128,20 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={transformCsvToMultiSelectOptions(filters.runState)}
+            value={transformArrayToMultiSelectOptions(filters.runState)}
             onChange={(stateOptions) => {
               if (
                 Array.isArray(stateOptions) &&
                 stateOptions.every((stateOption) => "value" in stateOption)
               ) {
                 onRunStateChange(
-                  stateOptions.map((stateOption) => stateOption.value).join(",")
+                  stateOptions.map((stateOption) => stateOption.value)
                 );
               }
             }}
-            options={transformCsvToMultiSelectOptions(filters.runStateOptions)}
+            options={transformArrayToMultiSelectOptions(
+              filters.runStateOptions
+            )}
             placeholder="All Run States"
           />
         </Box>

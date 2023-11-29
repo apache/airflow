@@ -3527,14 +3527,12 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
 
-        run_type_raw = request.args.get("run_type")
-        if run_type_raw:
-            run_types = {run_type.strip() for run_type in run_type_raw.split(",")}
+        run_types = request.args.getlist("run_type")
+        if run_types:
             query = query.where(DagRun.run_type.in_(run_types))
 
-        run_state_raw = request.args.get("run_state")
-        if run_state_raw:
-            run_states = {run_state.strip() for run_state in run_state_raw.split(",")}
+        run_states = request.args.getlist("run_state")
+        if run_states:
             query = query.where(DagRun.state.in_(run_states))
 
         dag_runs = wwwutils.sorted_dag_runs(

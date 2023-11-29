@@ -38,10 +38,10 @@ export interface Filters {
   filterDownstream: boolean | undefined;
   baseDate: string | null;
   numRuns: string | null;
-  runType: string | null;
-  runTypeOptions: string | null;
-  runState: string | null;
-  runStateOptions: string | null;
+  runType: string[] | null;
+  runTypeOptions: string[] | null;
+  runState: string[] | null;
+  runStateOptions: string[] | null;
 }
 
 export interface FilterTasksProps {
@@ -53,11 +53,11 @@ export interface FilterTasksProps {
 export interface UtilFunctions {
   onBaseDateChange: (value: string) => void;
   onNumRunsChange: (value: string) => void;
-  onRunTypeChange: (value: string) => void;
-  onRunStateChange: (value: string) => void;
+  onRunTypeChange: (values: string[]) => void;
+  onRunStateChange: (values: string[]) => void;
   onFilterTasksChange: (args: FilterTasksProps) => void;
-  transformCsvToMultiSelectOptions: (
-    options: string | null
+  transformArrayToMultiSelectOptions: (
+    options: string[] | null
   ) => { label: string; value: string }[];
   clearFilters: () => void;
   resetRoot: () => void;
@@ -97,14 +97,14 @@ const useFilters = (): FilterHookReturn => {
   const numRuns =
     searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
 
-  const runTypeOptions = filtersOptions.runTypes.join(",");
-  const runType = searchParams.get(RUN_TYPE_PARAM);
+  const runTypeOptions = filtersOptions.runTypes;
+  const runType = searchParams.getAll(RUN_TYPE_PARAM);
 
-  const runStateOptions = filtersOptions.dagStates.join(",");
-  const runState = searchParams.get(RUN_STATE_PARAM);
+  const runStateOptions = filtersOptions.dagStates;
+  const runState = searchParams.getAll(RUN_STATE_PARAM);
 
   const makeOnChangeFn =
-    (paramName: string, formatFn?: (arg: string) => string | null) =>
+    (paramName: string, formatFn?: (arg: string) => string) =>
     (value: string) => {
       const formattedValue = formatFn ? formatFn(value) : value;
       const params = new URLSearchParamsWrapper(searchParams);
@@ -115,20 +115,25 @@ const useFilters = (): FilterHookReturn => {
       setSearchParams(params);
     };
 
-  const getMultiSelectFormatFn = (options: string[]) => {
-    const formatFn = (arg: string) => {
-      const argLength = arg.split(",").length;
-      return argLength === options.length || argLength === 0 ? null : arg;
+  const makeMultiSelectOnChangeFn =
+    (paramName: string, options: string[]) => (values: string[]) => {
+      const params = new URLSearchParamsWrapper(searchParams);
+      if (values.length === options.length || values.length === 0) {
+        params.delete(paramName);
+      } else {
+        // Delete and reinsert anew each time; otherwise, there will be duplicates
+        params.delete(paramName);
+        values.forEach((value) => params.append(paramName, value));
+      }
+      setSearchParams(params);
     };
-    return formatFn;
-  };
 
-  const transformCsvToMultiSelectOptions = (
-    options: string | null
+  const transformArrayToMultiSelectOptions = (
+    options: string[] | null
   ): { label: string; value: string }[] =>
     options === null
       ? []
-      : options.split(",").map((option) => ({ label: option, value: option }));
+      : options.map((option) => ({ label: option, value: option }));
 
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
@@ -136,13 +141,13 @@ const useFilters = (): FilterHookReturn => {
     (localDate: string) => moment(localDate).utc().format()
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
-  const onRunTypeChange = makeOnChangeFn(
+  const onRunTypeChange = makeMultiSelectOnChangeFn(
     RUN_TYPE_PARAM,
-    getMultiSelectFormatFn(filtersOptions.runTypes)
+    filtersOptions.runTypes
   );
-  const onRunStateChange = makeOnChangeFn(
+  const onRunStateChange = makeMultiSelectOnChangeFn(
     RUN_STATE_PARAM,
-    getMultiSelectFormatFn(filtersOptions.dagStates)
+    filtersOptions.dagStates
   );
 
   const onFilterTasksChange = ({
@@ -203,7 +208,7 @@ const useFilters = (): FilterHookReturn => {
     onFilterTasksChange,
     clearFilters,
     resetRoot,
-    transformCsvToMultiSelectOptions,
+    transformArrayToMultiSelectOptions,
   };
 };
 

@@ -89,22 +89,22 @@ describe("Test useFilters hook", () => {
     {
       fnName: "onRunTypeChange" as keyof UtilFunctions,
       paramName: "runType" as keyof Filters,
-      paramValue: "manual",
+      paramValue: ["manual"],
     },
     {
       fnName: "onRunTypeChange" as keyof UtilFunctions,
       paramName: "runType" as keyof Filters,
-      paramValue: "manual,backfill",
+      paramValue: ["manual", "backfill"],
     },
     {
       fnName: "onRunStateChange" as keyof UtilFunctions,
       paramName: "runState" as keyof Filters,
-      paramValue: "success",
+      paramValue: ["success"],
     },
     {
       fnName: "onRunStateChange" as keyof UtilFunctions,
       paramName: "runState" as keyof Filters,
-      paramValue: "success,failed,queued",
+      paramValue: ["success", "failed", "queued"],
     },
   ])("Test $fnName functions", async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook<FilterHookReturn, undefined>(
@@ -113,7 +113,9 @@ describe("Test useFilters hook", () => {
     );
 
     await act(async () => {
-      result.current[fnName](paramValue as "string" & FilterTasksProps);
+      result.current[fnName](
+        paramValue as "string" & string[] & FilterTasksProps
+      );
     });
 
     expect(result.current.filters[paramName]).toBe(paramValue);

@@ -164,12 +164,16 @@ def test_no_runs(admin_client, dag_without_runs):
 
 def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs):
     for uri_params, expected_run_types, expected_run_states in [
-        ("run_state=success%2Cqueued", ["scheduled"], ["success"]),
-        ("run_state=running%2Cfailed", ["scheduled"], ["running"]),
-        ("run_type=scheduled%2Cmanual", ["scheduled", "scheduled"], ["success", "running"]),
-        ("run_type=backfill%2Cmanual", [], []),
-        ("run_state=running%2Cfailed&run_type=backfill%2Cmanual", [], []),
-        ("run_state=running%2Cfailed&run_type=scheduled%2Cbackfill%2Cmanual", ["scheduled"], ["running"]),
+        ("run_state=success&run_state=queued", ["scheduled"], ["success"]),
+        ("run_state=running&run_state=failed", ["scheduled"], ["running"]),
+        ("run_type=scheduled&run_type=manual", ["scheduled", "scheduled"], ["success", "running"]),
+        ("run_type=backfill&run_type=manual", [], []),
+        ("run_state=running&run_type=failed&run_type=backfill&run_type=manual", [], []),
+        (
+            "run_state=running&run_type=failed&run_type=scheduled&run_type=backfill&run_type=manual",
+            ["scheduled"],
+            ["running"],
+        ),
     ]:
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
         assert resp.status_code == 200, resp.json
