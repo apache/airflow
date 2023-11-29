@@ -99,6 +99,7 @@ class TaskGroup(DAGNode):
         self.default_args = copy.deepcopy(default_args or {})
 
         dag = dag or DagContext.get_current_dag()
+        self.dag = dag
 
         if group_id is None:
             # This creates a root TaskGroup.
@@ -107,7 +108,6 @@ class TaskGroup(DAGNode):
             # used_group_ids is shared across all TaskGroups in the same DAG to keep track
             # of used group_id to avoid duplication.
             self.used_group_ids = set()
-            self.dag = dag
         else:
             if prefix_group_id:
                 # If group id is used as prefix, it should not contain spaces nor dots

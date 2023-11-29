@@ -176,6 +176,14 @@ class TestBaseOperator:
                 illegal_argument_1234="hello?",
             )
 
+    def test_get_dag_from_task_group(self):
+        dag = DAG("test_dag", start_date=DEFAULT_DATE)
+        with TaskGroup("task_group_with_dag", dag=dag):
+            task = BaseOperator(task_id="test_task")
+
+        assert task.dag
+        assert task.dag == dag
+
     def test_trigger_rule_validation(self):
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
 

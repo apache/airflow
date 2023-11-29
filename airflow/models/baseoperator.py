@@ -820,6 +820,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        if not dag and task_group:
+            dag = task_group.dag
 
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
