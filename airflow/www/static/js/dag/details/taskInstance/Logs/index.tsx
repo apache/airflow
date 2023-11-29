@@ -26,6 +26,7 @@ import {
   Checkbox,
   Icon,
   Spinner,
+  Select,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 
@@ -152,6 +153,9 @@ const Logs = ({
     [data, fileSourceFilters, logLevelFilters, timezone]
   );
 
+  const logAttemptDropdownLimit = 10;
+  const showDropdown = internalIndexes.length > logAttemptDropdownLimit;
+
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
@@ -193,24 +197,44 @@ const Logs = ({
       {tryNumber !== undefined && (
         <>
           <Box>
-            <Text as="span"> (by attempts)</Text>
-            <Flex my={1} justifyContent="space-between">
-              <Flex flexWrap="wrap">
-                {internalIndexes.map((index) => (
-                  <Button
-                    key={index}
-                    variant={taskTryNumber === index ? "solid" : "ghost"}
-                    colorScheme="blue"
-                    onClick={() => setSelectedTryNumber(index)}
-                    data-testid={`log-attempt-select-button-${index}`}
-                  >
-                    {index}
-                  </Button>
-                ))}
-              </Flex>
-            </Flex>
+            {!showDropdown && (
+              <Box>
+                <Text as="span"> (by attempts)</Text>
+                <Flex my={1} justifyContent="space-between">
+                  <Flex flexWrap="wrap">
+                    {internalIndexes.map((index) => (
+                      <Button
+                        key={index}
+                        variant={taskTryNumber === index ? "solid" : "ghost"}
+                        colorScheme="blue"
+                        onClick={() => setSelectedTryNumber(index)}
+                        data-testid={`log-attempt-select-button-${index}`}
+                      >
+                        {index}
+                      </Button>
+                    ))}
+                  </Flex>
+                </Flex>
+              </Box>
+            )}
             <Flex my={1} justifyContent="space-between" flexWrap="wrap">
               <Flex alignItems="center" flexGrow={1} mr={10}>
+                {showDropdown && (
+                  <Box width="100%" mr={2}>
+                    <Select
+                      placeholder="Select log attempt"
+                      onChange={(e) => {
+                        setSelectedTryNumber(Number(e.target.value));
+                      }}
+                    >
+                      {internalIndexes.map((index) => (
+                        <option key={index} value={index}>
+                          {index}
+                        </option>
+                      ))}
+                    </Select>
+                  </Box>
+                )}
                 <Box width="100%" mr={2}>
                   <MultiSelect
                     size="sm"
