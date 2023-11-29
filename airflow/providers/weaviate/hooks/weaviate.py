@@ -263,6 +263,49 @@ class WeaviateHook(BaseHook):
         classes_to_create_list = [schema_json[item] for item in sorted(list(classes_to_create))]
         self.create_schema({"classes": classes_to_create_list})
 
+    def _compare_schema_subset(self, class_object: Any, class_schema: Any) -> bool:
+        """
+        Recursively check if requested schema/object is a subset of the current schema.
+
+        :param class_object: The class object to check against current schema
+        :param class_schema: The current schema class object
+        """
+        # Direct equality check
+        if class_object == class_schema:
+            return True
+
+        # Type mismatch early return
+        if type(class_object) != type(class_schema):
+            return False
+
+        # Dictionary comparison
+        if isinstance(class_object, dict):
+            return all(
+                k in class_schema and self._compare_schema_subset(v, class_schema[k])
+                for k, v in class_object.items()
+            )
+
+        # List or Tuple comparison
+        if isinstance(class_object, (list, tuple)):
+            return len(class_object) == len(class_schema) and all(
+                self._compare_schema_subset(obj, sch) for obj, sch in zip(class_object, class_schema)
+            )
+
+        # Default case for non-matching types or unsupported types
+        return False
+
+    def contains_schema(self, classes_objects: list) -> bool:
+        """Check if the class_objects is a subset of existing schema."""
+        exiting_classes = {cls["class"]: cls for cls in self.get_schema()["classes"]}
+        exiting_classes_set = set(exiting_classes.keys())
+        input_classes_set = {cls["class"] for cls in classes_objects}
+        if not input_classes_set.issubset(exiting_classes_set):
+            return False
+        for cls in classes_objects:
+            if not self._compare_schema_subset(cls, exiting_classes[cls["class"]]):
+                return False
+        return True
+
     def batch_data(
         self,
         class_name: str,

@@ -521,3 +521,114 @@ def test_update_multiple_classes(update_class, weaviate_hook):
     schema_json = [{"class": "A"}, {"class": "B"}]
     error_list = weaviate_hook.update_multiple_classes(schema_json)
     assert len(error_list) == 1
+
+
+@pytest.mark.parametrize(
+    argnames=["classes_to_test", "expected_result"],
+    argvalues=[
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "invalid_property",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            False,
+        ),
+        (
+            [
+                {
+                    "class": "invalid_class",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "invalid_property",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            False,
+        ),
+    ],
+    ids=("property_level_check", "class_level_check", "invalid_property", "invalid_class"),
+)
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_hook):
+    get_schema.return_value = {
+        "classes": [
+            {
+                "class": "Author",
+                "description": "Authors info",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                    },
+                ],
+            },
+            {
+                "class": "Article",
+                "description": "An article written by an Author",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                    },
+                ],
+            },
+        ]
+    }
+    return weaviate_hook.contains_schema(classes_to_test) == expected_result
