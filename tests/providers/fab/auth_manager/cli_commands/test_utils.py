@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
+@pytest.mark.db_test
 class TestCliUtils:
     def test_get_application_builder(self, app):
         with app.test_request_context():
