@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_sts.client import STSClient
 
 
 class StsHook(AwsBaseHook):
@@ -34,6 +39,10 @@ class StsHook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="sts", *args, **kwargs)
+
+    def get_conn(self) -> STSClient:
+        """Return a boto3 STS client."""
+        return super().get_conn()
 
     def get_account_number(self) -> str:
         """Get the account Number.

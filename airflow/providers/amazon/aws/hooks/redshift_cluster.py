@@ -18,12 +18,17 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import botocore.exceptions
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook, AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_redshift import type_defs
+    from mypy_boto3_redshift.client import RedshiftClient
+    from types_aiobotocore_redshift.client import RedshiftClient as AsyncRedshiftClient
 
 
 class RedshiftHook(AwsBaseHook):
@@ -45,6 +50,10 @@ class RedshiftHook(AwsBaseHook):
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> RedshiftClient:
+        """Return a boto3 redshift client."""
+        return super().get_conn()
+
     def create_cluster(
         self,
         cluster_identifier: str,
@@ -52,7 +61,7 @@ class RedshiftHook(AwsBaseHook):
         master_username: str,
         master_user_password: str,
         params: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> type_defs.CreateClusterResultTypeDef:
         """Create a new cluster with the specified parameters.
 
         .. seealso::
@@ -79,7 +88,7 @@ class RedshiftHook(AwsBaseHook):
         return response
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier: str) -> str:
+    def cluster_status(self, cluster_identifier: str) -> str | None:
         """Get status of a cluster.
 
         .. seealso::
@@ -100,7 +109,7 @@ class RedshiftHook(AwsBaseHook):
         cluster_identifier: str,
         skip_final_cluster_snapshot: bool = True,
         final_cluster_snapshot_identifier: str | None = None,
-    ):
+    ) -> type_defs.ClusterTypeDef | None:
         """Delete a cluster and optionally create a snapshot.
 
         .. seealso::
@@ -119,7 +128,7 @@ class RedshiftHook(AwsBaseHook):
         )
         return response["Cluster"] if response["Cluster"] else None
 
-    def describe_cluster_snapshots(self, cluster_identifier: str) -> list[str] | None:
+    def describe_cluster_snapshots(self, cluster_identifier: str) -> list[type_defs.SnapshotTypeDef] | None:
         """List snapshots for a cluster.
 
         .. seealso::
@@ -135,7 +144,9 @@ class RedshiftHook(AwsBaseHook):
         snapshots.sort(key=lambda x: x["SnapshotCreateTime"], reverse=True)
         return snapshots
 
-    def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
+    def restore_from_cluster_snapshot(
+        self, cluster_identifier: str, snapshot_identifier: str
+    ) -> type_defs.ClusterTypeDef | None:
         """Restore a cluster from its snapshot.
 
         .. seealso::
@@ -155,7 +166,7 @@ class RedshiftHook(AwsBaseHook):
         cluster_identifier: str,
         retention_period: int = -1,
         tags: list[Any] | None = None,
-    ) -> str:
+    ) -> type_defs.SnapshotTypeDef | None:
         """Create a snapshot of a cluster.
 
         .. seealso::
@@ -177,7 +188,7 @@ class RedshiftHook(AwsBaseHook):
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str) -> str | None:
         """Get Redshift cluster snapshot status.
 
         If cluster snapshot not found, *None* is returned.
@@ -207,6 +218,10 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
         )
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
+
+    async def get_client_async(self) -> AsyncRedshiftClient:
+        """Return an aiobotocore redshift client."""
+        return await super().get_client_async()
 
     async def cluster_status(self, cluster_identifier: str, delete_operation: bool = False) -> dict[str, Any]:
         """Get the cluster status.

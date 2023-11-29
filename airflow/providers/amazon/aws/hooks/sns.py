@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_sns import SNSClient, type_defs
 
 
 def _get_message_attribute(o):
@@ -53,13 +57,17 @@ class SnsHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="sns", *args, **kwargs)
 
+    def get_conn(self) -> SNSClient:
+        """Return boto3 client for Amazon SNS."""
+        return super().get_conn()
+
     def publish_to_target(
         self,
         target_arn: str,
         message: str,
         subject: str | None = None,
         message_attributes: dict | None = None,
-    ):
+    ) -> type_defs.PublishResponseTypeDef:
         """
         Publish a message to a SNS topic or an endpoint.
 

@@ -19,8 +19,12 @@ from __future__ import annotations
 
 import base64
 import json
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_secretsmanager.client import SecretsManagerClient
 
 
 class SecretsManagerHook(AwsBaseHook):
@@ -38,6 +42,10 @@ class SecretsManagerHook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="secretsmanager", *args, **kwargs)
+
+    def get_conn(self) -> SecretsManagerClient:
+        """Return a boto3 SecretsManager client."""
+        return super().get_conn()
 
     def get_secret(self, secret_name: str) -> str | bytes:
         """Retrieve secret value from AWS Secrets Manager as a str or bytes.

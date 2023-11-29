@@ -29,7 +29,7 @@ from __future__ import annotations
 import itertools
 import random
 import time
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -40,6 +40,9 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from mypy_boto3_batch import type_defs
+    from mypy_boto3_batch.client import BatchClient
+
     from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
@@ -212,6 +215,10 @@ class BatchClientHook(AwsBaseHook):
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
 
+    def get_conn(self) -> BatchClient:
+        """Return boto3 Batch client."""
+        return super().get_conn()
+
     @property
     def client(self) -> BatchProtocol | botocore.client.BaseClient:
         """
@@ -221,7 +228,7 @@ class BatchClientHook(AwsBaseHook):
         """
         return self.conn
 
-    def terminate_job(self, job_id: str, reason: str) -> dict:
+    def terminate_job(self, job_id: str, reason: str) -> dict[str, Any]:
         """
         Terminate a Batch job.
 
@@ -371,7 +378,7 @@ class BatchClientHook(AwsBaseHook):
         else:
             raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
-    def get_job_description(self, job_id: str) -> dict:
+    def get_job_description(self, job_id: str) -> type_defs.JobDetailTypeDef:
         """
         Get job description (using status_retries).
 
@@ -413,7 +420,9 @@ class BatchClientHook(AwsBaseHook):
             )
 
     @staticmethod
-    def parse_job_description(job_id: str, response: dict) -> dict:
+    def parse_job_description(
+        job_id: str, response: type_defs.DescribeJobsResponseTypeDef
+    ) -> type_defs.JobDetailTypeDef:
         """
         Parse job description to extract description for job_id.
 
@@ -450,9 +459,9 @@ class BatchClientHook(AwsBaseHook):
         """
         job_desc = self.get_job_description(job_id=job_id)
 
-        job_node_properties = job_desc.get("nodeProperties", {})
-        job_container_desc = job_desc.get("container", {})
-
+        job_node_properties = job_desc.get("nodeProperties")
+        job_container_desc = job_desc.get("container")
+        stream_names: list[str]
         if job_node_properties:
             # one log config per node
             log_configs = [

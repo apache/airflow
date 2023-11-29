@@ -19,8 +19,13 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_dms import literals, type_defs
+    from mypy_boto3_dms.client import DatabaseMigrationServiceClient
 
 
 class DmsTaskWaiterStatus(str, Enum):
@@ -50,7 +55,11 @@ class DmsHook(AwsBaseHook):
         kwargs["client_type"] = "dms"
         super().__init__(*args, **kwargs)
 
-    def describe_replication_tasks(self, **kwargs) -> tuple[str | None, list]:
+    def get_conn(self) -> DatabaseMigrationServiceClient:
+        """Return boto3 client for DMS."""
+        return super().get_conn()
+
+    def describe_replication_tasks(self, **kwargs) -> tuple[str, list[type_defs.ReplicationTaskTypeDef]]:
         """
         Describe replication tasks.
 
@@ -64,7 +73,9 @@ class DmsHook(AwsBaseHook):
 
         return response.get("Marker"), response.get("ReplicationTasks", [])
 
-    def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
+    def find_replication_tasks_by_arn(
+        self, replication_task_arn: str, without_settings: bool | None = False
+    ) -> list[type_defs.ReplicationTaskTypeDef]:
         """
         Find and describe replication tasks by task ARN.
 
@@ -113,7 +124,7 @@ class DmsHook(AwsBaseHook):
         source_endpoint_arn: str,
         target_endpoint_arn: str,
         replication_instance_arn: str,
-        migration_type: str,
+        migration_type: literals.MigrationTypeValueType,
         table_mappings: dict,
         **kwargs,
     ) -> str:
@@ -150,7 +161,7 @@ class DmsHook(AwsBaseHook):
     def start_replication_task(
         self,
         replication_task_arn: str,
-        start_replication_task_type: str,
+        start_replication_task_type: literals.StartReplicationTaskTypeValueType,
         **kwargs,
     ):
         """
@@ -170,7 +181,7 @@ class DmsHook(AwsBaseHook):
             **kwargs,
         )
 
-    def stop_replication_task(self, replication_task_arn):
+    def stop_replication_task(self, replication_task_arn) -> type_defs.StopReplicationTaskResponseTypeDef:
         """
         Stop replication task.
 
@@ -180,7 +191,7 @@ class DmsHook(AwsBaseHook):
         :param replication_task_arn: Replication task ARN
         """
         dms_client = self.get_conn()
-        dms_client.stop_replication_task(ReplicationTaskArn=replication_task_arn)
+        return dms_client.stop_replication_task(ReplicationTaskArn=replication_task_arn)
 
     def delete_replication_task(self, replication_task_arn):
         """
@@ -207,7 +218,7 @@ class DmsHook(AwsBaseHook):
             raise TypeError("Status must be an instance of DmsTaskWaiterStatus")
 
         dms_client = self.get_conn()
-        waiter = dms_client.get_waiter(f"replication_task_{status.value}")
+        waiter = dms_client.get_waiter(f"replication_task_{status.value}")  # type: ignore[attr-defined]
         waiter.wait(
             Filters=[
                 {

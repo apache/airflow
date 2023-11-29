@@ -17,9 +17,14 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import prune_dict
+
+if TYPE_CHECKING:
+    from mypy_boto3_events import type_defs
+    from mypy_boto3_events.client import EventBridgeClient
 
 
 def _validate_json(pattern: str) -> None:
@@ -35,6 +40,10 @@ class EventBridgeHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="events", *args, **kwargs)
 
+    def get_conn(self) -> EventBridgeClient:
+        """Return a boto3 EventBridge client."""
+        return super().get_conn()
+
     def put_rule(
         self,
         name: str,
@@ -46,7 +55,7 @@ class EventBridgeHook(AwsBaseHook):
         state: str | None = None,
         tags: list[dict] | None = None,
         **kwargs,
-    ):
+    ) -> type_defs.PutRuleResponseTypeDef:
         """
         Create or update an EventBridge rule.
 
@@ -87,4 +96,4 @@ class EventBridgeHook(AwsBaseHook):
             )
         }
 
-        return self.conn.put_rule(**put_rule_kwargs)
+        return self.get_conn().put_rule(**put_rule_kwargs)

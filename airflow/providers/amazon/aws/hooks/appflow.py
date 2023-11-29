@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_appflow.client import AppflowClient  # noqa
+    from mypy_boto3_appflow.client import AppflowClient
 
 
 class AppflowHook(AwsGenericHook["AppflowClient"]):
@@ -43,6 +43,10 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
         kwargs["client_type"] = "appflow"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> AppflowClient:
+        """Return boto3 Appflow client."""
+        return super().get_conn()
+
     def run_flow(
         self,
         flow_name: str,
@@ -59,7 +63,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
         :param max_attempts: the number of polls to do before timing out/returning a failure.
         :return: The run execution ID
         """
-        response_start = self.conn.start_flow(flowName=flow_name)
+        response_start = self.get_conn().start_flow(flowName=flow_name)
         execution_id = response_start["executionId"]
         self.log.info("executionId: %s", execution_id)
 
@@ -80,8 +84,8 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         return execution_id
 
-    def _log_execution_description(self, flow_name: str, execution_id: str):
-        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
+    def _log_execution_description(self, flow_name: str, execution_id: str) -> None:
+        response_desc = self.get_conn().describe_flow_execution_records(flowName=flow_name)
         last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
         exec_details = last_execs[execution_id]
         self.log.info("Run complete, execution details: %s", exec_details)
@@ -95,7 +99,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
         :param set_trigger_ondemand: If True, set the trigger to on-demand; otherwise, keep the trigger as is
         :return: None
         """
-        response = self.conn.describe_flow(flowName=flow_name)
+        response = self.get_conn().describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
         tasks = []
 
@@ -115,7 +119,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
             # Clean up attribute to force on-demand trigger
             del response["triggerConfig"]["triggerProperties"]
 
-        self.conn.update_flow(
+        self.get_conn().update_flow(
             flowName=response["flowName"],
             destinationFlowConfigList=response["destinationFlowConfigList"],
             sourceFlowConfig=response["sourceFlowConfig"],

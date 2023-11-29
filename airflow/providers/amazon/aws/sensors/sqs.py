@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
 from typing_extensions import Literal
@@ -32,7 +32,9 @@ from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+    from mypy_boto3_sqs import type_defs
+    from mypy_boto3_sqs.client import SQSClient
+
     from airflow.utils.context import Context
 from datetime import timedelta
 
@@ -152,7 +154,7 @@ class SqsSensor(BaseSensorOperator):
             raise AirflowException(message)
         context["ti"].xcom_push(key="messages", value=event["message_batch"])
 
-    def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
+    def poll_sqs(self, sqs_conn: SQSClient) -> type_defs.ReceiveMessageResultTypeDef:
         """
         Poll SQS queue to retrieve messages.
 
@@ -179,7 +181,7 @@ class SqsSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        message_batch: list[Any] = []
+        message_batch: list[type_defs.MessageTypeDef] = []
 
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.num_batches):

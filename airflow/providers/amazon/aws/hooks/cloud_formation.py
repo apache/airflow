@@ -26,6 +26,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
     from boto3 import client, resource
+    from mypy_boto3_cloudformation import literals, type_defs
+    from mypy_boto3_cloudformation.client import CloudFormationClient
 
 
 class CloudFormationHook(AwsBaseHook):
@@ -45,7 +47,11 @@ class CloudFormationHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="cloudformation", *args, **kwargs)
 
-    def get_stack_status(self, stack_name: client | resource) -> dict | None:
+    def get_conn(self) -> CloudFormationClient:
+        """Return a boto3 CloudFormation client."""
+        return super().get_conn()
+
+    def get_stack_status(self, stack_name: client | resource) -> literals.StackStatusType | None:
         """
         Get stack status from CloudFormation.
 
@@ -64,7 +70,9 @@ class CloudFormationHook(AwsBaseHook):
             else:
                 raise e
 
-    def create_stack(self, stack_name: str, cloudformation_parameters: dict) -> None:
+    def create_stack(
+        self, stack_name: str, cloudformation_parameters: dict
+    ) -> type_defs.CreateStackOutputTypeDef:
         """
         Create stack in CloudFormation.
 
@@ -76,9 +84,11 @@ class CloudFormationHook(AwsBaseHook):
         """
         if "StackName" not in cloudformation_parameters:
             cloudformation_parameters["StackName"] = stack_name
-        self.get_conn().create_stack(**cloudformation_parameters)
+        return self.get_conn().create_stack(**cloudformation_parameters)
 
-    def delete_stack(self, stack_name: str, cloudformation_parameters: dict | None = None) -> None:
+    def delete_stack(
+        self, stack_name: str, cloudformation_parameters: dict | None = None
+    ) -> type_defs.EmptyResponseMetadataTypeDef:
         """
         Delete stack in CloudFormation.
 
@@ -91,4 +101,4 @@ class CloudFormationHook(AwsBaseHook):
         cloudformation_parameters = cloudformation_parameters or {}
         if "StackName" not in cloudformation_parameters:
             cloudformation_parameters["StackName"] = stack_name
-        self.get_conn().delete_stack(**cloudformation_parameters)
+        return self.get_conn().delete_stack(**cloudformation_parameters)

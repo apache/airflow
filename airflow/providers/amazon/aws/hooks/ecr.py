@@ -28,6 +28,8 @@ from airflow.utils.log.secrets_masker import mask_secret
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from mypy_boto3_ecr.client import ECRClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,6 +70,10 @@ class EcrHook(AwsBaseHook):
         kwargs["client_type"] = "ecr"
         super().__init__(**kwargs)
 
+    def get_conn(self) -> ECRClient:
+        """Return boto3 client for ECR."""
+        return super().get_conn()
+
     def get_temporary_credentials(self, registry_ids: list[str] | str | None = None) -> list[EcrCredentials]:
         """Get temporary credentials for Amazon ECR.
 
@@ -85,9 +91,9 @@ class EcrHook(AwsBaseHook):
             registry_ids = [registry_ids]
 
         if registry_ids:
-            response = self.conn.get_authorization_token(registryIds=registry_ids)
+            response = self.get_conn().get_authorization_token(registryIds=registry_ids)
         else:
-            response = self.conn.get_authorization_token()
+            response = self.get_conn().get_authorization_token()
 
         creds = []
         for auth_data in response["authorizationData"]:

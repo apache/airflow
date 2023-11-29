@@ -40,6 +40,11 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3 import literals, type_defs
+    from mypy_boto3_s3.client import S3Client
+    from mypy_boto3_s3.service_resource import S3ServiceResource
+    from types_aiobotocore_s3 import S3Client as AsyncS3Client
+
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
@@ -186,6 +191,10 @@ class S3Hook(AwsBaseHook):
 
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> S3Client:
+        """Return boto3 S3 client."""
+        return super().get_conn()
+
     @property
     def extra_args(self):
         """Return hook's extra arguments (immutable)."""
@@ -276,7 +285,7 @@ class S3Hook(AwsBaseHook):
         :return: True if it exists and False if not.
         """
         try:
-            self.get_conn().head_bucket(Bucket=bucket_name)
+            self.get_conn().head_bucket(Bucket=bucket_name or "")
             return True
         except ClientError as e:
             # The head_bucket api is odd in that it cannot return proper
@@ -305,16 +314,18 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
         """
-        s3_resource = self.get_session().resource(
+        s3_resource: S3ServiceResource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
-        return s3_resource.Bucket(bucket_name)
+        return s3_resource.Bucket(bucket_name or "")
 
     @provide_bucket_name
-    def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
+    def create_bucket(
+        self, bucket_name: str | None = None, region_name: literals.BucketLocationConstraintType | None = None
+    ) -> None:
         """
         Create an Amazon S3 bucket.
 
@@ -330,13 +341,14 @@ class S3Hook(AwsBaseHook):
                     "Unable to create bucket if `region_name` not set "
                     "and boto3 configured to use s3 regional endpoints."
                 )
-            region_name = self.conn_region_name
+            region_name = self.conn_region_name  # type: ignore
 
         if region_name == "us-east-1":
-            self.get_conn().create_bucket(Bucket=bucket_name)
+            self.get_conn().create_bucket(Bucket=bucket_name or "")
         else:
             self.get_conn().create_bucket(
-                Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region_name}
+                Bucket=bucket_name or "",
+                CreateBucketConfiguration={"LocationConstraint": region_name},  # type: ignore
             )
 
     @provide_bucket_name
@@ -380,14 +392,15 @@ class S3Hook(AwsBaseHook):
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size:
+            config["PageSize"] = page_size
+        if max_items:
+            config["MaxItems"] = max_items
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
-            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket_name or "", Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
         prefixes: list[str] = []
@@ -400,7 +413,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name_async
     @unify_bucket_name_and_key
     async def get_head_object_async(
-        self, client: AioBaseClient, key: str, bucket_name: str | None = None
+        self, client: AsyncS3Client, key: str, bucket_name: str | None = None
     ) -> dict[str, Any] | None:
         """
         Retrieve metadata of an object.
@@ -411,7 +424,7 @@ class S3Hook(AwsBaseHook):
         """
         head_object_val: dict[str, Any] | None = None
         try:
-            head_object_val = await client.head_object(Bucket=bucket_name, Key=key)
+            head_object_val = await client.head_object(Bucket=bucket_name or "", Key=key)
             return head_object_val
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
@@ -421,7 +434,7 @@ class S3Hook(AwsBaseHook):
 
     async def list_prefixes_async(
         self,
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket_name: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
@@ -441,10 +454,11 @@ class S3Hook(AwsBaseHook):
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size:
+            config["PageSize"] = page_size
+        if max_items:
+            config["MaxItems"] = max_items
 
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(
@@ -480,7 +494,7 @@ class S3Hook(AwsBaseHook):
 
     async def _check_key_async(
         self,
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket_val: str,
         wildcard_match: bool,
         key: str,
@@ -512,7 +526,7 @@ class S3Hook(AwsBaseHook):
 
     async def check_key_async(
         self,
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket: str,
         bucket_keys: str | list[str],
         wildcard_match: bool,
@@ -538,11 +552,12 @@ class S3Hook(AwsBaseHook):
         return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
 
     async def check_for_prefix_async(
-        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+        self, client: AsyncS3Client, prefix: str, delimiter: str, bucket_name: str | None = None
     ) -> bool:
         """
         Check that a prefix exists in a bucket.
 
+        :param client: aiobotocore client
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
         :param delimiter: the delimiter marks key hierarchy.
@@ -556,7 +571,7 @@ class S3Hook(AwsBaseHook):
         return prefix in plist
 
     async def _check_for_prefix_async(
-        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+        self, client: AsyncS3Client, prefix: str, delimiter: str, bucket_name: str | None = None
     ) -> bool:
         return await self.check_for_prefix_async(
             client, prefix=prefix, delimiter=delimiter, bucket_name=bucket_name
@@ -564,7 +579,7 @@ class S3Hook(AwsBaseHook):
 
     async def get_files_async(
         self,
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket: str,
         bucket_keys: str | list[str],
         wildcard_match: bool,
@@ -586,7 +601,7 @@ class S3Hook(AwsBaseHook):
 
     @staticmethod
     async def _list_keys_async(
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket_name: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
@@ -605,10 +620,11 @@ class S3Hook(AwsBaseHook):
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size:
+            config["PageSize"] = page_size
+        if max_items:
+            config["MaxItems"] = max_items
 
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(
@@ -624,8 +640,11 @@ class S3Hook(AwsBaseHook):
         return keys
 
     def _list_key_object_filter(
-        self, keys: list, from_datetime: datetime | None = None, to_datetime: datetime | None = None
-    ) -> list:
+        self,
+        keys: list[type_defs.ObjectTypeDef],
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
+    ) -> list[str]:
         def _is_in_period(input_date: datetime) -> bool:
             if from_datetime is not None and input_date <= from_datetime:
                 return False
@@ -637,7 +656,7 @@ class S3Hook(AwsBaseHook):
 
     async def is_keys_unchanged_async(
         self,
-        client: AioBaseClient,
+        client: AsyncS3Client,
         bucket_name: str,
         prefix: str,
         inactivity_period: float = 60 * 60,
@@ -806,26 +825,27 @@ class S3Hook(AwsBaseHook):
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
         self.object_filter_usr = object_filter
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size:
+            config["PageSize"] = page_size
+        if max_items:
+            config["MaxItems"] = max_items
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
-            Bucket=bucket_name,
+            Bucket=bucket_name or "",
             Prefix=_prefix,
             Delimiter=delimiter,
             PaginationConfig=config,
             StartAfter=start_after_key,
         )
 
-        keys: list[str] = []
+        keys: list[type_defs.ObjectTypeDef] = []
         for page in response:
             if "Contents" in page:
                 new_keys = page["Contents"]
                 if _apply_wildcard:
-                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                    new_keys = [k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix)]
                 keys.extend(new_keys)
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
@@ -839,7 +859,7 @@ class S3Hook(AwsBaseHook):
         bucket_name: str | None = None,
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> list:
+    ) -> list[type_defs.ObjectTypeDef]:
         """
         List metadata objects in a bucket under prefix.
 
@@ -852,15 +872,16 @@ class S3Hook(AwsBaseHook):
         :param max_items: maximum items to return
         :return: a list of metadata of objects
         """
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size:
+            config["PageSize"] = page_size
+        if max_items:
+            config["MaxItems"] = max_items
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
-        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
+        response = paginator.paginate(Bucket=bucket_name or "", Prefix=prefix, PaginationConfig=config)
 
-        files = []
+        files: list[type_defs.ObjectTypeDef] = []
         for page in response:
             if "Contents" in page:
                 files += page["Contents"]
@@ -868,7 +889,9 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
-    def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
+    def head_object(
+        self, key: str, bucket_name: str | None = None
+    ) -> type_defs.HeadObjectOutputTypeDef | None:
         """
         Retrieve metadata of an object.
 
@@ -880,7 +903,7 @@ class S3Hook(AwsBaseHook):
         :return: metadata of an object
         """
         try:
-            return self.get_conn().head_object(Bucket=bucket_name, Key=key)
+            return self.get_conn().head_object(Bucket=bucket_name or "", Key=key)
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return None
@@ -900,7 +923,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: Name of the bucket in which the file is stored
         :return: True if the key exists and False if not.
         """
-        obj = self.head_object(key, bucket_name)
+        obj = self.head_object(key, bucket_name or "")
         return obj is not None
 
     @unify_bucket_name_and_key
@@ -925,13 +948,13 @@ class S3Hook(AwsBaseHook):
                 if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
             }
 
-        s3_resource = self.get_session().resource(
+        s3_resource: S3ServiceResource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
-        obj = s3_resource.Object(bucket_name, key)
+        obj = s3_resource.Object(bucket_name or "", key)
 
         obj.load(**sanitize_extra_args())
         return obj
@@ -960,8 +983,8 @@ class S3Hook(AwsBaseHook):
         bucket_name: str | None = None,
         expression: str | None = None,
         expression_type: str | None = None,
-        input_serialization: dict[str, Any] | None = None,
-        output_serialization: dict[str, Any] | None = None,
+        input_serialization: type_defs.InputSerializationTypeDef | None = None,
+        output_serialization: type_defs.OutputSerializationTypeDef | None = None,
     ) -> str:
         """
         Read a key with S3 Select.
@@ -986,10 +1009,12 @@ class S3Hook(AwsBaseHook):
             output_serialization = {"CSV": {}}
 
         response = self.get_conn().select_object_content(
-            Bucket=bucket_name,
+            Bucket=bucket_name or "",
             Key=key,
             Expression=expression,
-            ExpressionType=expression_type,
+            # the only valid value is SQL for now, but there might be other types in the future:
+            # https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html#API_SelectObjectContent_RequestSyntax
+            ExpressionType=expression_type,  # type: ignore
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization,
         )
@@ -1083,7 +1108,9 @@ class S3Hook(AwsBaseHook):
             extra_args["ACL"] = acl_policy
 
         client = self.get_conn()
-        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
+        client.upload_file(
+            filename, bucket_name or "", key, ExtraArgs=extra_args, Config=self.transfer_config
+        )
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1219,7 +1246,7 @@ class S3Hook(AwsBaseHook):
         client = self.get_conn()
         client.upload_fileobj(
             file_obj,
-            bucket_name,
+            bucket_name or "",
             key,
             ExtraArgs=extra_args,
             Config=self.transfer_config,
@@ -1232,8 +1259,8 @@ class S3Hook(AwsBaseHook):
         source_bucket_name: str | None = None,
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
-        acl_policy: str | None = None,
-    ) -> None:
+        acl_policy: literals.ObjectCannedACLType | None = None,
+    ) -> type_defs.CopyObjectOutputTypeDef:
         """
         Create a copy of an object that is already stored in S3.
 
@@ -1272,7 +1299,9 @@ class S3Hook(AwsBaseHook):
             source_bucket_name, source_bucket_key, "source_bucket_name", "source_bucket_key"
         )
 
-        copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
+        copy_source: type_defs.CopySourceTypeDef = {"Bucket": source_bucket_name, "Key": source_bucket_key}
+        if source_version_id:
+            copy_source["VersionId"] = source_version_id
         response = self.get_conn().copy_object(
             Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
         )
@@ -1303,7 +1332,7 @@ class S3Hook(AwsBaseHook):
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
 
-        self.conn.delete_bucket(Bucket=bucket_name)
+        self.get_conn().delete_bucket(Bucket=bucket_name)
 
     def delete_objects(self, bucket: str, keys: str | list) -> None:
         """
@@ -1434,7 +1463,11 @@ class S3Hook(AwsBaseHook):
         s3_client = self.get_conn()
         try:
             return s3_client.generate_presigned_url(
-                ClientMethod=client_method, Params=params, ExpiresIn=expires_in, HttpMethod=http_method
+                ClientMethod=client_method,
+                Params=params or {},
+                ExpiresIn=expires_in,
+                # By default, the http method is whatever is used in the method's model.
+                HttpMethod=http_method,  # type: ignore
             )
 
         except ClientError as e:
@@ -1442,7 +1475,7 @@ class S3Hook(AwsBaseHook):
             return None
 
     @provide_bucket_name
-    def get_bucket_tagging(self, bucket_name: str | None = None) -> list[dict[str, str]] | None:
+    def get_bucket_tagging(self, bucket_name: str | None = None) -> list[type_defs.TagTypeDef]:
         """
         Get a List of tags from a bucket.
 
@@ -1454,7 +1487,7 @@ class S3Hook(AwsBaseHook):
         """
         try:
             s3_client = self.get_conn()
-            result = s3_client.get_bucket_tagging(Bucket=bucket_name)["TagSet"]
+            result = s3_client.get_bucket_tagging(Bucket=bucket_name or "")["TagSet"]
             self.log.info("S3 Bucket Tag Info: %s", result)
             return result
         except ClientError as e:
@@ -1499,7 +1532,7 @@ class S3Hook(AwsBaseHook):
 
         try:
             s3_client = self.get_conn()
-            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": formatted_tags})
+            s3_client.put_bucket_tagging(Bucket=bucket_name or "", Tagging={"TagSet": formatted_tags})
         except ClientError as e:
             self.log.error(e)
             raise e
@@ -1516,4 +1549,4 @@ class S3Hook(AwsBaseHook):
         :return: None
         """
         s3_client = self.get_conn()
-        s3_client.delete_bucket_tagging(Bucket=bucket_name)
+        s3_client.delete_bucket_tagging(Bucket=bucket_name or "")

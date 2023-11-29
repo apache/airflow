@@ -20,13 +20,21 @@ from __future__ import annotations
 import json
 import time
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+
+if TYPE_CHECKING:
+    from mypy_boto3_emr import literals as emr_literals, type_defs as emr_type_defs
+    from mypy_boto3_emr.client import EMRClient
+    from mypy_boto3_emr_containers import type_defs as emr_containers_type_defs
+    from mypy_boto3_emr_containers.client import EMRContainersClient
+    from mypy_boto3_emr_serverless import literals as emr_serverless_literals
+    from mypy_boto3_emr_serverless.client import EMRServerlessClient
 
 
 class EmrHook(AwsBaseHook):
@@ -56,7 +64,13 @@ class EmrHook(AwsBaseHook):
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
+    def get_conn(self) -> EMRClient:
+        """Return boto3 EMR client."""
+        return super().get_conn()
+
+    def get_cluster_id_by_name(
+        self, emr_cluster_name: str, cluster_states: list[emr_literals.ClusterStateType]
+    ) -> str | None:
         """
         Fetch id of EMR cluster with given name and (optional) states; returns only if single id is found.
 
@@ -87,7 +101,7 @@ class EmrHook(AwsBaseHook):
             self.log.info("No cluster found for name %s", emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
+    def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> emr_type_defs.RunJobFlowOutputTypeDef:
         """
         Create and start running a new cluster (job flow).
 
@@ -253,18 +267,33 @@ class EmrServerlessHook(AwsBaseHook):
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    JOB_INTERMEDIATE_STATES = {"PENDING", "RUNNING", "SCHEDULED", "SUBMITTED"}
-    JOB_FAILURE_STATES = {"FAILED", "CANCELLING", "CANCELLED"}
-    JOB_SUCCESS_STATES = {"SUCCESS"}
-    JOB_TERMINAL_STATES = JOB_SUCCESS_STATES.union(JOB_FAILURE_STATES)
+    JOB_INTERMEDIATE_STATES: set[emr_serverless_literals.JobRunStateType] = {
+        "PENDING",
+        "RUNNING",
+        "SCHEDULED",
+        "SUBMITTED",
+    }
+    JOB_FAILURE_STATES: set[emr_serverless_literals.JobRunStateType] = {"FAILED", "CANCELLING", "CANCELLED"}
+    JOB_SUCCESS_STATES: set[emr_serverless_literals.JobRunStateType] = {"SUCCESS"}
+    JOB_TERMINAL_STATES: set[emr_serverless_literals.JobRunStateType] = JOB_SUCCESS_STATES.union(
+        JOB_FAILURE_STATES
+    )
 
-    APPLICATION_INTERMEDIATE_STATES = {"CREATING", "STARTING", "STOPPING"}
-    APPLICATION_FAILURE_STATES = {"STOPPED", "TERMINATED"}
-    APPLICATION_SUCCESS_STATES = {"CREATED", "STARTED"}
+    APPLICATION_INTERMEDIATE_STATES: set[emr_serverless_literals.JobRunStateType] = {
+        "CREATING",
+        "STARTING",
+        "STOPPING",
+    }
+    APPLICATION_FAILURE_STATES: set[emr_serverless_literals.JobRunStateType] = {"STOPPED", "TERMINATED"}
+    APPLICATION_SUCCESS_STATES: set[emr_serverless_literals.JobRunStateType] = {"CREATED", "STARTED"}
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
+
+    def get_conn(self) -> EMRServerlessClient:
+        """Return boto3 EMR Serverless client."""
+        return super().get_conn()
 
     def cancel_running_jobs(
         self, application_id: str, waiter_config: dict | None = None, wait_for_completion: bool = True
@@ -278,7 +307,7 @@ class EmrServerlessHook(AwsBaseHook):
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.
         """
-        paginator = self.conn.get_paginator("list_job_runs")
+        paginator = self.get_conn().get_paginator("list_job_runs")
         results_per_response = 50
         iterator = paginator.paginate(
             applicationId=application_id,
@@ -298,7 +327,7 @@ class EmrServerlessHook(AwsBaseHook):
                     application_id,
                 )
                 for job_id in job_ids:
-                    self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+                    self.get_conn().cancel_job_run(applicationId=application_id, jobRunId=job_id)
         if wait_for_completion:
             if count > 0:
                 self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
@@ -348,6 +377,10 @@ class EmrContainerHook(AwsBaseHook):
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
+    def get_conn(self) -> EMRContainersClient:
+        """Return boto3 EMR Containers client."""
+        return super().get_conn()
+
     def create_emr_on_eks_cluster(
         self,
         virtual_cluster_name: str,
@@ -355,7 +388,7 @@ class EmrContainerHook(AwsBaseHook):
         eks_namespace: str,
         tags: dict | None = None,
     ) -> str:
-        response = self.conn.create_virtual_cluster(
+        response = self.get_conn().create_virtual_cluster(
             name=virtual_cluster_name,
             containerProvider={
                 "id": eks_cluster_name,
@@ -363,7 +396,7 @@ class EmrContainerHook(AwsBaseHook):
                 "info": {"eksInfo": {"namespace": eks_namespace}},
             },
             tags=tags or {},
-        )
+        )  # type: ignore # clientToken is required, but it's autopopulated if not provided
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Create EMR EKS Cluster failed: {response}")
@@ -416,7 +449,7 @@ class EmrContainerHook(AwsBaseHook):
         if client_request_token:
             params["clientToken"] = client_request_token
 
-        response = self.conn.start_job_run(**params)
+        response = self.get_conn().start_job_run(**params)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Start Job Run failed: {response}")
@@ -437,22 +470,19 @@ class EmrContainerHook(AwsBaseHook):
 
         :param job_id: The ID of the job run request.
         """
-        reason = None  # We absorb any errors if we can't retrieve the job status
-
         try:
-            response = self.conn.describe_job_run(
+            response = self.get_conn().describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,
                 id=job_id,
             )
             failure_reason = response["jobRun"]["failureReason"]
             state_details = response["jobRun"]["stateDetails"]
-            reason = f"{failure_reason} - {state_details}"
+            return f"{failure_reason} - {state_details}"
         except KeyError:
             self.log.error("Could not get status of the EMR on EKS job")
         except ClientError as ex:
             self.log.error("AWS request failed, check logs for more info: %s", ex)
-
-        return reason
+        return None
 
     def check_query_status(self, job_id: str) -> str | None:
         """
@@ -464,18 +494,18 @@ class EmrContainerHook(AwsBaseHook):
         :param job_id: The ID of the job run request.
         """
         try:
-            response = self.conn.describe_job_run(
+            response = self.get_conn().describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,
                 id=job_id,
             )
             return response["jobRun"]["state"]
-        except self.conn.exceptions.ResourceNotFoundException:
+        except self.get_conn().exceptions.ResourceNotFoundException:
             # If the job is not found, we raise an exception as something fatal has happened.
             raise AirflowException(f"Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}")
         except ClientError as ex:
             # If we receive a generic ClientError, we swallow the exception so that the
             self.log.error("AWS request failed, check logs for more info: %s", ex)
-            return None
+        return None
 
     def poll_query_status(
         self,
@@ -491,28 +521,23 @@ class EmrContainerHook(AwsBaseHook):
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
-
         while True:
             query_state = self.check_query_status(job_id)
-            if query_state is None:
-                self.log.info("Try %s: Invalid query state. Retrying again", try_number)
-            elif query_state in self.TERMINAL_STATES:
+            if query_state in self.TERMINAL_STATES:
                 self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
-                final_query_state = query_state
-                break
-            else:
-                self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
+                return query_state
             if (
                 max_polling_attempts and try_number >= max_polling_attempts
             ):  # Break loop if max_polling_attempts reached
-                final_query_state = query_state
-                break
+                return query_state
+            if query_state is None:
+                self.log.info("Try %s: Invalid query state. Retrying again", try_number)
+            else:
+                self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
             try_number += 1
             time.sleep(poll_interval)
-        return final_query_state
 
-    def stop_query(self, job_id: str) -> dict:
+    def stop_query(self, job_id: str) -> emr_containers_type_defs.CancelJobRunResponseTypeDef:
         """
         Cancel the submitted job_run.
 
@@ -521,7 +546,7 @@ class EmrContainerHook(AwsBaseHook):
 
         :param job_id: The ID of the job run to cancel.
         """
-        return self.conn.cancel_job_run(
+        return self.get_conn().cancel_job_run(
             virtualClusterId=self.virtual_cluster_id,
             id=job_id,
         )

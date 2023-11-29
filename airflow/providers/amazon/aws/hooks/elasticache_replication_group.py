@@ -18,9 +18,13 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_elasticache import ElastiCacheClient, type_defs
 
 
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
@@ -60,7 +64,11 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         kwargs["client_type"] = "elasticache"
         super().__init__(*args, **kwargs)
 
-    def create_replication_group(self, config: dict) -> dict:
+    def get_conn(self) -> ElastiCacheClient:
+        """Return boto3 client for ElastiCache."""
+        return super().get_conn()
+
+    def create_replication_group(self, config: dict) -> type_defs.CreateReplicationGroupResultTypeDef:
         """
         Create a Redis (cluster mode disabled) or a Redis (cluster mode enabled) replication group.
 
@@ -70,9 +78,11 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param config: Configuration for creating the replication group
         :return: Response from ElastiCache create replication group API
         """
-        return self.conn.create_replication_group(**config)
+        return self.get_conn().create_replication_group(**config)
 
-    def delete_replication_group(self, replication_group_id: str) -> dict:
+    def delete_replication_group(
+        self, replication_group_id: str
+    ) -> type_defs.DeleteReplicationGroupResultTypeDef:
         """
         Delete an existing replication group.
 
@@ -82,9 +92,11 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param replication_group_id: ID of replication group to delete
         :return: Response from ElastiCache delete replication group API
         """
-        return self.conn.delete_replication_group(ReplicationGroupId=replication_group_id)
+        return self.get_conn().delete_replication_group(ReplicationGroupId=replication_group_id)
 
-    def describe_replication_group(self, replication_group_id: str) -> dict:
+    def describe_replication_group(
+        self, replication_group_id: str
+    ) -> type_defs.ReplicationGroupMessageTypeDef:
         """
         Get information about a particular replication group.
 
@@ -94,7 +106,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param replication_group_id: ID of replication group to describe
         :return: Response from ElastiCache describe replication group API
         """
-        return self.conn.describe_replication_groups(ReplicationGroupId=replication_group_id)
+        return self.get_conn().describe_replication_groups(ReplicationGroupId=replication_group_id)
 
     def get_replication_group_status(self, replication_group_id: str) -> str:
         """
@@ -177,7 +189,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         initial_sleep_time: float | None = None,
         exponential_back_off_factor: float | None = None,
         max_retries: int | None = None,
-    ):
+    ) -> tuple[type_defs.DeleteReplicationGroupResultTypeDef | None, bool]:
         """
         Delete a replication group ensuring it is either deleted or can't be deleted.
 
@@ -212,14 +224,14 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
                     response = self.delete_replication_group(replication_group_id=replication_group_id)
 
-            except self.conn.exceptions.ReplicationGroupNotFoundFault:
+            except self.get_conn().exceptions.ReplicationGroupNotFoundFault:
                 self.log.info("Replication group with ID '%s' does not exist", replication_group_id)
 
                 deleted = True
 
             # This should never occur as we only issue a delete request when status is `available`
             # which is a valid status for deletion. Still handling for safety.
-            except self.conn.exceptions.InvalidReplicationGroupStateFault as exp:
+            except self.get_conn().exceptions.InvalidReplicationGroupStateFault as exp:
                 # status      Error Response
                 # creating  - Cache cluster <cluster_id> is not in a valid state to be deleted.
                 # deleting  - Replication group <replication_group_id> has status deleting which is not valid
@@ -252,7 +264,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         initial_sleep_time: float | None = None,
         exponential_back_off_factor: float | None = None,
         max_retries: int | None = None,
-    ) -> dict:
+    ) -> type_defs.DeleteReplicationGroupResultTypeDef | None:
         """
         Delete a replication group ensuring it is either deleted or can't be deleted.
 

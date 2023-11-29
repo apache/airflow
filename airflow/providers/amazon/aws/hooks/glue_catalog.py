@@ -18,12 +18,18 @@
 """This module contains AWS Glue Catalog Hook."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue import type_defs as type_defs
+    from mypy_boto3_glue.client import GlueClient
+    from types_aiobotocore_glue import type_defs as type_defs_async
+    from types_aiobotocore_glue.client import GlueClient as AsyncGlueClient
 
 
 class GlueCatalogHook(AwsBaseHook):
@@ -44,15 +50,19 @@ class GlueCatalogHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="glue", *args, **kwargs)
 
+    def get_conn(self) -> GlueClient:
+        """Return a boto3 Glue client."""
+        return super().get_conn()
+
     async def async_get_partitions(
         self,
-        client: Any,
+        client: AsyncGlueClient,
         database_name: str,
         table_name: str,
         expression: str = "",
         page_size: int | None = None,
         max_items: int | None = 1,
-    ) -> set[tuple]:
+    ) -> set[tuple[str, ...]]:
         """
         Asynchronously retrieves the partition values for a table.
 
@@ -67,10 +77,11 @@ class GlueCatalogHook(AwsBaseHook):
             a partition may be composed of multiple columns. For example:
             ``{('2018-01-01','1'), ('2018-01-01','2')}``
         """
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs_async.PaginatorConfigTypeDef = {}
+        if page_size is not None:
+            config["PageSize"] = page_size
+        if max_items is not None:
+            config["MaxItems"] = max_items
 
         paginator = client.get_paginator("get_partitions")
         partitions = set()
@@ -90,7 +101,7 @@ class GlueCatalogHook(AwsBaseHook):
         expression: str = "",
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> set[tuple]:
+    ) -> set[tuple[str, ...]]:
         """
         Retrieve the partition values for a table.
 
@@ -108,10 +119,11 @@ class GlueCatalogHook(AwsBaseHook):
             a partition may be composed of multiple columns. For example:
             ``{('2018-01-01','1'), ('2018-01-01','2')}``
         """
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
+        config: type_defs.PaginatorConfigTypeDef = {}
+        if page_size is not None:
+            config["PageSize"] = page_size
+        if max_items is not None:
+            config["MaxItems"] = max_items
 
         paginator = self.get_conn().get_paginator("get_partitions")
         response = paginator.paginate(
@@ -143,7 +155,7 @@ class GlueCatalogHook(AwsBaseHook):
 
         return bool(partitions)
 
-    def get_table(self, database_name: str, table_name: str) -> dict:
+    def get_table(self, database_name: str, table_name: str) -> type_defs.TableTypeDef:
         """
         Get the information of the table.
 
@@ -177,7 +189,9 @@ class GlueCatalogHook(AwsBaseHook):
 
         return table["StorageDescriptor"]["Location"]
 
-    def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
+    def get_partition(
+        self, database_name: str, table_name: str, partition_values: list[str]
+    ) -> type_defs.PartitionTypeDef:
         """
         Get a Partition.
 
@@ -206,7 +220,7 @@ class GlueCatalogHook(AwsBaseHook):
             self.log.error("Client error: %s", e)
             raise AirflowException("AWS request failed, check logs for more info")
 
-    def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
+    def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict[str, Any]:
         """
         Create a new Partition.
 

@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 import warnings
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import prune_dict
+
+if TYPE_CHECKING:
+    from mypy_boto3_logs import type_defs
+    from mypy_boto3_logs.client import CloudWatchLogsClient
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
 # value of the nextForwardToken is the same in subsequent calls.
@@ -50,6 +54,10 @@ class AwsLogsHook(AwsBaseHook):
         kwargs["client_type"] = "logs"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> CloudWatchLogsClient:
+        """Return boto3 client for CloudWatch Logs."""
+        return super().get_conn()
+
     class ContinuationToken:
         """Just a wrapper around a str token to allow updating it from the caller."""
 
@@ -65,7 +73,7 @@ class AwsLogsHook(AwsBaseHook):
         start_from_head: bool | None = None,
         continuation_token: ContinuationToken | None = None,
         end_time: int | None = None,
-    ) -> Generator:
+    ) -> Generator[type_defs.OutputLogEventTypeDef, None, None]:
         """
         Return a generator for log items in a single stream; yields all items available at the current moment.
 
@@ -104,7 +112,7 @@ class AwsLogsHook(AwsBaseHook):
             start_from_head = True
 
         if continuation_token is None:
-            continuation_token = AwsLogsHook.ContinuationToken()
+            continuation_token = self.ContinuationToken()
 
         num_consecutive_empty_response = 0
         while True:
@@ -113,7 +121,7 @@ class AwsLogsHook(AwsBaseHook):
             else:
                 token_arg = {}
 
-            response = self.conn.get_log_events(
+            response = self.get_conn().get_log_events(
                 **prune_dict(
                     {
                         "logGroupName": log_group,

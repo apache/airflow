@@ -17,10 +17,13 @@
 """This module contains AWS SES Hook."""
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.email import build_mime_message
+
+if TYPE_CHECKING:
+    from mypy_boto3_ses import SESClient, type_defs
 
 
 class SesHook(AwsBaseHook):
@@ -40,6 +43,10 @@ class SesHook(AwsBaseHook):
         kwargs["client_type"] = "ses"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> SESClient:
+        """Return boto3 client for Amazon SES."""
+        return super().get_conn()
+
     def send_email(
         self,
         mail_from: str,
@@ -54,7 +61,7 @@ class SesHook(AwsBaseHook):
         reply_to: str | None = None,
         return_path: str | None = None,
         custom_headers: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> type_defs.SendRawEmailResponseTypeDef:
         """
         Send email using Amazon Simple Email Service.
 

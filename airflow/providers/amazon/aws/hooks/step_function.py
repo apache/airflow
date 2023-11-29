@@ -17,8 +17,12 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_stepfunctions import SFNClient, type_defs
 
 
 class StepFunctionHook(AwsBaseHook):
@@ -37,6 +41,10 @@ class StepFunctionHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "stepfunctions"
         super().__init__(*args, **kwargs)
+
+    def get_conn(self) -> SFNClient:
+        """Return a boto3 SSM client."""
+        return super().get_conn()
 
     def start_execution(
         self,
@@ -66,10 +74,10 @@ class StepFunctionHook(AwsBaseHook):
 
         self.log.info("Executing Step Function State Machine: %s", state_machine_arn)
 
-        response = self.conn.start_execution(**execution_args)
+        response = self.get_conn().start_execution(**execution_args)
         return response.get("executionArn")
 
-    def describe_execution(self, execution_arn: str) -> dict:
+    def describe_execution(self, execution_arn: str) -> type_defs.DescribeExecutionOutputTypeDef:
         """
         Describe a State Machine Execution.
 

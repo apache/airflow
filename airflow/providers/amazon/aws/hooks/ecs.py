@@ -26,6 +26,8 @@ from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from botocore.waiter import Waiter
+    from mypy_boto3_ecs import literals
+    from mypy_boto3_ecs.client import ECSClient
 
 
 def should_retry(exception: Exception):
@@ -100,6 +102,10 @@ class EcsHook(AwsGenericHook):
         kwargs["client_type"] = "ecs"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> ECSClient:
+        """Return boto3 client for ECS."""
+        return super().get_conn()
+
     def get_cluster_state(self, cluster_name: str) -> str:
         """
         Get ECS Cluster state.
@@ -109,9 +115,9 @@ class EcsHook(AwsGenericHook):
 
         :param cluster_name: ECS Cluster name or full cluster Amazon Resource Name (ARN) entry.
         """
-        return self.conn.describe_clusters(clusters=[cluster_name])["clusters"][0]["status"]
+        return self.get_conn().describe_clusters(clusters=[cluster_name])["clusters"][0]["status"]
 
-    def get_task_definition_state(self, task_definition: str) -> str:
+    def get_task_definition_state(self, task_definition: str) -> literals.TaskDefinitionStatusType:
         """
         Get ECS Task Definition state.
 
@@ -122,7 +128,9 @@ class EcsHook(AwsGenericHook):
             family and revision ( family:revision ) for a specific revision in the family,
             or full Amazon Resource Name (ARN) of the task definition to describe.
         """
-        return self.conn.describe_task_definition(taskDefinition=task_definition)["taskDefinition"]["status"]
+        return self.get_conn().describe_task_definition(taskDefinition=task_definition)["taskDefinition"][
+            "status"
+        ]
 
     def get_task_state(self, cluster, task) -> str:
         """
@@ -135,7 +143,7 @@ class EcsHook(AwsGenericHook):
             of the cluster that hosts the task or tasks to describe.
         :param task: Task ID or full ARN entry.
         """
-        return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
+        return self.get_conn().describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
 
 
 @runtime_checkable

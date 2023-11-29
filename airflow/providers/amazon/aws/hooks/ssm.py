@@ -17,9 +17,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
+
+if TYPE_CHECKING:
+    from mypy_boto3_ssm import SSMClient
 
 
 class SsmHook(AwsBaseHook):
@@ -39,6 +44,10 @@ class SsmHook(AwsBaseHook):
         kwargs["client_type"] = "ssm"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> SSMClient:
+        """Return a boto3 SSM client."""
+        return super().get_conn()
+
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
         Return the provided Parameter or an optional default; if it is encrypted, then decrypt and mask.
@@ -50,12 +59,12 @@ class SsmHook(AwsBaseHook):
         :param default: Optional default value to return if none is found.
         """
         try:
-            param = self.conn.get_parameter(Name=parameter, WithDecryption=True)["Parameter"]
+            param = self.get_conn().get_parameter(Name=parameter, WithDecryption=True)["Parameter"]
             value = param["Value"]
             if param["Type"] == "SecureString":
                 mask_secret(value)
             return value
-        except self.conn.exceptions.ParameterNotFound:
+        except self.get_conn().exceptions.ParameterNotFound:
             if isinstance(default, ArgNotSet):
                 raise
             return default

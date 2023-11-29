@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_glacier import type_defs
+    from mypy_boto3_glacier.client import GlacierClient
 
 
 class GlacierHook(AwsBaseHook):
@@ -39,7 +43,11 @@ class GlacierHook(AwsBaseHook):
         kwargs.update({"client_type": "glacier", "resource_type": None})
         super().__init__(*args, **kwargs)
 
-    def retrieve_inventory(self, vault_name: str) -> dict[str, Any]:
+    def get_conn(self) -> GlacierClient:
+        """Return a boto3 Glacier client."""
+        return super().get_conn()
+
+    def retrieve_inventory(self, vault_name: str) -> type_defs.InitiateJobOutputTypeDef:
         """Initiate an Amazon Glacier inventory-retrieval job.
 
         .. seealso::
@@ -54,7 +62,7 @@ class GlacierHook(AwsBaseHook):
         self.log.info("Retrieval Job ID: %s", response["jobId"])
         return response
 
-    def retrieve_inventory_results(self, vault_name: str, job_id: str) -> dict[str, Any]:
+    def retrieve_inventory_results(self, vault_name: str, job_id: str) -> type_defs.GetJobOutputOutputTypeDef:
         """Retrieve the results of an Amazon Glacier inventory-retrieval job.
 
         .. seealso::
@@ -67,7 +75,7 @@ class GlacierHook(AwsBaseHook):
         response = self.get_conn().get_job_output(vaultName=vault_name, jobId=job_id)
         return response
 
-    def describe_job(self, vault_name: str, job_id: str) -> dict[str, Any]:
+    def describe_job(self, vault_name: str, job_id: str) -> type_defs.GlacierJobDescriptionResponseTypeDef:
         """Retrieve the status of an Amazon S3 Glacier job.
 
         .. seealso::

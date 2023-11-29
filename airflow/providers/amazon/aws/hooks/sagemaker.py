@@ -26,7 +26,7 @@ import warnings
 from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Generator, cast
+from typing import TYPE_CHECKING, Any, Callable, Generator, TypeVar, cast
 
 from botocore.exceptions import ClientError
 
@@ -36,6 +36,11 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from mypy_boto3_sagemaker import SageMakerClient, type_defs
+
+D = TypeVar("D", bound=dict)
 
 
 class LogState:
@@ -154,6 +159,10 @@ class SageMakerHook(AwsBaseHook):
         super().__init__(client_type="sagemaker", *args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
+
+    def get_conn(self) -> SageMakerClient:
+        """Return a boto3 SageMaker client."""
+        return super().get_conn()
 
     def tar_and_s3_upload(self, path: str, key: str, bucket: str) -> None:
         """Tar the local file or directory and upload to s3.
@@ -274,7 +283,7 @@ class SageMakerHook(AwsBaseHook):
         print_log: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.CreateTrainingJobResponseTypeDef:
         """Start a model training job.
 
         After training completes, Amazon SageMaker saves the resulting model
@@ -323,7 +332,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.CreateHyperParameterTuningJobResponseTypeDef:
         """Start a hyperparameter tuning job.
 
         A hyperparameter tuning job finds the best version of a model by running
@@ -360,7 +369,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.CreateTransformJobResponseTypeDef:
         """Start a transform job.
 
         A transform job uses a trained model to get inferences on a dataset and
@@ -398,7 +407,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.CreateProcessingJobResponseTypeDef:
         """Use Amazon SageMaker Processing to analyze data and evaluate models.
 
         With Processing, you can use a simplified, managed experience on
@@ -429,7 +438,7 @@ class SageMakerHook(AwsBaseHook):
             )
         return response
 
-    def create_model(self, config: dict):
+    def create_model(self, config: dict) -> type_defs.CreateModelOutputTypeDef:
         """Create a model in Amazon SageMaker.
 
         In the request, you name the model and describe a primary container. For
@@ -446,7 +455,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().create_model(**config)
 
-    def create_endpoint_config(self, config: dict):
+    def create_endpoint_config(self, config: dict) -> type_defs.CreateEndpointConfigOutputTypeDef:
         """Create an endpoint configuration to deploy models.
 
         In the configuration, you identify one or more models, created using the
@@ -469,7 +478,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.CreateEndpointOutputTypeDef:
         """Create an endpoint from configuration.
 
         When you create a serverless endpoint, SageMaker provisions and manages
@@ -508,7 +517,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: int | None = None,
-    ):
+    ) -> type_defs.UpdateEndpointOutputTypeDef:
         """Deploy the config in the request and switch to using the new endpoint.
 
         Resources provisioned for the endpoint using the previous EndpointConfig
@@ -538,7 +547,7 @@ class SageMakerHook(AwsBaseHook):
             )
         return response
 
-    def describe_training_job(self, name: str):
+    def describe_training_job(self, name: str) -> type_defs.DescribeTrainingJobResponseTypeDef:
         """Get the training job info associated with the name.
 
         .. seealso::
@@ -558,7 +567,7 @@ class SageMakerHook(AwsBaseHook):
         state: int,
         last_description: dict,
         last_describe_job_call: float,
-    ):
+    ) -> tuple[int, dict, float]:
         """Get the associated training job info and print CloudWatch logs."""
         log_group = "/aws/sagemaker/TrainingJobs"
 
@@ -610,7 +619,7 @@ class SageMakerHook(AwsBaseHook):
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 
-    def describe_tuning_job(self, name: str) -> dict:
+    def describe_tuning_job(self, name: str) -> type_defs.DescribeHyperParameterTuningJobResponseTypeDef:
         """Get the tuning job info associated with the name.
 
         .. seealso::
@@ -621,7 +630,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
-    def describe_model(self, name: str) -> dict:
+    def describe_model(self, name: str) -> type_defs.DescribeModelOutputTypeDef:
         """Get the SageMaker model info associated with the name.
 
         :param name: the name of the SageMaker model
@@ -629,7 +638,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().describe_model(ModelName=name)
 
-    def describe_transform_job(self, name: str) -> dict:
+    def describe_transform_job(self, name: str) -> type_defs.DescribeTransformJobResponseTypeDef:
         """Get the transform job info associated with the name.
 
         .. seealso::
@@ -640,7 +649,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().describe_transform_job(TransformJobName=name)
 
-    def describe_processing_job(self, name: str) -> dict:
+    def describe_processing_job(self, name: str) -> type_defs.DescribeProcessingJobResponseTypeDef:
         """Get the processing job info associated with the name.
 
         .. seealso::
@@ -651,7 +660,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
-    def describe_endpoint_config(self, name: str) -> dict:
+    def describe_endpoint_config(self, name: str) -> type_defs.DescribeEndpointConfigOutputTypeDef:
         """Get the endpoint config info associated with the name.
 
         .. seealso::
@@ -662,7 +671,7 @@ class SageMakerHook(AwsBaseHook):
         """
         return self.get_conn().describe_endpoint_config(EndpointConfigName=name)
 
-    def describe_endpoint(self, name: str) -> dict:
+    def describe_endpoint(self, name: str) -> type_defs.DescribeEndpointOutputTypeDef:
         """Get the description of an endpoint.
 
         .. seealso::
@@ -677,11 +686,11 @@ class SageMakerHook(AwsBaseHook):
         self,
         job_name: str,
         key: str,
-        describe_function: Callable,
+        describe_function: Callable[[str], D],
         check_interval: int,
         max_ingestion_time: int | None = None,
         non_terminal_states: set | None = None,
-    ) -> dict:
+    ) -> D:
         """Check status of a SageMaker resource.
 
         :param job_name: name of the resource to check status, can be a job but
@@ -1041,7 +1050,7 @@ class SageMakerHook(AwsBaseHook):
         :param verbose: Whether to log details about the steps status in the pipeline execution
         """
         if verbose:
-            res = self.conn.list_pipeline_execution_steps(PipelineExecutionArn=pipeline_exec_arn)
+            res = self.get_conn().list_pipeline_execution_steps(PipelineExecutionArn=pipeline_exec_arn)
             count_by_state = Counter(s["StepStatus"] for s in res["PipelineExecutionSteps"])
             running_steps = [
                 s["StepName"] for s in res["PipelineExecutionSteps"] if s["StepStatus"] == "Executing"
@@ -1049,7 +1058,7 @@ class SageMakerHook(AwsBaseHook):
             self.log.info("state of the pipeline steps: %s", count_by_state)
             self.log.info("steps currently in progress: %s", running_steps)
 
-        return self.conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+        return self.get_conn().describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
 
     def start_pipeline(
         self,
@@ -1085,11 +1094,11 @@ class SageMakerHook(AwsBaseHook):
         formatted_params = format_tags(pipeline_params, key_label="Name")
 
         try:
-            res = self.conn.start_pipeline_execution(
+            res = self.get_conn().start_pipeline_execution(
                 PipelineName=pipeline_name,
                 PipelineExecutionDisplayName=display_name,
                 PipelineParameters=formatted_params,
-            )
+            )  # type: ignore # ClientRequestToken is required, but it's autopopulated if not provided
         except ClientError as ce:
             self.log.error("Failed to start pipeline execution, error: %s", ce)
             raise
@@ -1140,7 +1149,7 @@ class SageMakerHook(AwsBaseHook):
 
         for retries in (2, 1, 0):
             try:
-                self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+                self.get_conn().stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)  # type: ignore # ClientRequestToken is required, but it's autopopulated if not provided
             except ClientError as ce:
                 # this can happen if the pipeline was transitioning between steps at that moment
                 if ce.response["Error"]["Code"] == "ConflictException" and retries:
@@ -1192,7 +1201,7 @@ class SageMakerHook(AwsBaseHook):
         :return: True if the model package group was created, False if it already existed.
         """
         try:
-            res = self.conn.create_model_package_group(
+            res = self.get_conn().create_model_package_group(
                 ModelPackageGroupName=package_group_name,
                 ModelPackageGroupDescription=package_group_desc,
             )
@@ -1216,7 +1225,7 @@ class SageMakerHook(AwsBaseHook):
                 raise
 
     def _describe_auto_ml_job(self, job_name: str):
-        res = self.conn.describe_auto_ml_job(AutoMLJobName=job_name)
+        res = self.get_conn().describe_auto_ml_job(AutoMLJobName=job_name)
         self.log.info("%s's current step: %s", job_name, res["AutoMLJobSecondaryStatus"])
         return res
 
@@ -1233,7 +1242,7 @@ class SageMakerHook(AwsBaseHook):
         extras: dict | None = None,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-    ) -> dict | None:
+    ) -> type_defs.AutoMLCandidateTypeDef | None:
         """Create an auto ML job to predict the given column.
 
         The learning input is based on data provided through S3 , and the output
@@ -1287,7 +1296,7 @@ class SageMakerHook(AwsBaseHook):
             params_dict.update(extras)
 
         # returns the job ARN, but we don't need it because we access it by its name
-        self.conn.create_auto_ml_job(**params_dict)
+        self.get_conn().create_auto_ml_job(**params_dict)
 
         if wait_for_completion:
             res = self.check_status(

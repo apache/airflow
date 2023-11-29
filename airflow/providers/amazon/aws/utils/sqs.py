@@ -18,20 +18,22 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from jsonpath_ng import parse
-from typing_extensions import Literal
+
+if TYPE_CHECKING:
+    from mypy_boto3_sqs import type_defs
 
 log = logging.getLogger(__name__)
 
 
 def process_response(
-    response: Any,
+    response: type_defs.ReceiveMessageResultTypeDef,
     message_filtering: Literal["literal", "jsonpath"] | None = None,
     message_filtering_match_values: Any = None,
     message_filtering_config: Any = None,
-) -> Any:
+) -> list[type_defs.MessageTypeDef]:
     """
     Process the response from SQS.
 
@@ -55,8 +57,11 @@ def process_response(
 
 
 def filter_messages(
-    messages, message_filtering, message_filtering_match_values, message_filtering_config
-) -> list[Any]:
+    messages: list[type_defs.MessageTypeDef],
+    message_filtering: Literal["literal", "jsonpath"],
+    message_filtering_match_values: Any,
+    message_filtering_config: Any,
+) -> list[type_defs.MessageTypeDef]:
     if message_filtering == "literal":
         return filter_messages_literal(messages, message_filtering_match_values)
     if message_filtering == "jsonpath":
@@ -65,11 +70,18 @@ def filter_messages(
         raise NotImplementedError("Override this method to define custom filters")
 
 
-def filter_messages_literal(messages, message_filtering_match_values) -> list[Any]:
+def filter_messages_literal(
+    messages: list[type_defs.MessageTypeDef],
+    message_filtering_match_values: Any,
+) -> list[type_defs.MessageTypeDef]:
     return [message for message in messages if message["Body"] in message_filtering_match_values]
 
 
-def filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config) -> list[Any]:
+def filter_messages_jsonpath(
+    messages: list[type_defs.MessageTypeDef],
+    message_filtering_match_values: Any,
+    message_filtering_config: Any,
+) -> list[type_defs.MessageTypeDef]:
     jsonpath_expr = parse(message_filtering_config)
     filtered_messages = []
     for message in messages:

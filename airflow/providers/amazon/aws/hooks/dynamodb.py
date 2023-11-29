@@ -18,10 +18,13 @@
 """This module contains the Amazon DynamoDB Hook."""
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource
 
 
 class DynamoDBHook(AwsBaseHook):
@@ -48,6 +51,10 @@ class DynamoDBHook(AwsBaseHook):
         self.table_name = table_name
         kwargs["resource_type"] = "dynamodb"
         super().__init__(*args, **kwargs)
+
+    def get_conn(self) -> DynamoDBServiceResource:
+        """Return boto3 DynamoDb client."""
+        return super().get_conn()
 
     def write_batch_data(self, items: Iterable) -> bool:
         """

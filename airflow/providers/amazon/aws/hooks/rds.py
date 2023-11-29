@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_rds import RDSClient  # noqa
+    from mypy_boto3_rds.client import RDSClient
 
 
 class RdsHook(AwsGenericHook["RDSClient"]):
@@ -48,6 +48,10 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         kwargs["client_type"] = "rds"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> RDSClient:
+        """Return a boto3 RDS client."""
+        return super().get_conn()
+
     def get_db_snapshot_state(self, snapshot_id: str) -> str:
         """
         Get the current state of a DB instance snapshot.
@@ -60,8 +64,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB instance snapshot does not exist.
         """
         try:
-            response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.DBSnapshotNotFoundFault as e:
+            response = self.get_conn().describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
+        except self.get_conn().exceptions.DBSnapshotNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBSnapshots"][0]["Status"].lower()
 
@@ -80,12 +84,12 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param max_attempts: The maximum number of attempts to be made
         """
 
-        def poke():
+        def poke() -> str:
             return self.get_db_snapshot_state(snapshot_id)
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted", "completed"):
-            waiter = self.conn.get_waiter(f"db_snapshot_{target_state}")  # type: ignore
+            waiter = self.get_conn().get_waiter(f"db_snapshot_{target_state}")  # type: ignore
             waiter.wait(
                 DBSnapshotIdentifier=snapshot_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
@@ -106,8 +110,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB cluster snapshot does not exist.
         """
         try:
-            response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
+            response = self.get_conn().describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
+        except self.get_conn().exceptions.DBClusterSnapshotNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBClusterSnapshots"][0]["Status"].lower()
 
@@ -126,12 +130,12 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param max_attempts: The maximum number of attempts to be made
         """
 
-        def poke():
+        def poke() -> str:
             return self.get_db_cluster_snapshot_state(snapshot_id)
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_cluster_snapshot_{target_state}")  # type: ignore
+            waiter = self.get_conn().get_waiter(f"db_cluster_snapshot_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterSnapshotIdentifier=snapshot_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
@@ -152,8 +156,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the export task does not exist.
         """
         try:
-            response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
-        except self.conn.exceptions.ClientError as e:
+            response = self.get_conn().describe_export_tasks(ExportTaskIdentifier=export_task_id)
+        except self.get_conn().exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "ExportTaskNotFoundFault":
                 raise AirflowNotFoundException(e)
             raise e
@@ -193,8 +197,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the event subscription does not exist.
         """
         try:
-            response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
-        except self.conn.exceptions.ClientError as e:
+            response = self.get_conn().describe_event_subscriptions(SubscriptionName=subscription_name)
+        except self.get_conn().exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "SubscriptionNotFoundFault":
                 raise AirflowNotFoundException(e)
             raise e
@@ -234,8 +238,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB instance does not exist.
         """
         try:
-            response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
-        except self.conn.exceptions.DBInstanceNotFoundFault as e:
+            response = self.get_conn().describe_db_instances(DBInstanceIdentifier=db_instance_id)
+        except self.get_conn().exceptions.DBInstanceNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBInstances"][0]["DBInstanceStatus"].lower()
 
@@ -259,7 +263,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_instance_{target_state}")  # type: ignore
+            waiter = self.get_conn().get_waiter(f"db_instance_{target_state}")  # type: ignore
             wait(
                 waiter=waiter,
                 waiter_delay=check_interval,
@@ -285,8 +289,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB cluster does not exist.
         """
         try:
-            response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
-        except self.conn.exceptions.DBClusterNotFoundFault as e:
+            response = self.get_conn().describe_db_clusters(DBClusterIdentifier=db_cluster_id)
+        except self.get_conn().exceptions.DBClusterNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBClusters"][0]["Status"].lower()
 
@@ -310,7 +314,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_cluster_{target_state}")  # type: ignore
+            waiter = self.get_conn().get_waiter(f"db_cluster_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterIdentifier=db_cluster_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},

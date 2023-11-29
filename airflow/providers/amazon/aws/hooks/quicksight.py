@@ -19,12 +19,17 @@ from __future__ import annotations
 
 import time
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_quicksight import literals, type_defs
+    from mypy_boto3_quicksight.client import QuickSightClient
 
 
 class QuickSightHook(AwsBaseHook):
@@ -46,6 +51,10 @@ class QuickSightHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="quicksight", *args, **kwargs)
 
+    def get_conn(self) -> QuickSightClient:
+        """Return a boto3 QuickSight client."""
+        return super().get_conn()
+
     @cached_property
     def sts_hook(self):
         return StsHook(aws_conn_id=self.aws_conn_id)
@@ -54,10 +63,10 @@ class QuickSightHook(AwsBaseHook):
         self,
         data_set_id: str,
         ingestion_id: str,
-        ingestion_type: str,
+        ingestion_type: literals.IngestionTypeType,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-    ) -> dict:
+    ) -> type_defs.CreateIngestionResponseTypeDef:
         """
         Create and start a new SPICE ingestion for a dataset; refresh the SPICE datasets.
 
@@ -97,7 +106,9 @@ class QuickSightHook(AwsBaseHook):
             self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
             raise
 
-    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> str:
+    def get_status(
+        self, aws_account_id: str, data_set_id: str, ingestion_id: str
+    ) -> literals.IngestionStatusType:
         """
         Get the current status of QuickSight Create Ingestion API.
 
@@ -119,7 +130,9 @@ class QuickSightHook(AwsBaseHook):
         except ClientError as e:
             raise AirflowException(f"AWS request failed: {e}")
 
-    def get_error_info(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> dict | None:
+    def get_error_info(
+        self, aws_account_id: str, data_set_id: str, ingestion_id: str
+    ) -> type_defs.ErrorInfoTypeDef | None:
         """
         Get info about the error if any.
 
@@ -142,7 +155,7 @@ class QuickSightHook(AwsBaseHook):
         ingestion_id: str,
         target_state: set,
         check_interval: int,
-    ):
+    ) -> literals.IngestionStatusType:
         """
         Check status of a QuickSight Create Ingestion API.
 

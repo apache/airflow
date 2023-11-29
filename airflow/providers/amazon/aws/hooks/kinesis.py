@@ -18,9 +18,13 @@
 """This module contains AWS Firehose hook."""
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_firehose import type_defs
+    from mypy_boto3_firehose.client import FirehoseClient
 
 
 class FirehoseHook(AwsBaseHook):
@@ -43,7 +47,13 @@ class FirehoseHook(AwsBaseHook):
         kwargs["client_type"] = "firehose"
         super().__init__(*args, **kwargs)
 
-    def put_records(self, records: Iterable):
+    def get_conn(self) -> FirehoseClient:
+        """Return boto3 client for Kinesis Firehose."""
+        return super().get_conn()
+
+    def put_records(
+        self, records: Sequence[type_defs.RecordTypeDef]
+    ) -> type_defs.PutRecordBatchOutputTypeDef:
         """Write batch records to Kinesis Firehose.
 
         .. seealso::

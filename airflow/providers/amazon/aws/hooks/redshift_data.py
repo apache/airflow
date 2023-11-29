@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient, literals
 
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
@@ -47,6 +47,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "redshift-data"
         super().__init__(*args, **kwargs)
+
+    def get_conn(self) -> RedshiftDataAPIServiceClient:
+        """Return a boto3 Redshift Data API client."""
+        return super().get_conn()
 
     def execute_query(
         self,
@@ -93,10 +97,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         }
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
-            resp = self.conn.batch_execute_statement(**trim_none_values(kwargs))
+            resp = self.get_conn().batch_execute_statement(**trim_none_values(kwargs))
         else:
             kwargs["Sql"] = sql
-            resp = self.conn.execute_statement(**trim_none_values(kwargs))
+            resp = self.get_conn().execute_statement(**trim_none_values(kwargs))
 
         statement_id = resp["Id"]
 
@@ -108,10 +112,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         return statement_id
 
-    def wait_for_results(self, statement_id, poll_interval):
+    def wait_for_results(self, statement_id, poll_interval) -> literals.StatusStringType:
         while True:
             self.log.info("Polling statement %s", statement_id)
-            resp = self.conn.describe_statement(
+            resp = self.get_conn().describe_statement(
                 Id=statement_id,
             )
             status = resp["Status"]
@@ -191,7 +195,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             kwargs = {"Id": stmt_id}
             if token:
                 kwargs["NextToken"] = token
-            response = self.conn.get_statement_result(**kwargs)
+            response = self.get_conn().get_statement_result(**kwargs)
             # we only select a single column (that is a string),
             # so safe to assume that there is only a single col in the record
             pk_columns += [y["stringValue"] for x in response["Records"] for y in x]

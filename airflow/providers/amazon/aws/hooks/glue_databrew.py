@@ -18,7 +18,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_databrew import literals
+    from mypy_boto3_databrew.client import GlueDataBrewClient
 
 
 class GlueDataBrewHook(AwsBaseHook):
@@ -36,7 +42,13 @@ class GlueDataBrewHook(AwsBaseHook):
         kwargs["client_type"] = "databrew"
         super().__init__(*args, **kwargs)
 
-    def job_completion(self, job_name: str, run_id: str, delay: int = 10, max_attempts: int = 60) -> str:
+    def get_conn(self) -> GlueDataBrewClient:
+        """Return a boto3 Glue DataBrew client."""
+        return super().get_conn()
+
+    def job_completion(
+        self, job_name: str, run_id: str, delay: int = 10, max_attempts: int = 60
+    ) -> literals.JobRunStateType:
         """
         Wait until Glue DataBrew job reaches terminal status.
 
@@ -55,7 +67,7 @@ class GlueDataBrewHook(AwsBaseHook):
         status = self.get_job_state(job_name, run_id)
         return status
 
-    def get_job_state(self, job_name: str, run_id: str) -> str:
+    def get_job_state(self, job_name: str, run_id: str) -> literals.JobRunStateType:
         """
         Get the status of a job run.
 
@@ -64,5 +76,5 @@ class GlueDataBrewHook(AwsBaseHook):
         :return: State of the job run.
             'STARTING'|'RUNNING'|'STOPPING'|'STOPPED'|'SUCCEEDED'|'FAILED'|'TIMEOUT'
         """
-        response = self.conn.describe_job_run(Name=job_name, RunId=run_id)
+        response = self.get_conn().describe_job_run(Name=job_name, RunId=run_id)
         return response["State"]

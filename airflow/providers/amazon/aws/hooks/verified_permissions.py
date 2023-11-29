@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_verifiedpermissions.client import VerifiedPermissionsClient  # noqa
+    from mypy_boto3_verifiedpermissions.client import VerifiedPermissionsClient
 
 
 class VerifiedPermissionsHook(AwsGenericHook["VerifiedPermissionsClient"]):
@@ -42,3 +42,7 @@ class VerifiedPermissionsHook(AwsGenericHook["VerifiedPermissionsClient"]):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "verifiedpermissions"
         super().__init__(*args, **kwargs)
+
+    def get_conn(self) -> VerifiedPermissionsClient:
+        """Return a boto3 VerifiedPermissions client."""
+        return super().get_conn()

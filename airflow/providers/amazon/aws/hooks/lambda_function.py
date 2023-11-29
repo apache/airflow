@@ -19,11 +19,15 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
+
+if TYPE_CHECKING:
+    from mypy_boto3_lambda import type_defs
+    from mypy_boto3_lambda.client import LambdaClient
 
 
 class LambdaHook(AwsBaseHook):
@@ -43,6 +47,10 @@ class LambdaHook(AwsBaseHook):
         kwargs["client_type"] = "lambda"
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> LambdaClient:
+        """Return boto3 client for Lambda."""
+        return super().get_conn()
+
     def invoke_lambda(
         self,
         *,
@@ -52,7 +60,7 @@ class LambdaHook(AwsBaseHook):
         client_context: str | None = None,
         payload: bytes | str | None = None,
         qualifier: str | None = None,
-    ):
+    ) -> type_defs.InvocationResponseTypeDef:
         """
         Invoke Lambda Function.
 
@@ -79,7 +87,7 @@ class LambdaHook(AwsBaseHook):
             "Payload": payload,
             "Qualifier": qualifier,
         }
-        return self.conn.invoke(**trim_none_values(invoke_args))
+        return self.get_conn().invoke(**trim_none_values(invoke_args))
 
     def create_lambda(
         self,
@@ -105,7 +113,7 @@ class LambdaHook(AwsBaseHook):
         image_config: Any | None = None,
         code_signing_config_arn: str | None = None,
         architectures: list[str] | None = None,
-    ) -> dict:
+    ) -> type_defs.FunctionConfigurationResponseTypeDef:
         """
         Create a Lambda function.
 
@@ -181,7 +189,7 @@ class LambdaHook(AwsBaseHook):
             "CodeSigningConfigArn": code_signing_config_arn,
             "Architectures": architectures,
         }
-        return self.conn.create_function(**trim_none_values(create_function_args))
+        return self.get_conn().create_function(**trim_none_values(create_function_args))
 
     @staticmethod
     @return_on_error(None)

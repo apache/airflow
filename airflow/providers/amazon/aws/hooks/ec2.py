@@ -19,16 +19,28 @@ from __future__ import annotations
 
 import functools
 import time
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.typing_compat import ParamSpec
+
+if TYPE_CHECKING:
+    from mypy_boto3_ec2 import type_defs
+    from mypy_boto3_ec2.client import EC2Client
+    from mypy_boto3_ec2.service_resource import EC2ServiceResource
+    from types_aiobotocore_ec2.client import EC2Client as AsyncEC2Client
 
 
-def only_client_type(func):
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
+
+
+def only_client_type(func: Callable[PS, RT]) -> Callable[PS, RT]:
     @functools.wraps(func)
-    def checker(self, *args, **kwargs):
-        if self._api_type == "client_type":
-            return func(self, *args, **kwargs)
+    def checker(*args, **kwargs) -> RT:
+        if args[0]._api_type == "client_type":
+            return func(*args, **kwargs)
 
         ec2_doc_link = "https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html"
         raise AirflowException(
@@ -76,7 +88,13 @@ class EC2Hook(AwsBaseHook):
 
         super().__init__(*args, **kwargs)
 
-    def get_instance(self, instance_id: str, filters: list | None = None):
+    def get_conn(self) -> EC2Client | EC2ServiceResource:
+        """Return boto3 EKS client."""
+        return super().get_conn()
+
+    def get_instance(
+        self, instance_id: str, filters: list | None = None
+    ) -> type_defs.InstanceTypeDef | EC2ServiceResource.Instance:
         """
         Get EC2 instance by id and return it.
 
@@ -87,10 +105,10 @@ class EC2Hook(AwsBaseHook):
         if self._api_type == "client_type":
             return self.get_instances(filters=filters, instance_ids=[instance_id])
 
-        return self.conn.Instance(id=instance_id)
+        return self.get_conn().Instance(id=instance_id)
 
     @only_client_type
-    def stop_instances(self, instance_ids: list) -> dict:
+    def stop_instances(self, instance_ids: list) -> type_defs.StopInstancesResultTypeDef:
         """
         Stop instances with given ids.
 
@@ -99,10 +117,10 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Stopping instances: %s", instance_ids)
 
-        return self.conn.stop_instances(InstanceIds=instance_ids)
+        return self.get_conn().stop_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def start_instances(self, instance_ids: list) -> dict:
+    def start_instances(self, instance_ids: list) -> type_defs.StartInstancesResultTypeDef:
         """
         Start instances with given ids.
 
@@ -111,10 +129,10 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Starting instances: %s", instance_ids)
 
-        return self.conn.start_instances(InstanceIds=instance_ids)
+        return self.get_conn().start_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def terminate_instances(self, instance_ids: list) -> dict:
+    def terminate_instances(self, instance_ids: list) -> type_defs.TerminateInstancesResultTypeDef:
         """
         Terminate instances with given ids.
 
@@ -123,10 +141,12 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Terminating instances: %s", instance_ids)
 
-        return self.conn.terminate_instances(InstanceIds=instance_ids)
+        return self.get_conn().terminate_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def describe_instances(self, filters: list | None = None, instance_ids: list | None = None):
+    def describe_instances(
+        self, filters: list | None = None, instance_ids: list | None = None
+    ) -> type_defs.DescribeInstancesResultTypeDef:
         """
         Describe EC2 instances, optionally applying filters and selective instance ids.
 
@@ -140,10 +160,12 @@ class EC2Hook(AwsBaseHook):
         self.log.info("Filters provided: %s", filters)
         self.log.info("Instance ids provided: %s", instance_ids)
 
-        return self.conn.describe_instances(Filters=filters, InstanceIds=instance_ids)
+        return self.get_conn().describe_instances(Filters=filters, InstanceIds=instance_ids)
 
     @only_client_type
-    def get_instances(self, filters: list | None = None, instance_ids: list | None = None) -> list:
+    def get_instances(
+        self, filters: list | None = None, instance_ids: list | None = None
+    ) -> list[type_defs.InstanceTypeDef]:
         """
         Get list of instance details, optionally applying filters and selective instance ids.
 
@@ -151,23 +173,27 @@ class EC2Hook(AwsBaseHook):
         :param filters: List of filters to specify instances to get
         :return: List of instances
         """
-        description = self.describe_instances(filters=filters, instance_ids=instance_ids)
+        description: type_defs.DescribeInstancesResultTypeDef = self.describe_instances(
+            filters=filters, instance_ids=instance_ids
+        )
 
         return [
             instance for reservation in description["Reservations"] for instance in reservation["Instances"]
         ]
 
     @only_client_type
-    def get_instance_ids(self, filters: list | None = None) -> list:
+    def get_instance_ids(self, filters: list | None = None) -> list[str]:
         """
         Get list of instance ids, optionally applying filters to fetch selective instances.
 
         :param filters: List of filters to specify instances to get
         :return: List of instance ids
         """
-        return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
+        description: list[type_defs.InstanceTypeDef] = self.get_instances(filters=filters)
+        return [instance["InstanceId"] for instance in description]
 
     async def get_instance_state_async(self, instance_id: str) -> str:
+        client: AsyncEC2Client
         async with self.async_conn as client:
             response = await client.describe_instances(InstanceIds=[instance_id])
             return response["Reservations"][0]["Instances"][0]["State"]["Name"]

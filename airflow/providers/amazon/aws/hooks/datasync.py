@@ -18,10 +18,15 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_datasync import type_defs
+    from mypy_boto3_datasync.client import DataSyncClient
 
 
 class DataSyncHook(AwsBaseHook):
@@ -54,13 +59,17 @@ class DataSyncHook(AwsBaseHook):
 
     def __init__(self, wait_interval_seconds: int = 30, *args, **kwargs) -> None:
         super().__init__(client_type="datasync", *args, **kwargs)  # type: ignore[misc]
-        self.locations: list = []
-        self.tasks: list = []
+        self.locations: list[type_defs.LocationListEntryTypeDef] = []
+        self.tasks: list[type_defs.TaskListEntryTypeDef] = []
         # wait_interval_seconds = 0 is used during unit tests
         if 0 <= wait_interval_seconds <= 15 * 60:
             self.wait_interval_seconds = wait_interval_seconds
         else:
             raise ValueError(f"Invalid wait_interval_seconds {wait_interval_seconds}")
+
+    def get_conn(self) -> DataSyncClient:
+        """Return a boto3 DataSync client."""
+        return super().get_conn()
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
         """
@@ -153,7 +162,7 @@ class DataSyncHook(AwsBaseHook):
         self._refresh_tasks()
         return task["TaskArn"]
 
-    def update_task(self, task_arn: str, **update_task_kwargs) -> None:
+    def update_task(self, task_arn: str, **update_task_kwargs) -> dict[str, Any]:
         """Update a Task.
 
         .. seealso::
@@ -162,9 +171,9 @@ class DataSyncHook(AwsBaseHook):
         :param task_arn: The TaskArn to update.
         :param update_task_kwargs: Passed to ``boto.update_task()``, See AWS boto3 datasync documentation.
         """
-        self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
+        return self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
 
-    def delete_task(self, task_arn: str) -> None:
+    def delete_task(self, task_arn: str) -> dict[str, Any]:
         """Delete a Task.
 
         .. seealso::
@@ -172,7 +181,7 @@ class DataSyncHook(AwsBaseHook):
 
         :param task_arn: The TaskArn to delete.
         """
-        self.get_conn().delete_task(TaskArn=task_arn)
+        return self.get_conn().delete_task(TaskArn=task_arn)
 
     def _refresh_tasks(self) -> None:
         """Refresh the local list of Tasks."""
@@ -186,7 +195,7 @@ class DataSyncHook(AwsBaseHook):
         self,
         source_location_arns: list,
         destination_location_arns: list,
-    ) -> list:
+    ) -> list[str]:
         """
         Return list of TaskArns which use both a specified source and destination LocationArns.
 
@@ -230,7 +239,7 @@ class DataSyncHook(AwsBaseHook):
         task_execution = self.get_conn().start_task_execution(TaskArn=task_arn, **kwargs)
         return task_execution["TaskExecutionArn"]
 
-    def cancel_task_execution(self, task_execution_arn: str) -> None:
+    def cancel_task_execution(self, task_execution_arn: str) -> dict[str, Any]:
         """
         Cancel a TaskExecution for the specified ``task_execution_arn``.
 
@@ -242,9 +251,9 @@ class DataSyncHook(AwsBaseHook):
         """
         if not task_execution_arn:
             raise AirflowBadRequest("task_execution_arn not specified")
-        self.get_conn().cancel_task_execution(TaskExecutionArn=task_execution_arn)
+        return self.get_conn().cancel_task_execution(TaskExecutionArn=task_execution_arn)
 
-    def get_task_description(self, task_arn: str) -> dict:
+    def get_task_description(self, task_arn: str) -> type_defs.DescribeTaskResponseTypeDef:
         """
         Get description for the specified ``task_arn``.
 
@@ -259,7 +268,9 @@ class DataSyncHook(AwsBaseHook):
             raise AirflowBadRequest("task_arn not specified")
         return self.get_conn().describe_task(TaskArn=task_arn)
 
-    def describe_task_execution(self, task_execution_arn: str) -> dict:
+    def describe_task_execution(
+        self, task_execution_arn: str
+    ) -> type_defs.DescribeTaskExecutionResponseTypeDef:
         """
         Get description for the specified ``task_execution_arn``.
 

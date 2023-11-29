@@ -18,7 +18,13 @@
 """This module contains AWS SQS hook."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_sqs import type_defs
+    from mypy_boto3_sqs.client import SQSClient
 
 
 class SqsHook(AwsBaseHook):
@@ -38,7 +44,13 @@ class SqsHook(AwsBaseHook):
         kwargs["client_type"] = "sqs"
         super().__init__(*args, **kwargs)
 
-    def create_queue(self, queue_name: str, attributes: dict | None = None) -> dict:
+    def get_conn(self) -> SQSClient:
+        """Return boto3 client for SQS."""
+        return super().get_conn()
+
+    def create_queue(
+        self, queue_name: str, attributes: dict | None = None
+    ) -> type_defs.CreateQueueResultTypeDef:
         """
         Create queue using connection object.
 
@@ -58,7 +70,7 @@ class SqsHook(AwsBaseHook):
         delay_seconds: int = 0,
         message_attributes: dict | None = None,
         message_group_id: str | None = None,
-    ) -> dict:
+    ) -> type_defs.SendMessageResultTypeDef:
         """
         Send message to the queue.
 
