@@ -24,7 +24,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
-from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
 
 from weaviate import Client as WeaviateClient
 from weaviate import UnexpectedStatusCodeException
@@ -33,6 +32,7 @@ from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, Au
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
+from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -214,9 +214,7 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         client.schema.update_config(class_name=class_name, config=config)
 
-    def update_multiple_classes(
-        self, schema_json: list[dict]
-    ) -> list[UnexpectedStatusCodeException] | None:
+    def update_multiple_classes(self, schema_json: list[dict]) -> list[UnexpectedStatusCodeException] | None:
         """Updated multiple classes.
 
         :param schema_json: list of class_config objects
@@ -280,23 +278,35 @@ class WeaviateHook(BaseHook):
 
         # Dictionary comparison
         if isinstance(class_object, dict):
-            return all(
-                k in class_schema and self._compare_schema_subset(v, class_schema[k])
-                for k, v in class_object.items()
-            )
+            for k, v in class_object.items():
+                if (k not in class_schema) or (not self._compare_schema_subset(v, class_schema[k])):
+                    return False
+            return True
 
         # List or Tuple comparison
         if isinstance(class_object, (list, tuple)):
-            return len(class_object) == len(class_schema) and all(
-                self._compare_schema_subset(obj, sch) for obj, sch in zip(class_object, class_schema)
-            )
+            for obj, sch in zip(class_object, class_schema):
+                if len(class_object) > len(class_schema) or not self._compare_schema_subset(obj, sch):
+                    return False
+            return True
 
         # Default case for non-matching types or unsupported types
         return False
 
+    @staticmethod
+    def _convert_properties_to_dict(classes_objects, key_property: str = "name"):
+        for cls in classes_objects:
+            cls["properties"] = {p[key_property]: p for p in cls["properties"]}
+        return classes_objects
+
     def contains_schema(self, classes_objects: list) -> bool:
         """Check if the class_objects is a subset of existing schema."""
-        exiting_classes = {cls["class"]: cls for cls in self.get_schema()["classes"]}
+        # When the class properties are not in same order or not the same length. We convert them to dicts
+        # with property `name` as the key.
+        classes_objects = self._convert_properties_to_dict(classes_objects)
+        exiting_classes_list = self._convert_properties_to_dict(self.get_schema()["classes"])
+
+        exiting_classes = {cls["class"]: cls for cls in exiting_classes_list}
         exiting_classes_set = set(exiting_classes.keys())
         input_classes_set = {cls["class"] for cls in classes_objects}
         if not input_classes_set.issubset(exiting_classes_set):

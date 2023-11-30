@@ -568,7 +568,7 @@ def test_update_multiple_classes(update_class, weaviate_hook):
                             "name": "invalid_property",
                             "description": "Last name of the author",
                             "dataType": ["text"],
-                        },
+                        }
                     ],
                 },
             ],
@@ -581,7 +581,7 @@ def test_update_multiple_classes(update_class, weaviate_hook):
                     "description": "Authors info",
                     "properties": [
                         {
-                            "name": "invalid_property",
+                            "name": "last_name",
                             "description": "Last name of the author",
                             "dataType": ["text"],
                         },
@@ -590,8 +590,36 @@ def test_update_multiple_classes(update_class, weaviate_hook):
             ],
             False,
         ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                        {
+                            "name": "name",
+                            "description": "Name of the author",
+                            "dataType": ["text"],
+                            "extra_key": "some_value",
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
     ],
-    ids=("property_level_check", "class_level_check", "invalid_property", "invalid_class"),
+    ids=(
+        "property_level_check",
+        "class_level_check",
+        "invalid_property",
+        "invalid_class",
+        "swapped_properties",
+    ),
 )
 @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
 def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_hook):
@@ -605,11 +633,13 @@ def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_
                         "name": "name",
                         "description": "Name of the author",
                         "dataType": ["text"],
+                        "extra_key": "some_value",
                     },
                     {
                         "name": "last_name",
                         "description": "Last name of the author",
                         "dataType": ["text"],
+                        "extra_key": "some_value",
                     },
                 ],
             },
@@ -621,14 +651,16 @@ def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_
                         "name": "name",
                         "description": "Name of the author",
                         "dataType": ["text"],
+                        "extra_key": "some_value",
                     },
                     {
                         "name": "last_name",
                         "description": "Last name of the author",
                         "dataType": ["text"],
+                        "extra_key": "some_value",
                     },
                 ],
             },
         ]
     }
-    return weaviate_hook.contains_schema(classes_to_test) == expected_result
+    assert weaviate_hook.contains_schema(classes_to_test) == expected_result
