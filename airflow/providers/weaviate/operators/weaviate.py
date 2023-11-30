@@ -44,10 +44,16 @@ class WeaviateIngestOperator(BaseOperator):
 
     :param conn_id: The Weaviate connection.
     :param class_name: The Weaviate class to be used for storing the data objects into.
+<<<<<<< HEAD
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
     :param input_json: (Deprecated) The JSON representing Weaviate data objects to generate embeddings on (or provides
         custom vectors) and store them in the Weaviate class.
+=======
+    :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate\
+        embeddings on (or provides custom vectors) and store them in the Weaviate class. Either input_json
+        or input_callable should be provided.
+>>>>>>> e9508bb3b4 (Resolve conflicts)
     :param vector_col: key/column name in which the vectors are stored.
     """
 
@@ -57,8 +63,12 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         class_name: str,
+<<<<<<< HEAD
         input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
+=======
+        input_data: list[dict[str, Any]] | pd.DataFrame,
+>>>>>>> e9508bb3b4 (Resolve conflicts)
         vector_col: str = "Vector",
         **kwargs: Any,
     ) -> None:
@@ -68,6 +78,7 @@ class WeaviateIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
+<<<<<<< HEAD
         self.vector_col = vector_col
 
         if input_data is not None:
@@ -81,6 +92,10 @@ class WeaviateIngestOperator(BaseOperator):
             self.input_data = input_json
         else:
             raise TypeError("Either input_json or input_data is required")
+=======
+        self.input_data = input_data
+        self.vector_col = vector_col
+>>>>>>> e9508bb3b4 (Resolve conflicts)
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -90,8 +105,12 @@ class WeaviateIngestOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
+<<<<<<< HEAD
             self.class_name,
             self.input_data,
             **self.batch_params,
             vector_col=self.vector_col,
+=======
+            self.class_name, self.input_data, vector_col=self.vector_col, **self.batch_params
+>>>>>>> e9508bb3b4 (Resolve conflicts)
         )

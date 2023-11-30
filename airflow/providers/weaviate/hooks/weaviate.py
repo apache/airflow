@@ -23,6 +23,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
+import pandas as pd
 import requests
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 
