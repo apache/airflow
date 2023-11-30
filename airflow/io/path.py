@@ -138,12 +138,12 @@ class ObjectStoragePath(CloudPath):
         else:
             args_list.insert(0, parsed_url.path)
 
-        if parsed_url.username is not None:
-            conn_id = conn_id or parsed_url.username or None
-            # If there are multiple @ in the host string, parse from the last.
-            # This matches the parsing logic in urllib.parse; see:
-            # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75aa/Lib/urllib/parse.py#L196
-            parsed_url = parsed_url._replace(netloc=parsed_url.netloc.rsplit("@", 1)[-1])
+        # This matches the parsing logic in urllib.parse; see:
+        # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75a/Lib/urllib/parse.py#L194-L203
+        userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
+        if have_info:
+            conn_id = conn_id or userinfo or None
+            parsed_url = parsed_url._replace(netloc=hostinfo)
 
         return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
