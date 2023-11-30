@@ -34,7 +34,6 @@ from subprocess import DEVNULL
 from typing import IO, Any, Generator, NamedTuple
 
 import click
-from packaging.version import Version
 from rich.progress import Progress
 from rich.syntax import Syntax
 
@@ -1875,6 +1874,7 @@ def update_constraints(
 
 
 class VersionedFile(NamedTuple):
+    from packaging.version import Version
     base: str
     version: str
     suffix: str
