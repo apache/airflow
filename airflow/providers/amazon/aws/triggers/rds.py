@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -80,8 +81,11 @@ class RdsDbInstanceTrigger(BaseTrigger):
             },
         )
 
+    @cached_property
+    def hook(self) -> RdsHook:
+        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
     async def run(self):
-        self.hook = RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         async with self.hook.async_conn as client:
             waiter = client.get_waiter(self.waiter_name)
             await async_wait(

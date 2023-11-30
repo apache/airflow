@@ -498,7 +498,7 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif isinstance(var, Connection):
-            return cls._encode(var.to_json_dict(validate=True), type_=DAT.CONNECTION)
+            return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:

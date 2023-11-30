@@ -30,8 +30,15 @@ class AvpEntities(Enum):
 
     ACTION = "Action"
     ROLE = "Role"
-    VARIABLE = "Variable"
     USER = "User"
+
+    # Resource types
+    CONFIGURATION = "Configuration"
+    CONNECTION = "Connection"
+    DATASET = "Dataset"
+    POOL = "Pool"
+    VARIABLE = "Variable"
+    VIEW = "View"
 
 
 def get_entity_type(resource_type: AvpEntities) -> str:

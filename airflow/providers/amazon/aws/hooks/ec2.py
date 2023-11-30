@@ -103,7 +103,7 @@ class EC2Hook(AwsBaseHook):
         :return: Instance object
         """
         if self._api_type == "client_type":
-            return self.get_instances(filters=filters, instance_ids=[instance_id])
+            return self.get_instances(filters=filters, instance_ids=[instance_id])[0]
 
         return self.get_conn().Instance(id=instance_id)
 
