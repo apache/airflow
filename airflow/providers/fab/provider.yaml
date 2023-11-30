@@ -33,6 +33,6 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - flask>=2.2,<2.3
-  - flask-appbuilder==4.3.10
+  - flask-appbuilder==4.3.9
   - flask-login>=0.6.2
   - google-re2>=1.0
