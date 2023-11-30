@@ -63,7 +63,7 @@ All classes for this provider package are in the ``airflow.providers.fab`` pytho
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
 for the minimum Airflow version supported) via ``pip install apache-airflow-providers-fab``
 
 
