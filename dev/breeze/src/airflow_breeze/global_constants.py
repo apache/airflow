@@ -423,7 +423,6 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
-    "daskexecutor",
     "docker",
     "elasticsearch",
     "ftp",
