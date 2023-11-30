@@ -217,7 +217,15 @@ class TestRedshiftToS3Transfer:
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
-    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
+    @pytest.mark.parametrize(
+        "table_as_file_name, expected_s3_key, select_query",
+        [
+            [True, "key/table_", "SELECT 'Single Quotes Break this Operator'"],
+            [False, "key", "SELECT 'Single Quotes Break this Operator'"],
+            [True, "key/table_", "SELECT ''Single Quotes Break this Operator''"],
+            [False, "key", "SELECT ''Single Quotes Break this Operator''"],
+        ],
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
@@ -230,6 +238,7 @@ class TestRedshiftToS3Transfer:
         mock_hook,
         table_as_file_name,
         expected_s3_key,
+        select_query,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -242,7 +251,6 @@ class TestRedshiftToS3Transfer:
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ["HEADER"]
-        select_query = "SELECT 'Single Quotes Break this Operator'"
 
         op = RedshiftToS3Operator(
             select_query=select_query,
