@@ -216,7 +216,7 @@ class TestRedshiftToS3Transfer:
         assert access_key in unload_query
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
-        
+
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -261,15 +261,13 @@ class TestRedshiftToS3Transfer:
         unload_options = "\n\t\t\t".join(unload_options)
         credentials_block = build_credentials_block(mock_session.return_value)
 
-        unload_query = op._build_unload_query(
-            credentials_block, select_query, s3_key, unload_options
-        )
+        unload_query = op._build_unload_query(credentials_block, select_query, s3_key, unload_options)
 
         assert mock_run.call_count == 1
         assert access_key in unload_query
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
-        
+
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
