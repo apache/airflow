@@ -242,6 +242,13 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
         if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
             continue
         fi
+        # Remove fab provider in main branch until we cut-off v2-8-test branch and change
+        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
+        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
+        # the provider from PyPI
+        if [[ ${provider_package} == "apache-airflow-providers-fab" ]]; then
+            continue
+        fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
