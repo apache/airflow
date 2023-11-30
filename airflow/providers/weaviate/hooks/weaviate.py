@@ -219,7 +219,9 @@ class WeaviateHook(BaseHook):
             self.log.warning("Object with the UUID %s already exists", uuid)
             return None
 
-    def get_or_create_object(self, data_object, class_name, **kwargs) -> str | dict[str, Any] | None:
+    def get_or_create_object(
+        self, data_object=None, class_name=None, **kwargs
+    ) -> str | dict[str, Any] | None:
         """Get or Create a new object.
 
         Returns the object if already exists
@@ -229,7 +231,6 @@ class WeaviateHook(BaseHook):
         weaviateclient.data_object.get()
         """
         vector = kwargs.pop("vector", None)
-        class_name = kwargs.pop("class_name", class_name)
         obj = self.get_object(class_name=class_name, **kwargs)
         if not obj:
             uuid = kwargs.pop("uuid", generate_uuid5(data_object))
@@ -237,7 +238,7 @@ class WeaviateHook(BaseHook):
             tenant = kwargs.pop("tenant", None)
             return self.create_object(
                 data_object,
-                class_name=class_name,
+                class_name,
                 vector=vector,
                 uuid=uuid,
                 consistency_level=consistency_level,
@@ -254,11 +255,28 @@ class WeaviateHook(BaseHook):
         client = self.get_conn()
         return client.data_object.get(**kwargs)
 
+    def get_all_objects(self, **kwargs) -> list[dict[str, Any]]:
+        """Get all objects from weaviate.
+
+        if after is provided, it will be used as the starting point for the query.
+
+        **kwargs: parameters to be passed to weaviateclient.data_object.get()
+        """
+        all_objects = []
+        after = kwargs.pop("after", None)
+        while True:
+            results = self.get_object(after=after, **kwargs) or {}
+            if not results.get("objects"):
+                break
+            all_objects.extend(results["objects"])
+            after = results["objects"][-1]["id"]
+        return all_objects
+
     def delete_object(self, uuid, **kwargs) -> None:
         """Delete an object from weaviate.
 
         uuid: uuid of the object to be deleted
-        **kwargs: parameters to be passed to weaviateclient.data_object.delete()
+        **kwargs: Optional parameters to be passed to weaviateclient.data_object.delete()
         """
         client = self.get_conn()
         client.data_object.delete(uuid, **kwargs)
@@ -271,7 +289,7 @@ class WeaviateHook(BaseHook):
             If type is str it should be either an URL or a file.
         class_name: Class name associated with the object given.
         uuid: uuid of the object to be updated
-        **kwargs: Additional parameters to be passed to weaviateclient.data_object.update()
+        **kwargs: Optional parameters to be passed to weaviateclient.data_object.update()
         """
         client = self.get_conn()
         client.data_object.update(data_object, class_name, uuid, **kwargs)
@@ -283,7 +301,7 @@ class WeaviateHook(BaseHook):
             'data_object' will be set to None. If type is str it should be either an URL or a file.
         class_name: Class name associated with the object given.
         uuid: uuid of the object to be replaced
-        **kwargs: Additional parameters to be passed to weaviateclient.data_object.replace()
+        **kwargs: Optional parameters to be passed to weaviateclient.data_object.replace()
         """
         client = self.get_conn()
         client.data_object.replace(data_object, class_name, uuid, **kwargs)

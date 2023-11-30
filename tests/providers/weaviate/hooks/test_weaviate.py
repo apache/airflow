@@ -20,6 +20,7 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from weaviate import ObjectAlreadyExistsException
 
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
@@ -177,6 +178,124 @@ class TestWeaviateHook:
             url=self.host,
             auth_client_secret=mock_auth_client_password(username="login", password="password", scope=None),
             additional_headers={},
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    def test_create_object(self, mock_gen_uuid, weaviate_hook):
+        """
+        Test the create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        return_value = weaviate_hook.create_object({"name": "Test"}, "TestClass")
+        mock_gen_uuid.assert_called_once()
+        mock_client.data_object.create.assert_called_once_with(
+            {"name": "Test"}, "TestClass", uuid=mock_gen_uuid.return_value
+        )
+        assert return_value
+
+    def test_create_object_already_exists_return_none(self, weaviate_hook):
+        """
+        Test the create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        mock_client.data_object.create.side_effect = ObjectAlreadyExistsException
+        return_value = weaviate_hook.create_object({"name": "Test"}, "TestClass")
+        assert return_value is None
+
+    def test_get_object(self, weaviate_hook):
+        """
+        Test the get_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object(class_name="TestClass", uuid="uuid")
+        mock_client.data_object.get.assert_called_once_with(class_name="TestClass", uuid="uuid")
+
+    def test_get_of_get_or_create_object(self, weaviate_hook):
+        """
+        Test the get_or_create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name="TestClass")
+        mock_client.data_object.get.assert_called_once_with(class_name="TestClass")
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    def test_create_of_get_or_create_object(self, mock_gen_uuid, weaviate_hook):
+        """
+        Test the get_or_create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object = MagicMock(return_value=None)
+        mock_create_object = MagicMock()
+        weaviate_hook.create_object = mock_create_object
+        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name="TestClass")
+        mock_create_object.assert_called_once_with(
+            {"name": "Test"},
+            "TestClass",
+            uuid=mock_gen_uuid.return_value,
+            consistency_level=None,
+            tenant=None,
+            vector=None,
+        )
+
+    def test_get_all_objects(self, weaviate_hook):
+        """
+        Test the get_all_objects method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        objects = [
+            {"deprecations": None, "objects": [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]},
+            {"deprecations": None, "objects": []},
+        ]
+        mock_get_object = MagicMock()
+        weaviate_hook.get_object = mock_get_object
+        mock_get_object.side_effect = objects
+
+        return_value = weaviate_hook.get_all_objects(class_name="TestClass")
+        assert weaviate_hook.get_object.call_args_list == [
+            mock.call(after=None, class_name="TestClass"),
+            mock.call(after=3, class_name="TestClass"),
+        ]
+        assert return_value == [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]
+
+    def test_delete_object(self, weaviate_hook):
+        """
+        Test the delete_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.delete_object(uuid="uuid", class_name="TestClass")
+        mock_client.data_object.delete.assert_called_once_with("uuid", class_name="TestClass")
+
+    def test_update_object(self, weaviate_hook):
+        """
+        Test the update_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.update_object(
+            uuid="uuid", class_name="TestClass", data_object={"name": "Test"}, tenant="2d"
+        )
+        mock_client.data_object.update.assert_called_once_with(
+            {"name": "Test"}, "TestClass", "uuid", tenant="2d"
+        )
+
+    def test_replace_object(self, weaviate_hook):
+        """
+        Test the replace_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.replace_object(
+            uuid="uuid", class_name="TestClass", data_object={"name": "Test"}, tenant="2d"
+        )
+        mock_client.data_object.replace.assert_called_once_with(
+            {"name": "Test"}, "TestClass", "uuid", tenant="2d"
         )
 
 
