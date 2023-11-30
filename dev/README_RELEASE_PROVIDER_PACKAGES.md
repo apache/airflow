@@ -1029,7 +1029,7 @@ do
 done
 
 # Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
-breeze release-management clean-old-provider-artifacts --directory . --execute
+breeze release-management clean-old-provider-artifacts --directory .
 
 # Remove those packages
 breeze release-management clean-old-provider-artifacts --directory . --execute
