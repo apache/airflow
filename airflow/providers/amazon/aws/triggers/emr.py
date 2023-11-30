@@ -17,14 +17,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
@@ -63,7 +59,7 @@ class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrHook:
         return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -113,7 +109,7 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrHook:
         return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -162,7 +158,7 @@ class EmrTerminateJobFlowTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrHook:
         return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -206,7 +202,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrContainerHook:
         return EmrContainerHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -246,7 +242,7 @@ class EmrStepSensorTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrHook:
         return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -281,7 +277,7 @@ class EmrServerlessCreateApplicationTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(self.aws_conn_id)
 
 
@@ -316,7 +312,7 @@ class EmrServerlessStartApplicationTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(self.aws_conn_id)
 
 
@@ -351,7 +347,7 @@ class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(self.aws_conn_id)
 
 
@@ -388,7 +384,7 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(self.aws_conn_id)
 
 
@@ -423,7 +419,7 @@ class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(self.aws_conn_id)
 
 
@@ -460,5 +456,5 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EmrServerlessHook:
         return self.hook_instance

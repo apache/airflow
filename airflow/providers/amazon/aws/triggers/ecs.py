@@ -30,7 +30,7 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+    from types_aiobotocore_logs.client import CloudWatchLogsClient
 
 
 class ClusterActiveTrigger(AwsBaseWaiterTrigger):
@@ -68,7 +68,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EcsHook:
         return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -106,7 +106,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EcsHook:
         return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -187,7 +187,9 @@ class TaskDoneTrigger(BaseTrigger):
                         logs_token = await self._forward_logs(logs_client, logs_token)
         raise AirflowException("Waiter error: max attempts reached")
 
-    async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
+    async def _forward_logs(
+        self, logs_client: CloudWatchLogsClient, next_token: str | None = None
+    ) -> str | None:
         """
         Read logs from the cloudwatch stream and print them to the task logs.
 

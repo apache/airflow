@@ -27,6 +27,7 @@ from airflow.utils.helpers import prune_dict
 if TYPE_CHECKING:
     from mypy_boto3_logs import type_defs
     from mypy_boto3_logs.client import CloudWatchLogsClient
+    from types_aiobotocore_logs.client import CloudWatchLogsClient as AsyncCloudWatchLogsClient
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
 # value of the nextForwardToken is the same in subsequent calls.
@@ -57,6 +58,11 @@ class AwsLogsHook(AwsBaseHook):
     def get_conn(self) -> CloudWatchLogsClient:
         """Return boto3 client for CloudWatch Logs."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncCloudWatchLogsClient:
+        """Return aiobotocore client for CloudWatch Logs."""
+        return super().async_conn
 
     class ContinuationToken:
         """Just a wrapper around a str token to allow updating it from the caller."""

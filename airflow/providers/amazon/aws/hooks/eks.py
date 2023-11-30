@@ -36,6 +36,7 @@ from airflow.utils.json import AirflowJsonEncoder
 if TYPE_CHECKING:
     from mypy_boto3_eks import type_defs
     from mypy_boto3_eks.client import EKSClient
+    from types_aiobotocore_eks.client import EKSClient as AsyncEKSClient
 
 DEFAULT_PAGINATION_TOKEN = ""
 STS_TOKEN_EXPIRES_IN = 60
@@ -120,6 +121,11 @@ class EksHook(AwsBaseHook):
     def get_conn(self) -> EKSClient:
         """Return boto3 EKS client."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncEKSClient:
+        """Return aiobotocore EKS client."""
+        return super().async_conn
 
     def create_cluster(
         self,

@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from botocore.exceptions import WaiterError
 from deprecated import deprecated
@@ -28,9 +28,6 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 @deprecated(reason="use BatchJobTrigger instead", category=AirflowProviderDeprecationWarning)
@@ -228,7 +225,7 @@ class BatchJobTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> BatchClientHook:
         return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -265,5 +262,5 @@ class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> BatchClientHook:
         return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

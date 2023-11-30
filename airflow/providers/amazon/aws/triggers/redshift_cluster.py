@@ -17,14 +17,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -71,7 +67,7 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RedshiftHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -119,7 +115,7 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RedshiftHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -167,7 +163,7 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RedshiftHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -215,7 +211,7 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RedshiftHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -260,5 +256,5 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RedshiftHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)

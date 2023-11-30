@@ -16,13 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
@@ -65,7 +60,7 @@ class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
             **kwargs,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> LambdaHook:
         return LambdaHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,

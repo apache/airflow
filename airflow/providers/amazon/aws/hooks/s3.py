@@ -60,6 +60,7 @@ from airflow.utils.helpers import chunks
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
+    from types_aiobotocore_s3 import S3Client as AsyncS3Client
 
 T = TypeVar("T", bound=Callable)
 
@@ -194,6 +195,11 @@ class S3Hook(AwsBaseHook):
     def get_conn(self) -> S3Client:
         """Return boto3 S3 client."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncS3Client:
+        """Return aiobotocore S3 client."""
+        return super().async_conn
 
     @property
     def extra_args(self):

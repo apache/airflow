@@ -16,13 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class AthenaTrigger(AwsBaseWaiterTrigger):
@@ -60,7 +55,7 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
             **kwargs,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> AthenaHook:
         return AthenaHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,

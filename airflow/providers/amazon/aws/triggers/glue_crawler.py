@@ -17,14 +17,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
@@ -64,5 +60,5 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=aws_conn_id,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> GlueCrawlerHook:
         return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)

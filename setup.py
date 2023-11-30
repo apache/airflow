@@ -425,7 +425,7 @@ _devel_only_amazon = [
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
     "boto3-stubs[essential,eks,athena,appflow,batch,emr,emr-serverless,emr-containers,glue,iam,logs,redshift,redshift-serverless,redshift-data,secretsmanager,datasync,dms,ecr,ecs,elasticache,events,glacier,databrew,firehose,quicksight,sts,ses,sns,ssm,stepfunctions,verifiedpermissions]",
-    "types-aiobotocore[essential,eks,glue,redshift]",
+    "types-aiobotocore[essential,eks,glue,redshift,ecs,logs,s3,sagemaker,sqs]",
 ]
 
 _devel_only_azure = [

@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 if TYPE_CHECKING:
     from mypy_boto3_sqs import type_defs
     from mypy_boto3_sqs.client import SQSClient
+    from types_aiobotocore_sqs.client import SQSClient as AsyncSQSClient
 
 
 class SqsHook(AwsBaseHook):
@@ -47,6 +48,11 @@ class SqsHook(AwsBaseHook):
     def get_conn(self) -> SQSClient:
         """Return boto3 client for SQS."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncSQSClient:
+        """Return aiobotocore SQS client."""
+        return super().async_conn
 
     def create_queue(
         self, queue_name: str, attributes: dict | None = None

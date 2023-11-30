@@ -62,7 +62,7 @@ class EC2StateSensorTrigger(BaseTrigger):
         )
 
     @cached_property
-    def hook(self):
+    def hook(self) -> EC2Hook:
         return EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
 
     async def run(self):

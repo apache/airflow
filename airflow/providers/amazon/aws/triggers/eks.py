@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import TriggerEvent
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+    from types_aiobotocore_eks.client import EKSClient as AsyncEKSClient
 
 
 class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -65,7 +65,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -116,7 +116,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
             },
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
@@ -138,7 +138,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
         yield TriggerEvent({"status": "deleted"})
 
-    async def delete_any_nodegroups(self, client) -> None:
+    async def delete_any_nodegroups(self, client: AsyncEKSClient) -> None:
         """
         Delete all EKS Nodegroups for a provided Amazon EKS Cluster.
 
@@ -167,7 +167,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         else:
             self.log.info("No nodegroups associated with cluster %s", self.cluster_name)
 
-    async def delete_any_fargate_profiles(self, client) -> None:
+    async def delete_any_fargate_profiles(self, client: AsyncEKSClient) -> None:
         """
         Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
@@ -236,7 +236,7 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -283,7 +283,7 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -331,7 +331,7 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -375,5 +375,5 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

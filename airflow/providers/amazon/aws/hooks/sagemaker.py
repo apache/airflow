@@ -40,6 +40,7 @@ from airflow.utils import timezone
 if TYPE_CHECKING:
     from mypy_boto3_sagemaker import type_defs
     from mypy_boto3_sagemaker.client import SageMakerClient
+    from types_aiobotocore_sagemaker.client import SageMakerClient as AsyncSageMakerClient
 
 D = TypeVar("D", bound=dict)
 
@@ -164,6 +165,11 @@ class SageMakerHook(AwsBaseHook):
     def get_conn(self) -> SageMakerClient:
         """Return a boto3 SageMaker client."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncSageMakerClient:
+        """Return aiobotocore SageMaker client."""
+        return super().async_conn
 
     def tar_and_s3_upload(self, path: str, key: str, bucket: str) -> None:
         """Tar the local file or directory and upload to s3.

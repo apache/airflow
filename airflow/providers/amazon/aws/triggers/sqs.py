@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Collection
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from typing_extensions import Literal
 
@@ -27,7 +27,8 @@ from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+    from types_aiobotocore_sqs import type_defs as type_defs_async
+    from types_aiobotocore_sqs.client import SQSClient as AsyncSQSClient
 
 
 class SqsSensorTrigger(BaseTrigger):
@@ -106,7 +107,7 @@ class SqsSensorTrigger(BaseTrigger):
     def hook(self) -> SqsHook:
         return SqsHook(aws_conn_id=self.aws_conn_id)
 
-    async def poll_sqs(self, client: BaseAwsConnection) -> Collection:
+    async def poll_sqs(self, client: AsyncSQSClient) -> type_defs_async.ReceiveMessageResultTypeDef:
         """
         Asynchronously poll SQS queue to retrieve messages.
 
@@ -126,8 +127,8 @@ class SqsSensorTrigger(BaseTrigger):
         response = await client.receive_message(**receive_message_kwargs)
         return response
 
-    async def poke(self, client: Any):
-        message_batch: list[Any] = []
+    async def poke(self, client: AsyncSQSClient) -> list[type_defs_async.MessageTypeDef]:
+        message_batch: list[type_defs_async.MessageTypeDef] = []
         for _ in range(self.num_batches):
             self.log.info("starting call to poll sqs")
             response = await self.poll_sqs(client=client)

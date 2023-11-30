@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from botocore.waiter import Waiter
     from mypy_boto3_ecs import literals
     from mypy_boto3_ecs.client import ECSClient
+    from types_aiobotocore_ecs.client import ECSClient as AsyncECSClient
 
 
 def should_retry(exception: Exception):
@@ -105,6 +106,11 @@ class EcsHook(AwsGenericHook):
     def get_conn(self) -> ECSClient:
         """Return boto3 client for ECS."""
         return super().get_conn()
+
+    @property
+    def async_conn(self) -> AsyncECSClient:
+        """Return aiobotocore ECS client."""
+        return super().async_conn
 
     def get_cluster_state(self, cluster_name: str) -> str:
         """

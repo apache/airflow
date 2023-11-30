@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
@@ -25,9 +25,6 @@ from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class RdsDbInstanceTrigger(BaseTrigger):
@@ -158,7 +155,7 @@ class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -211,7 +208,7 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -264,5 +261,5 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
         )
 
-    def hook(self) -> AwsGenericHook:
+    def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
