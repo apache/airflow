@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-30T13:52:06Z
+# This constraints file was automatically generated on 2023-11-30T21:00:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -85,7 +85,7 @@ flower==2.0.1
 frozenlist==1.4.0
 fsspec==2023.10.0
 gevent==23.9.1
-google-auth==2.23.4
+google-auth==2.24.0
 google-re2==1.1
 googleapis-common-protos==1.61.0
 graphviz==0.20.1
@@ -105,7 +105,7 @@ inflection==0.5.1
 isodate==0.6.1
 itsdangerous==2.1.2
 jmespath==1.0.1
-jsonschema-specifications==2023.11.1
+jsonschema-specifications==2023.11.2
 jsonschema==4.20.0
 kombu==5.3.4
 krb5==0.5.1
@@ -131,7 +131,7 @@ opentelemetry-exporter-otlp-proto-common==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0
 opentelemetry-exporter-otlp-proto-http==1.21.0
 opentelemetry-exporter-otlp==1.21.0
-opentelemetry-exporter-prometheus==1.12.0rc1
+opentelemetry-exporter-prometheus==0.42b0
 opentelemetry-proto==1.21.0
 opentelemetry-sdk==1.21.0
 opentelemetry-semantic-conventions==0.42b0

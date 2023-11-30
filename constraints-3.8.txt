@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-30T13:55:22Z
+# This constraints file was automatically generated on 2023-11-30T21:03:36Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -309,7 +309,7 @@ google-api-core==2.14.0
 google-api-python-client==2.109.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
-google-auth==2.23.4
+google-auth==2.24.0
 google-cloud-aiplatform==1.36.4
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
@@ -402,7 +402,7 @@ jsonpath-ng==1.6.0
 jsonpickle==3.0.2
 jsonpointer==2.4
 jsonschema-path==0.3.2
-jsonschema-specifications==2023.11.1
+jsonschema-specifications==2023.11.2
 jsonschema==4.20.0
 junit-xml==1.9
 jupyter_client==8.6.0
@@ -471,7 +471,7 @@ opentelemetry-exporter-otlp-proto-common==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0
 opentelemetry-exporter-otlp-proto-http==1.21.0
 opentelemetry-exporter-otlp==1.21.0
-opentelemetry-exporter-prometheus==1.12.0rc1
+opentelemetry-exporter-prometheus==0.42b0
 opentelemetry-proto==1.21.0
 opentelemetry-sdk==1.21.0
 opentelemetry-semantic-conventions==0.42b0
