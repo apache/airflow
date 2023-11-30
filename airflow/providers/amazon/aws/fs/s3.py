@@ -25,7 +25,7 @@ import requests
 from botocore import UNSIGNED
 from requests import HTTPError
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 if TYPE_CHECKING:
     from botocore.awsrequest import AWSRequest
@@ -55,14 +55,14 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
             "pip install apache-airflow-providers-amazon[s3fs]"
         )
 
-    aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")
-    session = aws.get_session(deferrable=True)
-    endpoint_url = aws.conn_config.get_service_endpoint_url(service_name="s3")
+    s3_hook = S3Hook(aws_conn_id=conn_id)
+    session = s3_hook.get_session(deferrable=True)
+    endpoint_url = s3_hook.conn_config.get_service_endpoint_url(service_name="s3")
 
-    config_kwargs: dict[str, Any] = aws.conn_config.extra_config.get("config_kwargs", {})
+    config_kwargs: dict[str, Any] = s3_hook.conn_config.extra_config.get("config_kwargs", {})
     register_events: dict[str, Callable[[Properties], None]] = {}
 
-    s3_service_config = aws.service_config
+    s3_service_config = s3_hook.service_config
     if signer := s3_service_config.get("signer", None):
         log.info("Loading signer %s", signer)
         if singer_func := SIGNERS.get(signer):

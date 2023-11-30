@@ -805,7 +805,7 @@ class S3Hook(AwsBaseHook):
         _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
-        self.object_filter_usr = object_filter
+        object_filter_usr = object_filter
         config = {
             "PageSize": page_size,
             "MaxItems": max_items,
@@ -827,8 +827,8 @@ class S3Hook(AwsBaseHook):
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-        if self.object_filter_usr is not None:
-            return self.object_filter_usr(keys, from_datetime, to_datetime)
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 

@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-celery
 name: Celery
 description: |
-    `Celery <http://www.celeryproject.org/>`__
+    `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 suspended: false
 source-date-epoch: 1700827448
@@ -57,7 +57,7 @@ dependencies:
 
 integrations:
   - integration-name: Celery
-    external-doc-url: http://www.celeryproject.org/
+    external-doc-url: https://docs.celeryq.dev/en/stable/
     logo: /integration-logos/celery/Celery.png
     tags: [software]
 
@@ -115,7 +115,7 @@ config:
           to maximum if necessary). Note the value should be max_concurrency,min_concurrency
           Pick these numbers based on resources on worker box and the nature of the task.
           If autoscale option is available, worker_concurrency will be ignored.
-          http://docs.celeryproject.org/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale
+          https://docs.celeryq.dev/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale
         version_added: ~
         type: string
         example: 16,12
@@ -128,7 +128,7 @@ config:
           blocked if there are multiple workers and one worker prefetches tasks that sit behind long
           running tasks while another worker has unutilized processes that are unable to process the already
           claimed blocked tasks.
-          https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
+          https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits
         version_added: ~
         type: integer
         example: ~
@@ -161,7 +161,7 @@ config:
           This status is used by the scheduler to update the state of the task
           The use of a database is highly recommended
           When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
-          http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
+          https://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings
         version_added: ~
         type: string
         sensitive: true
@@ -252,8 +252,8 @@ config:
           Celery Pool implementation.
           Choices include: ``prefork`` (default), ``eventlet``, ``gevent`` or ``solo``.
           See:
-          https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
-          https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+          https://docs.celeryq.dev/en/latest/userguide/workers.html#concurrency
+          https://docs.celeryq.dev/en/latest/userguide/concurrency/eventlet.html
         version_added: ~
         type: string
         example: ~
@@ -294,7 +294,7 @@ config:
     description: |
       This section is for specifying options which can be passed to the
       underlying celery broker transport. See:
-      http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_transport_options
+      https://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-broker_transport_options
     options:
       visibility_timeout:
         description: |

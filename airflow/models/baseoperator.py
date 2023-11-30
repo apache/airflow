@@ -61,6 +61,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -76,6 +77,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -90,7 +92,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
-from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -207,6 +208,7 @@ _PARTIAL_DEFAULTS = {
     "retry_exponential_backoff": False,
     "priority_weight": DEFAULT_PRIORITY_WEIGHT,
     "weight_rule": DEFAULT_WEIGHT_RULE,
+    "priority_weight_strategy": DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     "inlets": [],
     "outlets": [],
 }
@@ -240,6 +242,7 @@ def partial(
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | ArgNotSet = NOTSET,
+    priority_weight_strategy: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
@@ -303,6 +306,7 @@ def partial(
         "retry_exponential_backoff": retry_exponential_backoff,
         "priority_weight": priority_weight,
         "weight_rule": weight_rule,
+        "priority_weight_strategy": priority_weight_strategy,
         "sla": sla,
         "max_active_tis_per_dag": max_active_tis_per_dag,
         "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
@@ -544,9 +548,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
-    :param weight_rule: weighting method used for the effective total
-        priority weight of the task. Options are:
-        ``{ downstream | upstream | absolute }`` default is ``downstream``
+    :param weight_rule: Deprecated field, please use ``priority_weight_strategy`` instead.
+        weighting method used for the effective total priority weight of the task. Options are:
+        ``{ downstream | upstream | absolute }`` default is ``None``
         When set to ``downstream`` the effective weight of the task is the
         aggregate sum of all downstream descendants. As a result, upstream
         tasks will have higher weight and will be scheduled more aggressively
@@ -566,6 +570,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
+    :param priority_weight_strategy: weighting method used for the effective total priority weight
+        of the task. You can provide one of the following options:
+        ``{ downstream | upstream | absolute }`` or the path to a custom
+        strategy class that extends ``airflow.task.priority_strategy.PriorityWeightStrategy``.
+        Default is ``downstream``.
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
         does support targeting specific queues.
@@ -754,7 +763,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str = DEFAULT_WEIGHT_RULE,
+        weight_rule: str | None = DEFAULT_WEIGHT_RULE,
+        priority_weight_strategy: str = DEFAULT_PRIORITY_WEIGHT_STRATEGY,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -901,13 +911,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"received '{type(priority_weight)}'."
             )
         self.priority_weight = priority_weight
-        if not WeightRule.is_valid(weight_rule):
-            raise AirflowException(
-                f"The weight_rule must be one of "
-                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
-                f"received '{weight_rule}'."
-            )
         self.weight_rule = weight_rule
+        self.priority_weight_strategy = priority_weight_strategy
+        if weight_rule:
+            warnings.warn(
+                "weight_rule is deprecated. Please use `priority_weight_strategy` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.priority_weight_strategy = weight_rule
+        # validate the priority weight strategy
+        get_priority_weight_strategy(self.priority_weight_strategy)
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0

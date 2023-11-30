@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-docker
 name: Docker
 description: |
-    `Docker <https://docs.docker.com/install/>`__
+    `Docker <https://www.docker.com/>`__
 
 suspended: false
 source-date-epoch: 1700827458

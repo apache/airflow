@@ -33,7 +33,7 @@ def verify_an_image(
     image_type: str,
     output: Output | None,
     slim_image: bool,
-    extra_pytest_args: tuple,
+    extra_pytest_args: tuple[str, ...],
 ) -> tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name],

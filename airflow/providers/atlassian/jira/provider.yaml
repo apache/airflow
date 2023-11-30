@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-atlassian-jira
 name: Atlassian Jira
 description: |
-    `Atlassian Jira <https://www.atlassian.com/>`__
+    `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 suspended: false
 source-date-epoch: 1700827447
@@ -39,7 +39,7 @@ dependencies:
 
 integrations:
   - integration-name: Atlassian Jira
-    external-doc-url: https://www.atlassian.com/pl/software/jira
+    external-doc-url: https://www.atlassian.com/software/jira
     logo: /integration-logos/jira/Jira.png
     tags: [software]
 
