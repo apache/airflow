@@ -72,14 +72,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
-===================  ==================
-PIP package          Version required
-===================  ==================
+====================  ==================
+PIP package           Version required
+====================  ==================
 ``apache-airflow``    ``>=2.9.0``
 ``flask``             ``>=2.2,<2.3``
 ``flask-appbuilder``  ``==4.3.9``
 ``flask-login``       ``>=0.6.2``
-===================  ==================
+====================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

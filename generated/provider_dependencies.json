@@ -385,7 +385,8 @@
     "deps": [
       "flask-appbuilder==4.3.9",
       "flask-login>=0.6.2",
-      "flask>=2.2,<2.3"
+      "flask>=2.2,<2.3",
+      "google-re2>=1.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []

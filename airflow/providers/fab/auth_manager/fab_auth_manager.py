@@ -222,10 +222,10 @@ class FabAuthManager(BaseAuthManager):
         entity (e.g. DAG runs).
         2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
-            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
-            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity.
 
-            However, if no specific DAG is targeted, just check the sub entity.
+            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
+            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity. However,
+            if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
         :param access_entity: The dag access entity.

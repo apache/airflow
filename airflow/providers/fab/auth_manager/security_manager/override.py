@@ -458,9 +458,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def reset_password(self, userid, password):
         """
-        Change/Reset a user's password for authdb.
+        Change/Reset a user's password for auth db.
 
         Password will be hashed and saved.
+
         :param userid: the user id to reset the password
         :param password: the clear text password to reset and save hashed on the db
         """
@@ -1022,7 +1023,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a rolename and
+        :param access_control: a dict where each key is a role name and
             each value is a set() of action names (e.g.,
             {'can_read'}
         :return:
@@ -1045,7 +1046,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a rolename and
+        :param access_control: a dict where each key is a role name and
             each value is a set() of action names (e.g. {'can_read'})
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
@@ -2244,7 +2245,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """Gety the ``token_secret`` name for the oauth provider.
+        """Get the ``token_secret`` name for the oauth provider.
 
         If none is configured, defaults to ``oauth_secret``. This is configured
         using ``OAUTH_PROVIDERS`` and ``token_secret``.
