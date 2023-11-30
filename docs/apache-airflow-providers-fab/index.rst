@@ -58,7 +58,7 @@ Provider package
 ----------------
 
 This is a provider package for optional Airflow components using ``Flask App Builder``.
-All classes for this provider package are in ``airflow.providers.fab`` python module.
+All classes for this provider package are in the ``airflow.providers.fab`` python module.
 
 Installation
 ------------
