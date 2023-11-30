@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 from functools import cached_property
-from typing import Any
 
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -28,6 +28,11 @@ from weaviate.util import generate_uuid5
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from weaviate.types import UUID
 
 
 class WeaviateHook(BaseHook):
@@ -203,7 +208,9 @@ class WeaviateHook(BaseHook):
         )
         return results
 
-    def create_object(self, data_object, class_name, **kwargs) -> str | dict[str, Any] | None:
+    def create_object(
+        self, data_object: dict | str, class_name: str, **kwargs
+    ) -> str | dict[str, Any] | None:
         """Create a new object.
 
         data_object: Object to be added. If type is str it should be either a URL or a file.
@@ -220,7 +227,7 @@ class WeaviateHook(BaseHook):
             return None
 
     def get_or_create_object(
-        self, data_object=None, class_name=None, **kwargs
+        self, data_object: dict | str, class_name: str, **kwargs
     ) -> str | dict[str, Any] | None:
         """Get or Create a new object.
 
@@ -272,7 +279,7 @@ class WeaviateHook(BaseHook):
             after = results["objects"][-1]["id"]
         return all_objects
 
-    def delete_object(self, uuid, **kwargs) -> None:
+    def delete_object(self, uuid: UUID | str, **kwargs) -> None:
         """Delete an object from weaviate.
 
         uuid: uuid of the object to be deleted
@@ -281,7 +288,7 @@ class WeaviateHook(BaseHook):
         client = self.get_conn()
         client.data_object.delete(uuid, **kwargs)
 
-    def update_object(self, data_object, class_name, uuid, **kwargs) -> None:
+    def update_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Update an object in weaviate.
 
         data_object: The object states the fields that should be updated. Fields not specified in the
@@ -294,7 +301,7 @@ class WeaviateHook(BaseHook):
         client = self.get_conn()
         client.data_object.update(data_object, class_name, uuid, **kwargs)
 
-    def replace_object(self, data_object, class_name, uuid, **kwargs) -> None:
+    def replace_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Replace an object in weaviate.
 
         data_object: The object states the fields that should be updated. Fields not specified in the
