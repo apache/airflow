@@ -2,7 +2,6 @@ amazon
 celery
 cncf.kubernetes
 common.sql
-daskexecutor
 docker
 elasticsearch
 ftp
