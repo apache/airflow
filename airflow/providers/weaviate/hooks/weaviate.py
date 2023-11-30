@@ -299,10 +299,10 @@ class WeaviateHook(BaseHook):
             cls["properties"] = {p[key_property]: p for p in cls["properties"]}
         return classes_objects
 
-    def contains_schema(self, classes_objects: list) -> bool:
+    def check_subset_of_schema(self, classes_objects: list) -> bool:
         """Check if the class_objects is a subset of existing schema."""
         # When the class properties are not in same order or not the same length. We convert them to dicts
-        # with property `name` as the key.
+        # with property `name` as the key. This way we ensure, the subset is checked.
         classes_objects = self._convert_properties_to_dict(classes_objects)
         exiting_classes_list = self._convert_properties_to_dict(self.get_schema()["classes"])
 
