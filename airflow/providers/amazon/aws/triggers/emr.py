@@ -461,3 +461,8 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EmrServerlessHook(self.aws_conn_id)
+
+    @property
+    def hook_instance(self) -> AwsGenericHook:
+        """This property is added for backward compatibility."""
+        return self.hook()
