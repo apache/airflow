@@ -71,7 +71,7 @@ following named arguments:
      - ``Copy-Item -Path "C:\Logfiles\*" -Destination "C:\Drawings" -Recurse``
 
 Execute a PowerShell Cmdlet
----------------------
+---------------------------
 
 Any native (or custom) PowerShell cmdlet can be executed by the user, for example:
 .. exampleinclude:: /../../tests/system/providers/microsoft/psrp/example_psrp.py
