@@ -557,6 +557,19 @@ option_skip_cleanup = click.option(
     is_flag=True,
     envvar="SKIP_CLEANUP",
 )
+
+option_directory = click.option(
+    "--directory",
+    type=str,
+    help="Directory to clean the provider artifacts from.",
+)
+
+option_execute = click.option(
+    "--execute",
+    help="Execute the cleanup actually instead of a dry run.",
+    is_flag=True,
+)
+
 option_include_mypy_volume = click.option(
     "--include-mypy-volume",
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",

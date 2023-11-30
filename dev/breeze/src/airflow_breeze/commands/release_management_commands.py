@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import glob
+import operator
 import os
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 import textwrap
 import time
+from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +34,7 @@ from subprocess import DEVNULL
 from typing import IO, Any, Generator, NamedTuple
 
 import click
+from packaging.version import Version
 from rich.progress import Progress
 from rich.syntax import Syntax
 
@@ -72,7 +77,9 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_commit_sha,
     option_debug_resources,
+    option_directory,
     option_dry_run,
+    option_execute,
     option_github_repository,
     option_historical_python_version,
     option_image_tag_for_running,
@@ -205,7 +212,6 @@ AIRFLOW_PIP_VERSION = "23.3.1"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
-
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -1196,6 +1202,57 @@ def add_back_references(
 
 
 @release_management.command(
+    name="clean-old-provider-artifacts",
+    help="Cleans the old provider artifacts",
+)
+@option_directory
+@option_execute
+@option_verbose
+@option_dry_run
+def clean_old_provider_artifacts(
+    directory: str,
+    execute: bool,
+):
+    """Cleans up the old airflow providers artifacts in order to maintain
+    only one provider version in the release SVN folder"""
+    cleanup_suffixes = [
+        ".tar.gz",
+        ".tar.gz.sha512",
+        ".tar.gz.asc",
+        "-py3-none-any.whl",
+        "-py3-none-any.whl.sha512",
+        "-py3-none-any.whl.asc",
+    ]
+
+    for suffix in cleanup_suffixes:
+        get_console().print(f"[info]Running provider cleanup for suffix: {suffix}[/]")
+        package_types_dicts: dict[str, list[VersionedFile]] = defaultdict(list)
+        os.chdir(directory)
+
+        for file in glob.glob("*" + suffix):
+            versioned_file = split_version_and_suffix(file, suffix)
+            package_types_dicts[versioned_file.type].append(versioned_file)
+
+        for package_types in package_types_dicts.values():
+            package_types.sort(key=operator.attrgetter("comparable_version"))
+
+        for package_types in package_types_dicts.values():
+            if len(package_types) == 1:
+                versioned_file = package_types[0]
+                get_console().print(
+                    f"[info]Leaving the only version: "
+                    f"{versioned_file.base + versioned_file.version + versioned_file.suffix}[/]"
+                )
+            # Leave only last version from each type
+            for versioned_file in package_types[:-1]:
+                command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
+                if not execute:
+                    get_console().print(f"[info]Running command: {command} in dry run[\]")
+                else:
+                    subprocess.run(command, check=True)
+
+
+@release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -1815,3 +1872,24 @@ def update_constraints(
             if confirm_modifications(constraints_repo):
                 commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
+
+
+class VersionedFile(NamedTuple):
+    base: str
+    version: str
+    suffix: str
+    type: str
+    comparable_version: Version
+
+
+def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    no_suffix_file = file_name[: -len(suffix)]
+    no_version_file, version = no_suffix_file.rsplit("-", 1)
+    no_version_file = no_version_file.replace("_", "-")
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(version),
+    )
