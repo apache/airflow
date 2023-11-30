@@ -1875,6 +1875,7 @@ def update_constraints(
 
 class VersionedFile(NamedTuple):
     from packaging.version import Version
+
     base: str
     version: str
     suffix: str
