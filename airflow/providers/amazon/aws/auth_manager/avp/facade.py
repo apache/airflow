@@ -31,6 +31,8 @@ from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPerm
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from mypy_boto3_verifiedpermissions.client import VerifiedPermissionsClient
+
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 
@@ -43,7 +45,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
     """
 
     @cached_property
-    def avp_client(self):
+    def avp_client(self) -> VerifiedPermissionsClient:
         """Build Amazon Verified Permissions client."""
         aws_conn_id = conf.get(CONF_SECTION_NAME, CONF_CONN_ID_KEY)
         return VerifiedPermissionsHook(aws_conn_id=aws_conn_id).conn

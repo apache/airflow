@@ -22,7 +22,8 @@ from typing import TYPE_CHECKING
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_stepfunctions import SFNClient, type_defs
+    from mypy_boto3_stepfunctions import type_defs
+    from mypy_boto3_stepfunctions.client import SFNClient
 
 
 class StepFunctionHook(AwsBaseHook):

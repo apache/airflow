@@ -134,7 +134,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
 
         formatted_tags = format_tags(self.tags)
         if self.db_type.value == "instance":
-            create_instance_snap = self.hook.conn.create_db_snapshot(
+            create_instance_snap = self.hook.get_conn().create_db_snapshot(
                 DBInstanceIdentifier=self.db_identifier,
                 DBSnapshotIdentifier=self.db_snapshot_identifier,
                 Tags=formatted_tags,
@@ -143,7 +143,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
             if self.wait_for_completion:
                 self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="available")
         else:
-            create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
+            create_cluster_snap = self.hook.get_conn().create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
                 Tags=formatted_tags,
@@ -227,7 +227,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
 
         formatted_tags = format_tags(self.tags)
         if self.db_type.value == "instance":
-            copy_instance_snap = self.hook.conn.copy_db_snapshot(
+            copy_instance_snap = self.hook.get_conn().copy_db_snapshot(
                 SourceDBSnapshotIdentifier=self.source_db_snapshot_identifier,
                 TargetDBSnapshotIdentifier=self.target_db_snapshot_identifier,
                 KmsKeyId=self.kms_key_id,
@@ -244,7 +244,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                     self.target_db_snapshot_identifier, target_state="available"
                 )
         else:
-            copy_cluster_snap = self.hook.conn.copy_db_cluster_snapshot(
+            copy_cluster_snap = self.hook.get_conn().copy_db_cluster_snapshot(
                 SourceDBClusterSnapshotIdentifier=self.source_db_snapshot_identifier,
                 TargetDBClusterSnapshotIdentifier=self.target_db_snapshot_identifier,
                 KmsKeyId=self.kms_key_id,
@@ -293,14 +293,14 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
         self.log.info("Starting to delete snapshot '%s'", self.db_snapshot_identifier)
 
         if self.db_type.value == "instance":
-            delete_instance_snap = self.hook.conn.delete_db_snapshot(
+            delete_instance_snap = self.hook.get_conn().delete_db_snapshot(
                 DBSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_instance_snap, default=str)
             if self.wait_for_completion:
                 self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="deleted")
         else:
-            delete_cluster_snap = self.hook.conn.delete_db_cluster_snapshot(
+            delete_cluster_snap = self.hook.get_conn().delete_db_cluster_snapshot(
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_cluster_snap, default=str)
@@ -373,7 +373,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
 
-        start_export = self.hook.conn.start_export_task(
+        start_export = self.hook.get_conn().start_export_task(
             ExportTaskIdentifier=self.export_task_identifier,
             SourceArn=self.source_arn,
             S3BucketName=self.s3_bucket_name,
@@ -428,7 +428,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
 
-        cancel_export = self.hook.conn.cancel_export_task(
+        cancel_export = self.hook.get_conn().cancel_export_task(
             ExportTaskIdentifier=self.export_task_identifier,
         )
 
@@ -500,7 +500,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.log.info("Creating event subscription '%s' to '%s'", self.subscription_name, self.sns_topic_arn)
 
         formatted_tags = format_tags(self.tags)
-        create_subscription = self.hook.conn.create_event_subscription(
+        create_subscription = self.hook.get_conn().create_event_subscription(
             SubscriptionName=self.subscription_name,
             SnsTopicArn=self.sns_topic_arn,
             SourceType=self.source_type,
@@ -544,7 +544,7 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
             self.subscription_name,
         )
 
-        delete_subscription = self.hook.conn.delete_event_subscription(
+        delete_subscription = self.hook.get_conn().delete_event_subscription(
             SubscriptionName=self.subscription_name,
         )
 
@@ -602,7 +602,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.log.info("Creating new DB instance %s", self.db_instance_identifier)
 
-        create_db_instance = self.hook.conn.create_db_instance(
+        create_db_instance = self.hook.get_conn().create_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,
             DBInstanceClass=self.db_instance_class,
             Engine=self.engine,
@@ -625,7 +625,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             )
 
         if self.wait_for_completion:
-            waiter = self.hook.conn.get_waiter("db_instance_available")
+            waiter = self.hook.get_conn().get_waiter("db_instance_available")
             wait(
                 waiter=waiter,
                 waiter_delay=self.waiter_delay,
@@ -687,7 +687,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.log.info("Deleting DB instance %s", self.db_instance_identifier)
 
-        delete_db_instance = self.hook.conn.delete_db_instance(
+        delete_db_instance = self.hook.get_conn().delete_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,
             **self.rds_kwargs,
         )
@@ -708,7 +708,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             )
 
         if self.wait_for_completion:
-            waiter = self.hook.conn.get_waiter("db_instance_deleted")
+            waiter = self.hook.get_conn().get_waiter("db_instance_deleted")
             wait(
                 waiter=waiter,
                 waiter_delay=self.waiter_delay,
@@ -794,11 +794,11 @@ class RdsStartDbOperator(RdsBaseOperator):
     def _start_db(self):
         self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
         if self.db_type == RdsDbType.INSTANCE:
-            response = self.hook.conn.start_db_instance(
+            response = self.hook.get_conn().start_db_instance(
                 DBInstanceIdentifier=self.db_identifier,
             )
         else:
-            response = self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_identifier)
+            response = self.hook.get_conn().start_db_cluster(DBClusterIdentifier=self.db_identifier)
         return response
 
     def _wait_until_db_available(self):
@@ -896,14 +896,14 @@ class RdsStopDbOperator(RdsBaseOperator):
             # if passed a null value. Only set snapshot id if value is present.
             if self.db_snapshot_identifier:
                 conn_params["DBSnapshotIdentifier"] = self.db_snapshot_identifier
-            response = self.hook.conn.stop_db_instance(**conn_params)
+            response = self.hook.get_conn().stop_db_instance(**conn_params)
         else:
             if self.db_snapshot_identifier:
                 self.log.warning(
                     "'db_snapshot_identifier' does not apply to db clusters. "
                     "Remove it to silence this warning."
                 )
-            response = self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_identifier)
+            response = self.hook.get_conn().stop_db_cluster(DBClusterIdentifier=self.db_identifier)
         return response
 
     def _wait_until_db_stopped(self):

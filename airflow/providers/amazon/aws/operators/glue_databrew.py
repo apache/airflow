@@ -78,7 +78,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
-        job = self.hook.conn.start_job_run(Name=self.job_name)
+        job = self.hook.get_conn().start_job_run(Name=self.job_name)
         run_id = job["RunId"]
 
         self.log.info("AWS Glue DataBrew Job: %s. Run Id: %s submitted.", self.job_name, run_id)

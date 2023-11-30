@@ -22,6 +22,8 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 
 if TYPE_CHECKING:
+    from mypy_boto3_quicksight import literals
+
     from airflow.utils.context import Context
 
 DEFAULT_CONN_ID = "aws_default"
@@ -67,7 +69,7 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         self,
         data_set_id: str,
         ingestion_id: str,
-        ingestion_type: str = "FULL_REFRESH",
+        ingestion_type: literals.IngestionTypeType = "FULL_REFRESH",
         wait_for_completion: bool = True,
         check_interval: int = 30,
         aws_conn_id: str = DEFAULT_CONN_ID,

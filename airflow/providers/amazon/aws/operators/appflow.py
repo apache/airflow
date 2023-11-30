@@ -111,7 +111,7 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
         self._run_flow(context)
 
     def _get_connector_type(self) -> str:
-        response = self.hook.conn.describe_flow(flowName=self.flow_name)
+        response = self.hook.get_conn().describe_flow(flowName=self.flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
         if self.source != connector_type.lower():
             raise ValueError(f"Incompatible source ({self.source} and connector type ({connector_type})!")
@@ -467,7 +467,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[
         self.log.info("appflow_task_id: %s", appflow_task_id)
         flow_name = kwargs["flow_name"]
         self.log.info("flow_name: %s", flow_name)
-        af_client = self.hook.conn
+        af_client = self.hook.get_conn()
         task_instance = kwargs["task_instance"]
         execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")  # type: ignore
         if not execution_id:

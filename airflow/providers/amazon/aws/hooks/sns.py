@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_sns import SNSClient, type_defs
+    from mypy_boto3_sns import type_defs
+    from mypy_boto3_sns.client import SNSClient
 
 
 def _get_message_attribute(o):

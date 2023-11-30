@@ -24,6 +24,8 @@ from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
+    from mypy_boto3_glacier import type_defs
+
     from airflow.utils.context import Context
 
 
@@ -75,7 +77,7 @@ class GlacierUploadArchiveOperator(AwsBaseOperator[GlacierHook]):
         self,
         *,
         vault_name: str,
-        body: object,
+        body: type_defs.BlobTypeDef,
         checksum: str | None = None,
         archive_description: str | None = None,
         account_id: str | None = None,
@@ -89,7 +91,7 @@ class GlacierUploadArchiveOperator(AwsBaseOperator[GlacierHook]):
         self.archive_description = archive_description
 
     def execute(self, context: Context):
-        return self.hook.conn.upload_archive(
+        return self.hook.get_conn().upload_archive(
             accountId=self.account_id,
             vaultName=self.vault_name,
             archiveDescription=self.archive_description,

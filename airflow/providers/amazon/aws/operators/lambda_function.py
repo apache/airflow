@@ -135,7 +135,7 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
             )
         if self.wait_for_completion:
             self.log.info("Wait for Lambda function to be active")
-            waiter = self.hook.conn.get_waiter("function_active_v2")
+            waiter = self.hook.get_conn().get_waiter("function_active_v2")
             waiter.wait(
                 FunctionName=self.function_name,
             )

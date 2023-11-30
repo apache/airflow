@@ -99,7 +99,7 @@ class AwsEcsExecutor(BaseExecutor):
         region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
         from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).get_conn()
         self.run_task_kwargs = self._load_run_kwargs()
 
     def start(self):

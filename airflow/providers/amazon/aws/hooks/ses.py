@@ -23,7 +23,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.email import build_mime_message
 
 if TYPE_CHECKING:
-    from mypy_boto3_ses import SESClient, type_defs
+    from mypy_boto3_ses import type_defs
+    from mypy_boto3_ses.client import SESClient
 
 
 class SesHook(AwsBaseHook):

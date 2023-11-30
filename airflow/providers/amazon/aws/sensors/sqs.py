@@ -185,7 +185,7 @@ class SqsSensor(BaseSensorOperator):
 
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.num_batches):
-            response = self.poll_sqs(sqs_conn=self.hook.conn)
+            response = self.poll_sqs(sqs_conn=self.hook.get_conn())
             messages = process_response(
                 response,
                 self.message_filtering,
@@ -205,7 +205,7 @@ class SqsSensor(BaseSensorOperator):
                     {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
                     for message in messages
                 ]
-                response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+                response = self.hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
                     # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1

@@ -34,6 +34,8 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 
 if TYPE_CHECKING:
+    from mypy_boto3_dynamodb import literals
+
     from airflow.utils.context import Context
 
 
@@ -125,7 +127,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
         export_time: datetime | None = None,
-        export_format: str = "DYNAMODB_JSON",
+        export_format: literals.ExportFormatType = "DYNAMODB_JSON",
         check_interval: int = 30,
         max_attempts: int = 60,
         **kwargs,
@@ -143,7 +145,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.max_attempts = max_attempts
 
     @cached_property
-    def hook(self):
+    def hook(self) -> DynamoDBHook:
         """Create DynamoDBHook."""
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
@@ -162,7 +164,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
             raise ValueError("The export_time parameter cannot be a future time.")
 
-        client = self.hook.conn.meta.client
+        client = self.hook.get_conn().meta.client
         table_description = client.describe_table(TableName=self.dynamodb_table_name)
         response = client.export_table_to_point_in_time(
             TableArn=table_description.get("Table", {}).get("TableArn"),
@@ -180,7 +182,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_entire_data(self):
         """Export all data from the table."""
-        table = self.hook.conn.Table(self.dynamodb_table_name)
+        table = self.hook.get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]

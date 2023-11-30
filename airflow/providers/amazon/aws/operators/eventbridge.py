@@ -66,7 +66,7 @@ class EventBridgePutEventsOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-        response = self.hook.conn.put_events(
+        response = self.hook.get_conn().put_events(
             **prune_dict(
                 {
                     "Entries": self.entries,
@@ -208,7 +208,7 @@ class EventBridgeEnableRuleOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-        self.hook.conn.enable_rule(
+        self.hook.get_conn().enable_rule(
             **prune_dict(
                 {
                     "Name": self.name,
@@ -258,7 +258,7 @@ class EventBridgeDisableRuleOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-        self.hook.conn.disable_rule(
+        self.hook.get_conn().disable_rule(
             **prune_dict(
                 {
                     "Name": self.name,

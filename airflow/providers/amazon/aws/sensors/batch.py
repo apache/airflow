@@ -185,7 +185,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_compute_environments(  # type: ignore[union-attr]
+        response = self.hook.get_conn().describe_compute_environments(  # type: ignore[union-attr]
             computeEnvironments=[self.compute_environment]
         )
 
@@ -256,7 +256,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_job_queues(  # type: ignore[union-attr]
+        response = self.hook.get_conn().describe_job_queues(  # type: ignore[union-attr]
             jobQueues=[self.job_queue]
         )
 

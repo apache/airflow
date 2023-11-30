@@ -47,6 +47,8 @@ from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from mypy_boto3_emr import type_defs
+
     from airflow.utils.context import Context
 
 
@@ -148,7 +150,7 @@ class EmrAddStepsOperator(BaseOperator):
             region_name=emr_hook.conn_region_name,
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
+            log_uri=get_log_uri(emr_client=emr_hook.get_conn(), job_flow_id=job_flow_id),
         )
 
         self.log.info("Adding steps to %s", job_flow_id)
@@ -287,14 +289,15 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.master_instance_security_group_id = master_instance_security_group_id
 
     def execute(self, context: Context):
-        execution_engine = {
+        execution_engine: type_defs.ExecutionEngineConfigTypeDef = {
             "Id": self.cluster_id,
             "Type": "EMR",
-            "MasterInstanceSecurityGroupId": self.master_instance_security_group_id or "",
         }
+        if self.master_instance_security_group_id:
+            execution_engine["MasterInstanceSecurityGroupId"] = self.master_instance_security_group_id
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
-        response = emr_hook.conn.start_notebook_execution(
+        response = emr_hook.get_conn().start_notebook_execution(
             EditorId=self.editor_id,
             RelativePath=self.relative_path,
             NotebookExecutionName=self.notebook_execution_name,
@@ -325,7 +328,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
             # failed, adding that here.  This could maybe be deprecated
             # later to bring it in line with how other waiters behave.
             failure_states = {"FAILED"}
-            final_status = emr_hook.conn.describe_notebook_execution(
+            final_status = emr_hook.get_conn().describe_notebook_execution(
                 NotebookExecutionId=notebook_execution_id
             )["NotebookExecution"]["Status"]
             if final_status in failure_states:
@@ -400,7 +403,7 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-        emr_hook.conn.stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
+        emr_hook.get_conn().stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
 
         if self.wait_for_completion:
             emr_hook.get_waiter("notebook_stopped").wait(
@@ -776,7 +779,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 region_name=self._emr_hook.conn_region_name,
                 aws_partition=self._emr_hook.conn_partition,
                 job_flow_id=self._job_flow_id,
-                log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
+                log_uri=get_log_uri(emr_client=self._emr_hook.get_conn(), job_flow_id=self._job_flow_id),
             )
         if self.deferrable:
             self.defer(
@@ -814,7 +817,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
-            self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
+            self._emr_hook.get_conn().terminate_job_flows(JobFlowIds=[self._job_flow_id])
 
 
 class EmrModifyClusterOperator(BaseOperator):
@@ -867,7 +870,7 @@ class EmrModifyClusterOperator(BaseOperator):
             region_name=emr_hook.conn_region_name,
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.cluster_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.cluster_id),
+            log_uri=get_log_uri(emr_client=emr_hook.get_conn(), job_flow_id=self.cluster_id),
         )
 
         self.log.info("Modifying cluster %s", self.cluster_id)
@@ -1058,7 +1061,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context) -> str | None:
-        response = self.hook.conn.create_application(
+        response = self.hook.get_conn().create_application(
             clientToken=self.client_request_token,
             releaseLabel=self.release_label,
             type=self.job_type,
@@ -1093,7 +1096,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             status_args=["application.state", "application.stateDetails"],
         )
         self.log.info("Starting application %s", application_id)
-        self.hook.conn.start_application(applicationId=application_id)
+        self.hook.get_conn().start_application(applicationId=application_id)
 
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_started")
@@ -1115,7 +1118,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         elif event["status"] != "success":
             raise AirflowException(f"Application {event['application_id']} failed to create")
         self.log.info("Starting application %s", event["application_id"])
-        self.hook.conn.start_application(applicationId=event["application_id"])
+        self.hook.get_conn().start_application(applicationId=event["application_id"])
         self.defer(
             trigger=EmrServerlessStartApplicationTrigger(
                 application_id=event["application_id"],
@@ -1242,11 +1245,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-        app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
+        app_state = self.hook.get_conn().get_application(applicationId=self.application_id)["application"][
+            "state"
+        ]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.log.info("Application state is %s", app_state)
             self.log.info("Starting application %s", self.application_id)
-            self.hook.conn.start_application(applicationId=self.application_id)
+            self.hook.get_conn().start_application(applicationId=self.application_id)
             waiter = self.hook.get_waiter("serverless_app_started")
             if self.deferrable:
                 self.defer(
@@ -1280,7 +1285,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         }
         if self.configuration_overrides is not None:
             args["configurationOverrides"] = self.configuration_overrides
-        response = self.hook.conn.start_job_run(
+        response = self.hook.get_conn().start_job_run(
             **args,
         )
 
@@ -1331,7 +1336,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
         """
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
-            response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+            response = self.hook.get_conn().cancel_job_run(
+                applicationId=self.application_id, jobRunId=self.job_id
+            )
             http_status_code = (
                 response.get("ResponseMetadata", {}).get("HTTPStatusCode") if response else None
             )
@@ -1344,7 +1351,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             )
             # This should be replaced with a boto waiter when available.
             waiter(
-                get_state_callable=self.hook.conn.get_job_run,
+                get_state_callable=self.hook.get_conn().get_job_run,
                 get_state_args={
                     "applicationId": self.application_id,
                     "jobRunId": self.job_id,
@@ -1469,7 +1476,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             else:
                 self.log.info("no running jobs found with application ID %s", self.application_id)
 
-        self.hook.conn.stop_application(applicationId=self.application_id)
+        self.hook.get_conn().stop_application(applicationId=self.application_id)
         if self.deferrable:
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(
@@ -1499,7 +1506,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
         elif event["status"] == "success":
-            self.hook.conn.stop_application(applicationId=self.application_id)
+            self.hook.get_conn().stop_application(applicationId=self.application_id)
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(
                     application_id=self.application_id,
@@ -1604,7 +1611,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         super().execute(context)
 
         self.log.info("Now deleting application: %s", self.application_id)
-        response = self.hook.conn.delete_application(applicationId=self.application_id)
+        response = self.hook.get_conn().delete_application(applicationId=self.application_id)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Application deletion failed: {response}")

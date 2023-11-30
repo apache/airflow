@@ -24,7 +24,7 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from mypy_boto3_ssm import SSMClient
+    from mypy_boto3_ssm.client import SSMClient
 
 
 class SsmHook(AwsBaseHook):

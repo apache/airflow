@@ -38,7 +38,8 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    from mypy_boto3_sagemaker import SageMakerClient, type_defs
+    from mypy_boto3_sagemaker import type_defs
+    from mypy_boto3_sagemaker.client import SageMakerClient
 
 D = TypeVar("D", bound=dict)
 

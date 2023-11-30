@@ -177,7 +177,7 @@ class EC2CreateInstanceOperator(BaseOperator):
 
     def execute(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
-        instances = ec2_hook.conn.run_instances(
+        instances = ec2_hook.get_conn().run_instances(
             ImageId=self.image_id,
             MinCount=self.min_count,
             MaxCount=self.max_count,
@@ -243,7 +243,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
-        ec2_hook.conn.terminate_instances(InstanceIds=self.instance_ids)
+        ec2_hook.get_conn().terminate_instances(InstanceIds=self.instance_ids)
 
         for instance_id in self.instance_ids:
             self.log.info("Terminating EC2 instance %s", instance_id)
@@ -304,7 +304,7 @@ class EC2RebootInstanceOperator(BaseOperator):
             self.instance_ids = [self.instance_ids]
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
         self.log.info("Rebooting EC2 instances %s", ", ".join(self.instance_ids))
-        ec2_hook.conn.reboot_instances(InstanceIds=self.instance_ids)
+        ec2_hook.get_conn().reboot_instances(InstanceIds=self.instance_ids)
 
         if self.wait_for_completion:
             ec2_hook.get_waiter("instance_running").wait(
@@ -370,7 +370,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
             if not hibernation_options or not hibernation_options["Configured"]:
                 raise AirflowException(f"Instance {instance['InstanceId']} is not configured for hibernation")
 
-        ec2_hook.conn.stop_instances(InstanceIds=self.instance_ids, Hibernate=True)
+        ec2_hook.get_conn().stop_instances(InstanceIds=self.instance_ids, Hibernate=True)
 
         if self.wait_for_completion:
             ec2_hook.get_waiter("instance_stopped").wait(

@@ -22,13 +22,16 @@ import json
 import re
 import warnings
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from mypy_boto3_secretsmanager.client import SecretsManagerClient
 
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -177,7 +180,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.kwargs = kwargs
 
     @cached_property
-    def client(self):
+    def client(self) -> SecretsManagerClient:
         """Create a Secrets Manager client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper

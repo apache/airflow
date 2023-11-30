@@ -136,7 +136,7 @@ class RedshiftDataOperator(BaseOperator):
         )
 
         if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=self.statement_id)
+            result = self.hook.get_conn().get_statement_result(Id=self.statement_id)
             self.log.debug("Statement result: %s", result)
             return result
         else:
@@ -149,6 +149,6 @@ class RedshiftDataOperator(BaseOperator):
             self.log.info("Stopping Query with statementId - %s", self.statement_id)
 
             try:
-                self.hook.conn.cancel_statement(Id=self.statement_id)
+                self.hook.get_conn().cancel_statement(Id=self.statement_id)
             except Exception as ex:
                 self.log.error("Unable to cancel query. Exiting. %s", ex)

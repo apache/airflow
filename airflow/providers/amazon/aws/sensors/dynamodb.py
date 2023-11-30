@@ -94,7 +94,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         msg += f"\nattribute: {self.attribute_name}={self.attribute_value}"
 
         self.log.info(msg)
-        table = self.hook.conn.Table(self.table_name)
+        table = self.hook.get_conn().Table(self.table_name)
         self.log.info("Table: %s", table)
         self.log.info("Key: %s", key)
         response = table.get_item(Key=key)

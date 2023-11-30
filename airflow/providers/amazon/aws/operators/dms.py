@@ -23,6 +23,8 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 
 if TYPE_CHECKING:
+    from mypy_boto3_dms import literals
+
     from airflow.utils.context import Context
 
 
@@ -71,7 +73,7 @@ class DmsCreateTaskOperator(BaseOperator):
         target_endpoint_arn: str,
         replication_instance_arn: str,
         table_mappings: dict,
-        migration_type: str = "full-load",
+        migration_type: literals.MigrationTypeValueType = "full-load",
         create_task_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -222,7 +224,7 @@ class DmsStartTaskOperator(BaseOperator):
         self,
         *,
         replication_task_arn: str,
-        start_replication_task_type: str = "start-replication",
+        start_replication_task_type: literals.StartReplicationTaskTypeValueType = "start-replication",
         start_task_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,

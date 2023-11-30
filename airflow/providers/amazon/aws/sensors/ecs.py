@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    import boto3
+    from mypy_boto3_ecs.client import ECSClient
 
     from airflow.utils.context import Context
 
@@ -59,9 +59,9 @@ class EcsBaseSensor(BaseSensorOperator):
         return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     @cached_property
-    def client(self) -> boto3.client:
+    def client(self) -> ECSClient:
         """Create and return an EcsHook client."""
-        return self.hook.conn
+        return self.hook.get_conn()
 
 
 class EcsClusterStateSensor(EcsBaseSensor):

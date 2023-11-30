@@ -1392,12 +1392,12 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
         if self.extras:
             input_dict.update(self.extras)  # overrides config above if keys are redefined in extras
         try:
-            res = self.hook.conn.create_model_package(**input_dict)
+            res = self.hook.get_conn().create_model_package(**input_dict)
             return res["ModelPackageArn"]
         except ClientError:
             # rollback group creation if adding the model to it was not successful
             if group_created:
-                self.hook.conn.delete_model_package_group(ModelPackageGroupName=self.package_group_name)
+                self.hook.get_conn().delete_model_package_group(ModelPackageGroupName=self.package_group_name)
             raise
 
 
@@ -1536,7 +1536,7 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
             "Description": self.description,
             "Tags": format_tags(self.tags),
         }
-        ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
+        ans = sagemaker_hook.get_conn().create_experiment(**trim_none_values(params))
         arn = ans["ExperimentArn"]
         self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
         return arn
@@ -1635,13 +1635,15 @@ class SageMakerCreateNotebookOperator(BaseOperator):
             create_notebook_instance_kwargs.update(self.create_instance_kwargs)
 
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)
-        response = self.hook.conn.create_notebook_instance(**prune_dict(create_notebook_instance_kwargs))
+        response = self.hook.get_conn().create_notebook_instance(
+            **prune_dict(create_notebook_instance_kwargs)
+        )
 
         self.log.info("SageMaker notebook created: %s", response["NotebookInstanceArn"])
 
         if self.wait_for_completion:
             self.log.info("Waiting for SageMaker notebook %s to be in service", self.instance_name)
-            waiter = self.hook.conn.get_waiter("notebook_instance_in_service")
+            waiter = self.hook.get_conn().get_waiter("notebook_instance_in_service")
             waiter.wait(NotebookInstanceName=self.instance_name)
 
         return response["NotebookInstanceArn"]
@@ -1683,11 +1685,11 @@ class SageMakerStopNotebookOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info("Stopping SageMaker notebook %s.", self.instance_name)
-        self.hook.conn.stop_notebook_instance(NotebookInstanceName=self.instance_name)
+        self.hook.get_conn().stop_notebook_instance(NotebookInstanceName=self.instance_name)
 
         if self.wait_for_completion:
             self.log.info("Waiting for SageMaker notebook %s to stop", self.instance_name)
-            self.hook.conn.get_waiter("notebook_instance_stopped").wait(
+            self.hook.get_conn().get_waiter("notebook_instance_stopped").wait(
                 NotebookInstanceName=self.instance_name
             )
 
@@ -1728,11 +1730,11 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info("Deleting SageMaker notebook %s....", self.instance_name)
-        self.hook.conn.delete_notebook_instance(NotebookInstanceName=self.instance_name)
+        self.hook.get_conn().delete_notebook_instance(NotebookInstanceName=self.instance_name)
 
         if self.wait_for_completion:
             self.log.info("Waiting for SageMaker notebook %s to delete...", self.instance_name)
-            self.hook.conn.get_waiter("notebook_instance_deleted").wait(
+            self.hook.get_conn().get_waiter("notebook_instance_deleted").wait(
                 NotebookInstanceName=self.instance_name
             )
 
@@ -1773,10 +1775,10 @@ class SageMakerStartNoteBookOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info("Starting SageMaker notebook %s....", self.instance_name)
-        self.hook.conn.start_notebook_instance(NotebookInstanceName=self.instance_name)
+        self.hook.get_conn().start_notebook_instance(NotebookInstanceName=self.instance_name)
 
         if self.wait_for_completion:
             self.log.info("Waiting for SageMaker notebook %s to start...", self.instance_name)
-            self.hook.conn.get_waiter("notebook_instance_in_service").wait(
+            self.hook.get_conn().get_waiter("notebook_instance_in_service").wait(
                 NotebookInstanceName=self.instance_name
             )

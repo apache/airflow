@@ -154,7 +154,9 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
+        response = self.hook.get_conn().get_job_run(
+            applicationId=self.application_id, jobRunId=self.job_run_id
+        )
 
         state = response["jobRun"]["state"]
 
@@ -212,7 +214,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.conn.get_application(applicationId=self.application_id)
+        response = self.hook.get_conn().get_application(applicationId=self.application_id)
 
         state = response["application"]["state"]
 
@@ -379,7 +381,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
         self.failed_states = failed_states or self.FAILURE_STATES
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
-        emr_client = self.hook.conn
+        emr_client = self.hook.get_conn()
         self.log.info("Poking notebook %s", self.notebook_execution_id)
 
         return emr_client.describe_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
@@ -463,7 +465,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
         :return: response
         """
-        emr_client = self.hook.conn
+        emr_client = self.hook.get_conn()
         self.log.info("Poking cluster %s", self.job_flow_id)
         response = emr_client.describe_cluster(ClusterId=self.job_flow_id)
 
@@ -592,7 +594,7 @@ class EmrStepSensor(EmrBaseSensor):
 
         :return: response
         """
-        emr_client = self.hook.conn
+        emr_client = self.hook.get_conn()
 
         self.log.info("Poking step %s on cluster %s", self.step_id, self.job_flow_id)
         response = emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)

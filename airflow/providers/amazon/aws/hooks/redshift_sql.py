@@ -29,8 +29,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift import RedshiftClient
-    from mypy_boto3_redshift_serverless import RedshiftServerlessClient
+    from mypy_boto3_redshift.client import RedshiftClient
+    from mypy_boto3_redshift_serverless.client import RedshiftServerlessClient
 
     from airflow.models.connection import Connection
 

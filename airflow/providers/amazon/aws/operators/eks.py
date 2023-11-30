@@ -101,7 +101,7 @@ def _create_compute(
         if wait_for_completion:
             log.info("Waiting for nodegroup to provision.  This will take some time.")
             wait(
-                waiter=eks_hook.conn.get_waiter("nodegroup_active"),
+                waiter=eks_hook.get_conn().get_waiter("nodegroup_active"),
                 waiter_delay=waiter_delay,
                 waiter_max_attempts=waiter_max_attempts,
                 args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
@@ -124,7 +124,7 @@ def _create_compute(
         if wait_for_completion:
             log.info("Waiting for Fargate profile to provision.  This will take some time.")
             wait(
-                waiter=eks_hook.conn.get_waiter("fargate_profile_active"),
+                waiter=eks_hook.get_conn().get_waiter("fargate_profile_active"),
                 waiter_delay=waiter_delay,
                 waiter_max_attempts=waiter_max_attempts,
                 args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
@@ -285,7 +285,7 @@ class EksCreateClusterOperator(BaseOperator):
             return None
 
         self.log.info("Waiting for EKS Cluster to provision. This will take some time.")
-        client = self.eks_hook.conn
+        client = self.eks_hook.get_conn()
 
         if self.deferrable:
             self.defer(
@@ -731,7 +731,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            eks_hook.get_conn().get_waiter("cluster_deleted").wait(name=self.cluster_name)
 
     def delete_any_nodegroups(self, eks_hook) -> None:
         """
@@ -745,7 +745,7 @@ class EksDeleteClusterOperator(BaseOperator):
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
             for group in nodegroups:
                 eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
-            # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
+            # Note this is a custom waiter so we're using hook.get_waiter(), not hook.get_conn().get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
             eks_hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
@@ -766,7 +766,7 @@ class EksDeleteClusterOperator(BaseOperator):
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
                 # so each must be deleted sequentially
                 eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
-                eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+                eks_hook.get_conn().get_waiter("fargate_profile_deleted").wait(
                     clusterName=self.cluster_name, fargateProfileName=profile
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
@@ -859,7 +859,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("nodegroup_deleted").wait(
+            eks_hook.get_conn().get_waiter("nodegroup_deleted").wait(
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
 
@@ -950,7 +950,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+            eks_hook.get_conn().get_waiter("fargate_profile_deleted").wait(
                 clusterName=self.cluster_name,
                 fargateProfileName=self.fargate_profile_name,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},

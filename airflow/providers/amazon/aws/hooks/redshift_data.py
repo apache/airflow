@@ -25,7 +25,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient, literals
+    from mypy_boto3_redshift_data import literals
+    from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
 
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):

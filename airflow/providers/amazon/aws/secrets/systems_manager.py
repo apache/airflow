@@ -20,10 +20,14 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from mypy_boto3_ssm.client import SSMClient
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
@@ -111,7 +115,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         self.kwargs = kwargs
 
     @cached_property
-    def client(self):
+    def client(self) -> SSMClient:
         """Create a SSM client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper

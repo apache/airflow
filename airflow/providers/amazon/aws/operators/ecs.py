@@ -64,7 +64,7 @@ class EcsBaseOperator(BaseOperator):
     @cached_property
     def client(self) -> boto3.client:
         """Create and return the EcsHook's client."""
-        return self.hook.conn
+        return self.hook.get_conn()
 
     def execute(self, context: Context):
         """Must overwrite in child classes."""
@@ -76,7 +76,7 @@ class EcsBaseOperator(BaseOperator):
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
         cluster_arn = event.get("arn")
         # We cannot get the cluster definition from the waiter on success, so we have to query it here.
-        details = self.hook.conn.describe_clusters(clusters=[cluster_arn])["clusters"][0]
+        details = self.hook.get_conn().describe_clusters(clusters=[cluster_arn])["clusters"][0]
         return details
 
 
@@ -596,7 +596,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
-            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).conn
+            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).get_conn()
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,
                 logStreamName=self._get_logs_stream_name(),

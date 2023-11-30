@@ -24,7 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_elasticache import ElastiCacheClient, type_defs
+    from mypy_boto3_elasticache import type_defs
+    from mypy_boto3_elasticache.client import ElastiCacheClient
 
 
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
