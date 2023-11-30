@@ -33,6 +33,7 @@ from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, Au
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
+from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook

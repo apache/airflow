@@ -675,3 +675,4 @@ def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_
         ]
     }
     assert weaviate_hook.check_subset_of_schema(classes_to_test) == expected_result
+
