@@ -423,7 +423,7 @@ class KubernetesExecutor(BaseExecutor):
                     if e.status in (400, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
-                        self.change_state(key, TaskInstanceState.FAILED, e)
+                        self.fail(key, e)
                     else:
                         self.log.warning(
                             "ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s",
