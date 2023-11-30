@@ -23,6 +23,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
+import pandas as pd
 import requests
 
 from weaviate import Client as WeaviateClient
