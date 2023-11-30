@@ -24,8 +24,6 @@ from airflow.providers.microsoft.azure.utils import get_field
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
-schemes = ["abfs", "abfss", "adl"]
-
 
 def get_fs(conn_id: str | None) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem

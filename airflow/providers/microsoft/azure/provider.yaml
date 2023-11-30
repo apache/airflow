@@ -196,7 +196,8 @@ sensors:
       - airflow.providers.microsoft.azure.sensors.data_factory
 
 filesystems:
-  - airflow.providers.microsoft.azure.fs.adls
+  - python-module: airflow.providers.microsoft.azure.fs.adls
+    uri-schemes: [abfs, abfss, adl]
 
 hooks:
   - integration-name: Microsoft Azure Container Instances

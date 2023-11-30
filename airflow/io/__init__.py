@@ -50,9 +50,9 @@ def _register_filesystems() -> dict[str, Callable[[str | None], AbstractFileSyst
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManager()
-        for fs_module_name in manager.filesystem_module_names:
+        for fs_module_name, fs_uri_schemes in manager.filesystem_infos:
             fs_module = import_string(fs_module_name)
-            for scheme in getattr(fs_module, "schemes", []):
+            for scheme in fs_uri_schemes:
                 if scheme in scheme_to_fs:
                     log.warning("Overriding scheme %s for %s", scheme, fs_module_name)
 

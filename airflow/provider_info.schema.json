@@ -29,7 +29,20 @@
             "type": "array",
             "description": "Filesystem module names",
             "items": {
-                "type": "string"
+                "type": "object",
+                "properties": {
+                    "python-module": {
+                        "description": "Python module containing the filesystem.",
+                        "type": "string"
+                    },
+                    "uri-schemes": {
+                        "description": "List of URI schemes supported by the filesystem.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         },
         "transfers": {

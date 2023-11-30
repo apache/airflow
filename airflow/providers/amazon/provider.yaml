@@ -454,7 +454,8 @@ sensors:
       - airflow.providers.amazon.aws.sensors.quicksight
 
 filesystems:
-  - airflow.providers.amazon.aws.fs.s3
+  - python-module: airflow.providers.amazon.aws.fs.s3
+    uri-schemes: [s3, s3a, s3n]
 
 hooks:
   - integration-name: Amazon Athena
