@@ -80,12 +80,17 @@ You can read more about the command line tools used to generate the packages in 
 # Bump min Airflow version for providers
 
 If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
-in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
+in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
 
 ```shell script
+branch="Bump minimum Airflow version in providers to Airflow 2.6.0"
+git checkout -b "${branch}"
 breeze release-management prepare-provider-documentation --only-min-version-update
+git add .
+git commit -m "Bump minimum Airflow version in providers to Airflow 2.6.0"
+git push --set-upstream origin "${branch}"
 ```
 
 Note: that this command will only bump the min airflow versions for those providers that do not have it set to
