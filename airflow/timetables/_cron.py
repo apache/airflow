@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
@@ -30,23 +29,6 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-
-
-def _is_schedule_fixed(expression: str) -> bool:
-    """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
-
-    :return: True if the schedule has a fixed time, False if not.
-
-    Detection is done by "peeking" the next two cron trigger time; if the
-    two times have the same minute and hour value, the schedule is fixed,
-    and we *don't* need to perform the DST fix.
-
-    This assumes DST happens on whole minute changes (e.g. 12:59 -> 12:00).
-    """
-    cron = croniter(expression)
-    next_a = cron.get_next(datetime.datetime)
-    next_b = cron.get_next(datetime.datetime)
-    return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
 class CronMixin:
@@ -91,31 +73,19 @@ class CronMixin:
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
-    @cached_property
-    def _should_fix_dst(self) -> bool:
-        # This is lazy so instantiating a schedule does not immediately raise
-        # an exception. Validity is checked with validate() during DAG-bagging.
-        return not _is_schedule_fixed(self._expression)
-
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
