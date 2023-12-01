@@ -218,12 +218,33 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
     @pytest.mark.parametrize(
-        "table_as_file_name, expected_s3_key, select_query",
+        "table_as_file_name, expected_s3_key, select_query, expected_query",
         [
-            [True, "key/table_", "SELECT 'Single Quotes Break this Operator'"],
-            [False, "key", "SELECT 'Single Quotes Break this Operator'"],
-            [True, "key/table_", "SELECT ''Single Quotes Break this Operator''"],
-            [False, "key", "SELECT ''Single Quotes Break this Operator''"],
+            [
+                True,
+                "key/table_",
+                "SELECT 'Single Quotes Break this Operator'",
+                "SELECT 'Single Quotes Break this Operator'",
+            ],
+            [
+                False,
+                "key",
+                "SELECT 'Single Quotes Break this Operator'",
+                "SELECT 'Single Quotes Break this Operator'",
+            ],
+            [
+                True,
+                "key/table_",
+                "SELECT ''Single Quotes Break this Operator''",
+                "SELECT 'Single Quotes Break this Operator'",
+            ],
+            [
+                False,
+                "key",
+                "SELECT ''Single Quotes Break this Operator''",
+                "SELECT 'Single Quotes Break this Operator'",
+            ],
+            [False, "key", "SELECT ''", "SELECT ''"],
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -239,6 +260,7 @@ class TestRedshiftToS3Transfer:
         table_as_file_name,
         expected_s3_key,
         select_query,
+        expected_query,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -275,6 +297,7 @@ class TestRedshiftToS3Transfer:
         assert access_key in unload_query
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
+        assert f"UNLOAD ($${expected_query}$$)" in unload_query
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
