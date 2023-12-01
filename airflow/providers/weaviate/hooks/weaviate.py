@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -218,7 +218,7 @@ class WeaviateHook(BaseHook):
         class_name: Class name associated with the object given.
         **kwargs: Additional parameters to be passed to weaviateclient.data_object.create()
         """
-        client = self.get_conn()
+        client = self.conn
         # generate deterministic uuid if not provided
         uuid = kwargs.pop("uuid", generate_uuid5(data_object))
         try:
@@ -263,7 +263,7 @@ class WeaviateHook(BaseHook):
         **kwargs: parameters to be passed to weaviateclient.data_object.get() or
             weaviateclient.data_object.get_by_id()
         """
-        client = self.get_conn()
+        client = self.conn
         return client.data_object.get(**kwargs)
 
     def get_all_objects(
@@ -297,7 +297,7 @@ class WeaviateHook(BaseHook):
         uuid: uuid of the object to be deleted
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.delete()
         """
-        client = self.get_conn()
+        client = self.conn
         client.data_object.delete(uuid, **kwargs)
 
     def update_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
@@ -310,7 +310,7 @@ class WeaviateHook(BaseHook):
         uuid: uuid of the object to be updated
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.update()
         """
-        client = self.get_conn()
+        client = self.conn
         client.data_object.update(data_object, class_name, uuid, **kwargs)
 
     def replace_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
@@ -322,7 +322,7 @@ class WeaviateHook(BaseHook):
         uuid: uuid of the object to be replaced
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.replace()
         """
-        client = self.get_conn()
+        client = self.conn
         client.data_object.replace(data_object, class_name, uuid, **kwargs)
 
     def validate_object(self, data_object: dict | str, class_name: str, **kwargs):
@@ -332,5 +332,5 @@ class WeaviateHook(BaseHook):
         class_name: Class name associated with the object given.
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.validate()
         """
-        client = self.get_conn()
+        client = self.conn
         client.data_object.validate(data_object, class_name, **kwargs)
