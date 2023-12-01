@@ -411,12 +411,10 @@ _MIN_BOTO3_VERSION = "1.28.0"
 _devel_only_amazon = [
     "aws_xray_sdk",
     "moto[cloudformation,glue]>=4.2.9",
-    f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
-    "boto3-stubs[essential,eks,athena,appflow,batch,emr,emr-serverless,emr-containers,glue,iam,logs,redshift,redshift-serverless,redshift-data,secretsmanager,datasync,dms,ecr,ecs,elasticache,events,glacier,databrew,firehose,quicksight,sts,ses,sns,ssm,stepfunctions,verifiedpermissions]",
-    "types-aiobotocore[essential,eks,glue,redshift,ecs,logs,s3,sagemaker,sqs]",
+    "boto3-stubs[essential,eks,athena,appflow,batch,emr,emr-serverless,emr-containers,glue,iam,logs,redshift,"
+    "redshift-serverless,redshift-data,secretsmanager,datasync,dms,ecr,ecs,elasticache,events,glacier,rds,s3,"
+    f"databrew,firehose,quicksight,sts,ses,sns,ssm,stepfunctions,verifiedpermissions]>={_MIN_BOTO3_VERSION}",
+    f"types-aiobotocore[essential,eks,glue,redshift,ecs,logs,s3,sagemaker,sqs]>={_MIN_BOTO3_VERSION}",
 ]
 
 _devel_only_azure = [
