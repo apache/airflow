@@ -90,7 +90,13 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+    def __new__(
+        cls: type[PT],
+        *args: str | os.PathLike,
+        scheme: str | None = None,
+        conn_id: str | None = None,
+        **kwargs: typing.Any,
+    ) -> PT:
         args_list = list(args)
 
         try:
@@ -142,7 +148,14 @@ class ObjectStoragePath(CloudPath):
         else:
             args_list.insert(0, parsed_url.path)
 
-        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
+        # This matches the parsing logic in urllib.parse; see:
+        # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75a/Lib/urllib/parse.py#L194-L203
+        userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
+        if have_info:
+            conn_id = conn_id or userinfo or None
+            parsed_url = parsed_url._replace(netloc=hostinfo)
+
+        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
