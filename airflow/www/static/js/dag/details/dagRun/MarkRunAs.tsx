@@ -35,7 +35,7 @@ import { useMarkFailedRun, useMarkSuccessRun } from "src/api";
 import type { RunState } from "src/types";
 
 import { SimpleStatus } from "../../StatusBox";
-import ActionModal from "./ActionModal";
+import ConfirmationModal from "./ConfirmationModal";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
@@ -142,7 +142,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
           </MenuItem>
         </MenuList>
       </Menu>
-      <ActionModal
+      <ConfirmationModal
         isOpen={showConfirmationModal}
         onClose={() => setShowConfirmationModal(false)}
         header="Confirmation"
@@ -172,7 +172,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
         }}
       >
         Are you sure you want to mark the DAG run as {confirmingAction}?
-      </ActionModal>
+      </ConfirmationModal>
     </>
   );
 };

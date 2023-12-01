@@ -32,7 +32,7 @@ import { getMetaValue } from "src/utils";
 import { useKeysPress } from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import { useClearRun, useQueueRun } from "src/api";
-import ActionModal from "./ActionModal";
+import ConfirmationModal from "./ConfirmationModal";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
@@ -106,7 +106,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
           <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
         </MenuList>
       </Menu>
-      <ActionModal
+      <ConfirmationModal
         isOpen={showConfirmationModal}
         onClose={() => setShowConfirmationModal(false)}
         header="Confirmation"
@@ -119,7 +119,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
         onDoNotShowAgainChange={(value) => setDoNotShowAgain(value)}
       >
         This DAG run will be cleared. Are you sure you want to proceed?
-      </ActionModal>
+      </ConfirmationModal>
     </>
   );
 };
