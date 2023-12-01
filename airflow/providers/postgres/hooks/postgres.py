@@ -275,9 +275,8 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @classmethod
     def _generate_insert_sql(
-        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """Generate the INSERT SQL statement.
 
@@ -292,7 +291,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
