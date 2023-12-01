@@ -215,7 +215,7 @@ class TestWeaviateHook:
 
     def test_get_of_get_or_create_object(self, weaviate_hook):
         """
-        Test the get_or_create_object method of WeaviateHook.
+        Test the get part of get_or_create_object method of WeaviateHook.
         """
         mock_client = MagicMock()
         weaviate_hook.get_conn = MagicMock(return_value=mock_client)
@@ -225,7 +225,7 @@ class TestWeaviateHook:
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
     def test_create_of_get_or_create_object(self, mock_gen_uuid, weaviate_hook):
         """
-        Test the get_or_create_object method of WeaviateHook.
+        Test the create part of get_or_create_object method of WeaviateHook.
         """
         mock_client = MagicMock()
         weaviate_hook.get_conn = MagicMock(return_value=mock_client)
@@ -241,6 +241,20 @@ class TestWeaviateHook:
             tenant=None,
             vector=None,
         )
+
+    def test_create_of_get_or_create_object_raises_valueerror(self, weaviate_hook):
+        """
+        Test that if data_object is None or class_name is None, ValueError is raised.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object = MagicMock(return_value=None)
+        mock_create_object = MagicMock()
+        weaviate_hook.create_object = mock_create_object
+        with pytest.raises(ValueError):
+            weaviate_hook.get_or_create_object(data_object=None, class_name="TestClass")
+        with pytest.raises(ValueError):
+            weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name=None)
 
     def test_get_all_objects(self, weaviate_hook):
         """

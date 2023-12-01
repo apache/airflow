@@ -227,19 +227,22 @@ class WeaviateHook(BaseHook):
             return None
 
     def get_or_create_object(
-        self, data_object: dict | str, class_name: str, **kwargs
+        self, data_object: dict | str | None = None, class_name: str | None = None, **kwargs
     ) -> str | dict[str, Any] | None:
         """Get or Create a new object.
 
         Returns the object if already exists
-        data_object: Object to be added. If type is str it should be either a URL or a file.
-        class_name: Class name associated with the object given.
+        data_object: Object to be added. If type is str it should be either a URL or a file. This is required
+            to create a new object.
+        class_name: Class name associated with the object given. This is required to create a new object.
         **kwargs: Additional parameters to be passed to weaviateclient.data_object.create() and
         weaviateclient.data_object.get()
         """
         vector = kwargs.pop("vector", None)
         obj = self.get_object(class_name=class_name, **kwargs)
         if not obj:
+            if not (data_object and class_name):
+                raise ValueError("data_object and class_name are required to create a new object")
             uuid = kwargs.pop("uuid", generate_uuid5(data_object))
             consistency_level = kwargs.pop("consistency_level", None)
             tenant = kwargs.pop("tenant", None)
