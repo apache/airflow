@@ -56,10 +56,6 @@ LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 # TODO: use single source of truth for those
 # for now we need to keep them in sync with the ones in setup.py
 PREINSTALLED_PROVIDERS = [
-    #   Until we cut off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
-    #   Keep common.io commented out in order ot be able to generate PyPI constraints because
-    #   The version from PyPI has requirement of apache-airflow>=2.8.0
-    #   "common.io",
     "common.sql",
     "ftp",
     "http",

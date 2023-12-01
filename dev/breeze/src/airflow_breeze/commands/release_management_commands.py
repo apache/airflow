@@ -38,6 +38,7 @@ from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_PLATFORMS,
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -70,6 +71,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_airflow_site_directory,
     option_answer,
+    option_chicken_egg_providers,
     option_commit_sha,
     option_debug_resources,
     option_dry_run,
@@ -138,6 +140,7 @@ from airflow_breeze.utils.run_utils import (
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.versions import is_pre_release
 
 option_debug_release_management = click.option(
     "--debug",
@@ -684,21 +687,23 @@ def run_generate_constraints_in_parallel(
 @option_image_tag_for_running
 @option_debug_release_management
 @option_airflow_constraints_mode_ci
+@option_chicken_egg_providers
 @option_github_repository
 @option_verbose
 @option_dry_run
 @option_answer
 def generate_constraints(
-    python: str,
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
-    debug_resources: bool,
-    python_versions: str,
-    image_tag: str | None,
-    debug: bool,
     airflow_constraints_mode: str,
+    debug: bool,
+    debug_resources: bool,
     github_repository: str,
+    image_tag: str | None,
+    parallelism: int,
+    python: str,
+    python_versions: str,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
+    chicken_egg_providers: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -742,6 +747,7 @@ def generate_constraints(
                 python=python,
                 github_repository=github_repository,
                 airflow_constraints_mode=airflow_constraints_mode,
+                chicken_egg_providers=chicken_egg_providers,
             )
             for python in python_version_list
         ]
@@ -762,6 +768,7 @@ def generate_constraints(
             skip_image_upgrade_check=True,
             quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
+            chicken_egg_providers=chicken_egg_providers,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
@@ -1195,6 +1202,18 @@ def add_back_references(
     start_generating_back_references(site_path, list(expand_all_provider_packages(doc_packages)))
 
 
+def _add_chicken_egg_providers_to_build_args(
+    python_build_args: dict[str, str], chicken_egg_providers: str, airflow_version: str
+):
+    if chicken_egg_providers and is_pre_release(airflow_version):
+        get_console().print(
+            f"[info]Adding chicken egg providers to build args as {airflow_version} is "
+            f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
+        )
+        python_build_args["INSTALL_PACKAGES_FROM_CONTEXT"] = "true"
+        python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
+
+
 @release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
@@ -1231,6 +1250,7 @@ def add_back_references(
     "rc/alpha/beta images are built.",
 )
 @option_commit_sha
+@option_chicken_egg_providers
 @option_verbose
 @option_dry_run
 def release_prod_images(
@@ -1241,10 +1261,11 @@ def release_prod_images(
     limit_python: str | None,
     commit_sha: str | None,
     skip_latest: bool,
+    chicken_egg_providers: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
+    if is_pre_release(airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"
         )
@@ -1296,6 +1317,9 @@ def release_prod_images(
             get_console().print(f"[info]Building slim {airflow_version} image for Python {python}[/]")
             python_build_args = deepcopy(slim_build_args)
             slim_image_name = f"{dockerhub_repo}:slim-{airflow_version}-python{python}"
+            _add_chicken_egg_providers_to_build_args(
+                python_build_args, chicken_egg_providers, airflow_version
+            )
             docker_buildx_command = [
                 "docker",
                 "buildx",
@@ -1325,6 +1349,9 @@ def release_prod_images(
             }
             if commit_sha:
                 regular_build_args["COMMIT_SHA"] = commit_sha
+            _add_chicken_egg_providers_to_build_args(
+                regular_build_args, chicken_egg_providers, airflow_version
+            )
             docker_buildx_command = [
                 "docker",
                 "buildx",
@@ -1357,19 +1384,18 @@ def release_prod_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
-            # only tag latest  "default" image when we build default python version
-            # otherwise if the non-default images complete before the default one, their jobs will fail
-            if slim_images:
-                alias_image(
-                    f"{dockerhub_repo}:slim-{airflow_version}",
-                    f"{dockerhub_repo}:slim-latest",
-                )
-            else:
-                alias_image(
-                    f"{dockerhub_repo}:{airflow_version}",
-                    f"{dockerhub_repo}:latest",
-                )
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+                # only tag latest "default" image when we build the latest allowed python version
+                if slim_images:
+                    alias_image(
+                        f"{dockerhub_repo}:slim-{airflow_version}",
+                        f"{dockerhub_repo}:slim-latest",
+                    )
+                else:
+                    alias_image(
+                        f"{dockerhub_repo}:{airflow_version}",
+                        f"{dockerhub_repo}:latest",
+                    )
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:

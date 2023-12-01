@@ -43,7 +43,7 @@ aq_fields = {
 }
 
 # [START create_object_storage_path]
-base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
+base = ObjectStoragePath("s3://aws_default@airflow-tutorial-data/")
 # [END create_object_storage_path]
 
 
