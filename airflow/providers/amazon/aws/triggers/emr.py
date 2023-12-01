@@ -440,8 +440,7 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
     ) -> None:
-        self.hook_instance = EmrServerlessHook(aws_conn_id)
-        states = list(self.hook_instance.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
+        states = list(EmrServerlessHook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
         super().__init__(
             serialized_fields={"application_id": application_id},
             waiter_name="no_job_running",
@@ -457,4 +456,9 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
         )
 
     def hook(self) -> EmrServerlessHook:
-        return self.hook_instance
+        return EmrServerlessHook(self.aws_conn_id)
+
+    @property
+    def hook_instance(self) -> EmrServerlessHook:
+        """This property is added for backward compatibility."""
+        return self.hook()

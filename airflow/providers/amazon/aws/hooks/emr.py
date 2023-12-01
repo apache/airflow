@@ -482,6 +482,7 @@ class EmrContainerHook(AwsBaseHook):
             self.log.error("Could not get status of the EMR on EKS job")
         except ClientError as ex:
             self.log.error("AWS request failed, check logs for more info: %s", ex)
+
         return None
 
     def check_query_status(self, job_id: str) -> str | None:
@@ -526,14 +527,14 @@ class EmrContainerHook(AwsBaseHook):
             if query_state in self.TERMINAL_STATES:
                 self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
                 return query_state
-            if (
-                max_polling_attempts and try_number >= max_polling_attempts
-            ):  # Break loop if max_polling_attempts reached
-                return query_state
             if query_state is None:
                 self.log.info("Try %s: Invalid query state. Retrying again", try_number)
             else:
                 self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
+            if (
+                max_polling_attempts and try_number >= max_polling_attempts
+            ):  # Break loop if max_polling_attempts reached
+                return query_state
             try_number += 1
             time.sleep(poll_interval)
 

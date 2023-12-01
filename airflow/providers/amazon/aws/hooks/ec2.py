@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2.service_resource import EC2ServiceResource
     from types_aiobotocore_ec2.client import EC2Client as AsyncEC2Client
 
-
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
