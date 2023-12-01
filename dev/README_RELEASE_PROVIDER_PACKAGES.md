@@ -79,7 +79,13 @@ You can read more about the command line tools used to generate the packages in 
 
 # Bump min Airflow version for providers
 
-If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+1. Update `provider-airflow-compatibility-check` in `.github/workflows/ci.yml` to check
+compatibility with the new minimum version.
+
+2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
+searching and replacing old version occurrences with newer one. For example 2.5.0 to 2.6.0
+
+3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
 in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
