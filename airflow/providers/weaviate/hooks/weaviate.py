@@ -265,15 +265,16 @@ class WeaviateHook(BaseHook):
         client = self.get_conn()
         return client.data_object.get(**kwargs)
 
-    def get_all_objects(self, **kwargs) -> list[dict[str, Any]]:
+    def get_all_objects(self, after: str | UUID | None = None, **kwargs) -> list[dict[str, Any]]:
         """Get all objects from weaviate.
 
-        if after is provided, it will be used as the starting point for the query.
+        if after is provided, it will be used as the starting point for the listing.
 
+        after: uuid of the object to start listing from
         **kwargs: parameters to be passed to weaviateclient.data_object.get()
         """
         all_objects = []
-        after = kwargs.pop("after", None)
+        after = kwargs.pop("after", after)
         while True:
             results = self.get_object(after=after, **kwargs) or {}
             if not results.get("objects"):
@@ -315,3 +316,13 @@ class WeaviateHook(BaseHook):
         """
         client = self.get_conn()
         client.data_object.replace(data_object, class_name, uuid, **kwargs)
+
+    def validate_object(self, data_object: dict | str, class_name: str, **kwargs):
+        """Validate an object in weaviate.
+
+        data_object: The object to be validated. If type is str it should be either an URL or a file.
+        class_name: Class name associated with the object given.
+        **kwargs: Optional parameters to be passed to weaviateclient.data_object.validate()
+        """
+        client = self.get_conn()
+        client.data_object.validate(data_object, class_name, **kwargs)

@@ -299,6 +299,15 @@ class TestWeaviateHook:
             {"name": "Test"}, "TestClass", "uuid", tenant="2d"
         )
 
+    def test_validate_object(self, weaviate_hook):
+        """
+        Test the validate_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.validate_object(class_name="TestClass", data_object={"name": "Test"}, uuid="2d")
+        mock_client.data_object.validate.assert_called_once_with({"name": "Test"}, "TestClass", uuid="2d")
+
     def test_replace_object(self, weaviate_hook):
         """
         Test the replace_object method of WeaviateHook.
