@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-01T15:47:59Z
+# This constraints file was automatically generated on 2023-12-01T21:40:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -53,7 +53,7 @@ aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.13
-alembic==1.12.1
+alembic==1.13.0
 alibabacloud-adb20211201==1.1.1
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
@@ -269,7 +269,7 @@ identify==2.5.32
 idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
-importlib-metadata==6.8.0
+importlib-metadata==6.9.0
 importlib-resources==6.1.1
 impyla==0.19.0
 incremental==22.10.0
@@ -422,7 +422,7 @@ pydantic==2.5.2
 pydantic_core==2.14.5
 pydata-google-auth==1.8.2
 pydot==1.4.2
-pydruid==0.6.5
+pydruid==0.6.6
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
@@ -585,7 +585,7 @@ userpath==1.9.1
 validators==0.22.0
 vertica-python==1.3.7
 vine==5.1.0
-virtualenv==20.24.7
+virtualenv==20.25.0
 watchtower==3.0.1
 wcwidth==0.2.12
 weaviate-client==3.25.3
