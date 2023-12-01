@@ -50,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
   - requests>=2.26.0

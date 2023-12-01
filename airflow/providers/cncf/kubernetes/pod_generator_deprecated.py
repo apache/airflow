@@ -30,8 +30,7 @@ import uuid
 import re2
 from kubernetes.client import models as k8s
 
-# replace it with airflow.utils.hashlib_wrapper.md5 when min airflow version for k8s provider is 2.6.0
-from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
+from airflow.utils.hashlib_wrapper import md5
 
 MAX_POD_ID_LEN = 253
 

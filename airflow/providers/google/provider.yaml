@@ -81,7 +81,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - gcloud-aio-auth>=4.0.0,<5.0.0

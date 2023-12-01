@@ -45,7 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - hdfs[avro,dataframe,kerberos]>=2.0.4
 
 integrations:
