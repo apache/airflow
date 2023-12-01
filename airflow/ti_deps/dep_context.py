@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 
 @attr.define
@@ -84,7 +85,7 @@ class DepContext:
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
-    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
+    def ensure_finished_tis(self, dag_run: DagRun | DagRunPydantic, session: Session) -> list[TaskInstance]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 

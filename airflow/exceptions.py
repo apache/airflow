@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     import datetime
 
     from airflow.models import DAG, DagRun
+    from airflow.triggers.base import BaseTrigger
 
 
 class AirflowException(Exception):
@@ -356,7 +357,7 @@ class TaskDeferred(BaseException):
     def __init__(
         self,
         *,
-        trigger,
+        trigger: BaseTrigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout: datetime.timedelta | None = None,

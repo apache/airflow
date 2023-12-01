@@ -42,6 +42,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
@@ -77,13 +78,17 @@ def _initialize_map() -> dict[str, Callable]:
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
+        RenderedTaskInstanceFields.get_k8s_pod_yaml,
         SerializedDagModel.get_serialized_dag,
         TaskInstance._check_and_change_state_before_execution,
-        TaskInstance.get_task_instance,
         TaskInstance.fetch_handle_failure_context,
+        TaskInstance._fetch_dagrun,
+        TaskInstance.get_task_instance,
+        TaskInstance._handle_reschedule,
+        TaskInstance._prepare_for_run_raw,
+        TaskInstance._post_run_raw,
         TaskInstance.save_to_db,
         TaskInstance._schedule_downstream_tasks,
-        Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,
         Trigger.submit_event,

@@ -32,9 +32,10 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
-def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
+def render_k8s_pod_yaml(task_instance: TaskInstance | TaskInstancePydantic) -> dict | None:
     """Render k8s pod yaml."""
     kube_config = KubeConfig()
     pod = PodGenerator.construct_pod(

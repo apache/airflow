@@ -161,12 +161,19 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         Return the DagRun for this TaskInstance.
 
         :param session: SQLAlchemy ORM Session
-
-        TODO: make it works for AIP-44
-
-        :return: Pydantic serialized version of DaGrun
+        :return: DagRunPydantic
         """
-        raise NotImplementedError()
+        if self.dag_run is not None:
+            if hasattr(self, "task"):
+                self.dag_run.dag = self.task.dag
+            return self.dag_run
+
+        dr = TaskInstance._fetch_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        if hasattr(self, "task"):
+            dr.dag = self.task.dag
+        self.dag_run = dr
+
+        return dr
 
     def _execute_task(self, context, task_orig):
         """
@@ -212,6 +219,19 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         _clear_next_method_args(task_instance=self)
 
+    @provide_session
+    def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
+        """Clear all XCom data from the database for the task instance.
+
+        If the task is unmapped, all XComs matching this task ID in the same DAG
+        run are removed. If the task is mapped, only the one with matching map
+        index is removed.
+
+        :param session: SQLAlchemy ORM Session
+        """
+        self.log.debug("Clearing XCom data")
+        TaskInstance._clear_xcom_data(task_instance=self, session=session)
+
     def get_template_context(
         self,
         session: Session | None = None,
@@ -230,6 +250,15 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
+
+    def render_templates(self, context: Context | None = None) -> Operator:
+        """Render templates in the operator fields.
+
+        If the task was originally mapped, this may replace ``self.task`` with
+        the unmapped, fully rendered BaseOperator. The original ``self.task``
+        before replacement is returned.
+        """
+        return TaskInstance._render_templates(ti=self, context=context)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""

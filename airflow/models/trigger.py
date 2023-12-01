@@ -89,7 +89,6 @@ class Trigger(Base):
         self.created_date = created_date or timezone.utcnow()
 
     @classmethod
-    @internal_api_call
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         from airflow.models.crypto import get_fernet
@@ -103,6 +102,12 @@ class Trigger(Base):
             else:
                 secure_kwargs[k] = v
         return cls(classpath=classpath, kwargs=secure_kwargs)
+
+    @classmethod
+    def from_serialized_object(cls, trigger: tuple[str, dict[str, Any]]) -> Trigger:
+        """Alternative constructor that creates a trigger row based directly off of a serialized Trigger object."""
+        classpath, kwargs = trigger
+        return cls(classpath=classpath, kwargs=kwargs)
 
     @classmethod
     @internal_api_call

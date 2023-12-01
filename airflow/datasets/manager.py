@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class DatasetManager(LoggingMixin):
@@ -56,7 +57,13 @@ class DatasetManager(LoggingMixin):
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
 
     def register_dataset_change(
-        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
+        self,
+        *,
+        task_instance: TaskInstance | TaskInstancePydantic,
+        dataset: Dataset,
+        extra=None,
+        session: Session,
+        **kwargs,
     ) -> None:
         """
         Register dataset related changes.

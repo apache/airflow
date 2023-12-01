@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 import json
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 import requests
 
@@ -28,6 +28,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import ParamSpec
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
@@ -78,6 +81,12 @@ class InternalApiConfig:
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api
         InternalApiConfig._internal_api_endpoint = internal_api_endpoint
+
+
+def commit_on_db_access(session: Session):
+    """Commits the session if the call is made with direct access to database."""
+    if not InternalApiConfig.get_use_internal_api():
+        session.commit()
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:

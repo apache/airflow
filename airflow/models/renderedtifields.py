@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
-    from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
+    from airflow.models.taskinstance import TaskInstance,TaskInstancePydantic
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -68,6 +68,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
+            mssql_clustered=True,
         ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -100,7 +101,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True):
+    def __init__(self, ti: TaskInstance | TaskInstancePydantic, render_templates=True):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
@@ -138,9 +139,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @classmethod
     @provide_session
-    def get_templated_fields(
-        cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
-    ) -> dict | None:
+    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
@@ -164,8 +163,11 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             return None
 
     @classmethod
+    @internal_api_call
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_k8s_pod_yaml(
+        cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
+    ) -> dict | None:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 

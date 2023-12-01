@@ -211,11 +211,11 @@ def _run_task_by_selected_method(
     - as raw task
     - by executor
     """
-    assert not isinstance(ti, TaskInstancePydantic), "Wait for AIP-44 implementation to complete"
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
         return _run_raw_task(args, ti)
+    assert not isinstance(ti, TaskInstancePydantic), "Wait for AIP-44 implementation to complete"
     _run_task_by_executor(args, dag, ti)
     return None
 
@@ -292,9 +292,10 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
+def _run_raw_task(args, ti: TaskInstance | TaskInstancePydantic) -> None | TaskReturnCode:
     """Run the main task handling code."""
-    return ti._run_raw_task(
+    return TaskInstance._run_raw_task(
+        ti=ti,
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
