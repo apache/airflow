@@ -131,7 +131,7 @@ def attach(
 
     if not alias:
         alias = f"{protocol}-{conn_id}" if conn_id else protocol
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
 
     _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
