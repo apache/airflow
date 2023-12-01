@@ -144,7 +144,7 @@ def batch_compute_environment_sensor() -> BatchComputeEnvironmentSensor:
 
 
 class TestBatchComputeEnvironmentSensor:
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_no_environment(
         self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
     ):
@@ -156,7 +156,7 @@ class TestBatchComputeEnvironmentSensor:
         )
         assert "not found" in str(ctx.value)
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_valid(
         self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
     ):
@@ -168,7 +168,7 @@ class TestBatchComputeEnvironmentSensor:
             computeEnvironments=[ENVIRONMENT_NAME],
         )
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_running(
         self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
     ):
@@ -184,7 +184,7 @@ class TestBatchComputeEnvironmentSensor:
             computeEnvironments=[ENVIRONMENT_NAME],
         )
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_invalid(
         self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
     ):
@@ -215,7 +215,7 @@ class TestBatchComputeEnvironmentSensor:
             ([], "AWS Batch compute environment"),
         ),
     )
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_fail_poke(
         self,
         mock_batch_client,
@@ -240,7 +240,7 @@ def batch_job_queue_sensor() -> BatchJobQueueSensor:
 
 
 class TestBatchJobQueueSensor:
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_no_queue(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": []}
         with pytest.raises(AirflowException) as ctx:
@@ -250,7 +250,7 @@ class TestBatchJobQueueSensor:
         )
         assert "not found" in str(ctx.value)
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_no_queue_with_treat_non_existing_as_deleted(
         self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor
     ):
@@ -261,7 +261,7 @@ class TestBatchJobQueueSensor:
             jobQueues=[JOB_QUEUE],
         )
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_valid(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": [{"status": "VALID"}]}
         assert batch_job_queue_sensor.poke({}) is True
@@ -269,7 +269,7 @@ class TestBatchJobQueueSensor:
             jobQueues=[JOB_QUEUE],
         )
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_running(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
         mock_batch_client.describe_job_queues.return_value = {
             "jobQueues": [
@@ -283,7 +283,7 @@ class TestBatchJobQueueSensor:
             jobQueues=[JOB_QUEUE],
         )
 
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_poke_invalid(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
         mock_batch_client.describe_job_queues.return_value = {
             "jobQueues": [
@@ -303,7 +303,7 @@ class TestBatchJobQueueSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @pytest.mark.parametrize("job_queue", ([], [{"status": "UNKNOWN_STATUS"}]))
-    @mock.patch.object(BatchClientHook, "client")
+    @mock.patch.object(BatchClientHook, "conn")
     def test_fail_poke(
         self,
         mock_batch_client,

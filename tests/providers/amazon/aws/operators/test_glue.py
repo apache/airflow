@@ -249,11 +249,9 @@ class TestGlueJobOperator:
         glue.on_kill()
         mock_glue_hook.batch_stop_job_run.assert_not_called()
 
-    @mock.patch.object(GlueJobHook, "conn")
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_killed_with_stop_job_run_on_kill(
         self,
-        _,
         mock_glue_hook,
     ):
         glue = GlueJobOperator(
@@ -268,7 +266,7 @@ class TestGlueJobOperator:
         )
         glue._job_run_id = JOB_RUN_ID
         glue.on_kill()
-        mock_glue_hook.batch_stop_job_run.assert_called_once_with(
+        mock_glue_hook.return_value.batch_stop_job_run.assert_called_once_with(
             JobName=JOB_NAME,
             JobRunIds=[JOB_RUN_ID],
         )

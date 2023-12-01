@@ -122,7 +122,7 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         """Test initialize ``EcsHook`` and ``boto3.client``."""
         mock_ecs_hook = mock_ecs_hook_cls.return_value
         mock_conn = mock.MagicMock()
-        type(mock_ecs_hook).conn = mock.PropertyMock(return_value=mock_conn)
+        mock_ecs_hook.get_conn.return_value = mock_conn
 
         op_kw = {"aws_conn_id": aws_conn_id, "region": region_name}
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}

@@ -185,7 +185,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.get_conn().describe_compute_environments(  # type: ignore[union-attr]
+        response = self.hook.get_conn().describe_compute_environments(
             computeEnvironments=[self.compute_environment]
         )
 
