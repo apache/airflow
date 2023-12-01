@@ -417,3 +417,87 @@ class TestCronIntervalDst:
             pendulum.datetime(2023, 10, 29, 1, tz=TIMEZONE),
             pendulum.datetime(2023, 10, 30, 1, tz=TIMEZONE),
         )
+
+
+class TestCronIntervalDstNonTrivial:
+    """These tests are similar to TestCronIntervalDst but with a different cron.
+
+    The original test cases are from apache/airflow#7999. In 2020 at Los Angeles,
+    DST started on 8th Mar; 10am UTC was turned from 2am UTC-8 to 3am UTC-7.
+    """
+
+    def test_7_to_8_entering(self):
+        timetable = CronDataIntervalTimetable("0 7-8 * * *", timezone="America/Los_Angeles")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2020, 3, 7, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Triggers as expected before the interval touches the DST transition.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 7 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 7, 8 + 8, tz=TIMEZONE),
+        )
+
+        # This interval ends an hour early since it includes the DST switch!
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 8 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+        )
+
+        # We're fully into DST so the interval is as expected.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 8 + 7, tz=TIMEZONE),
+        )
+
+    def test_7_and_9_entering(self):
+        timetable = CronDataIntervalTimetable("0 7,9 * * *", timezone="America/Los_Angeles")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2020, 3, 7, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Triggers as expected before the interval touches the DST transition.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 7 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 7, 9 + 8, tz=TIMEZONE),
+        )
+
+        # This interval ends an hour early since it includes the DST switch!
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 9 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+        )
+
+        # We're fully into DST so the interval is as expected.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 9 + 7, tz=TIMEZONE),
+        )
