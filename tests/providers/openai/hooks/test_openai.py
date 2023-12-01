@@ -16,48 +16,58 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from openai import OpenAI
+from openai.types import CreateEmbeddingResponse, Embedding
 
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
 @pytest.fixture
 def openai_hook():
-    with patch("airflow.providers.openai.hooks.openai.OpenAIHook._get_api_key"), patch(
-        "airflow.providers.openai.hooks.openai.OpenAIHook._get_api_base"
-    ) as _:
+    with patch("airflow.providers.openai.hooks.openai.OpenAI") as _:
         yield OpenAIHook(conn_id="test_conn_id")
 
 
 @pytest.fixture
 def mock_embeddings_response():
-    return {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
-
-
-@pytest.fixture
-def mock_completions_response():
-    return Mock(
-        id="completion-id",
-        object="completion",
-        created=1234567890,
-        model="text-davinci-002",
-        usage={"prompt_tokens": 15, "completion_tokens": 32, "total_tokens": 47},
-        choices=[Mock(text="the quick brown fox", finish_reason="stop", index=0)],
+    return CreateEmbeddingResponse(
+        data=[Embedding(embedding=[0.1, 0.2, 0.3], index=0, object="embedding")],
+        model="text-embedding-ada-002-v2",
+        object="list",
+        usage={"prompt_tokens": 4, "total_tokens": 4},
     )
 
 
-def test_create_embeddings(openai_hook, mock_embeddings_response):
+@patch("airflow.hooks.base.BaseHook.get_connection")
+def test_create_embeddings(mock_get_connection, openai_hook, mock_embeddings_response):
     text = "Sample text"
-    with patch("openai.Embedding.create", return_value=mock_embeddings_response):
-        embeddings = openai_hook.create_embeddings(text)
+    openai_hook.conn.embeddings.create.return_value = mock_embeddings_response
+    embeddings = openai_hook.create_embeddings(text)
     assert embeddings == [0.1, 0.2, 0.3]
 
 
-def test_get_api_key():
-    mock_connection = Mock()
-    mock_connection.password = "your_api_key"
+@patch("openai.OpenAI")
+@patch("airflow.hooks.base.BaseHook.get_connection")
+def test_openai_hook_get_conn(mock_get_connection, mock_openai):
+    mock_connection = MagicMock()
+    mock_connection.host = "http://example.com"
+    mock_connection.password = "test-api-key"
+    mock_get_connection.return_value = mock_connection
     OpenAIHook.get_connection = Mock(return_value=mock_connection)
-    api_key = OpenAIHook()._get_api_key()
-    assert api_key == "your_api_key"
+
+    openai_hook = OpenAIHook(conn_id="test_conn")
+    conn = openai_hook.conn
+
+    assert isinstance(conn, OpenAI)
+    assert conn.api_key == "test-api-key"
+    assert conn.base_url == "http://example.com"
+
+
+@patch("openai.OpenAI")
+def test_openai_hook_test_connection(mock_openai, openai_hook):
+    result, message = openai_hook.test_connection()
+    assert result is True
+    assert message == "Connection established!"
