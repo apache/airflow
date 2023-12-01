@@ -87,7 +87,7 @@ class TrinoHook(DbApiHook):
     conn_type = "trino"
     hook_name = "Trino"
     query_id = ""
-    placeholder = "?"
+    _placeholder = "?"
     _test_connection_sql = "select 1"
 
     def get_conn(self) -> Connection:

@@ -30,7 +30,7 @@ class SqliteHook(DbApiHook):
     default_conn_name = "sqlite_default"
     conn_type = "sqlite"
     hook_name = "Sqlite"
-    placeholder = "?"
+    _placeholder = "?"
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object."""

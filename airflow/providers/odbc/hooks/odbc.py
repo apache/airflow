@@ -161,7 +161,7 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
+            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
             extra_params = {
                 k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
             }
@@ -197,6 +197,10 @@ class OdbcHook(DbApiHook):
         """Returns a pyodbc connection object."""
         conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
+
+    @property
+    def placeholder(self):
+        return self.connection.extra_dejson.get("placeholder") or self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""
