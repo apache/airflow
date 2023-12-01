@@ -91,7 +91,7 @@ command with the `--only-min-version-update` flag. This will only update the min
 the `__init__.py` files and package documentation without bumping the provider versions.
 
 ```shell script
-branch="Bump minimum Airflow version in providers to Airflow 2.6.0"
+branch="update-min-airflow-version"
 git checkout -b "${branch}"
 breeze release-management prepare-provider-documentation --only-min-version-update
 git add .
