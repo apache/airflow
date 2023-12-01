@@ -20,14 +20,20 @@ from __future__ import annotations
 import pytest
 
 from airflow.security import permissions
+from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.www import client_with_login
 
 
 @pytest.fixture(scope="module")
-def user_user_reader(app):
+def fab_app():
+    return application.create_app(testing=True)
+
+
+@pytest.fixture(scope="module")
+def user_user_reader(fab_app):
     return create_user(
-        app,
+        fab_app,
         username="user_user",
         role_name="role_user",
         permissions=[
@@ -38,10 +44,10 @@ def user_user_reader(app):
 
 
 @pytest.fixture()
-def client_user_reader(app, user_user_reader):
-    app.config["WTF_CSRF_ENABLED"] = False
+def client_user_reader(fab_app, user_user_reader):
+    fab_app.config["WTF_CSRF_ENABLED"] = False
     return client_with_login(
-        app,
+        fab_app,
         username="user_user_reader",
         password="user_user_reader",
     )

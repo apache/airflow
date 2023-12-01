@@ -27,13 +27,18 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.providers.fab.auth_manager.cli_commands import user_command
-from tests.test_utils.api_connexion_utils import delete_users
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
 pytestmark = pytest.mark.db_test
 
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
+
+
+@pytest.fixture()
+def parser():
+    return cli_parser.get_parser()
 
 
 def _does_user_belong_to_role(appbuilder, email, rolename):
@@ -47,13 +52,19 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
 
 class TestCliUsers:
     @pytest.fixture(autouse=True)
-    def _set_attrs(self, app):
-        self.app = app
+    def _set_attrs(self):
         self.parser = cli_parser.get_parser()
-        self.appbuilder = self.app.appbuilder
-        delete_users(app)
-        yield
-        delete_users(app)
+        with get_application_builder() as appbuilder:
+            self.appbuilder = appbuilder
+            self.clear_users()
+            yield
+            self.clear_users()
+
+    def clear_users(self):
+        for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
+            test_user = self.appbuilder.sm.find_user(email=email)
+            if test_user:
+                self.appbuilder.sm.del_register_user(test_user)
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args(

@@ -24,7 +24,6 @@ from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 @pytest.mark.db_test
 class TestCliUtils:
-    def test_get_application_builder(self, app):
-        with app.test_request_context():
-            with get_application_builder() as appbuilder:
-                assert isinstance(appbuilder, AirflowAppBuilder)
+    def test_get_application_builder(self):
+        with get_application_builder() as appbuilder:
+            assert isinstance(appbuilder, AirflowAppBuilder)
