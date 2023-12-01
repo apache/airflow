@@ -530,6 +530,12 @@ option_python_image = click.option(
     "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
 )
+option_docker_host = click.option(
+    "--docker-host",
+    help="Optional - docker host to use when running docker commands. "
+    "When set, the `--builder` option is ignored when building images.",
+    envvar="DOCKER_HOST",
+)
 option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",

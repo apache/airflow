@@ -406,11 +406,16 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
             [
                 "buildx",
                 "build",
-                "--builder",
-                get_and_use_docker_context(image_params.builder),
                 "--push" if image_params.push else "--load",
             ]
         )
+        if not image_params.docker_host:
+            build_command_param.extend(
+                [
+                    "--builder",
+                    get_and_use_docker_context(image_params.builder),
+                ]
+            )
     else:
         build_command_param.append("build")
     return build_command_param
@@ -658,3 +663,11 @@ def get_and_use_docker_context(context: str):
             f"[warning] Could no use the context {context}. Continuing with current context[/]"
         )
     return context
+
+
+def get_docker_build_env(image_params: CommonBuildParams) -> dict[str, str]:
+    env = os.environ.copy()
+    env["DOCKER_BUILDKIT"] = "1"
+    if image_params.docker_host:
+        env["DOCKER_HOST"] = image_params.docker_host
+    return env
