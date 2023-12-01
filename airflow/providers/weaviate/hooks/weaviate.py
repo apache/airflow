@@ -32,6 +32,7 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from typing import Any
 
+    import pandas as pd
     from weaviate.types import UUID
 
 
@@ -265,12 +266,15 @@ class WeaviateHook(BaseHook):
         client = self.get_conn()
         return client.data_object.get(**kwargs)
 
-    def get_all_objects(self, after: str | UUID | None = None, **kwargs) -> list[dict[str, Any]]:
+    def get_all_objects(
+        self, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
+    ) -> list[dict[str, Any]] | pd.DataFrame:
         """Get all objects from weaviate.
 
         if after is provided, it will be used as the starting point for the listing.
 
         after: uuid of the object to start listing from
+        as_dataframe: if True, returns a pandas dataframe
         **kwargs: parameters to be passed to weaviateclient.data_object.get()
         """
         all_objects = []
@@ -281,6 +285,10 @@ class WeaviateHook(BaseHook):
                 break
             all_objects.extend(results["objects"])
             after = results["objects"][-1]["id"]
+        if as_dataframe:
+            import pandas
+
+            return pandas.DataFrame(all_objects)
         return all_objects
 
     def delete_object(self, uuid: UUID | str, **kwargs) -> None:

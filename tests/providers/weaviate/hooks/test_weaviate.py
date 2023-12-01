@@ -277,6 +277,29 @@ class TestWeaviateHook:
         ]
         assert return_value == [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]
 
+    def test_get_all_objects_returns_dataframe(self, weaviate_hook):
+        """
+        Test the get_all_objects method of WeaviateHook can return a dataframe.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        objects = [
+            {"deprecations": None, "objects": [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]},
+            {"deprecations": None, "objects": []},
+        ]
+        mock_get_object = MagicMock()
+        weaviate_hook.get_object = mock_get_object
+        mock_get_object.side_effect = objects
+
+        return_value = weaviate_hook.get_all_objects(class_name="TestClass", as_dataframe=True)
+        assert weaviate_hook.get_object.call_args_list == [
+            mock.call(after=None, class_name="TestClass"),
+            mock.call(after=3, class_name="TestClass"),
+        ]
+        import pandas
+
+        assert isinstance(return_value, pandas.DataFrame)
+
     def test_delete_object(self, weaviate_hook):
         """
         Test the delete_object method of WeaviateHook.
