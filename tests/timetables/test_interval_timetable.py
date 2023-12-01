@@ -377,36 +377,27 @@ class TestCronIntervalDst:
         )
 
         # Account for folding. Interval starts on 0am UTC (local time +2) and
-        # ends on 0am UTC (local time +2). There are two 2am local times on the
-        # 29th due to folding, but we end on the first (non-fold) one since
-        # that always happens first.
+        # ends on 1am UTC (local time +1). There are two 2am local times on the
+        # 29th due to folding. We end on the second one (fold=1. There's no
+        # logical reason here; this is simply what Airflow has been doing since
+        # a long time ago, and there's no point breaking it.
         next_info = timetable.next_dagrun_info(
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
         assert next_info and next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 28),
-            pendulum.datetime(2023, 10, 29),
+            pendulum.datetime(2023, 10, 29, 1),
         )
 
-        # Stepping out of DST. Interval starts at 0am UTC (local time +2) but
-        # ends at 1am UTC (local time is +1). We DO NOT schedule a run for the
-        # second (folded) 2am on the 29th.
+        # Stepping out of DST. Interval starts from the folded 2am local time
+        # (1am UTC out of DST) since that is when the previous interval ended.
+        # It ends at 1am UTC (local time is +1) normally.
         next_info = timetable.next_dagrun_info(
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
         assert next_info and next_info.data_interval == DataInterval(
-            pendulum.datetime(2023, 10, 29),
+            pendulum.datetime(2023, 10, 29, 1),
             pendulum.datetime(2023, 10, 30, 1),
-        )
-
-        # Out of DST. Interval starts and ends on 1am UTC (local time is +1).
-        next_info = timetable.next_dagrun_info(
-            last_automated_data_interval=next_info.data_interval,
-            restriction=restriction,
-        )
-        assert next_info and next_info.data_interval == DataInterval(
-            pendulum.datetime(2023, 10, 30, 1),
-            pendulum.datetime(2023, 10, 31, 1),
         )
