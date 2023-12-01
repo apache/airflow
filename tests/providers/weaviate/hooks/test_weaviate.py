@@ -26,6 +26,7 @@ from weaviate import ObjectAlreadyExistsException
 
 import requests
 import weaviate
+from requests import HTTPError
 
 
 from airflow.models import Connection
@@ -450,6 +451,7 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
     weaviate_hook.batch_data("TestClass", data)
     assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
+
 
 @pytest.mark.parametrize(
     argnames=["get_schema_value", "existing", "expected_value"],

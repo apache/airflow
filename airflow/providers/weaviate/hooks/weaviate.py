@@ -28,6 +28,7 @@ import requests
 
 from weaviate import Client as WeaviateClient
 from weaviate import UnexpectedStatusCodeException
+
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -316,6 +317,10 @@ class WeaviateHook(BaseHook):
             if not self._compare_schema_subset(cls, exiting_classes[cls["class"]]):
                 return False
         return True
+
+    @staticmethod
+    def check_http_error_is_retryable(exc: BaseException):
+        return isinstance(exc, requests.HTTPError) and not exc.response.ok
 
     def batch_data(
         self,
