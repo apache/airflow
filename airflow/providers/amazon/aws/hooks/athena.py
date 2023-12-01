@@ -292,13 +292,12 @@ class AthenaHook(AwsBaseHook):
 
         :param query_execution_id: Id of submitted athena query
         """
-        output_location = None
         if query_execution_id:
             response = self.get_query_info(query_execution_id=query_execution_id, use_cache=True)
 
             if response:
                 try:
-                    output_location = response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
+                    return response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
                 except KeyError:
                     self.log.error(
                         "Error retrieving OutputLocation. Query execution id: %s", query_execution_id
@@ -306,10 +305,7 @@ class AthenaHook(AwsBaseHook):
                     raise
             else:
                 raise
-        else:
-            raise ValueError("Invalid Query execution id. Query execution id: %s", query_execution_id)
-
-        return output_location
+        raise ValueError("Invalid Query execution id. Query execution id: %s", query_execution_id)
 
     def stop_query(self, query_execution_id: str) -> dict:
         """Cancel the submitted query.
