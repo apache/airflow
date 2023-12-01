@@ -334,3 +334,12 @@ class WeaviateHook(BaseHook):
         """
         client = self.conn
         client.data_object.validate(data_object, class_name, **kwargs)
+
+    def object_exists(self, uuid: str | UUID, **kwargs) -> bool:
+        """Check if an object exists in weaviate.
+
+        uuid: The UUID of the object that may or may not exist within Weaviate.
+        **kwargs: Optional parameters to be passed to weaviateclient.data_object.exists()
+        """
+        client = self.conn
+        return client.data_object.exists(uuid, **kwargs)

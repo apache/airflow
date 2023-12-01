@@ -344,6 +344,15 @@ class TestWeaviateHook:
             {"name": "Test"}, "TestClass", "uuid", tenant="2d"
         )
 
+    def test_object_exists(self, weaviate_hook):
+        """
+        Test the object_exists method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.object_exists(class_name="TestClass", uuid="2d")
+        mock_client.data_object.exists.assert_called_once_with("2d", class_name="TestClass")
+
 
 def test_create_class(weaviate_hook):
     """
