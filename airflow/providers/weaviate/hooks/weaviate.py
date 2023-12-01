@@ -214,9 +214,9 @@ class WeaviateHook(BaseHook):
     ) -> str | dict[str, Any] | None:
         """Create a new object.
 
-        data_object: Object to be added. If type is str it should be either a URL or a file.
-        class_name: Class name associated with the object given.
-        **kwargs: Additional parameters to be passed to weaviateclient.data_object.create()
+        :param data_object: Object to be added. If type is str it should be either a URL or a file.
+        :param class_name: Class name associated with the object given.
+        :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create()
         """
         client = self.conn
         # generate deterministic uuid if not provided
@@ -233,11 +233,12 @@ class WeaviateHook(BaseHook):
         """Get or Create a new object.
 
         Returns the object if already exists
-        data_object: Object to be added. If type is str it should be either a URL or a file. This is required
-                    to create a new object.
-        class_name: Class name associated with the object given. This is required to create a new object.
-        **kwargs: Additional parameters to be passed to weaviateclient.data_object.create() and
-        weaviateclient.data_object.get()
+
+        :param data_object: Object to be added. If type is str it should be either a URL or a file. This is required
+            to create a new object.
+        :param class_name: Class name associated with the object given. This is required to create a new object.
+        :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create() and
+            weaviate_client.data_object.get()
         """
         vector = kwargs.pop("vector", None)
         obj = self.get_object(class_name=class_name, **kwargs)
@@ -260,8 +261,8 @@ class WeaviateHook(BaseHook):
     def get_object(self, **kwargs) -> dict[str, Any] | None:
         """Get objects or an object from weaviate.
 
-        **kwargs: parameters to be passed to weaviateclient.data_object.get() or
-            weaviateclient.data_object.get_by_id()
+        :param kwargs: parameters to be passed to weaviate_client.data_object.get() or
+            weaviate_client.data_object.get_by_id()
         """
         client = self.conn
         return client.data_object.get(**kwargs)
@@ -273,9 +274,9 @@ class WeaviateHook(BaseHook):
 
         if after is provided, it will be used as the starting point for the listing.
 
-        after: uuid of the object to start listing from
-        as_dataframe: if True, returns a pandas dataframe
-        **kwargs: parameters to be passed to weaviateclient.data_object.get()
+        :param after: uuid of the object to start listing from
+        :param as_dataframe: if True, returns a pandas dataframe
+        :param kwargs: parameters to be passed to weaviate_client.data_object.get()
         """
         all_objects = []
         after = kwargs.pop("after", after)
@@ -294,8 +295,8 @@ class WeaviateHook(BaseHook):
     def delete_object(self, uuid: UUID | str, **kwargs) -> None:
         """Delete an object from weaviate.
 
-        uuid: uuid of the object to be deleted
-        **kwargs: Optional parameters to be passed to weaviateclient.data_object.delete()
+        :param uuid: uuid of the object to be deleted
+        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.delete()
         """
         client = self.conn
         client.data_object.delete(uuid, **kwargs)
@@ -303,12 +304,12 @@ class WeaviateHook(BaseHook):
     def update_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Update an object in weaviate.
 
-        data_object: The object states the fields that should be updated. Fields not specified in the
-                    'data_object' remain unchanged. Fields that are None will not be changed.
-                    If type is str it should be either an URL or a file.
-        class_name: Class name associated with the object given.
-        uuid: uuid of the object to be updated
-        **kwargs: Optional parameters to be passed to weaviateclient.data_object.update()
+        :param data_object: The object states the fields that should be updated. Fields not specified in the
+            'data_object' remain unchanged. Fields that are None will not be changed.
+            If type is str it should be either an URL or a file.
+        :param class_name: Class name associated with the object given.
+        :param uuid: uuid of the object to be updated
+        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.update()
         """
         client = self.conn
         client.data_object.update(data_object, class_name, uuid, **kwargs)
@@ -316,11 +317,11 @@ class WeaviateHook(BaseHook):
     def replace_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Replace an object in weaviate.
 
-        data_object: The object states the fields that should be updated. Fields not specified in the
-                    'data_object' will be set to None. If type is str it should be either an URL or a file.
-        class_name: Class name associated with the object given.
-        uuid: uuid of the object to be replaced
-        **kwargs: Optional parameters to be passed to weaviateclient.data_object.replace()
+        :param data_object: The object states the fields that should be updated. Fields not specified in the
+            'data_object' will be set to None. If type is str it should be either an URL or a file.
+        :param class_name: Class name associated with the object given.
+        :param uuid: uuid of the object to be replaced
+        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.replace()
         """
         client = self.conn
         client.data_object.replace(data_object, class_name, uuid, **kwargs)
@@ -328,9 +329,9 @@ class WeaviateHook(BaseHook):
     def validate_object(self, data_object: dict | str, class_name: str, **kwargs):
         """Validate an object in weaviate.
 
-        data_object: The object to be validated. If type is str it should be either an URL or a file.
-        class_name: Class name associated with the object given.
-        **kwargs: Optional parameters to be passed to weaviateclient.data_object.validate()
+        :param data_object: The object to be validated. If type is str it should be either an URL or a file.
+        :param class_name: Class name associated with the object given.
+        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.validate()
         """
         client = self.conn
         client.data_object.validate(data_object, class_name, **kwargs)
@@ -338,8 +339,8 @@ class WeaviateHook(BaseHook):
     def object_exists(self, uuid: str | UUID, **kwargs) -> bool:
         """Check if an object exists in weaviate.
 
-        uuid: The UUID of the object that may or may not exist within Weaviate.
-        **kwargs: Optional parameters to be passed to weaviateclient.data_object.exists()
+        :param uuid: The UUID of the object that may or may not exist within Weaviate.
+        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.exists()
         """
         client = self.conn
         return client.data_object.exists(uuid, **kwargs)
