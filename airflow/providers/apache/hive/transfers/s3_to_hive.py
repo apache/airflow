@@ -23,7 +23,7 @@ import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -32,6 +32,8 @@ from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3 import type_defs
+
     from airflow.utils.context import Context
 
 
@@ -165,13 +167,13 @@ class S3ToHiveOperator(BaseOperator):
         ) as f:
             self.log.info("Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name)
             if self.select_expression:
-                option = {}
+                option: type_defs.CSVInputTypeDef = {}
                 if self.headers:
                     option["FileHeaderInfo"] = "USE"
                 if self.delimiter:
                     option["FieldDelimiter"] = self.delimiter
 
-                input_serialization: dict[str, Any] = {"CSV": option}
+                input_serialization: type_defs.InputSerializationTypeDef = {"CSV": option}
                 if self.input_compressed:
                     input_serialization["CompressionType"] = "GZIP"
 

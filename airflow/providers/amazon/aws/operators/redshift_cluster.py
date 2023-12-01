@@ -437,7 +437,7 @@ class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
             while self.get_status() is not None:
                 time.sleep(self.poll_interval)
 
-    def get_status(self) -> str:
+    def get_status(self) -> str | None:
         return self.redshift_hook.get_cluster_snapshot_status(
             snapshot_identifier=self.snapshot_identifier,
         )

@@ -29,6 +29,8 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3 import literals
+
     from airflow.utils.context import Context
 
 
@@ -59,7 +61,7 @@ class S3CreateBucketOperator(BaseOperator):
         *,
         bucket_name: str,
         aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
+        region_name: literals.BucketLocationConstraintType | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -296,7 +298,7 @@ class S3CopyObjectOperator(BaseOperator):
         source_version_id: str | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
-        acl_policy: str | None = None,
+        acl_policy: literals.ObjectCannedACLType | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
