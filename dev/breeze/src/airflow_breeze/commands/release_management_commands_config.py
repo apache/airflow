@@ -161,6 +161,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-platform",
                 "--skip-latest",
                 "--commit-sha",
+                "--chicken-egg-providers",
             ],
         }
     ],
