@@ -234,7 +234,7 @@ class WeaviateHook(BaseHook):
 
         Returns the object if already exists
         data_object: Object to be added. If type is str it should be either a URL or a file. This is required
-            to create a new object.
+                    to create a new object.
         class_name: Class name associated with the object given. This is required to create a new object.
         **kwargs: Additional parameters to be passed to weaviateclient.data_object.create() and
         weaviateclient.data_object.get()
@@ -304,8 +304,8 @@ class WeaviateHook(BaseHook):
         """Update an object in weaviate.
 
         data_object: The object states the fields that should be updated. Fields not specified in the
-            'data_object' remain unchanged. Fields that are None will not be changed.
-            If type is str it should be either an URL or a file.
+                    'data_object' remain unchanged. Fields that are None will not be changed.
+                    If type is str it should be either an URL or a file.
         class_name: Class name associated with the object given.
         uuid: uuid of the object to be updated
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.update()
@@ -317,7 +317,7 @@ class WeaviateHook(BaseHook):
         """Replace an object in weaviate.
 
         data_object: The object states the fields that should be updated. Fields not specified in the
-            'data_object' will be set to None. If type is str it should be either an URL or a file.
+                    'data_object' will be set to None. If type is str it should be either an URL or a file.
         class_name: Class name associated with the object given.
         uuid: uuid of the object to be replaced
         **kwargs: Optional parameters to be passed to weaviateclient.data_object.replace()
