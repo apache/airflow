@@ -155,18 +155,18 @@ with DAG(
     reboot_instance = EC2RebootInstanceOperator(
         task_id="reboot_instace",
         instance_ids=instance_id,
-        wait_for_completion=True,
     )
     # [END howto_operator_ec2_reboot_instance]
+    reboot_instance.wait_for_completion = True
 
     # [START howto_operator_ec2_hibernate_instance]
     hibernate_instance = EC2HibernateInstanceOperator(
         task_id="hibernate_instace",
         instance_ids=instance_id,
-        wait_for_completion=True,
-        max_attempts=75,
     )
     # [END howto_operator_ec2_hibernate_instance]
+    hibernate_instance.wait_for_completion = True
+    hibernate_instance.max_attempts = 75
 
     # [START howto_operator_ec2_terminate_instance]
     terminate_instance = EC2TerminateInstanceOperator(
