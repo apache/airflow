@@ -1666,6 +1666,8 @@ dagProcessor:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    securityContexts:
+      container: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations

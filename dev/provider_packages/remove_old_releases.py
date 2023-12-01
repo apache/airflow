@@ -45,6 +45,7 @@ class VersionedFile(NamedTuple):
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
     no_suffix_file = file_name[: -len(suffix)]
     no_version_file, version = no_suffix_file.rsplit("-", 1)
+    no_version_file = no_version_file.replace("_", "-")
     return VersionedFile(
         base=no_version_file + "-",
         version=version,

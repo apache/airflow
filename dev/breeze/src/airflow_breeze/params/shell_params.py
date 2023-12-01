@@ -28,6 +28,7 @@ from airflow_breeze.global_constants import (
     ALL_INTEGRATIONS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
+    ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
@@ -47,7 +48,7 @@ from airflow_breeze.global_constants import (
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
-    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
     WEBSERVER_HOST_PORT,
     get_airflow_version,
@@ -117,6 +118,7 @@ class ShellParams:
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
+    chicken_egg_providers: str = ""
     collect_only: bool = False
     database_isolation: bool = False
     db_reset: bool = False
@@ -127,7 +129,7 @@ class ShellParams:
     downgrade_sqlalchemy: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
-    executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS
+    executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
     forward_credentials: str = "false"
@@ -155,27 +157,34 @@ class ShellParams:
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
+    project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    quiet: bool = False
     regenerate_missing_docs: bool = False
     remove_arm_packages: bool = False
+    restart: bool = False
     run_db_tests_only: bool = False
     run_system_tests: bool = os.environ.get("RUN_SYSTEM_TESTS", "false") == "true"
     run_tests: bool = False
     skip_constraints: bool = False
     skip_db_tests: bool = False
     skip_environment_initialization: bool = False
+    skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
     skip_provider_tests: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
     standalone_dag_processor: bool = False
     start_airflow: str = "false"
     test_type: str | None = None
+    tty: str = "auto"
     upgrade_boto: bool = False
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
     use_xdist: bool = False
     verbose: bool = False
+    verbose_commands: bool = False
     version_suffix_for_pypi: str = ""
+    warn_image_upgrade_needed: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -268,6 +277,10 @@ class ShellParams:
         backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
+        if self.project_name == "pre-commit":
+            # do not forward ports for pre-commit runs - to not clash with running containers from
+            # breeze
+            return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 
     @cached_property
@@ -302,7 +315,7 @@ class ShellParams:
                 f"from sources but from {self.use_airflow_version}[/]"
             )
             self.mount_sources = MOUNT_REMOVE
-        if self.forward_ports:
+        if self.forward_ports and not self.project_name == "pre-commit":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
@@ -423,6 +436,7 @@ class ShellParams:
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
+        _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
         _set_var(_env, "CI_EVENT_TYPE", None, "pull_request")
@@ -464,7 +478,9 @@ class ShellParams:
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
+        _set_var(_env, "PYTHONWARNINGS", None, None)
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
+        _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
@@ -484,7 +500,7 @@ class ShellParams:
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
-        _set_var(_env, "VERBOSE_COMMANDS", None, "false")
+        _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)

@@ -211,7 +211,7 @@ def check_docker_is_running():
         sys.exit(1)
 
 
-def check_docker_version():
+def check_docker_version(quiet: bool = False):
     """
     Checks if the docker compose version is as expected. including some specific modifications done by
     some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
@@ -243,7 +243,8 @@ def check_docker_version():
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
-                get_console().print(f"[success]Good version of Docker: {docker_version}.[/]")
+                if not quiet:
+                    get_console().print(f"[success]Good version of Docker: {docker_version}.[/]")
             else:
                 get_console().print(
                     f"""
@@ -298,7 +299,7 @@ def check_remote_ghcr_io_commands():
             sys.exit(1)
 
 
-def check_docker_compose_version():
+def check_docker_compose_version(quiet: bool = False):
     """Checks if the docker compose version is as expected.
 
     This includes specific modifications done by some vendors such as Microsoft.
@@ -330,7 +331,10 @@ def check_docker_compose_version():
             docker_compose_version = ".".join(version_extracted.groups())
             good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                get_console().print(f"[success]Good version of docker-compose: {docker_compose_version}[/]")
+                if not quiet:
+                    get_console().print(
+                        f"[success]Good version of docker-compose: {docker_compose_version}[/]"
+                    )
             else:
                 get_console().print(
                     f"""
@@ -500,10 +504,10 @@ def prepare_broker_url(params, env_variables):
         env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
-def perform_environment_checks():
+def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    check_docker_version()
-    check_docker_compose_version()
+    check_docker_version(quiet)
+    check_docker_compose_version(quiet)
 
 
 def get_docker_syntax_version() -> str:
@@ -550,7 +554,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker():
+def fix_ownership_using_docker(quiet: bool = False):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -566,7 +570,9 @@ def fix_ownership_using_docker():
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands)
+    run_command(
+        cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands, capture_output=quiet
+    )
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:

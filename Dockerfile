@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -347,8 +347,6 @@ COPY <<"EOF" /install_mssql.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -384,40 +382,6 @@ function install_mssql_client() {
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Workaround an issue with installing pymssql on ARM architecture triggered by Cython 3.0.0 release as of
-    # 18 July 2023. The problem is that pip uses latest Cython to compile pymssql and since we are using
-    # setuptools, there is no easy way to fix version of Cython used to compile packages.
-    #
-    # This triggers a problem with newer `pip` versions that have build isolation enabled by default because
-    # There is no (easy) way to pin build dependencies for dependent packages. If a package does not have
-    # limit on build dependencies, it will use the latest version of them to build that particular package.
-    #
-    # The workaround to the problem suggest in the last thread by Pradyun Gedam - pip maintainer - is to
-    # use PIP_CONSTRAINT environment variable and constraint the version of Cython used while installing
-    # the package. Which is precisely what we are doing here.
-    #
-    # Note that it does not work if we pass ``--constraint`` option to pip because it will not be passed to
-    # the package being build in isolation. The fact that the PIP_CONSTRAINT env variable works in the isolation
-    # is a bit of side-effect on how env variables work and that they are passed to subprocesses as pip
-    # launches a subprocess `pip` to build the package.
-    #
-    # This is a temporary solution until the issue is resolved in pymssql or Cython
-    # Issues/discussions that track it:
-    #
-    # * https://github.com/cython/cython/issues/5541
-    # * https://github.com/pymssql/pymssql/pull/827
-    # * https://discuss.python.org/t/no-way-to-pin-build-dependencies/29833
-    #
-    # TODO: Remove this workaround when the issue is resolved.
-    #       ALSO REMOVE THE TOP LINES ABOVE WITH common.sh IMPORT AS WELL AS COPYING common.sh ib
-    #       Dockerfile AND Dockerfile.ci (look for capital PYMSSQL - there are several places to remove)
-    if [[ "${1}" == "dev" ]]; then
-        common::install_pip_version
-        echo "Cython==0.29.36" >> /tmp/mssql-constraints.txt
-        PIP_CONSTRAINT=/tmp/mssql-constraints.txt pip install pymssql
-        rm /tmp/mssql-constraints.txt
-    fi
 }
 
 install_mssql_client "${@}"
@@ -1271,12 +1235,6 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-
-# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
-# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3.1
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
-COPY --from=scripts common.sh /scripts/docker/
 
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh dev && \

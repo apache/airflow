@@ -302,6 +302,10 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/glue_databrew.rst
     logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
     tags: [aws]
+  - integration-name: Amazon Verified Permissions
+    external-doc-url: https://aws.amazon.com/verified-permissions/
+    logo: /integration-logos/aws/Amazon-Verified-Permissions.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -563,6 +567,9 @@ hooks:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue_databrew
+  - integration-name: Amazon Verified Permissions
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.verified_permissions
 
 triggers:
   - integration-name: Amazon Web Services
@@ -746,7 +753,7 @@ additional-extras:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: s3fs
     dependencies:
-      - s3fs>=2023.9.2
+      - s3fs>=2023.10.0
   - name: python3-saml
     dependencies:
       - python3-saml>=1.16.0
@@ -915,6 +922,14 @@ config:
         type: boolean
         example: "True"
         default: "False"
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS
+          Identity Center and Amazon Verified Permissions.
+        version_added: 8.12.0
+        type: string
+        example: "aws_default"
+        default: "aws_default"
       saml_metadata_url:
         description: |
           SAML metadata XML file provided by AWS Identity Center.
@@ -922,6 +937,14 @@ config:
         version_added: 8.12.0
         type: string
         example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
+        default: ~
+      avp_policy_store_id:
+        description: |
+          Amazon Verified Permissions' policy store ID where all the policies defining user permissions
+          in Airflow are stored. Required.
+        version_added: 8.12.0
+        type: string
+        example: ~
         default: ~
 
 executors:

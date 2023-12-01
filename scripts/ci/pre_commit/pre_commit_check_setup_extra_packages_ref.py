@@ -39,12 +39,12 @@ sys.path.insert(0, os.fspath(AIRFLOW_SOURCES_DIR))
 
 os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
 
-from setup import (  # noqa # isort:skip
-    add_all_provider_packages,
-    EXTRAS_DEPRECATED_ALIASES,
+from setup import (
     EXTRAS_DEPENDENCIES,
-    PREINSTALLED_PROVIDERS,
+    EXTRAS_DEPRECATED_ALIASES,
     EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS,
+    PREINSTALLED_PROVIDERS,
+    add_all_provider_packages,
 )
 
 

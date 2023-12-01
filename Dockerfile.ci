@@ -307,8 +307,6 @@ COPY <<"EOF" /install_mssql.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -344,40 +342,6 @@ function install_mssql_client() {
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Workaround an issue with installing pymssql on ARM architecture triggered by Cython 3.0.0 release as of
-    # 18 July 2023. The problem is that pip uses latest Cython to compile pymssql and since we are using
-    # setuptools, there is no easy way to fix version of Cython used to compile packages.
-    #
-    # This triggers a problem with newer `pip` versions that have build isolation enabled by default because
-    # There is no (easy) way to pin build dependencies for dependent packages. If a package does not have
-    # limit on build dependencies, it will use the latest version of them to build that particular package.
-    #
-    # The workaround to the problem suggest in the last thread by Pradyun Gedam - pip maintainer - is to
-    # use PIP_CONSTRAINT environment variable and constraint the version of Cython used while installing
-    # the package. Which is precisely what we are doing here.
-    #
-    # Note that it does not work if we pass ``--constraint`` option to pip because it will not be passed to
-    # the package being build in isolation. The fact that the PIP_CONSTRAINT env variable works in the isolation
-    # is a bit of side-effect on how env variables work and that they are passed to subprocesses as pip
-    # launches a subprocess `pip` to build the package.
-    #
-    # This is a temporary solution until the issue is resolved in pymssql or Cython
-    # Issues/discussions that track it:
-    #
-    # * https://github.com/cython/cython/issues/5541
-    # * https://github.com/pymssql/pymssql/pull/827
-    # * https://discuss.python.org/t/no-way-to-pin-build-dependencies/29833
-    #
-    # TODO: Remove this workaround when the issue is resolved.
-    #       ALSO REMOVE THE TOP LINES ABOVE WITH common.sh IMPORT AS WELL AS COPYING common.sh ib
-    #       Dockerfile AND Dockerfile.ci (look for capital PYMSSQL - there are several places to remove)
-    if [[ "${1}" == "dev" ]]; then
-        common::install_pip_version
-        echo "Cython==0.29.36" >> /tmp/mssql-constraints.txt
-        PIP_CONSTRAINT=/tmp/mssql-constraints.txt pip install pymssql
-        rm /tmp/mssql-constraints.txt
-    fi
 }
 
 install_mssql_client "${@}"
@@ -1261,7 +1225,23 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Without grpcio-status limit, pip gets into very long backtracking
 # We should attempt to remove it in the future
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.7.0"
+# Aiobotocore is limited for eager upgrade because it either causes a long backtracking or
+# conflict when we do not limit it. It seems that `pip` has a hard time figuring the right
+# combination of dependencies for aiobotocore, botocore, boto3 and s3fs together
+#
+# The root cause of the problem is that botocore (1.33.2), boto3 (1.33.2), aibotocore (2.8.0) all
+# released on November 28/29 2023. They are all compatible with each other but they
+# do not have corresponding s3fs release that would be compatible with them. The
+# s3fs latest 2023.10.0 release has iobotocore ~=2.7.0 which effectively forbids it to use 2.8.0
+# (and friends) and it confuses `pip` enough that it's not able to figure out that latest s3fs has a working
+# combination of aibotocore,botocore,boto3,s3fs - and it either gets into conflict or backtracks for hours.
+#
+# We need to help `pip` a little bit by limiting
+# limiting aiobotocore (limiting s3fs to latest version causes conflict)
+# This limit should be removed once new version of s3fs is released that is compatible with
+# aiobotocore 2.8.0 (beyond 2023.10.0).
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.7.0,<2.8.0"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

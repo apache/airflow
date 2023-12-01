@@ -18,6 +18,8 @@
 # Configuration keys
 from __future__ import annotations
 
-CONF_SECTION_NAME = "aws_auth_manager"
-CONF_SAML_METADATA_URL_KEY = "saml_metadata_url"
 CONF_ENABLE_KEY = "enable"
+CONF_SECTION_NAME = "aws_auth_manager"
+CONF_CONN_ID_KEY = "conn_id"
+CONF_SAML_METADATA_URL_KEY = "saml_metadata_url"
+CONF_AVP_POLICY_STORE_ID_KEY = "avp_policy_store_id"

@@ -40,21 +40,20 @@ if typing.TYPE_CHECKING:
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
-default = "file"
-
 
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
-        store = kwargs.pop("store", None)
-        conn_id = kwargs.pop("conn_id", None)
-        if store:
-            self._store = store
-        elif parsed_url and parsed_url.scheme:
+    def __init__(
+        self,
+        parsed_url: SplitResult | None,
+        conn_id: str | None = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
-            self._store = attach(default, conn_id)
+            self._store = attach("file", conn_id)
 
     @property
     def _fs(self) -> AbstractFileSystem:
@@ -71,7 +70,7 @@ class ObjectStoragePath(CloudPath):
 
     __version__: typing.ClassVar[int] = 1
 
-    _default_accessor = _AirflowCloudAccessor
+    _default_accessor: type[_CloudAccessor] = _AirflowCloudAccessor
 
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
@@ -89,15 +88,18 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+    def __new__(
+        cls: type[PT],
+        *args: str | os.PathLike,
+        scheme: str | None = None,
+        **kwargs: typing.Any,
+    ) -> PT:
         args_list = list(args)
 
-        try:
-            other = args_list.pop(0)
-        except IndexError:
-            other = "."
+        if args_list:
+            other = args_list.pop(0) or "."
         else:
-            other = other or "."
+            other = "."
 
         if isinstance(other, PurePath):
             _cls: typing.Any = type(other)
@@ -123,20 +125,14 @@ class ObjectStoragePath(CloudPath):
 
         url = stringify_path(other)
         parsed_url: SplitResult = urlsplit(url)
-        protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
 
-        # allow override of protocol
-        protocol = kwargs.get("scheme", protocol)
+        if scheme:  # allow override of protocol
+            parsed_url = parsed_url._replace(scheme=scheme)
 
-        for key in ["scheme", "url"]:
-            val = kwargs.pop(key, None)
-            if val:
-                parsed_url = parsed_url._replace(**{key: val})
+        if not parsed_url.path:  # ensure path has root
+            parsed_url = parsed_url._replace(path="/")
 
-        if not parsed_url.path:
-            parsed_url = parsed_url._replace(path="/")  # ensure path has root
-
-        if not protocol:
+        if not parsed_url.scheme and not split_protocol(url)[0]:
             args_list.insert(0, url)
         else:
             args_list.insert(0, parsed_url.path)

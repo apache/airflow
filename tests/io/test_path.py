@@ -124,13 +124,13 @@ class TestFs:
             ),
         ],
     )
-    def test_standard_extended_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
+    def test_standard_extended_api(self, monkeypatch, fn, args, fn2, path, expected_args, expected_kwargs):
         _fs = mock.Mock()
         _fs._strip_protocol.return_value = "/"
         _fs.conn_id = "fake"
 
-        store = attach(protocol="mock", fs=_fs)
-        o = ObjectStoragePath(path, store=store)
+        store = attach(protocol="file", conn_id="fake", fs=_fs)
+        o = ObjectStoragePath(path, conn_id="fake")
 
         getattr(o, fn)(**args)
         getattr(store.fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)

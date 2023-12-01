@@ -74,7 +74,7 @@ if __name__ == "__main__":
     if HOST_OS == "":
         print("ERROR: HOST_OS environment variable is not set")
         sys.exit(1)
-    if HOST_OS == "Linux":
+    if HOST_OS != "linux":
         print("Since host OS is not Linux, we don't need to fix ownership.")
         sys.exit(0)
     if DOCKER_IS_ROOTLESS:
