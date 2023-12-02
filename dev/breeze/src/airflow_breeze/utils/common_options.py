@@ -560,7 +560,8 @@ option_skip_cleanup = click.option(
 
 option_directory = click.option(
     "--directory",
-    type=str,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    required=True,
     help="Directory to clean the provider artifacts from.",
 )
 
