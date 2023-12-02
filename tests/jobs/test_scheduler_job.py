@@ -1835,7 +1835,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
@@ -1879,7 +1879,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
@@ -1961,7 +1961,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=bool(state == State.FAILED),
+            dagrun_state=state,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
@@ -2045,7 +2045,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",

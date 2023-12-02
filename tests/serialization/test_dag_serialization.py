@@ -1175,6 +1175,7 @@ class TestStringifiedDAGs:
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",
+            "has_on_sla_miss_callback",
             "dag_dependencies",
             "params",
         }
@@ -1920,6 +1921,33 @@ class TestStringifiedDAGs:
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @pytest.mark.parametrize(
+        "passed_sla_miss_callback, expected_value",
+        [
+            ({"on_sla_miss_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ],
+    )
+    def test_dag_on_sla_miss_callback_roundtrip(self, passed_sla_miss_callback, expected_value):
+        """
+        Test that when on_sla_miss_callback is passed to the DAG, has_on_sla_miss_callback is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_on_sla_miss_callback is set to True.
+        When the callback is not set, has_on_sla_miss_callback should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        dag = DAG(dag_id="test_dag_on_failure_callback_roundtrip", **passed_sla_miss_callback)
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if expected_value:
+            assert "has_on_sla_miss_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_sla_miss_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_sla_miss_callback is expected_value
 
     @pytest.mark.parametrize(
         "object_to_serialized, expected_output",
