@@ -944,6 +944,14 @@ metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_use_fuzzy_match:
+      description: |
+        If true, metrics_allow_list and metrics_block_list will match anywhere in the metric
+        name and not just start of the name.
+      version_added: 2.7.4
+      type: boolean
+      example: ~
+      default: "False"
     metrics_allow_list:
       description: |
         If you want to avoid emitting all the available metrics, you can configure an
