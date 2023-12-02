@@ -49,4 +49,4 @@ def upgrade():
 def downgrade():
     """Unapply add dag sla to dag_run"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.drop_column("sla_missed", mssql_drop_default=True)
+        batch_op.drop_column("sla_missed")
