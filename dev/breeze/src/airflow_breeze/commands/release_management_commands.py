@@ -1251,8 +1251,10 @@ def clean_old_provider_artifacts(
                 )
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
-                get_console().print(f"""[warning]Removing {versioned_file.base + versioned_file.version +
-                versioned_file.suffix} as they are older than remaining file""")
+                get_console().print(
+                    f"""[warning]Removing {versioned_file.base + versioned_file.version +
+                versioned_file.suffix} as they are older than remaining file"""
+                )
                 command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
                 run_command(command, check=False)
 
