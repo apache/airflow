@@ -26,7 +26,7 @@ Create Date: 2023-10-29 02:01:34.774596
 
 import sqlalchemy as sa
 from alembic import op
-
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = "624ecf3b6a5e"
@@ -37,9 +37,18 @@ airflow_version = "2.8.0"
 
 
 def upgrade():
+    json_type = sa.JSON
+    conn = op.get_bind()
+    if conn.dialect.name != "postgresql":
+        # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
+        # versions, check for the function existing.
+        try:
+            conn.execute(text("SELECT JSON_VALID(1)")).fetchone()
+        except (sa.exc.OperationalError, sa.exc.ProgrammingError):
+            json_type = sa.Text
     """Apply add priority_weight_strategy to task_instance"""
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("priority_weight_strategy", sa.String(length=1000)))
+        batch_op.add_column(sa.Column("priority_weight_strategy", json_type()))
 
 
 def downgrade():

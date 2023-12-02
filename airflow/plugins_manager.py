@@ -30,6 +30,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow import settings
+from airflow.task.priority_strategy import (
+    AbsolutePriorityWeightStrategy,
+    DownstreamPriorityWeightStrategy,
+    UpstreamPriorityWeightStrategy,
+)
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
@@ -43,6 +48,7 @@ if TYPE_CHECKING:
 
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
@@ -68,6 +74,7 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
+priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.
 
@@ -89,6 +96,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "ti_deps",
     "timetables",
     "listeners",
+    "priority_weight_strategies",
 }
 
 
@@ -168,6 +176,9 @@ class AirflowPlugin:
     timetables: list[type[Timetable]] = []
 
     listeners: list[ModuleType | object] = []
+
+    # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
+    priority_weight_strategies: list[type[PriorityWeightStrategy]] = []
 
     @classmethod
     def validate(cls):
@@ -556,7 +567,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
                     info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
-                elif attr in ("macros", "timetables", "hooks", "executors"):
+                elif attr in ("macros", "timetables", "hooks", "executors", "priority_weight_strategies"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners may be modules or class instances
@@ -577,3 +588,34 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                     info[attr] = getattr(plugin, attr)
             plugins_info.append(info)
     return plugins_info
+
+
+def initialize_priority_weight_strategy_plugins():
+    """Collect priority weight strategy classes registered by plugins."""
+    global priority_weight_strategy_classes
+
+    if priority_weight_strategy_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize extra priority weight strategy plugins")
+
+    airflow_backport_weight_strategy_classes = {
+        "absolute": AbsolutePriorityWeightStrategy,
+        "downstream": DownstreamPriorityWeightStrategy,
+        "upstream": UpstreamPriorityWeightStrategy,
+    }
+
+    plugins_priority_weight_strategy_classes = {
+        qualname(priority_weight_strategy_class): priority_weight_strategy_class
+        for plugin in plugins
+        for priority_weight_strategy_class in plugin.priority_weight_strategies
+    }
+    priority_weight_strategy_classes = {
+        **airflow_backport_weight_strategy_classes,
+        **plugins_priority_weight_strategy_classes,
+    }

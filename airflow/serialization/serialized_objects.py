@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
     from airflow.serialization.json_schema import Validator
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
 
@@ -184,6 +185,18 @@ def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
         return None
 
 
+def _get_registered_priority_weight_strategy(importable_string: str) -> type[PriorityWeightStrategy] | None:
+    from airflow import plugins_manager
+
+    if importable_string.startswith("airflow.task.priority_strategy."):
+        return import_string(importable_string)
+    plugins_manager.initialize_priority_weight_strategy_plugins()
+    if plugins_manager.priority_weight_strategy_classes:
+        return plugins_manager.priority_weight_strategy_classes.get(importable_string)
+    else:
+        return None
+
+
 class _TimetableNotRegistered(ValueError):
     def __init__(self, type_string: str) -> None:
         self.type_string = type_string
@@ -191,6 +204,18 @@ class _TimetableNotRegistered(ValueError):
     def __str__(self) -> str:
         return (
             f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+class _PriorityWeightStrategyNotRegistered(AirflowException):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Priority weight strategy class {self.type_string!r} is not registered or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
@@ -222,6 +247,34 @@ def _decode_timetable(var: dict[str, Any]) -> Timetable:
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
     return timetable_class.deserialize(var[Encoding.VAR])
+
+
+def _encode_priority_weight_strategy(var: PriorityWeightStrategy) -> dict[str, Any]:
+    """
+    Encode a priority weight strategy instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+    """
+    priority_weight_strategy_class = type(var)
+    importable_string = qualname(priority_weight_strategy_class)
+    if _get_registered_priority_weight_strategy(importable_string) is None:
+        raise _PriorityWeightStrategyNotRegistered(importable_string)
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
+
+
+def _decode_priority_weight_strategy(var: dict[str, Any]) -> PriorityWeightStrategy:
+    """
+    Decode a previously serialized timetable.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+    """
+    importable_string = var[Encoding.TYPE]
+    priority_weight_strategy_class = _get_registered_priority_weight_strategy(importable_string)
+    if priority_weight_strategy_class is None:
+        raise _PriorityWeightStrategyNotRegistered(importable_string)
+    return priority_weight_strategy_class.deserialize(var[Encoding.VAR])
 
 
 class _XComRef(NamedTuple):
@@ -401,6 +454,8 @@ class BaseSerialization:
                 serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
                 serialized_object[key] = _encode_timetable(value)
+            elif key == "priority_weight_strategy" and value is not None:
+                serialized_object[key] = _encode_priority_weight_strategy(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -1368,6 +1423,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 pass
             elif k == "timetable":
                 v = _decode_timetable(v)
+            elif k == "priority_weight_strategy":
+                v = _decode_priority_weight_strategy(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":

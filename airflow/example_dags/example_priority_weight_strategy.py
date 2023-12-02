@@ -25,7 +25,6 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
-from airflow.task.priority_strategy import PriorityWeightStrategy
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -34,13 +33,6 @@ if TYPE_CHECKING:
 def success_on_third_attempt(ti: TaskInstance, **context):
     if ti.try_number < 3:
         raise Exception("Not yet")
-
-
-class DecreasingPriorityStrategy(PriorityWeightStrategy):
-    """A priority weight strategy that decreases the priority weight with each attempt."""
-
-    def get_weight(self, ti: TaskInstance):
-        return max(3 - ti._try_number + 1, 1)
 
 
 with DAG(
@@ -63,7 +55,5 @@ with DAG(
     decreasing_weight_task = PythonOperator(
         task_id="decreasing_weight_task",
         python_callable=success_on_third_attempt,
-        priority_weight_strategy=(
-            "airflow.example_dags.example_priority_weight_strategy.DecreasingPriorityStrategy"
-        ),
+        priority_weight_strategy=("decreasing_priority_weight_strategy.DecreasingPriorityStrategy"),
     )

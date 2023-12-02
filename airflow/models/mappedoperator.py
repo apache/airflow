@@ -49,7 +49,6 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
@@ -314,6 +314,8 @@ class MappedOperator(AbstractOperator):
 
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
+        from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
+        from airflow.utils.module_loading import qualname
 
         if self.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
@@ -332,7 +334,13 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
         # validate the priority weight strategy
-        get_priority_weight_strategy(self.priority_weight_strategy)
+        priority_weight_strategy_cls = (
+            self.priority_weight_strategy
+            if isinstance(self.priority_weight_strategy, str)
+            else qualname(self.priority_weight_strategy)
+        )
+        if _get_registered_priority_weight_strategy(priority_weight_strategy_cls) is None:
+            raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_cls}")
 
     @classmethod
     @cache
@@ -479,7 +487,7 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("weight_rule") or DEFAULT_WEIGHT_RULE
 
     @property
-    def priority_weight_strategy(self) -> str:  # type: ignore[override]
+    def priority_weight_strategy(self) -> str | PriorityWeightStrategy:  # type: ignore[override]
         return (
             self.weight_rule  # for backward compatibility
             or self.partial_kwargs.get("priority_weight_strategy")

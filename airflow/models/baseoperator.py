@@ -77,7 +77,6 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -796,6 +795,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **kwargs,
     ):
         from airflow.models.dag import DagContext
+        from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
+        from airflow.utils.module_loading import qualname
         from airflow.utils.task_group import TaskGroupContext
 
         self.__init_kwargs = {}
@@ -921,7 +922,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.priority_weight_strategy = weight_rule
         # validate the priority weight strategy
-        get_priority_weight_strategy(self.priority_weight_strategy)
+        # validate the priority weight strategy
+        priority_weight_strategy_cls = (
+            self.priority_weight_strategy
+            if isinstance(self.priority_weight_strategy, str)
+            else qualname(self.priority_weight_strategy)
+        )
+        if _get_registered_priority_weight_strategy(priority_weight_strategy_cls) is None:
+            raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_cls}")
+
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0

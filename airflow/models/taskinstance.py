@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import hashlib
 import itertools
+import json
 import logging
 import math
 import operator
@@ -37,6 +38,7 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+import sqlalchemy_jsonfield
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -98,7 +100,6 @@ from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -148,6 +149,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -883,9 +885,7 @@ def _refresh_from_task(
     task_instance.pool_slots = task.pool_slots
     with contextlib.suppress(Exception):
         # This method is called from the different places, and sometimes the TI is not fully initialized
-        task_instance.priority_weight = get_priority_weight_strategy(
-            task.priority_weight_strategy
-        ).get_weight(
+        task_instance.priority_weight = task.priority_weight_strategy.get_weight(
             task_instance  # type: ignore
         )
     task_instance.run_as_user = task.run_as_user
@@ -1222,7 +1222,7 @@ class TaskInstance(Base, LoggingMixin):
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
-    priority_weight_strategy = Column(String(1000))
+    priority_weight_strategy = Column(sqlalchemy_jsonfield.JSONField(json=json))
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
@@ -1391,7 +1391,9 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta private:
         """
-        priority_weight = get_priority_weight_strategy(task.priority_weight_strategy).get_weight(
+        from airflow.serialization.serialized_objects import _encode_priority_weight_strategy
+
+        priority_weight = task.parsed_priority_weight_strategy.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index)
         )
         return {
@@ -1405,7 +1407,9 @@ class TaskInstance(Base, LoggingMixin):
             "pool": task.pool,
             "pool_slots": task.pool_slots,
             "priority_weight": priority_weight,
-            "priority_weight_strategy": task.priority_weight_strategy,
+            "priority_weight_strategy": _encode_priority_weight_strategy(
+                task.parsed_priority_weight_strategy
+            ),
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
             "executor_config": task.executor_config,
@@ -3462,7 +3466,7 @@ class SimpleTaskInstance:
         key: TaskInstanceKey,
         run_as_user: str | None = None,
         priority_weight: int | None = None,
-        priority_weight_strategy: str | None = None,
+        priority_weight_strategy: PriorityWeightStrategy | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -3502,6 +3506,8 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> SimpleTaskInstance:
+        from airflow.serialization.serialized_objects import _decode_priority_weight_strategy
+
         return cls(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -3517,7 +3523,7 @@ class SimpleTaskInstance:
             key=ti.key,
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
-            priority_weight_strategy=ti.priority_weight_strategy,
+            priority_weight_strategy=_decode_priority_weight_strategy(ti.priority_weight_strategy),
         )
 
     @classmethod

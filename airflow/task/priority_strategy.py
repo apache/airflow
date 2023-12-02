@@ -19,10 +19,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-from airflow.exceptions import AirflowException
-from airflow.utils.module_loading import import_string
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -35,6 +32,26 @@ class PriorityWeightStrategy(ABC):
     def get_weight(self, ti: TaskInstance):
         """Get the priority weight of a task."""
         ...
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> PriorityWeightStrategy:
+        """Deserialize a priority weight strategy from data.
+
+        This is called when a serialized DAG is deserialized. ``data`` will be whatever
+        was returned by ``serialize`` during DAG serialization. The default
+        implementation constructs the priority weight strategy without any arguments.
+        """
+        return cls()
+
+    def serialize(self) -> dict[str, Any]:
+        """Serialize the priority weight strategy for JSON encoding.
+
+        This is called during DAG serialization to store priority weight strategy information
+        in the database. This should return a JSON-serializable dict that will be fed into
+        ``deserialize`` when the DAG is deserialized. The default implementation returns
+        an empty dict.
+        """
+        return {}
 
 
 class AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
@@ -74,18 +91,3 @@ _airflow_priority_weight_strategies = {
     "downstream": DownstreamPriorityWeightStrategy(),
     "upstream": UpstreamPriorityWeightStrategy(),
 }
-
-
-def get_priority_weight_strategy(strategy_name: str) -> PriorityWeightStrategy:
-    """Get a priority weight strategy by name or class path."""
-    if strategy_name not in _airflow_priority_weight_strategies:
-        try:
-            priority_strategy_class = import_string(strategy_name)
-            if not issubclass(priority_strategy_class, PriorityWeightStrategy):
-                raise AirflowException(
-                    f"Priority strategy {priority_strategy_class} is not a subclass of PriorityWeightStrategy"
-                )
-            _airflow_priority_weight_strategies[strategy_name] = priority_strategy_class()
-        except ImportError:
-            raise AirflowException(f"Unknown priority strategy {strategy_name}")
-    return _airflow_priority_weight_strategies[strategy_name]
