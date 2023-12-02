@@ -53,7 +53,7 @@ from airflow.utils.file import iter_airflow_imports, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     import multiprocessing
@@ -64,7 +64,6 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.models.operator import Operator
-    from airflow.utils.state import DagRunState
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
