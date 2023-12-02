@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import ast
-import hashlib
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -68,18 +66,6 @@ def insert_documentation(file_path: Path, content: list[str], header: str, foote
             result.append(line)
     src = "".join(result)
     file_path.write_text(src)
-
-
-def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = sorted(directory.rglob("*"))
-    if skip_path_regexp:
-        matcher = re.compile(skip_path_regexp)
-        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
-    sha = hashlib.sha256()
-    for file in files:
-        if file.is_file() and not file.name.startswith("."):
-            sha.update(file.read_bytes())
-    return sha.hexdigest()
 
 
 def initialize_breeze_precommit(name: str, file: str):

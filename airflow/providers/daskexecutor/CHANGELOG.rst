@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+* Mark daskexecutor provider as removed according to `consensus on the dev@airflow.apache.org <https://lists.apache.org/thread/fxv44cqqljrrhll3fdpdgc9h9fz5ghcy>`_
+
+
 1.1.0
 .....
 

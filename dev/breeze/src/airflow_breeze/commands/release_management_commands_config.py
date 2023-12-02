@@ -134,6 +134,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--python",
                 "--airflow-constraints-mode",
+                "--chicken-egg-providers",
                 "--debug",
                 "--github-repository",
             ],
@@ -160,6 +161,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-platform",
                 "--skip-latest",
                 "--commit-sha",
+                "--chicken-egg-providers",
             ],
         }
     ],

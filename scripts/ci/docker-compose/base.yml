@@ -26,11 +26,6 @@ services:
     env_file:
       - _generated_docker_compose.env
     volumes:
-      # Pass docker to inside the container so that Kind and Moto tests can use it.
-      # NOTE! Even if we are using "desktop-linux" context where "/var/run/docker.sock" is not used,
-      # Docker engine works fine because "/var/run/docker.sock" is mounted at the VM and there
-      # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
-      - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     cap_add:
       - SYS_PTRACE

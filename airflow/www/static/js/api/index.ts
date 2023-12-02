@@ -49,6 +49,13 @@ import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
 
+axios.interceptors.request.use((config) => {
+  config.paramsSerializer = {
+    indexes: null,
+  };
+  return config;
+});
+
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
 );
