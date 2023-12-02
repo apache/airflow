@@ -93,9 +93,8 @@ const tabToIndex = (tab?: string) => {
 const indexToTab = (
   index: number,
   taskId: string | null,
-  showLogs: boolean,
-  showMappedTasks: boolean,
-  showXcom: boolean
+  isTaskInstance: boolean,
+  isMappedTaskSummary: boolean
 ) => {
   switch (index) {
     case 1:
@@ -105,11 +104,11 @@ const indexToTab = (
     case 3:
       return "code";
     case 4:
-      if (showMappedTasks) return "mapped_tasks";
-      if (showLogs) return "logs";
+      if (isMappedTaskSummary) return "mapped_tasks";
+      if (isTaskInstance) return "logs";
       return undefined;
     case 5:
-      if (showXcom) return "xcom";
+      if (isTaskInstance) return "xcom";
       return undefined;
     case 0:
     default:
@@ -132,7 +131,6 @@ const Details = ({
   } = useSelection();
   const isDag = !runId && !taskId;
   const isDagRun = runId && !taskId;
-  const isTaskInstance = taskId && runId;
 
   const {
     data: { dagRuns, groups },
@@ -140,16 +138,21 @@ const Details = ({
   const group = getTask({ taskId, task: groups });
   const children = group?.children;
   const isMapped = group?.isMapped;
-
-  const isMappedTaskSummary = isMapped && mapIndex === undefined && taskId;
   const isGroup = !!children;
-  const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
-  const isIndividualTaskInstance = !!(
-    isTaskInstance && !isGroupOrMappedTaskSummary
+
+  const isMappedTaskSummary = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    isMapped &&
+    mapIndex === undefined
   );
-  const showLogs = isIndividualTaskInstance;
-  const showXcom = isIndividualTaskInstance;
-  const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
+  const isTaskInstance = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    !isMappedTaskSummary
+  );
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -161,15 +164,14 @@ const Details = ({
       const newTab = indexToTab(
         index,
         taskId,
-        showLogs,
-        showMappedTasks,
-        showXcom
+        isTaskInstance,
+        isMappedTaskSummary
       );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks, showXcom, taskId]
+    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary, taskId]
   );
 
   useEffect(() => {
@@ -270,7 +272,7 @@ const Details = ({
               Code
             </Text>
           </Tab>
-          {showLogs && (
+          {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
               <Text as="strong" ml={1}>
@@ -278,7 +280,7 @@ const Details = ({
               </Text>
             </Tab>
           )}
-          {showMappedTasks && (
+          {isMappedTaskSummary && (
             <Tab>
               <BiBracket size={16} />
               <Text as="strong" ml={1}>
@@ -286,7 +288,7 @@ const Details = ({
               </Text>
             </Tab>
           )}
-          {showXcom && (
+          {isTaskInstance && (
             <Tab>
               <MdSyncAlt size={16} />
               <Text as="strong" ml={1}>
@@ -330,7 +332,7 @@ const Details = ({
           <TabPanel height="100%">
             <DagCode />
           </TabPanel>
-          {showLogs && run && (
+          {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
               height="100%"
@@ -350,7 +352,7 @@ const Details = ({
               />
             </TabPanel>
           )}
-          {showMappedTasks && (
+          {isMappedTaskSummary && (
             <TabPanel height="100%">
               <MappedInstances
                 dagId={dagId}
@@ -362,7 +364,7 @@ const Details = ({
               />
             </TabPanel>
           )}
-          {showXcom && run && (
+          {isTaskInstance && (
             <TabPanel height="100%">
               <XcomCollection
                 dagId={dagId}
