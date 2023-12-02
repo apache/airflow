@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
+    from airflow.utils.state import DagRunState
 
 
 class CallbackRequest:
@@ -107,7 +108,10 @@ class DagCallbackRequest(CallbackRequest):
     :param dag_id: DAG ID
     :param run_id: Run ID for the DagRun
     :param processor_subdir: Directory used by Dag Processor when parsed the dag.
-    :param is_failure_callback: Flag to determine whether it is a Failure Callback or Success Callback
+    :param dagrun_state: DagRunState of the DagRun corresponding to this callback
+    :param is_failure_callback: Flag to determine whether it is a Failure Callback or Success Callback.
+                                This flag is deprecated, and is used only if dagrun_state is None
+    :param sla_miss: Flag that indicates if the sla was missed for this DagRun
     :param msg: Additional Message that can be used for logging
     """
 
@@ -117,13 +121,17 @@ class DagCallbackRequest(CallbackRequest):
         dag_id: str,
         run_id: str,
         processor_subdir: str | None,
+        dagrun_state: DagRunState | None = None,
         is_failure_callback: bool | None = True,
+        sla_miss: bool = False,
         msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
         self.run_id = run_id
         self.is_failure_callback = is_failure_callback
+        self.dagrun_state = dagrun_state
+        self.sla_miss = sla_miss
 
 
 class SlaCallbackRequest(CallbackRequest):

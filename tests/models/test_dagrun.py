@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from datetime import timedelta
 from functools import reduce
 from typing import TYPE_CHECKING, Mapping
 from unittest import mock
@@ -25,6 +26,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
+import time_machine
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -480,7 +482,7 @@ class TestDagRun:
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
-            is_failure_callback=False,
+            dagrun_state=DagRunState.SUCCESS,
             processor_subdir="/tmp/test",
             msg="success",
         )
@@ -518,9 +520,52 @@ class TestDagRun:
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             processor_subdir="/tmp/test",
             msg="task_failure",
+        )
+
+    def test_dagrun_update_state_with_handle_callback_sla_miss(self, session):
+        def on_sla_miss_callable(context):
+            assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_sla_miss"
+
+        dag = DAG(
+            dag_id="test_dagrun_update_state_with_handle_callback_sla_miss",
+            start_date=datetime.datetime(2017, 1, 1),
+            on_sla_miss_callback=on_sla_miss_callable,
+            sla=timedelta(seconds=0),
+        )
+        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+
+        dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_state_running1", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_state_succeeded1": TaskInstanceState.SUCCESS,
+            "test_state_running1": TaskInstanceState.RUNNING,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        traveller = time_machine.travel(dag.start_date + datetime.timedelta(minutes=1))
+        traveller.start()
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+
+        _, callback = dag_run.update_state(execute_callbacks=False)
+
+        assert DagRunState.RUNNING == dag_run.state
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+
+        assert callback == DagCallbackRequest(
+            full_filepath=dag_run.dag.fileloc,
+            dag_id="test_dagrun_update_state_with_handle_callback_sla_miss",
+            run_id=dag_run.run_id,
+            dagrun_state=DagRunState.RUNNING,
+            sla_miss=True,
+            processor_subdir="/tmp/test",
+            msg=None,
         )
 
     def test_dagrun_set_state_end_date(self, session):

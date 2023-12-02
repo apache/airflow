@@ -1338,6 +1338,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 serialized_dag["has_on_success_callback"] = True
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
+            if dag.has_on_sla_miss_callback:
+                serialized_dag["has_on_sla_miss_callback"] = True
             return serialized_dag
         except SerializationError:
             raise
@@ -1360,6 +1362,8 @@ class SerializedDAG(DAG, BaseSerialization):
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":
+                v = cls._deserialize_timedelta(v)
+            elif k == "sla":
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
@@ -1406,6 +1410,8 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.has_on_success_callback = True
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
+        if "has_on_sla_miss_callback" in encoded_dag:
+            dag.has_on_sla_miss_callback = True
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
