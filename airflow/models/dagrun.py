@@ -148,7 +148,7 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False)
-    sla_missed = Column(Boolean, default=False, server_default=false(), nullable=False)
+    sla_missed = Column(Boolean, default=False, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:

@@ -38,7 +38,12 @@ airflow_version = '2.8.0'
 
 def upgrade():
     """Apply Add has_import_errors column to dag_run"""
-    op.add_column("dag_run", sa.Column("sla_missed", sa.Boolean(), server_default="0"))
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.add_column(sa.Column("sla_missed", sa.Boolean))
+    # Different databases support different literal for FALSE. This is fine.
+    op.execute(sa.text(f"UPDATE dag_run SET sla_missed = {sa.false().compile(op.get_bind())}"))
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.alter_column("sla_missed", existing_type=sa.Boolean, nullable=False)
 
 
 def downgrade():
