@@ -20,12 +20,6 @@
 Changelog
 ---------
 
-.. note::
-  The minimum Airflow version to be used with this provider depended on Python version
-  apache-airflow>=2.7.1;python<3.9
-  apache-airflow>=2.6.0;python>=3.9
-
-
 1.0.0
 .....
 
