@@ -36,6 +36,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--docker-cache",
                 "--version-suffix-for-pypi",
                 "--build-progress",
+                "--docker-host",
             ],
         },
         {

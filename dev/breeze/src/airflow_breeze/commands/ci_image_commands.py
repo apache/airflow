@@ -52,6 +52,7 @@ from airflow_breeze.utils.common_options import (
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
+    option_docker_host,
     option_dry_run,
     option_eager_upgrade_additional_requirements,
     option_github_repository,
@@ -85,6 +86,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     check_remote_ghcr_io_commands,
+    get_docker_build_env,
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
@@ -253,6 +255,7 @@ def get_exitcode(status: int) -> int:
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_docker_cache
+@option_docker_host
 @option_dry_run
 @option_eager_upgrade_additional_requirements
 @option_github_repository
@@ -293,6 +296,7 @@ def build(
     dev_apt_command: str | None,
     dev_apt_deps: str | None,
     docker_cache: str,
+    docker_host: str | None,
     eager_upgrade_additional_requirements: str | None,
     github_repository: str,
     github_token: str | None,
@@ -363,6 +367,7 @@ def build(
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         docker_cache=docker_cache,
+        docker_host=docker_host,
         eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         force_build=True,
         github_repository=github_repository,
@@ -724,8 +729,7 @@ def run_build_ci_image(
             output=output,
         )
     else:
-        env = os.environ.copy()
-        env["DOCKER_BUILDKIT"] = "1"
+        env = get_docker_build_env(ci_image_params)
         subprocess.run(
             [
                 sys.executable,
@@ -797,6 +801,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     )
     ci_image_params = BuildCiParams(
         builder=command_params.builder,
+        docker_host=command_params.docker_host,
         force_build=command_params.force_build,
         github_repository=command_params.github_repository,
         image_tag=command_params.image_tag,
