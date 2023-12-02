@@ -1028,11 +1028,11 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
-breeze release-management clean-old-provider-artifacts --directory .
+# Check which old packages will be removed using dry run
+breeze release-management clean-old-provider-artifacts --directory . --dry-run
 
 # Remove those packages
-breeze release-management clean-old-provider-artifacts --directory . --execute
+breeze release-management clean-old-provider-artifacts --directory .
 
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist

@@ -31,7 +31,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, Any, Generator, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -78,7 +78,6 @@ from airflow_breeze.utils.common_options import (
     option_debug_resources,
     option_directory,
     option_dry_run,
-    option_execute,
     option_github_repository,
     option_historical_python_version,
     option_image_tag_for_running,
@@ -151,6 +150,17 @@ option_debug_release_management = click.option(
     help="Drop user in shell instead of running the command. Useful for debugging.",
     envvar="DEBUG",
 )
+
+if TYPE_CHECKING:
+    from packaging.version import Version
+
+
+class VersionedFile(NamedTuple):
+    base: str
+    version: str
+    suffix: str
+    type: str
+    comparable_version: Version
 
 
 def run_docker_command_with_debug(
@@ -1205,12 +1215,10 @@ def add_back_references(
     help="Cleans the old provider artifacts",
 )
 @option_directory
-@option_execute
 @option_verbose
 @option_dry_run
 def clean_old_provider_artifacts(
     directory: str,
-    execute: bool,
 ):
     """Cleans up the old airflow providers artifacts in order to maintain
     only one provider version in the release SVN folder"""
@@ -1228,7 +1236,7 @@ def clean_old_provider_artifacts(
         package_types_dicts: dict[str, list[VersionedFile]] = defaultdict(list)
         os.chdir(directory)
 
-        for file in glob.glob("*" + suffix):
+        for file in glob.glob(f"*{suffix}"):
             versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
@@ -1245,10 +1253,7 @@ def clean_old_provider_artifacts(
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
                 command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
-                if not execute:
-                    get_console().print(f"[info]Running command: {command} in dry run[\]")
-                else:
-                    subprocess.run(command, check=True)
+                subprocess.run(command, check=True)
 
 
 @release_management.command(
@@ -1871,16 +1876,6 @@ def update_constraints(
             if confirm_modifications(constraints_repo):
                 commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
-
-
-class VersionedFile(NamedTuple):
-    from packaging.version import Version
-
-    base: str
-    version: str
-    suffix: str
-    type: str
-    comparable_version: Version
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:

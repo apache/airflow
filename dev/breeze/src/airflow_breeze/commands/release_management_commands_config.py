@@ -205,7 +205,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management clean-old-provider-artifacts": [
         {
             "name": "Cleans the old provider artifacts",
-            "options": ["--directory", "--execute"],
+            "options": ["--directory"],
         }
     ],
     "breeze release-management generate-providers-metadata": [
