@@ -113,7 +113,7 @@ def test_parent_skip_branch(session, dag_maker):
     """
     A simple DAG with a BranchPythonOperator that does not follow op2. NotPreviouslySkippedDep is not met.
     """
-    start_date = pendulum.datetime(2020, 1, 1)
+    start_date = pendulum.datetime(2017, 1, 1)
     with dag_maker(
         "test_parent_skip_branch_dag",
         schedule=None,
