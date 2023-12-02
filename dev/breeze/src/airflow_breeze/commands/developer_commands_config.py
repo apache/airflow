@@ -45,6 +45,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
@@ -87,6 +88,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
@@ -195,6 +197,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
