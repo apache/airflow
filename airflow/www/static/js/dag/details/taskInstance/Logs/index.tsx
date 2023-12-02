@@ -222,6 +222,7 @@ const Logs = ({
                 {showDropdown && (
                   <Box width="100%" mr={2}>
                     <Select
+                      size="sm"
                       placeholder="Select log attempt"
                       onChange={(e) => {
                         setSelectedTryNumber(Number(e.target.value));
