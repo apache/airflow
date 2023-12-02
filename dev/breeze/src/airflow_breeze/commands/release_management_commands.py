@@ -22,7 +22,6 @@ import os
 import re
 import shlex
 import shutil
-import subprocess
 import sys
 import textwrap
 import time
@@ -1253,7 +1252,7 @@ def clean_old_provider_artifacts(
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
                 command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
-                subprocess.run(command, check=True)
+                run_command(command, check=False)
 
 
 @release_management.command(
