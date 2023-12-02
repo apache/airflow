@@ -64,7 +64,6 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.models.operator import Operator
-    from airflow.utils.state import DagRunState
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
