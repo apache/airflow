@@ -1879,6 +1879,8 @@ def update_constraints(
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    from packaging.version import Version
+
     no_suffix_file = file_name[: -len(suffix)]
     no_version_file, version = no_suffix_file.rsplit("-", 1)
     no_version_file = no_version_file.replace("_", "-")
