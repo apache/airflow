@@ -218,7 +218,7 @@ class TestSerDe:
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "airflow[.].*",
+            ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -238,7 +238,20 @@ class TestSerDe:
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_replace(self):
         assert _match("tests.airflow.deep")
+        assert _match("testsff") is False
         assert _match("testsfault") is False
+        
+        
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "tests.airflow*",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_replace_2(self):
+        assert _match("tests.airflow.deep")
+        assert _match("tests[.]airflow") is False
 
     def test_incompatible_version(self):
         data = dict(

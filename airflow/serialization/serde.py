@@ -360,7 +360,7 @@ def _register():
 @functools.lru_cache(maxsize=None)
 def _get_patterns() -> list[Pattern]:
     patterns = conf.get("core", "allowed_deserialization_classes").split()
-    return [re2.compile(re2.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
+    return [re2.compile(re2.sub(r"(\w)\.?\*", r"\1\.", p)) for p in patterns]
 
 
 _register()
