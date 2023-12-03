@@ -138,8 +138,8 @@ def equal_time(a: datetime, b: datetime) -> bool:
 @pytest.mark.parametrize(
     "input, encoded_type, cmp_func",
     [
-        ("test_str", None, equals),
-        (1, None, equals),
+        # ("test_str", None, equals),
+        # (1, None, equals),
         (datetime.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),

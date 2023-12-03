@@ -101,6 +101,7 @@ class TestPluginsCommand:
                     },
                 ],
                 "ti_deps": ["<TIDep(CustomTestTriggerRule)>"],
+                "priority_weight_strategies": ["tests.plugins.test_plugin.CustomPriorityWeightStrategy"],
             }
         ]
         get_listener_manager().clear()

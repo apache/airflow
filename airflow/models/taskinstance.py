@@ -3523,7 +3523,11 @@ class SimpleTaskInstance:
             key=ti.key,
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
-            priority_weight_strategy=_decode_priority_weight_strategy(ti.priority_weight_strategy),
+            priority_weight_strategy=(
+                _decode_priority_weight_strategy(ti.priority_weight_strategy)
+                if ti.priority_weight_strategy is not None
+                else None
+            ),
         )
 
     @classmethod
