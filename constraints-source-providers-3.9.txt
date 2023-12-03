@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-01T21:40:58Z
+# This constraints file was automatically generated on 2023-12-03T01:31:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -323,7 +323,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.1.0
-moto==4.2.10
+moto==4.2.11
 mpmath==1.3.0
 msal-extensions==1.0.0
 msal==1.25.0
@@ -386,9 +386,9 @@ pendulum==2.1.2
 pexpect==4.9.0
 pgvector==0.2.4
 pinecone-client==2.2.4
-pinotdb==5.1.1
+pinotdb==5.1.2
 pipdeptree==2.13.1
-pipx==1.2.1
+pipx==1.3.1
 pkginfo==1.9.6
 platformdirs==3.11.0
 pluggy==1.3.0
@@ -480,7 +480,7 @@ restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
-rich-click==1.7.1
+rich-click==1.7.2
 rich==13.7.0
 rpds-py==0.13.2
 rsa==4.9
