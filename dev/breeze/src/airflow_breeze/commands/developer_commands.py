@@ -53,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_celery_flower,
     option_database_isolation,
     option_db_reset,
+    option_docker_host,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_executor_shell,
@@ -180,6 +181,7 @@ class TimerThread(threading.Thread):
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_executor_shell
@@ -220,6 +222,7 @@ def shell(
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -272,6 +275,7 @@ def shell(
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
@@ -330,6 +334,7 @@ def shell(
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_dry_run
 @option_executor_start_airflow
 @option_force_build
@@ -362,6 +367,7 @@ def start_airflow(
     database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -410,6 +416,7 @@ def start_airflow(
         database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
         force_build=force_build,
