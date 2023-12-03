@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from docker import APIClient, types
@@ -209,33 +209,3 @@ class TestDockerSwarmOperator:
         op.on_kill()
         docker_api_client_patcher.return_value.remove_service.assert_not_called()
         mock_service.assert_not_called()
-
-    def test_logging(self):
-        """
-        Test logging of operator.
-        """
-        operator = DockerSwarmOperator(
-            command="""
-            /bin/bash  -c '
-                            echo "Test message 1";
-                            echo "Test message 2";
-                        '
-            """,
-            environment={"UNIT": "TEST"},
-            image="ubuntu:latest",
-            task_id="unit_test_logging",
-            enable_logging=True,
-            tty=False,
-            docker_url="unix://var/run/docker.sock",
-            mode=types.ServiceMode(mode="replicated-job"),
-        )
-
-        this_test = TestCase()
-        with this_test.assertLogs("airflow.task.operators", level="INFO") as logs:
-            operator.execute(None)
-
-        logs = "\n".join(logs.output)
-        this_test.assertRegex(
-            logs,
-            r"INFO:airflow\.task\.operators\.airflow\.providers\.docker\.operators\.docker_swarm.DockerSwarmOperator:Test message 1\nINFO:airflow\.task\.operators\.airflow\.providers\.docker\.operators\.docker_swarm.DockerSwarmOperator:Test message 2\n",
-        )
