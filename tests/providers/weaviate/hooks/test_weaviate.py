@@ -220,7 +220,11 @@ class TestWeaviateHook:
         mock_client = MagicMock()
         weaviate_hook.get_conn = MagicMock(return_value=mock_client)
         weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name="TestClass")
-        mock_client.data_object.get.assert_called_once_with(class_name="TestClass")
+        mock_client.data_object.get.assert_called_once_with(
+            class_name="TestClass",
+            consistency_level=None,
+            tenant=None,
+        )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
     def test_create_of_get_or_create_object(self, mock_gen_uuid, weaviate_hook):

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     import pandas as pd
+    from weaviate import ConsistencyLevel
     from weaviate.types import UUID
 
 
@@ -228,7 +229,13 @@ class WeaviateHook(BaseHook):
             return None
 
     def get_or_create_object(
-        self, data_object: dict | str | None = None, class_name: str | None = None, **kwargs
+        self,
+        data_object: dict | str | None = None,
+        class_name: str | None = None,
+        vector: Sequence | None = None,
+        consistency_level: ConsistencyLevel | None = None,
+        tenant: str | None = None,
+        **kwargs,
     ) -> str | dict[str, Any] | None:
         """Get or Create a new object.
 
@@ -237,17 +244,19 @@ class WeaviateHook(BaseHook):
         :param data_object: Object to be added. If type is str it should be either a URL or a file. This is required
             to create a new object.
         :param class_name: Class name associated with the object given. This is required to create a new object.
+        :param vector: Vector associated with the object given. This argument is only used when creating object.
+        :param consistency_level: Consistency level to be used. Applies to both create and get operations.
+        :tenant: Tenant to be used. Applies to both create and get operations.
         :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create() and
             weaviate_client.data_object.get()
         """
-        vector = kwargs.pop("vector", None)
-        obj = self.get_object(class_name=class_name, **kwargs)
+        obj = self.get_object(
+            class_name=class_name, consistency_level=consistency_level, tenant=tenant, **kwargs
+        )
         if not obj:
             if not (data_object and class_name):
                 raise ValueError("data_object and class_name are required to create a new object")
             uuid = kwargs.pop("uuid", generate_uuid5(data_object))
-            consistency_level = kwargs.pop("consistency_level", None)
-            tenant = kwargs.pop("tenant", None)
             return self.create_object(
                 data_object,
                 class_name,
