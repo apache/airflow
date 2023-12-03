@@ -205,6 +205,7 @@ class TaskOutletDatasetReference(Base):
 class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
     target_dag_id = Column(StringID(), nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

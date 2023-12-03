@@ -3720,7 +3720,7 @@ class DagModel(Base):
             for x in session.execute(
                 select(
                     DagScheduleDatasetReference.dag_id,
-                    func.array_agg(DDRQ.created_at).label('last_queued_time_array')
+                    func.array_agg(DDRQ.created_at).label("last_queued_time_array")
                 )
                 .join(DagScheduleDatasetReference.queue_records, isouter=True)
                 .where(DDRQ.created_at.isnot(None))
