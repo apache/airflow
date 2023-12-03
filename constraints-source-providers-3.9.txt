@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-03T01:31:46Z
+# This constraints file was automatically generated on 2023-12-03T11:45:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -46,7 +46,7 @@ WTForms==3.1.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2023.10.0
-aiobotocore==2.7.0
+aiobotocore==2.8.0
 aiofiles==23.2.1
 aiohttp==3.9.1
 aioitertools==0.11.0
@@ -118,8 +118,8 @@ billiard==4.2.0
 bitarray==2.8.3
 black==23.11.0
 blinker==1.7.0
-boto3==1.28.64
-botocore==1.31.64
+boto3==1.33.1
+botocore==1.33.1
 cachelib==0.9.0
 cachetools==5.3.2
 cassandra-driver==3.28.0
@@ -186,12 +186,12 @@ fastjsonschema==2.19.0
 filelock==3.13.1
 flower==2.0.1
 frozenlist==1.4.0
-fsspec==2023.10.0
+fsspec==2023.12.0
 future==0.18.3
 gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==7.0.0
 gcloud-aio-storage==9.0.0
-gcsfs==2023.10.0
+gcsfs==2023.12.0
 geomet==0.2.1.post1
 gevent==23.9.1
 gitdb==4.0.11
@@ -436,7 +436,7 @@ pyparsing==3.1.1
 pypsrp==0.8.1
 pyspark==3.5.0
 pyspnego==0.10.2
-pytest-asyncio==0.21.1
+pytest-asyncio==0.23.0
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
 pytest-icdiff==0.8
@@ -485,8 +485,8 @@ rich==13.7.0
 rpds-py==0.13.2
 rsa==4.9
 ruff==0.1.6
-s3fs==2023.10.0
-s3transfer==0.7.0
+s3fs==2023.12.0
+s3transfer==0.8.0
 sarif-om==1.0.4
 scramp==1.4.4
 scrapbook==0.5.0
