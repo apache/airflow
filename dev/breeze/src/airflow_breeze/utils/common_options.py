@@ -563,6 +563,14 @@ option_skip_cleanup = click.option(
     is_flag=True,
     envvar="SKIP_CLEANUP",
 )
+
+option_directory = click.option(
+    "--directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    required=True,
+    help="Directory to clean the provider artifacts from.",
+)
+
 option_include_mypy_volume = click.option(
     "--include-mypy-volume",
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
