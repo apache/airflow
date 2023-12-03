@@ -364,7 +364,7 @@ class Connection(Base, LoggingMixin):
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
-            warnings.warn(
+            log.error(
                 "Could not import %s when discovering %s %s",
                 hook.hook_class_name,
                 hook.hook_name,

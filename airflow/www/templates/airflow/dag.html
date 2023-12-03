@@ -254,7 +254,7 @@
           {% else %}
             <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}"
           {% endif %}
-              title="Trigger&nbsp;DAG"
+              onclick="return triggerDag(this, '{{ dag.dag_id }}')" title="Trigger&nbsp;DAG"
               aria-label="Trigger DAG"
               class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
               <span class="material-icons" aria-hidden="true">play_arrow</span>
@@ -287,6 +287,11 @@
         This cannot be undone.`)) {
         postAsForm(link.href, {});
       }
+      return false;
+    }
+
+    function triggerDag(link, dagId) {
+      postAsForm(link.href, {});
       return false;
     }
   </script>

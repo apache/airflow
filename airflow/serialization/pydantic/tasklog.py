@@ -14,18 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    image: ${AIRFLOW_CI_IMAGE_WITH_TAG}
-    pull_policy: never
-    environment:
-      - USER=root
-      - ADDITIONAL_PATH=~/.local/bin
-      - KUBECONFIG=/files/.kube/config
-    env_file:
-      - _generated_docker_compose.env
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-    cap_add:
-      - SYS_PTRACE
+from datetime import datetime
+
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
+
+
+class LogTemplatePydantic(BaseModelPydantic):
+    """Serializable version of the LogTemplate ORM SqlAlchemyModel used by internal API."""
+
+    id: int
+    filename: str
+    elasticsearch_id: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

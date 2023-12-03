@@ -21,11 +21,16 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { RouterWrapper } from "src/utils/testUtils";
+import type { DagRun, RunState } from "src/types";
 
 declare global {
   namespace NodeJS {
     interface Global {
       defaultDagRunDisplayNumber: number;
+      filtersOptions: {
+        dagStates: RunState[];
+        runTypes: DagRun["runType"][];
+      };
     }
   }
 }
@@ -62,8 +67,8 @@ describe("Test useFilters hook", () => {
 
     expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber.toString());
-    expect(runType).toBeNull();
-    expect(runState).toBeNull();
+    expect(runType).toEqual([]);
+    expect(runState).toEqual([]);
     expect(root).toBeUndefined();
     expect(filterUpstream).toBeUndefined();
     expect(filterDownstream).toBeUndefined();
@@ -84,12 +89,22 @@ describe("Test useFilters hook", () => {
     {
       fnName: "onRunTypeChange" as keyof UtilFunctions,
       paramName: "runType" as keyof Filters,
-      paramValue: "manual",
+      paramValue: ["manual"],
+    },
+    {
+      fnName: "onRunTypeChange" as keyof UtilFunctions,
+      paramName: "runType" as keyof Filters,
+      paramValue: ["manual", "backfill"],
     },
     {
       fnName: "onRunStateChange" as keyof UtilFunctions,
       paramName: "runState" as keyof Filters,
-      paramValue: "success",
+      paramValue: ["success"],
+    },
+    {
+      fnName: "onRunStateChange" as keyof UtilFunctions,
+      paramName: "runState" as keyof Filters,
+      paramValue: ["success", "failed", "queued"],
     },
   ])("Test $fnName functions", async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook<FilterHookReturn, undefined>(
@@ -98,10 +113,12 @@ describe("Test useFilters hook", () => {
     );
 
     await act(async () => {
-      result.current[fnName](paramValue as "string" & FilterTasksProps);
+      result.current[fnName](
+        paramValue as "string" & string[] & FilterTasksProps
+      );
     });
 
-    expect(result.current.filters[paramName]).toBe(paramValue);
+    expect(result.current.filters[paramName]).toEqual(paramValue);
 
     // clearFilters
     await act(async () => {
@@ -115,7 +132,7 @@ describe("Test useFilters hook", () => {
         global.defaultDagRunDisplayNumber.toString()
       );
     } else {
-      expect(result.current.filters[paramName]).toBeNull();
+      expect(result.current.filters[paramName]).toEqual([]);
     }
   });
 
