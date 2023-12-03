@@ -1214,7 +1214,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_dataset_triggered(
         self,
         dag_models: Collection[DagModel],
-        dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        dataset_triggered_dag_info: dict[str, datetime],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by datasets, create dag runs."""

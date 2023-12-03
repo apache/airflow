@@ -3704,7 +3704,7 @@ class DagModel(Base):
                 dag_model.is_active = False
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -3720,7 +3720,7 @@ class DagModel(Base):
             for x in session.execute(
                 select(
                     DagScheduleDatasetReference.dag_id,
-                    func.array_agg(DDRQ.created_at).label("last_queued_time_array")
+                    func.array_agg(DDRQ.created_at).label("last_queued_time_array"),
                 )
                 .join(DagScheduleDatasetReference.queue_records, isouter=True)
                 .where(DDRQ.created_at.isnot(None))
