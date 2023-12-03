@@ -99,7 +99,7 @@ class TestDockerSwarmOperator:
         )
 
         client_mock.service_logs.assert_called_once_with(
-            "some_id", follow=True, stdout=True, stderr=True, is_tty=True
+            "some_id", follow=False, stdout=True, stderr=True, is_tty=True
         )
 
         csargs, cskwargs = client_mock.create_service.call_args_list[0]
