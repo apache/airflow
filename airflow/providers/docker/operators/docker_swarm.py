@@ -184,7 +184,7 @@ class DockerSwarmOperator(DockerOperator):
 
         def stream_new_logs(last_line_logged):
             all_logs = self.cli.service_logs(
-                self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=False
+                self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=self.tty
             )
             new_lines_to_log = b"".join(all_logs).decode().splitlines()
             new_lines_to_log = new_lines_to_log[last_line_logged:]
