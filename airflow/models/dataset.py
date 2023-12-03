@@ -205,13 +205,12 @@ class TaskOutletDatasetReference(Base):
 class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
-    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    dataset_id = Column(Integer, nullable=False)
+    target_dag_id = Column(StringID(), nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],

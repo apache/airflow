@@ -3716,16 +3716,15 @@ class DagModel(Base):
 
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info = {
-            x.dag_id: (x.first_queued_time, x.last_queued_time)
+            x.dag_id: x.last_queued_time_array
             for x in session.execute(
                 select(
                     DagScheduleDatasetReference.dag_id,
-                    func.max(DDRQ.created_at).label("last_queued_time"),
-                    func.min(DDRQ.created_at).label("first_queued_time"),
+                    func.array_agg(DDRQ.created_at).label('last_queued_time_array')
                 )
                 .join(DagScheduleDatasetReference.queue_records, isouter=True)
+                .where(DDRQ.created_at.isnot(None))
                 .group_by(DagScheduleDatasetReference.dag_id)
-                .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
             )
         }
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info)
@@ -3749,6 +3748,7 @@ class DagModel(Base):
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
         query = (
             select(cls)
+            .join(DDRQ, DagModel.dag_id == DDRQ.target_dag_id, isouter=True)
             .where(
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),

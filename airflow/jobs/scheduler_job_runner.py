@@ -1125,11 +1125,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        all_dags_needing_dag_runs = set(query.all())
+        all_dags_needing_dag_runs = query.all()
         dataset_triggered_dags = [
             dag for dag in all_dags_needing_dag_runs if dag.dag_id in dataset_triggered_dag_info
         ]
-        non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
+        non_dataset_dags = set(all_dags_needing_dag_runs).difference(dataset_triggered_dags)
         self._create_dag_runs(non_dataset_dags, session)
         if dataset_triggered_dags:
             self._create_dag_runs_dataset_triggered(
@@ -1222,14 +1222,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        exec_dates = {
-            dag_id: timezone.coerce_datetime(last_time)
-            for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
+        dataset_triggered_dag_info = {
+            dag_id: sorted(datase_dagruns_queue)
+            for dag_id, datase_dagruns_queue in dataset_triggered_dag_info.items()
         }
+        exec_dates = [
+            (dag_id, timezone.coerce_datetime(datase_dagrun))
+            for dag_id, datase_dagruns_queue in dataset_triggered_dag_info.items()
+            for datase_dagrun in datase_dagruns_queue
+        ]
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
                 select(DagRun.dag_id, DagRun.execution_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates)
                 )
             )
         )
@@ -1257,8 +1262,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            exec_date = exec_dates[dag.dag_id]
-            if (dag.dag_id, exec_date) not in existing_dagruns:
+            exec_date = (
+                dataset_triggered_dag_info[dag.dag_id].pop(0)
+                if dataset_triggered_dag_info.get(dag.dag_id)
+                else None
+            )
+            if exec_date and (dag.dag_id, exec_date) not in existing_dagruns:
                 previous_dag_run = session.scalar(
                     select(DagRun)
                     .where(
@@ -1309,7 +1318,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 session.execute(
-                    delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+                    delete(DatasetDagRunQueue).where(
+                        DatasetDagRunQueue.target_dag_id == dag_run.dag_id,
+                        DatasetDagRunQueue.created_at == exec_date,
+                    )
                 )
 
     def _should_update_dag_next_dagruns(
