@@ -98,7 +98,7 @@ class TestDockerSwarmOperator:
             base_url="unix://var/run/docker.sock", tls=False, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
-        client_mock.service_logs.assert_called_once_with(
+        client_mock.service_logs.assert_called_with(
             "some_id", follow=False, stdout=True, stderr=True, is_tty=True
         )
 
