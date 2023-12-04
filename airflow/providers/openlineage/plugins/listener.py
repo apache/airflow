@@ -145,7 +145,7 @@ class OpenLineageListener:
         task = task_instance.task
 
         task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
+            task.task_id, task_instance.execution_date, task_instance.try_number
         )
 
         @print_warning(self.log)
