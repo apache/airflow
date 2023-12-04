@@ -76,21 +76,25 @@ The ``virtualenv`` package needs to be installed in the environment that runs Ai
     The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
     to execute Python callables inside new Python virtual environments.
 
-TaskFlow example of using the PythonVirtualenvOperator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_venv]
-    :end-before: [END howto_operator_python_venv]
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
 
-Classic example of using the PythonVirtualenvOperator:
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_venv]
+            :end-before: [END howto_operator_python_venv]
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_venv_classic]
-    :end-before: [END howto_operator_python_venv_classic]
+    .. tab-item:: PythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_venv_classic]
+            :end-before: [END howto_operator_python_venv_classic]
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
@@ -176,21 +180,25 @@ pre-defined environment. The virtualenv package should be preinstalled in the en
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
 
-TaskFlow example of using the operator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_external_python]
-    :end-before: [END howto_operator_external_python]
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
 
-Classic example of using the operator:
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_external_python]
+            :end-before: [END howto_operator_external_python]
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_external_python_classic]
-    :end-before: [END howto_operator_external_python_classic]
+    .. tab-item:: ExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_external_python_classic]
+            :end-before: [END howto_operator_external_python_classic]
 
 
 Passing in arguments
@@ -222,21 +230,25 @@ Use the ``@task.branch`` decorator to execute Python :ref:`branching <concepts:b
     The ``@task.branch`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonBranchOperator`
     to execute Python code.
 
-TaskFlow example of using the operator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_python]
-    :end-before: [END howto_operator_branch_python]
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
 
-Classic example of using the operator:
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_python]
+            :end-before: [END howto_operator_branch_python]
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_python]
-    :end-before: [END howto_operator_branch_python]
+    .. tab-item:: PythonBranchOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_python]
+            :end-before: [END howto_operator_branch_python]
 
 Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
 
@@ -252,21 +264,25 @@ the branch decorator with execution in a virtual environment.
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
     :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` to execute Python code.
 
-TaskFlow example of using the operator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_virtualenv]
-    :end-before: [END howto_operator_branch_virtualenv]
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
 
-Classic example of using the operator:
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_virtualenv]
+            :end-before: [END howto_operator_branch_virtualenv]
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_virtualenv]
-    :end-before: [END howto_operator_branch_virtualenv]
+    .. tab-item:: BranchPythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_virtualenv]
+            :end-before: [END howto_operator_branch_virtualenv]
 
 Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
 
@@ -282,21 +298,25 @@ the branch decorator with execution in an external Python environment.
     The ``@task.branch_external_python`` decorator is recommended over the classic
     :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python code.
 
-TaskFlow example of using the operator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_ext_py]
-    :end-before: [END howto_operator_branch_ext_py]
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
 
-Classic example of using the operator:
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_ext_py]
+            :end-before: [END howto_operator_branch_ext_py]
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_branch_ext_py]
-    :end-before: [END howto_operator_branch_ext_py]
+    .. tab-item:: BranchExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_ext_py]
+            :end-before: [END howto_operator_branch_ext_py]
 
 Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
 
@@ -367,14 +387,27 @@ PythonSensor
 Sensors can be used in two ways. One is to use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
 should return True when it succeeds, False otherwise. The other uses the Taskflow API utilizing the :class:`~airflow.decorators.task.sensor` as a decorator on a function.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_python_sensors]
-    :end-before: [END example_python_sensors]
+.. warning::
+    The ``@task.sensor`` decorator is recommended over the classic :class:`~airflow.sensors.python.PythonSensor`
+    to execute Python callables to check for True condition.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START wait_function]
-    :end-before: [END wait_function]
+
+.. tab-set::
+
+    .. tab-item:: TaskFlow API
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+            :language: python
+            :dedent: 4
+            :start-after: [START example_python_sensors]
+            :end-before: [END example_python_sensors]
+
+    .. tab-item:: PythonSensor
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START wait_function]
+            :end-before: [END wait_function]
