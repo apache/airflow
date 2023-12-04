@@ -37,13 +37,12 @@ PATH_TO_PYTHON_BINARY = sys.executable
 
 
 @dag(
-    dag_id="example_python_operator",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
 )
-def example_python_operator():
+def example_python_decorator():
     # [START howto_operator_python]
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):
@@ -134,4 +133,4 @@ def example_python_operator():
         run_this >> external_python_task >> virtualenv_task
 
 
-example_python_operator()
+example_python_decorator()
