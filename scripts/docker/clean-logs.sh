@@ -35,7 +35,7 @@ while true; do
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f
 
-  trap find "${DIRECTORY}"/logs -type d -empty -delete ERR
+  find "${DIRECTORY}"/logs -type d -empty -delete || true
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
