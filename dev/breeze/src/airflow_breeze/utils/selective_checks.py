@@ -1023,4 +1023,4 @@ class SelectiveChecks:
     @cached_property
     def chicken_egg_providers(self) -> str:
         """Space separated list of providers with chicken-egg problem and should be built from sources."""
-        return "common.io"
+        return "fab common.io"
