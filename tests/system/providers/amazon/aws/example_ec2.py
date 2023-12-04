@@ -55,8 +55,14 @@ def get_latest_ami_id():
     images = boto3.client("ec2").describe_images(
         Filters=[
             {"Name": "description", "Values": [image_prefix]},
-            {"Name": "architecture", "Values": ["x86_64"]},
-            {"Name": "root-device-type", "Values": ["ebs"]},
+            {
+                "Name": "architecture",
+                "Values": ["x86_64"],
+            },  # t3 instances are only compatible with x86 architecture
+            {
+                "Name": "root-device-type",
+                "Values": ["ebs"],
+            },  # instances which are capable of hibernation need to use an EBS-backed AMI
             {"Name": "root-device-name", "Values": [root_device_name]},
         ],
         Owners=["amazon"],
