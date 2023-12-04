@@ -486,7 +486,7 @@ _devel_only_tests = [
     "pytest>=7.1",
     # Pytest-asyncio 0.23.1 breaks our tests. The limitation should be removed when the issue is fixed:
     # https://github.com/pytest-dev/pytest-asyncio/issues/703
-    "pytest-asyncio<0.23.1",
+    "pytest-asyncio<0.23.0",
     "pytest-cov",
     "pytest-httpx",
     "pytest-icdiff",
