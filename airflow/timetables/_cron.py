@@ -31,6 +31,34 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 
+def _covers_every_hour(cron: croniter) -> bool:
+    """Check whether the given cron runs at least once an hour.
+
+    This indicates whether we need to implement a workaround for (what I call)
+    the "fold hour problem". Folding happens when a region switches time
+    backwards, usually as a part of ending a DST period, causing a block of time
+    to occur twice in the wall clock. This is indicated by the ``fold`` flag on
+    datetime.
+
+    As an example, Switzerland in 2023 ended DST on 3am (wall clock time, UTC+2)
+    by dialing back the clock to 2am (UTC+1). So for (say) ``30 * * * *``, if
+    the last run was 2:30am (UTC+2), the next needs to be 2:30am (UTC+1, folded)
+    instead of 3:30am.
+
+    While this technically happens for all runs (in such a timezone), we only
+    really want to care about runs that happen at least once an hour, and can
+    provide a somewhat reasonable rationale to skip the fold hour for things
+    such as ``*/2`` (every two hour). So we try to *minially* peak into croniter
+    internals to work around the issue.
+
+    The check is simple since croniter internally normalizes things to ``*``.
+    More edge cases can be added later as needed.
+
+    See also: https://github.com/kiorky/croniter/issues/56.
+    """
+    return cron.expanded[1] == ["*"]
+
+
 class CronMixin:
     """Mixin to provide interface to work with croniter."""
 
@@ -78,14 +106,20 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        return convert_to_utc(make_aware(scheduled, self._timezone))
+        if not _covers_every_hour(cron):
+            return convert_to_utc(make_aware(scheduled, self._timezone))
+        delta = scheduled - naive
+        return convert_to_utc(current.in_timezone(self._timezone) + delta)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        return convert_to_utc(make_aware(scheduled, self._timezone))
+        if not _covers_every_hour(cron):
+            return convert_to_utc(make_aware(scheduled, self._timezone))
+        delta = naive - scheduled
+        return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
