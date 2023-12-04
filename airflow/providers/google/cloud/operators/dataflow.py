@@ -1286,6 +1286,12 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
     :param stop_timeout: wait time in seconds for successful job canceling/draining
     """
 
+    template_fields = [
+        "job_id",
+        "project_id",
+        "impersonation_chain",
+    ]
+
     def __init__(
         self,
         job_name_prefix: str | None = None,

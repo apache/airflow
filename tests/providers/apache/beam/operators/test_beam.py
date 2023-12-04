@@ -160,6 +160,7 @@ class TestBeamRunPythonPipelineOperator:
             py_requirements=None,
             py_system_site_packages=False,
             process_line_callback=mock.ANY,
+            check_job_status_callback=mock.ANY,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
