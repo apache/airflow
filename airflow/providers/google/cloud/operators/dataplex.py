@@ -1206,6 +1206,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
 
         return job
 
+
 class DataplexCreateOrUpdateDataProfileScanOperator(GoogleCloudBaseOperator):
     """
     Creates a DataScan Data Profile resource.
@@ -1306,6 +1307,7 @@ class DataplexCreateOrUpdateDataProfileScanOperator(GoogleCloudBaseOperator):
 
         return self.data_scan_id
 
+
 class DataplexGetDataProfileScanOperator(GoogleCloudBaseOperator):
     """
     Gets a DataScan DataProfile resource.
@@ -1378,6 +1380,7 @@ class DataplexGetDataProfileScanOperator(GoogleCloudBaseOperator):
 
         return DataScan.to_dict(data_profile_scan)
 
+
 class DataplexDeleteDataProfileScanOperator(GoogleCloudBaseOperator):
     """
     Deletes a DataScan DataProfile resource.
@@ -1419,7 +1422,6 @@ class DataplexDeleteDataProfileScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -1450,6 +1452,7 @@ class DataplexDeleteDataProfileScanOperator(GoogleCloudBaseOperator):
         )
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         self.log.info("Dataplex Data Profile scan %s deleted successfully!", self.data_scan_id)
+
 
 class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
     """
@@ -1682,12 +1685,12 @@ class DataplexGetDataProfileScanResultOperator(GoogleCloudBaseOperator):
 
         if self.wait_for_results:
             job = hook.wait_for_data_scan_job(
-                    job_id=self.job_id,
-                    data_scan_id=self.data_scan_id,
-                    project_id=self.project_id,
-                    region=self.region,
-                    result_timeout=self.result_timeout,
-                )
+                job_id=self.job_id,
+                data_scan_id=self.data_scan_id,
+                project_id=self.project_id,
+                region=self.region,
+                result_timeout=self.result_timeout,
+            )
         else:
             job = hook.get_data_scan_job(
                 project_id=self.project_id,
@@ -1703,11 +1706,10 @@ class DataplexGetDataProfileScanResultOperator(GoogleCloudBaseOperator):
         else:
             self.log.info("Data Profile job execution returned status: %s", job.state)
 
-                result = DataScanJob.to_dict(job)
-                result["state"] = DataScanJob.State(result["state"]).name
+        result = DataScanJob.to_dict(job)
+        result["state"] = DataScanJob.State(result["state"]).name
 
-                return result
-
+        return result
 
     def execute_complete(self, context, event=None) -> None:
         """
