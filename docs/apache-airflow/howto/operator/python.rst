@@ -39,7 +39,7 @@ Use the :class:`~airflow.operators.python.PythonOperator` to execute Python call
             :end-before: [END howto_operator_python]
 
     .. tab-item:: PythonOperator
-        :sync: taskflow
+        :sync: operator
 
         .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
             :language: python
