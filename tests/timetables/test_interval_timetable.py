@@ -501,3 +501,60 @@ class TestCronIntervalDstNonTrivial:
             pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
             pendulum.datetime(2020, 3, 8, 9 + 7, tz=TIMEZONE),
         )
+
+
+def test_fold_scheduling():
+    timetable = CronDataIntervalTimetable("*/30 * * * *", timezone="Europe/Zurich")
+    restriction = TimeRestriction(
+        earliest=pendulum.datetime(2023, 10, 28, 23, 30, tz=TIMEZONE),  # Locally 1:30 (DST).
+        latest=None,
+        catchup=True,
+    )
+
+    # Still in DST, acting normally.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 28, 23, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 0, 0, tz=TIMEZONE),  # Locally 2am (DST).
+    )
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 0, 0, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 0, 30, tz=TIMEZONE),  # Locally 2:30 (DST).
+    )
+
+    # Crossing into fold.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 0, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 1, 0, tz=TIMEZONE),  # Locally 2am (fold, not DST).
+    )
+
+    # In the "fold zone".
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 1, 0, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 1, 30, tz=TIMEZONE),  # Locally 2am (fold, not DST).
+    )
+
+    # Stepping out of fold.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 1, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 2, 0, tz=TIMEZONE),  # Locally 3am (not DST).
+    )
