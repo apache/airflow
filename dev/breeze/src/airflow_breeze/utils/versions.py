@@ -34,3 +34,9 @@ def get_version_tag(version: str, provider_package_id: str, version_suffix: str 
     if version_suffix is None:
         version_suffix = ""
     return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"
+
+
+def is_pre_release(version: str) -> bool:
+    from packaging.version import Version
+
+    return Version(version).is_prerelease

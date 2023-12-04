@@ -1225,7 +1225,11 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Without grpcio-status limit, pip gets into very long backtracking
 # We should attempt to remove it in the future
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.7.0"
+# Aiobotocore is limited for eager upgrade because it either causes a long backtracking or
+# conflict when we do not limit it. It seems that `pip` has a hard time figuring the right
+# combination of dependencies for aiobotocore, botocore, boto3 and s3fs together
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.5.4"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

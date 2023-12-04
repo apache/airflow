@@ -138,14 +138,14 @@ class AzureSynapsePipelineRunLink(BaseOperatorLink):
         match = re.search(pattern, workspace_url)
 
         if not match:
-            raise ValueError("Invalid workspace URL format")
+            raise ValueError(f"Invalid workspace URL format, expected match pattern {pattern!r}.")
 
         extracted_text = match.group(1)
         parsed_url = urlparse(extracted_text)
         path = unquote(parsed_url.path)
         path_segments = path.split("/")
-        if len(path_segments) < 5:
-            raise
+        if (len_path_segments := len(path_segments)) < 5:
+            raise ValueError(f"Workspace expected at least 5 segments, but got {len_path_segments}.")
 
         return {
             "workspace_name": path_segments[-1],

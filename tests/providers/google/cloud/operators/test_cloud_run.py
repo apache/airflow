@@ -166,7 +166,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
 
         with pytest.raises(AirflowException) as e:
             operator.execute_complete(mock.MagicMock(), event)
@@ -183,7 +183,7 @@ class TestCloudRunExecuteJobOperator:
         error_message = "error message"
 
         event = {
-            "status": RunJobStatus.FAIL,
+            "status": RunJobStatus.FAIL.value,
             "operation_error_code": error_code,
             "operation_error_message": error_message,
             "job_name": JOB_NAME,
@@ -204,7 +204,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
 
         result = operator.execute_complete(mock.MagicMock(), event)
         assert result["name"] == JOB_NAME

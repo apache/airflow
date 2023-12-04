@@ -815,6 +815,68 @@ class TestDagProcessorJobRunner:
             assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
+    def test_import_error_with_dag_directory(self, tmp_path):
+        TEMP_DAG_FILENAME = "temp_dag.py"
+
+        processor_dir_1 = tmp_path / "processor_1"
+        processor_dir_1.mkdir()
+        filename_1 = os.path.join(processor_dir_1, TEMP_DAG_FILENAME)
+        with open(filename_1, "w") as f:
+            f.write("an invalid airflow DAG")
+
+        processor_dir_2 = tmp_path / "processor_2"
+        processor_dir_2.mkdir()
+        filename_1 = os.path.join(processor_dir_2, TEMP_DAG_FILENAME)
+        with open(filename_1, "w") as f:
+            f.write("an invalid airflow DAG")
+
+        with create_session() as session:
+            child_pipe, parent_pipe = multiprocessing.Pipe()
+
+            manager = DagProcessorJobRunner(
+                job=Job(),
+                processor=DagFileProcessorManager(
+                    dag_directory=processor_dir_1,
+                    dag_ids=[],
+                    max_runs=1,
+                    signal_conn=child_pipe,
+                    processor_timeout=timedelta(seconds=5),
+                    pickle_dags=False,
+                    async_mode=False,
+                ),
+            )
+
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+
+            import_errors = session.query(errors.ImportError).order_by("id").all()
+            assert len(import_errors) == 1
+            assert import_errors[0].processor_subdir == str(processor_dir_1)
+
+            child_pipe, parent_pipe = multiprocessing.Pipe()
+
+            manager = DagProcessorJobRunner(
+                job=Job(),
+                processor=DagFileProcessorManager(
+                    dag_directory=processor_dir_2,
+                    dag_ids=[],
+                    max_runs=1,
+                    signal_conn=child_pipe,
+                    processor_timeout=timedelta(seconds=5),
+                    pickle_dags=False,
+                    async_mode=True,
+                ),
+            )
+
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+
+            import_errors = session.query(errors.ImportError).order_by("id").all()
+            assert len(import_errors) == 2
+            assert import_errors[0].processor_subdir == str(processor_dir_1)
+            assert import_errors[1].processor_subdir == str(processor_dir_2)
+
+            session.rollback()
+
+    @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.execution_timeout(30)
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorProcess")

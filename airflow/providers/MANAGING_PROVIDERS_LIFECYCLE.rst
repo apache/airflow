@@ -109,6 +109,64 @@ breeze and I'll run unit tests for my Hook.
 
       root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
+Adding chicken-egg providers
+----------------------------
+
+Sometimes we want to release provider that depends on the version of airflow that has not yet been released
+- for example when we released ``common.io`` provider it had ``apache-airflow>=2.8.0`` dependency. This
+creates problem when generating constraints and building docker image for pre-release versions of
+Airflow - because ``pip`` does not recognize the ``.dev0`` or ``.b1`` suffixes of those packages as
+valid in the ``>=X.Y.Z`` comparison. So when you want to install a provider package with
+``apache-airflow>=2.8.0`` requirement and you have ``2.8.0.dev0`` airflow package, ``pip`` will not
+install the package, because it does not recognize ``2.8.0.dev0`` as a valid version for ``>=2.8.0``
+dependency. This is because ``pip`` currently implements the minimum version selection algorithm
+requirement specified in packaging as described in the packaging version specification
+https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases
+Currently ``pip`` only allows to include pre-release versions for all installed packages using ``--pre``
+flag, but it does not have the possibility of selectively using this flag to only one package.
+In order to implement our desired behaviour, we need the case where only ``apache-airflow`` is considered
+as pre-release version while all the other dependencies only have stable versions and this is currently
+not possible.
+
+To work around this limitation, we have introduced the concept of "chicken-egg" providers. Those providers
+are providers that are released together with the version of Airflow they depend on. They are released
+with the same version number as the Airflow version they depend on, but with a different suffix. For example
+``apache-airflow-providers-common-io==2.8.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.8.0.dev0``.
+
+However - we should not release those providers to ``pypi``, so in order to allow our CI to work with
+pre-release versions and perform both - constraint generation and image releasing, we introduced workarounds
+in our tooling where in case we build a pre-release version of Airflow, we will locally build the
+chicken-egg providers from sources and they are installed from local directory instead of from PyPI.
+
+This is controlled by ``chicken_egg_providers`` property in Selective Checks - and our CI will automatically
+build and use those chicken-egg providers during the CI process if pre-release version of Airflow is built.
+
+The code responsible for that is in ``src/airflow_breeze/utils/selective_checks.py``:
+
+.. code-block:: python
+
+    @cached_property
+    def chicken_egg_providers(self) -> str:
+        """Space separated list of providers with chicken-egg problem and should be built from sources."""
+        return "common.io"
+
+This list should be kept here until the official version of Airflow the chicken-egg-providers depend on
+is released and the version of airflow is updated in the ``main`` and ``v2-X-Y`` branch to ``2.X+1.0.dev0``
+and ``2.X.1.dev0`` respectively. After that the chicken-egg providers will be correctly installed because
+both ``2.X.1.dev0`` and ``2.X+1.0.dev0`` are considered by ``pip`` as ``>2.X.0`` (unlike ``2.X.0.dev0``).
+
+This workaround might be removed if ``pip`` implements the possibility of selectively using ``--pre`` flag
+for only one package (Which is foreseen as a possibility in the packaging specification but not implemented
+by ``pip``).
+
+.. note::
+
+   The current solution of building pre-release images will not work well if the chicken-egg-provider is
+   pre-installed package because slim imges will not use the chicken-egg-provider. This could be solved
+   by adding ``--chicken-egg-providers`` flag to slim image building step in ``released_dockerhub_image.yml``
+   but it would also require filtering out the non-pre-installed packages from it, so the current solution
+   is to assume pre-installed packages are not chicken-egg providers.
+
 Integration tests
 -----------------
 
