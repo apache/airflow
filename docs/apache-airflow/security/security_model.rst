@@ -97,7 +97,7 @@ situation and should be trusted not to misuse this capability.
 Operations users
 ................
 
-The primary difference between an operator and admin if the ability to manage and grant permissions
+The primary difference between an operator and admin is the ability to manage and grant permissions
 to other users - only admins are able to do this. Otherwise assume they have the same access as an admin.
 
 Connection configuration users
