@@ -231,8 +231,8 @@ and responses might be tiring and might lead to burnout.
 
 However, for those who have never done that before, participation in the security team might be an interesting
 experience and a way to learn a lot about security and security issue handling. We have a lot of
-established processes and tools that make the work of the security team members easier so this can be
-treated as well as great learning experience for some community members. And knowing that this is not
+established processes and tools that make the work of the security team members easier, so this can be
+treated as a great learning experience for some community members. And knowing that this is not
 a "lifetime" assignment, but rather a temporary engagement might make it easier for people to decide to
 join the security team.
 
