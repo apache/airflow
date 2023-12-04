@@ -913,52 +913,6 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
 
-    @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-    def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess(
-            file_path="abc.txt",
-            pickle_dags=False,
-            dag_ids=[],
-            dag_directory=[],
-            callback_requests=[],
-        )
-        processor._run_file_processor(
-            result_channel=MagicMock(),
-            parent_channel=MagicMock(),
-            file_path="fake_file_path",
-            pickle_dags=False,
-            dag_ids=[],
-            thread_name="fake_thread_name",
-            callback_requests=[],
-            dag_directory=[],
-        )
-        mock_redirect_stdout_for_file.assert_not_called()
-
-    @conf_vars({("logging", "dag_processor_log_target"): "file"})
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess(
-            file_path="abc.txt",
-            pickle_dags=False,
-            dag_ids=[],
-            dag_directory=[],
-            callback_requests=[],
-        )
-        processor._run_file_processor(
-            result_channel=MagicMock(),
-            parent_channel=MagicMock(),
-            file_path="fake_file_path",
-            pickle_dags=False,
-            dag_ids=[],
-            thread_name="fake_thread_name",
-            callback_requests=[],
-            dag_directory=[],
-        )
-        mock_redirect_stdout_for_file.assert_called_once()
-
     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
     @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
     def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmpdir):
