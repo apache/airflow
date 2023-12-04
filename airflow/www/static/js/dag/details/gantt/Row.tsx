@@ -52,9 +52,8 @@ const Row = ({
 
   const instance = task.instances.find((ti) => ti.runId === runId);
   const isSelected = taskId === instance?.taskId;
-  const hasQueuedDttm = !!instance?.queuedDttm;
-  const validQueuedDttm =
-    hasQueuedDttm &&
+  const hasValidQueuedDttm =
+    !!instance?.queuedDttm &&
     (instance?.startDate && instance?.queuedDttm
       ? instance.queuedDttm < instance.startDate
       : true);
@@ -62,10 +61,10 @@ const Row = ({
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = validQueuedDttm
+  const queuedDuration = hasValidQueuedDttm
     ? getDuration(instance?.queuedDttm, instance?.startDate)
     : 0;
-  const taskStartOffset = validQueuedDttm
+  const taskStartOffset = hasValidQueuedDttm
     ? getDuration(ganttStartDate, instance?.queuedDttm || instance?.startDate)
     : getDuration(ganttStartDate, instance?.startDate);
 
@@ -78,8 +77,8 @@ const Row = ({
   // Min width should be 5px
   let width = ganttWidth * taskDurationPercent;
   if (width < 5) width = 5;
-  let queuedWidth = validQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
-  if (validQueuedDttm && queuedWidth < 5) queuedWidth = 5;
+  let queuedWidth = hasValidQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
+  if (hasValidQueuedDttm && queuedWidth < 5) queuedWidth = 5;
   const offsetMargin = taskStartOffsetPercent * ganttWidth;
 
   return (
@@ -110,7 +109,7 @@ const Row = ({
                 });
               }}
             >
-              {instance.state !== "queued" && hasQueuedDttm && (
+              {instance.state !== "queued" && hasValidQueuedDttm && (
                 <SimpleStatus
                   state="queued"
                   width={`${queuedWidth}px`}
@@ -123,7 +122,9 @@ const Row = ({
                 state={instance.state}
                 width={`${width}px`}
                 borderLeftRadius={
-                  instance.state !== "queued" && hasQueuedDttm ? 0 : undefined
+                  instance.state !== "queued" && hasValidQueuedDttm
+                    ? 0
+                    : undefined
                 }
               />
             </Flex>
