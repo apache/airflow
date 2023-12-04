@@ -830,6 +830,7 @@ PREINSTALLED_PROVIDERS = [
     #   The version from PyPI has requirement of apache-airflow>=2.8.0
     #   "common.io",
     "common.sql",
+    "fab",
     "ftp",
     "http",
     "imap",
