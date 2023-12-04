@@ -148,7 +148,7 @@ the Deployment Manager must trust the DAG authors not to abuse this capability.
 Celery Executor
 ...............
 
-n case of Celery Executor, DAG authors can execute arbitrary code on the Celery Workers. This means that
+In case of Celery Executor, DAG authors can execute arbitrary code on the Celery Workers. This means that
 they can potentially influence all the tasks executed on the same worker. If you are running Airflow with
 Celery Executor, the Deployment Manager must trust the DAG authors not to abuse this capability and unless
 Deployment Manager separates task execution by queues by Cluster Policies, they should assume, there is no
