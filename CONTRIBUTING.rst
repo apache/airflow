@@ -222,7 +222,7 @@ Periodic Security team rotation
 Handling security issues is something of a chore, it takes vigilance, requires quick reaction and responses
 and often requires to act outside of the regular "day" job. This means that not everyone can keep up with
 being part of the security team for long while being engaged and active. While we do not expect all the
-security team member to be active all the time, and - since we are volunteers, it's perfectly understandable
+security team members to be active all the time, and - since we are volunteers, it's perfectly understandable
 that work, personal life, family and generally life might not help with being active. And this is not a
 considered as being failure, it's more stating the fact of life.
 
