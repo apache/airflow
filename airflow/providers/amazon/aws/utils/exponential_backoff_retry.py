@@ -29,16 +29,25 @@ def exponential_backoff_retry(
     last_attempt_time: datetime,
     attempts_since_last_successful: int,
     callable_function: Callable,
-    initial_delay: int = 1,
     max_delay: int = 60 * 2,
     max_attempts: int = -1,
     exponent_base: int = 4,
 ) -> None:
+    """
+    Retries a callable function with exponential backoff between attempts if it raises an exception.
+
+    :param last_attempt_time: Timestamp of last attempt call.
+    :param attempts_since_last_successful: Number of attempts since last success.
+    :param callable_function: Callable function that will be called if enough time has passed.
+    :param max_delay: Maximum delay in seconds between retries. Default 120.
+    :param max_attempts: Maximum number of attempts before giving up. Default -1 (no limit).
+    :param exponent_base: Exponent base to calculate delay. Default 4.
+    """
     if max_attempts != -1 and attempts_since_last_successful >= max_attempts:
         log.error("Max attempts reached. Exiting.")
         return
 
-    delay = min(initial_delay * (exponent_base**attempts_since_last_successful), max_delay)
+    delay = min((exponent_base**attempts_since_last_successful), max_delay)
     next_retry_time = last_attempt_time + timedelta(seconds=delay)
     current_time = timezone.utcnow()
 
@@ -46,6 +55,6 @@ def exponential_backoff_retry(
         try:
             callable_function()
         except Exception:
-            log.error(f"Error calling {getattr(callable_function, '__name__', repr(callable_function))}")
-    else:
-        log.info(f"Waiting for {(next_retry_time - current_time).total_seconds()} seconds before retrying.")
+            log.exception(f"Error calling {getattr(callable_function, '__name__', repr(callable_function))}")
+            next_delay = min((exponent_base ** (attempts_since_last_successful + 1)), max_delay)
+            log.info("Waiting for %s seconds before retrying.", next_delay)

@@ -34,9 +34,9 @@ class TestExponentialBackoffRetry:
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 5)
         mock_callable_function = mock.Mock()
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            0,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=0,
+            callable_function=mock_callable_function,
         )
         mock_callable_function.assert_called_once()
 
@@ -119,9 +119,9 @@ class TestExponentialBackoffRetry:
         mock_utcnow.return_value = utcnow_value
 
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            attempt_number,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=attempt_number,
+            callable_function=mock_callable_function,
         )
         assert mock_callable_function.call_count == expected_calls
 
@@ -131,9 +131,9 @@ class TestExponentialBackoffRetry:
         mock_callable_function.side_effect = [Exception(), True]
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 2)
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            0,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=0,
+            callable_function=mock_callable_function,
         )
         mock_callable_function.assert_called_once()
         assert any("Error calling" in log for log in caplog.messages)
@@ -141,49 +141,11 @@ class TestExponentialBackoffRetry:
 
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 6)
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            1,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=1,
+            callable_function=mock_callable_function,
         )
         assert all("Error calling" not in log for log in caplog.messages)
-
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_exponential_backoff_retry_initial_delay(self, mock_utcnow):
-        mock_callable_function = mock.Mock()
-        mock_callable_function.return_value = Exception()
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 2)
-        exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            0,
-            mock_callable_function,
-            initial_delay=7,
-        )
-        mock_callable_function.assert_not_called()
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 7)
-        exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            0,
-            mock_callable_function,
-            initial_delay=7,
-        )
-        mock_callable_function.assert_called_once()
-
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 27)
-        exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            1,
-            mock_callable_function,
-            initial_delay=7,
-        )
-        mock_callable_function.assert_called_once()  # delay is 28 seconds; no calls made
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 28)
-        exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            1,
-            mock_callable_function,
-            initial_delay=7,
-        )
-        assert mock_callable_function.call_count == 2
 
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_exponential_backoff_retry_max_delay(self, mock_utcnow):
@@ -191,26 +153,26 @@ class TestExponentialBackoffRetry:
         mock_callable_function.return_value = Exception()
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 4, 15)
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            4,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=4,
+            callable_function=mock_callable_function,
             max_delay=60 * 5,
         )
         mock_callable_function.assert_not_called()  # delay is 256 seconds; no calls made
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 4, 16)
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            4,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=4,
+            callable_function=mock_callable_function,
             max_delay=60 * 5,
         )
         mock_callable_function.assert_called_once()
 
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 5, 0)
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            5,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=5,
+            callable_function=mock_callable_function,
             max_delay=60 * 5,
         )
         # delay should be 4^5=1024 seconds, but max_delay is 60*5=300 seconds
@@ -223,9 +185,9 @@ class TestExponentialBackoffRetry:
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 55, 0)
         for i in range(10):
             exponential_backoff_retry(
-                datetime(2023, 1, 1, 12, 0, 0),
-                i,
-                mock_callable_function,
+                last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+                attempts_since_last_successful=i,
+                callable_function=mock_callable_function,
                 max_attempts=3,
             )
         assert any("Max attempts reached." in log for log in caplog.messages)
@@ -310,9 +272,9 @@ class TestExponentialBackoffRetry:
         mock_utcnow.return_value = utcnow_value
 
         exponential_backoff_retry(
-            datetime(2023, 1, 1, 12, 0, 0),
-            attempt_number,
-            mock_callable_function,
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            attempts_since_last_successful=attempt_number,
+            callable_function=mock_callable_function,
             exponent_base=3,
         )
         assert mock_callable_function.call_count == expected_calls
