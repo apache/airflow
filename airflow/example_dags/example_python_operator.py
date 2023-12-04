@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
-virtual environment.
+Example DAG demonstrating the usage of the classic Python operators to execute Python functions natively and
+within a virtual environment.
 """
 from __future__ import annotations
 
