@@ -69,7 +69,7 @@ def convert_port(port) -> k8s.V1ContainerPort:
     return _convert_kube_model_object(port, k8s.V1ContainerPort)
 
 
-def convert_env_vars(env_vars) -> list[k8s.V1EnvVar]:
+def convert_env_vars(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.V1EnvVar]:
     """
     Convert a dictionary into a list of env_vars.
 
