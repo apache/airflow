@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
+import pandas as pd
+import requests
+from tenacity import Retrying, retry_if_exception, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -144,22 +148,40 @@ class WeaviateHook(BaseHook):
         client = self.conn
         client.schema.create(schema_json)
 
+    @staticmethod
+    def check_http_error_is_retryable(exc: BaseException):
+        return isinstance(exc, requests.HTTPError) and not exc.response.ok
+
     def batch_data(
-        self, class_name: str, data: list[dict[str, Any]], batch_config_params: dict[str, Any] | None = None
+        self,
+        class_name: str,
+        data: list[dict[str, Any]] | pd.DataFrame,
+        batch_config_params: dict[str, Any] | None = None,
+        vector_col: str = "Vector",
+        no_retry_attempts_per_object: int = 5,
     ) -> None:
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
+        if isinstance(data, pd.DataFrame):
+            data = json.loads(data.to_json(orient="records"))
         with client.batch as batch:
             # Batch import all data
             for index, data_obj in enumerate(data):
-                self.log.debug("importing data: %s", index + 1)
-                vector = data_obj.pop("Vector", None)
-                if vector is not None:
-                    batch.add_data_object(data_obj, class_name, vector=vector)
-                else:
-                    batch.add_data_object(data_obj, class_name)
+                for attempt in Retrying(
+                    stop=stop_after_attempt(no_retry_attempts_per_object),
+                    retry=retry_if_exception(lambda exc: self.check_http_error_is_retryable(exc)),
+                ):
+                    with attempt:
+                        self.log.debug(
+                            "Attempt %s of importing data: %s", attempt.retry_state.attempt_number, index + 1
+                        )
+                        vector = data_obj.pop(vector_col, None)
+                        if vector is not None:
+                            batch.add_data_object(data_obj, class_name, vector=vector)
+                        else:
+                            batch.add_data_object(data_obj, class_name)
 
     def delete_class(self, class_name: str) -> None:
         """Delete an existing class."""

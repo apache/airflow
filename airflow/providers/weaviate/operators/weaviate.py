@@ -24,6 +24,8 @@ from airflow.models import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from airflow.utils.context import Context
 
 
@@ -40,9 +42,9 @@ class WeaviateIngestOperator(BaseOperator):
 
     :param conn_id: The Weaviate connection.
     :param class_name: The Weaviate class to be used for storing the data objects into.
-    :param input_json: The JSON representing Weaviate data objects to generate embeddings on (or provides
-        custom vectors) and store them in the Weaviate class. Either input_json or input_callable should be
-        provided.
+    :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
+        embeddings on (or provides custom vectors) and store them in the Weaviate class.
+    :param vector_col: key/column name in which the vectors are stored.
     """
 
     template_fields: Sequence[str] = ("input_json",)
@@ -51,7 +53,8 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         class_name: str,
-        input_json: list[dict[str, Any]],
+        input_data: list[dict[str, Any]] | pd.DataFrame,
+        vector_col: str = "Vector",
         **kwargs: Any,
     ) -> None:
         self.batch_params = kwargs.pop("batch_params", {})
@@ -59,7 +62,8 @@ class WeaviateIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
-        self.input_json = input_json
+        self.input_data = input_data
+        self.vector_col = vector_col
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -67,5 +71,7 @@ class WeaviateIngestOperator(BaseOperator):
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
-        self.log.debug("Input json: %s", self.input_json)
-        self.hook.batch_data(self.class_name, self.input_json, **self.batch_params)
+        self.log.debug("Input json: %s", self.input_data)
+        self.hook.batch_data(
+            self.class_name, self.input_data, **self.batch_params, vector_col=self.vector_col
+        )

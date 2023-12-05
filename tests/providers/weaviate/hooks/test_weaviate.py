@@ -19,7 +19,9 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock, Mock, patch
 
+import pandas as pd
 import pytest
+import requests
 from weaviate import ObjectAlreadyExistsException
 
 from airflow.models import Connection
@@ -404,7 +406,15 @@ def test_create_schema(weaviate_hook):
     mock_client.schema.create.assert_called_once_with(test_schema_json)
 
 
-def test_batch_data(weaviate_hook):
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        ([{"name": "John"}, {"name": "Jane"}], 2),
+        (pd.DataFrame.from_dict([{"name": "John"}, {"name": "Jane"}]), 2),
+    ],
+    ids=("data as list of dicts", "data as dataframe"),
+)
+def test_batch_data(data, expected_length, weaviate_hook):
     """
     Test the batch_data method of WeaviateHook.
     """
@@ -414,12 +424,25 @@ def test_batch_data(weaviate_hook):
 
     # Define test data
     test_class_name = "TestClass"
-    test_data = [{"name": "John"}, {"name": "Jane"}]
 
     # Test the batch_data method
-    weaviate_hook.batch_data(test_class_name, test_data)
+    weaviate_hook.batch_data(test_class_name, data)
 
     # Assert that the batch_data method was called with the correct arguments
     mock_client.batch.configure.assert_called_once()
     mock_batch_context = mock_client.batch.__enter__.return_value
-    assert mock_batch_context.add_data_object.call_count == len(test_data)
+    assert mock_batch_context.add_data_object.call_count == expected_length
+
+
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_batch_data_retry(get_conn, weaviate_hook):
+    """Test to ensure retrying working as expected"""
+    data = [{"name": "chandler"}, {"name": "joey"}, {"name": "ross"}]
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [None, error, None, error, None]
+    get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
+    weaviate_hook.batch_data("TestClass", data)
+    assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
