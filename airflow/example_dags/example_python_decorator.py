@@ -64,14 +64,13 @@ def example_python_decorator():
 
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
+    @task
+    def my_sleeping_function(random_base):
+        """This is a function that will run within the DAG execution"""
+        time.sleep(random_base)
+
     for i in range(5):
-
-        @task(task_id=f"sleep_for_{i}")
-        def my_sleeping_function(random_base):
-            """This is a function that will run within the DAG execution"""
-            time.sleep(random_base)
-
-        sleeping_task = my_sleeping_function(random_base=i / 10)
+        sleeping_task = my_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
