@@ -61,6 +61,9 @@ DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
+DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
+    "scheduler", "ignore_first_depends_on_past_by_default"
+)
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(

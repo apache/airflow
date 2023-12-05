@@ -465,6 +465,12 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^.*CHANGELOG\.txt$|^.*CHANGELOG\.rst$|
           git
+      - id: check-base-operator-partial-arguments
+        name: Check BaseOperator and partial() arguments
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
+        pass_filenames: false
+        files: ^airflow/models/(?:base|mapped)operator.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
