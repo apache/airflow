@@ -862,35 +862,37 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
     name="install-provider-packages",
     help="Installs provider packages that can be found in dist.",
 )
-@option_use_airflow_version
-@option_airflow_extras
 @option_airflow_constraints_reference
-@option_skip_constraints
+@option_airflow_extras
+@option_debug_release_management
+@option_debug_resources
+@option_dry_run
+@option_github_repository
+@option_include_success_outputs
 @option_install_selected_providers
 @option_installation_package_format
-@option_debug_release_management
-@option_github_repository
-@option_verbose
-@option_dry_run
+@option_parallelism
+@option_python
 @option_run_in_parallel
 @option_skip_cleanup
-@option_parallelism
-@option_debug_resources
-@option_include_success_outputs
+@option_skip_constraints
+@option_use_airflow_version
+@option_verbose
 def install_provider_packages(
-    use_airflow_version: str | None,
     airflow_constraints_reference: str,
-    skip_constraints: bool,
-    install_selected_providers: str,
     airflow_extras: str,
     debug: bool,
-    package_format: str,
+    debug_resources: bool,
     github_repository: str,
+    include_success_outputs: bool,
+    install_selected_providers: str,
+    package_format: str,
+    python: str,
+    parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    parallelism: int,
-    debug_resources: bool,
-    include_success_outputs: bool,
+    skip_constraints: bool,
+    use_airflow_version: str | None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -898,7 +900,7 @@ def install_provider_packages(
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        python=python,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,
@@ -992,27 +994,29 @@ def install_provider_packages(
     name="verify-provider-packages",
     help="Verifies if all provider code is following expectations for providers.",
 )
-@option_use_airflow_version
-@option_airflow_extras
 @option_airflow_constraints_reference
-@option_skip_constraints
-@option_use_packages_from_dist
+@option_airflow_extras
+@option_debug_release_management
+@option_dry_run
+@option_github_repository
 @option_install_selected_providers
 @option_installation_package_format
-@option_debug_release_management
-@option_github_repository
+@option_python
+@option_skip_constraints
+@option_use_airflow_version
+@option_use_packages_from_dist
 @option_verbose
-@option_dry_run
 def verify_provider_packages(
-    use_airflow_version: str | None,
     airflow_constraints_reference: str,
-    skip_constraints: bool,
-    install_selected_providers: str,
     airflow_extras: str,
-    use_packages_from_dist: bool,
     debug: bool,
-    package_format: str,
     github_repository: str,
+    install_selected_providers: str,
+    package_format: str,
+    python: str,
+    skip_constraints: bool,
+    use_airflow_version: str | None,
+    use_packages_from_dist: bool,
 ):
     if install_selected_providers and not use_packages_from_dist:
         get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
@@ -1025,7 +1029,7 @@ def verify_provider_packages(
         executor="SequentialExecutor",
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        python=python,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,

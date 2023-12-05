@@ -225,4 +225,6 @@ class UseAirflowVersionType(BetterChoice):
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
+        if re.match(r"^https://.*$", value):
+            return value
         return super().convert(value, param, ctx)
