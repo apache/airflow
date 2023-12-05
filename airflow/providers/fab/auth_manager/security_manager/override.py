@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable
 
 import jwt
 import re2
-from flask import flash, g, session, has_request_context
+from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
     AUTH_DB,
