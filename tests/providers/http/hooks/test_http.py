@@ -34,7 +34,7 @@ from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
 
 
 @pytest.fixture
@@ -65,6 +65,9 @@ class CustomAuthBase(HTTPBasicAuth):
         super().__init__(username, password)
 
 
+@mock.patch.dict(
+    "os.environ", AIRFLOW__HTTP__EXTRA_AUTH_TYPES="tests.providers.http.hooks.test_http.CustomAuthBase"
+)
 class TestHttpHook:
     """Test get, post and raise_for_status"""
 
@@ -292,6 +295,29 @@ class TestHttpHook:
         auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
         assert "auth_kwargs" not in session.headers
         assert "x-header" in session.headers
+
+    def test_available_connection_auth_types(self):
+        auth_types = get_auth_types()
+        assert auth_types == frozenset(
+            {
+                "request.auth.HTTPBasicAuth",
+                "request.auth.HTTPProxyAuth",
+                "request.auth.HTTPDigestAuth",
+                "tests.providers.http.hooks.test_http.CustomAuthBase",
+            }
+        )
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_connection_with_invalid_auth_type_get_skipped(self, mock_get_connection, caplog):
+        auth_type: str = "auth_type.class.not.available.for.Import"
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            extra=f'{{"auth_type": "{auth_type}"}}',
+        )
+        mock_get_connection.return_value = conn
+        HttpHook().get_conn({})
+        assert f"Skipping import of auth_type '{auth_type}'." in caplog.text
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")

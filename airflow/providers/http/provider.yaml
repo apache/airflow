@@ -89,3 +89,18 @@ triggers:
 connection-types:
   - hook-class-name: airflow.providers.http.hooks.http.HttpHook
     connection-type: http
+
+config:
+  http:
+    description: "Options for Http provider."
+    options:
+      extra_auth_types:
+        description: |
+          A comma separated list of auth_type classes, which can be used to
+          configure Http Connections in Airflow's UI. This list restricts which
+          classes can be arbitrary imported, and protects from dependency
+          injections.
+        type: string
+        version_added: 4.8.0
+        example: "requests_kerberos.HTTPKerberosAuth,any.other.custom.HTTPAuth"
+        default: ~

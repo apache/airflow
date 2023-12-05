@@ -28,6 +28,7 @@ from asgiref.sync import sync_to_async
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.module_loading import import_string
@@ -36,12 +37,37 @@ if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
 
 
+DEFAULT_AUTH_TYPES = frozenset(
+    {
+        "request.auth.HTTPBasicAuth",
+        "request.auth.HTTPProxyAuth",
+        "request.auth.HTTPDigestAuth",
+    }
+)
+
+
+@cache
+def get_auth_types() -> frozenset[str]:
+    """Get comma-separated extra auth_types from airflow config.
+
+    Those auth_types can then be used in Connection configuration.
+    """
+    from airflow.configuration import conf
+
+    auth_types = DEFAULT_AUTH_TYPES.copy()
+    extra_auth_types = conf.get("http", "extra_auth_types", fallback=None)
+    if extra_auth_types:
+        auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
+    return auth_types
+
+
 class HttpHook(BaseHook):
     """Interact with HTTP servers.
 
     To configure the auth_type, in addition to the `auth_type` parameter, you can also:
         * set the `auth_type` parameter in the Connection settings.
-        * define extra parameters used to instantiate the `auth_type` class, in the Connection settings.
+        * define extra parameters passed to the `auth_type` class via the `auth_kwargs`, in the Connection
+            settings. The class will be instantiated with those parameters.
 
     See :doc:`/connections/http` for full documentation.
 
@@ -109,7 +135,7 @@ class HttpHook(BaseHook):
 
             conn_extra: dict = conn.extra_dejson.copy()
             conn_auth_type_name: str | None = conn_extra.pop("auth_type", None)
-            auth_type: Any = self.auth_type or self._conn_auth_type(conn_auth_type_name) or HTTPBasicAuth
+            auth_type: Any = self.auth_type or self._load_conn_auth_type(conn_auth_type_name) or HTTPBasicAuth
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra.pop("auth_kwargs", {})
 
@@ -128,17 +154,24 @@ class HttpHook(BaseHook):
 
         return session
 
-    def _conn_auth_type(self, module_name: str | None) -> Any:
+    def _load_conn_auth_type(self, module_name: str | None) -> Any:
         """Load auth_type module from extra Connection parameters."""
         if module_name:
-            try:
-                module = import_string(module_name)
-                self._is_auth_type_setup = True
-                self.log.info("Loaded auth_type: %s", module_name)
-                return module
-            except ImportError as error:
-                self.log.debug("Cannot import auth_type '%s' due to: %s", error)
-                raise AirflowException(error)
+            if module_name in get_auth_types():
+                try:
+                    module = import_string(module_name)
+                    self._is_auth_type_setup = True
+                    self.log.info("Loaded auth_type: %s", module_name)
+                    return module
+                except ImportError as error:
+                    self.log.debug("Cannot import auth_type '%s' due to: %s", error)
+                    raise AirflowException(error)
+            else:
+                self.log.warning(
+                    "Skipping import of auth_type '%s'. The class should be listed in "
+                    "'extra_auth_types' config of the http provider.",
+                    module_name,
+                )
         return None
 
     def run(
