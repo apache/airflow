@@ -41,6 +41,7 @@ Significant Changes
 New Features
 """"""""""""
 - AIP-58: Add Airflow ObjectStore (AFS) (`AIP-58 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-58+milestone%3A%22Airflow+2.8.0%22>`_)
+- Add XCom tab to Grid (#35719)
 - Add "literal" wrapper to disable field templating (#35017)
 - Add task context logging feature to allow forwarding messages to task logs (#32646, #32693, #35857)
 - Add Listener hooks for Datasets (#34418)
@@ -60,9 +61,17 @@ New Features
 - Add BranchPythonVirtualenvOperator (#33356)
 - Allow PythonVenvOperator using other index url (#33017)
 - Add CLI notification commands to providers (#33116)
+- Use dropdown instead of buttons when there are more than 10 retries in log tab (#36025)
 
 Improvements
 """"""""""""
+- Add ``multiselect`` to run state in grid view (#35403)
+- Fix warning message in ``Connection.get_hook`` in case of ImportError (#36005)
+- Add processor_subdir to import_error table to handle multiple dag processors (#35956)
+- Consolidate the call of change_state to fail or success in the core executors (#35901)
+- Relax mandatory requirement for start_date when schedule=None (#35356)
+- Use ExitStack to manage mutation of secrets_backend_list in dag.test (#34620)
+- improved visibility of tasks in ActionModal for ``taskinstance`` (#35810)
 - Create directories based on ``AIRFLOW_CONFIG`` path (#35818)
 - Implements ``JSON-string`` connection representation generator (#35723)
 - Move ``BaseOperatorLink`` into the separate module (#35032)
@@ -75,7 +84,7 @@ Improvements
 - Improved instructions for adding dependencies in TaskFlow (#35406)
 - Add optional exit code to list import errors (#35378)
 - Limit query result on DB rather than client in ``synchronize_log_template`` function (#35366)
-- Feature: Allow description to be passed in when using variables CLI (#34791)
+- Allow description to be passed in when using variables CLI (#34791)
 - Allow optional defaults in required fields with manual triggered dags (#31301)
 - Permitting airflow kerberos to run in different modes (#35146)
 - Refactor commands to unify daemon context handling (#34945)
@@ -122,6 +131,16 @@ Improvements
 
 Bug Fixes
 """""""""
+- Account for change in UTC offset when calculating next schedule (#35887)
+- Add read access to pools for viewer role (#35352)
+- Fix gantt chart queued duration when queued_dttm is greater than start_date for deferred tasks (#35984)
+- Avoid crushing container when directory is not found on rm (#36050)
+- Update ``reset_user_sessions`` to work from either CLI or web (#36056)
+- Fix UI Grid error when DAG has been removed. (#36028)
+- Change Trigger UI to use HTTP POST in web ui (#36026)
+- Fix airflow db shell needing an extra key press to exit (#35982)
+- Change dag grid ``overscroll`` behaviour to auto (#35717)
+- Run triggers inline with dag test (#34642)
 - Add ``borderWidthRight`` to grid for Firefox ``scrollbar`` (#35346)
 - Fix for infinite recursion due to secrets_masker (#35048)
 - Fix write ``processor_subdir`` in serialized_dag table (#35661)
@@ -144,8 +163,12 @@ Bug Fixes
 - Use Literal from airflow.typing_compat in Airflow core (#33821)
 - Always use ``Literal`` from ``typing_extensions`` (#33794)
 
-Misc/Internal
+Miscellaneous
 """""""""""""
+- Mark daskexecutor provider as removed (#35965)
+- Bump FAB to ``4.3.10`` (#35991)
+- Mark daskexecutor provider as removed (#35965)
+- Rename ``Connection.to_json_dict`` to ``Connection.to_dict`` (#35894)
 - Upgrade to Pydantic v2 (#35551)
 - Bump ``moto`` version to ``>= 4.2.9`` (#35687)
 - Use ``pyarrow-hotfix`` to mitigate CVE-2023-47248 (#35650)
@@ -177,6 +200,9 @@ Misc/Internal
 
 Doc Only Changes
 """"""""""""""""
+- Add support for tabs (and other UX components) to docs (#36041)
+- Replace architecture diagram of Airflow with diagrams-generated one (#36035)
+- Add the section describing the security model of DAG Author capabilities (#36022)
 - Enhance docs for zombie tasks (#35825)
 - Reflect drop/add support of DB Backends versions in documentation (#35785)
 - More detail on mandatory task arguments (#35740)
