@@ -1530,7 +1530,7 @@
                             "default": true
                         },
                         "useExtPgbouncer": {
-                            "description": "Rewrite connection string to pgBouncer. If we used external pgBouncer. For example, it is neccessary to disable prepare statements.",
+                            "description": "Rewrite connection string to pgBouncer. If we used external pgBouncer. For example, it is necessary to disable prepare statements.",
                             "type": "boolean",
                             "default": false
                         }
