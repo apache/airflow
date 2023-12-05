@@ -223,7 +223,6 @@ def test_adapter_start_task_is_called_with_proper_arguments(
         owners=["Test Owner"],
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
-            "run_facet": 1,
             "custom_facet": 2,
             "airflow_run_facet": 3,
         },
@@ -243,11 +242,14 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
     mocked_adapter.build_task_instance_run_id.side_effect = lambda x, y, z: f"{x}.{y}.{z}"
+    mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
 
     listener.on_task_instance_failed(None, task_instance, None)
     listener.adapter.fail_task.assert_called_once_with(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
+        parent_job_name="dag_id",
+        parent_run_id="dag_id.dag_run_run_id",
         run_id="task_id.execution_date.1",
         task=listener.extractor_manager.extract_metadata(),
     )
@@ -267,6 +269,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(mock_get_job_name
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
     mocked_adapter.build_task_instance_run_id.side_effect = lambda x, y, z: f"{x}.{y}.{z}"
+    mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
 
     listener.on_task_instance_success(None, task_instance, None)
     # This run_id will be different as we did NOT simulate increase of the try_number attribute,
@@ -274,6 +277,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(mock_get_job_name
     listener.adapter.complete_task.assert_called_once_with(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
+        parent_job_name="dag_id",
+        parent_run_id="dag_id.dag_run_run_id",
         run_id="task_id.execution_date.0",
         task=listener.extractor_manager.extract_metadata(),
     )
@@ -285,6 +290,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(mock_get_job_name
     listener.adapter.complete_task.assert_called_once_with(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
+        parent_job_name="dag_id",
+        parent_run_id="dag_id.dag_run_run_id",
         run_id="task_id.execution_date.1",
         task=listener.extractor_manager.extract_metadata(),
     )
