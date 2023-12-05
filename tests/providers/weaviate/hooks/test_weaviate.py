@@ -26,7 +26,6 @@ from weaviate import ObjectAlreadyExistsException
 
 import requests
 import weaviate
-from requests import HTTPError
 
 
 from airflow.models import Connection
