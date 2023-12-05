@@ -88,6 +88,7 @@ PRE_COMMIT_LIST = [
     "end-of-file-fixer",
     "fix-encoding-pragma",
     "flynt",
+    "generate-airflow-diagrams",
     "generate-pypi-readme",
     "identity",
     "insert-license",

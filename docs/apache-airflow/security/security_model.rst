@@ -15,9 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents::
-    :local:
-
 Airflow Security Model
 ======================
 
@@ -32,8 +29,23 @@ security reports are handled by the security team of Airflow, head to
 Airflow security model - user types
 -----------------------------------
 
-The Airflow security model involves different types of users with
-varying access and capabilities:
+The Airflow security model involves different types of users with varying access and capabilities:
+
+While - in smaller installations - all the actions related to Airflow can be performed by a single user,
+in larger installations it is apparent that there different responsibilities, roles and
+capabilities that need to be separated.
+
+This is why Airflow has the following user types:
+
+* Deployment Managers - overall responsible for the Airflow installation, security and configuration
+* Authenticated UI users - users that can access Airflow UI and API and interact with it
+* DAG Authors - responsible for creating DAGs and submitting them to Airflow
+
+You can see more on how the user types influence Airflow's architecture in :doc:`/core-concepts/overview`,
+including, seeing the diagrams of less and more complex deployments.
+
+
+
 
 Deployment Managers
 ...................
