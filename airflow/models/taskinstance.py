@@ -1222,7 +1222,7 @@ class TaskInstance(Base, LoggingMixin):
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
-    priority_weight_strategy = Column(sqlalchemy_jsonfield.JSONField(json=json))
+    _priority_weight_strategy = Column(sqlalchemy_jsonfield.JSONField(json=json))
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
@@ -1385,6 +1385,18 @@ class TaskInstance(Base, LoggingMixin):
         """Returns task instance tags."""
         return _stats_tags(task_instance=self)
 
+    @property
+    def priority_weight_strategy(self) -> PriorityWeightStrategy:
+        from airflow.serialization.serialized_objects import _decode_priority_weight_strategy
+
+        return _decode_priority_weight_strategy(self._priority_weight_strategy)
+
+    @priority_weight_strategy.setter
+    def priority_weight_strategy(self, value: PriorityWeightStrategy) -> None:
+        from airflow.serialization.serialized_objects import _encode_priority_weight_strategy
+
+        self._priority_weight_strategy = _encode_priority_weight_strategy(value)
+
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
         """Insert mapping.
@@ -1407,7 +1419,7 @@ class TaskInstance(Base, LoggingMixin):
             "pool": task.pool,
             "pool_slots": task.pool_slots,
             "priority_weight": priority_weight,
-            "priority_weight_strategy": _encode_priority_weight_strategy(
+            "_priority_weight_strategy": _encode_priority_weight_strategy(
                 task.parsed_priority_weight_strategy
             ),
             "run_as_user": task.run_as_user,
@@ -3506,8 +3518,6 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> SimpleTaskInstance:
-        from airflow.serialization.serialized_objects import _decode_priority_weight_strategy
-
         return cls(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -3523,11 +3533,7 @@ class SimpleTaskInstance:
             key=ti.key,
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
-            priority_weight_strategy=(
-                _decode_priority_weight_strategy(ti.priority_weight_strategy)
-                if ti.priority_weight_strategy is not None
-                else None
-            ),
+            priority_weight_strategy=ti.priority_weight_strategy,
         )
 
     @classmethod

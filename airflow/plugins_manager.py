@@ -604,10 +604,10 @@ def initialize_priority_weight_strategy_plugins():
 
     log.debug("Initialize extra priority weight strategy plugins")
 
-    airflow_backport_weight_strategy_classes = {
-        "absolute": AbsolutePriorityWeightStrategy,
-        "downstream": DownstreamPriorityWeightStrategy,
-        "upstream": UpstreamPriorityWeightStrategy,
+    airflow_weight_strategy_classes = {
+        "airflow.task.priority_strategy.AbsolutePriorityWeightStrategy": AbsolutePriorityWeightStrategy,
+        "airflow.task.priority_strategy.DownstreamPriorityWeightStrategy": DownstreamPriorityWeightStrategy,
+        "airflow.task.priority_strategy.UpstreamPriorityWeightStrategy": UpstreamPriorityWeightStrategy,
     }
 
     plugins_priority_weight_strategy_classes = {
@@ -616,6 +616,6 @@ def initialize_priority_weight_strategy_plugins():
         for priority_weight_strategy_class in plugin.priority_weight_strategies
     }
     priority_weight_strategy_classes = {
-        **airflow_backport_weight_strategy_classes,
+        **airflow_weight_strategy_classes,
         **plugins_priority_weight_strategy_classes,
     }

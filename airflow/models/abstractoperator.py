@@ -21,7 +21,7 @@ import datetime
 import inspect
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
 from sqlalchemy import select
 
@@ -107,7 +107,7 @@ class AbstractOperator(Templater, DAGNode):
     operator_class: type[BaseOperator] | dict[str, Any]
 
     weight_rule: str | None
-    priority_weight_strategy: Literal["absolute", "downstream", "upstream"] | PriorityWeightStrategy
+    priority_weight_strategy: str | PriorityWeightStrategy
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -209,20 +209,9 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def parsed_priority_weight_strategy(self) -> PriorityWeightStrategy:
-        from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
-        from airflow.utils.module_loading import qualname
+        from airflow.task.priority_strategy import _validate_and_load_priority_weight_strategy
 
-        if isinstance(self.priority_weight_strategy, str):
-            priority_weight_strategy_cls = _get_registered_priority_weight_strategy(
-                self.priority_weight_strategy
-            )
-            if priority_weight_strategy_cls is None:
-                raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_cls}")
-            return priority_weight_strategy_cls()
-        priority_weight_strategy_str = qualname(self.priority_weight_strategy)
-        if _get_registered_priority_weight_strategy(priority_weight_strategy_str) is None:
-            raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_str}")
-        return self.priority_weight_strategy
+        return _validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
     def as_setup(self):
         self.is_setup = True

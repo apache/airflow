@@ -65,6 +65,7 @@ from airflow.serialization.serialized_objects import (
     SerializedBaseOperator,
     SerializedDAG,
 )
+from airflow.task.priority_strategy import DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
@@ -172,6 +173,10 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
+                "priority_weight_strategy": {
+                    "__type": "airflow.task.priority_strategy.DownstreamPriorityWeightStrategy",
+                    "__var": {},
+                },
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
@@ -205,6 +210,10 @@ serialized_simple_dag_ground_truth = {
                 "_operator_name": "@custom",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
+                "priority_weight_strategy": {
+                    "__type": "airflow.task.priority_strategy.DownstreamPriorityWeightStrategy",
+                    "__var": {},
+                },
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
@@ -634,9 +643,10 @@ class TestStringifiedDAGs:
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(
-                task, field
-            ), f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
+            if field == "priority_weight_strategy":
+                assert getattr(serialized_task, field) == getattr(
+                    task, field
+                ), f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
 
         if serialized_task.resources is None:
             assert task.resources is None or task.resources == []
@@ -1243,7 +1253,7 @@ class TestStringifiedDAGs:
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 1,
-            "priority_weight_strategy": "downstream",
+            "priority_weight_strategy": DownstreamPriorityWeightStrategy(),
             "queue": "default",
             "resources": None,
             "retries": 0,

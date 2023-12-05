@@ -1076,6 +1076,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "on_failure_fail_dagrun":
                 k = "_on_failure_fail_dagrun"
+            elif k == "priority_weight_strategy":
+                v = _decode_priority_weight_strategy(v)
             # else use v as it is
 
             setattr(op, k, v)

@@ -77,6 +77,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, _validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -763,7 +764,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str | None = DEFAULT_WEIGHT_RULE,
-        priority_weight_strategy: str = DEFAULT_PRIORITY_WEIGHT_STRATEGY,
+        priority_weight_strategy: str | PriorityWeightStrategy = DEFAULT_PRIORITY_WEIGHT_STRATEGY,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -795,8 +796,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **kwargs,
     ):
         from airflow.models.dag import DagContext
-        from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
-        from airflow.utils.module_loading import qualname
         from airflow.utils.task_group import TaskGroupContext
 
         self.__init_kwargs = {}
@@ -913,23 +912,18 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.priority_weight = priority_weight
         self.weight_rule = weight_rule
-        self.priority_weight_strategy = priority_weight_strategy
+        self.priority_weight_strategy: PriorityWeightStrategy
         if weight_rule:
             warnings.warn(
                 "weight_rule is deprecated. Please use `priority_weight_strategy` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            self.priority_weight_strategy = weight_rule
-        # validate the priority weight strategy
-        # validate the priority weight strategy
-        priority_weight_strategy_cls = (
-            self.priority_weight_strategy
-            if isinstance(self.priority_weight_strategy, str)
-            else qualname(self.priority_weight_strategy)
-        )
-        if _get_registered_priority_weight_strategy(priority_weight_strategy_cls) is None:
-            raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_cls}")
+            self.priority_weight_strategy = _validate_and_load_priority_weight_strategy(weight_rule)
+        else:
+            self.priority_weight_strategy = _validate_and_load_priority_weight_strategy(
+                priority_weight_strategy
+            )
 
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
