@@ -383,7 +383,7 @@
   },
   "fab": {
     "deps": [
-      "apache-airflow>=2.9.0",
+      "apache-airflow>=2.8.0",
       "flask-appbuilder==4.3.10",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
