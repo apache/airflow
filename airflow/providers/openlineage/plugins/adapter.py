@@ -97,7 +97,8 @@ class OpenLineageAdapter(LoggingMixin):
         with open(path) as config_file:
             return yaml.safe_load(config_file)
 
-    def build_dag_run_id(self, dag_id, dag_run_id):
+    @staticmethod
+    def build_dag_run_id(dag_id, dag_run_id):
         return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
 
     @staticmethod

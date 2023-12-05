@@ -475,7 +475,9 @@ _devel_only_tests = [
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
     "pytest>=7.1",
-    "pytest-asyncio",
+    # Pytest-asyncio 0.23.0 and 0.23.1 break test collection
+    # See https://github.com/pytest-dev/pytest-asyncio/issues/703 for details.
+    "pytest-asyncio!=0.23.0,!=0.23.1",
     "pytest-cov",
     "pytest-httpx",
     "pytest-icdiff",
