@@ -1561,7 +1561,6 @@ export interface components {
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
-      priority_weight_strategy?: components["schemas"]["PriorityWeightStrategy"];
       ui_color?: components["schemas"]["Color"];
       ui_fgcolor?: components["schemas"]["Color"];
       template_fields?: string[];
@@ -2235,11 +2234,9 @@ export interface components {
       | "always";
     /**
      * @description Weight rule.
-     * @enum {string|null}
+     * @enum {string}
      */
-    WeightRule: ("downstream" | "upstream" | "absolute") | null;
-    /** @description Priority weight strategy. */
-    PriorityWeightStrategy: string;
+    WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
      * @enum {string|null}
@@ -4954,9 +4951,6 @@ export type TriggerRule = CamelCasedPropertiesDeep<
 >;
 export type WeightRule = CamelCasedPropertiesDeep<
   components["schemas"]["WeightRule"]
->;
-export type PriorityWeightStrategy = CamelCasedPropertiesDeep<
-  components["schemas"]["PriorityWeightStrategy"]
 >;
 export type HealthStatus = CamelCasedPropertiesDeep<
   components["schemas"]["HealthStatus"]
