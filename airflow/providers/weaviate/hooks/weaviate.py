@@ -23,13 +23,8 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
-import pandas as pd
 import requests
-from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
-
 from weaviate import Client as WeaviateClient
-from weaviate import UnexpectedStatusCodeException
-
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -41,30 +36,13 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
+    from typing import Sequence, Literal
 
     import pandas as pd
     from weaviate import ConsistencyLevel
     from weaviate.types import UUID
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
-
-HTTP_RETRY_STATUS_CODE = [429, 500, 503, 504]
-REQUESTS_EXCEPTIONS_TYPES = (
-    requests.RequestException,
-    requests.exceptions.ConnectionError,
-    requests.exceptions.HTTPError,
-    requests.exceptions.ConnectTimeout,
-)
-
-
-def check_http_error_is_retryable(exc: BaseException):
-    return (
-        isinstance(exc, requests.exceptions.RequestException)
-        and exc.response
-        and exc.response.status_code
-        and exc.response.status_code in HTTP_RETRY_STATUS_CODE
-    )
 
 
 class WeaviateHook(BaseHook):
@@ -79,13 +57,7 @@ class WeaviateHook(BaseHook):
     conn_type = "weaviate"
     hook_name = "Weaviate"
 
-    def __init__(
-        self,
-        conn_id: str = default_conn_name,
-        retry_status_codes: list[int] | None = None,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
 
@@ -170,14 +142,7 @@ class WeaviateHook(BaseHook):
         client = self.conn
         client.schema.create_class(class_json)
 
-    @retry(
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=(
-            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-        ),
-    )
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def create_schema(self, schema_json: dict[str, Any] | str) -> None:
         """
         Create a new Schema.
@@ -203,14 +168,7 @@ class WeaviateHook(BaseHook):
                 data = json.loads(data.to_json(orient="records"))
         return cast(List[Dict[str, Any]], data)
 
-    @retry(
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=(
-            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-        ),
-    )
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def get_schema(self, class_name: str | None = None):
         """Get the schema from Weaviate.
 
@@ -237,13 +195,9 @@ class WeaviateHook(BaseHook):
             try:
                 for attempt in Retrying(
                     stop=stop_after_attempt(3),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
+                    retry=retry_if_exception_type(requests.exceptions.RequestException),
                 ):
                     with attempt:
-                        print(attempt)
                         client.schema.delete_class(class_name)
             except Exception as e:
                 if if_error == "continue":
@@ -261,16 +215,15 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         return client.schema.delete_all()
 
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.ConnectionError))
     def update_config(self, class_name: str, config: dict):
         """Update a schema configuration for a specific class."""
         client = self.get_client()
         client.schema.update_config(class_name=class_name, config=config)
 
-    def create_or_replace_classes(
-        self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"
-    ):
+    def upsert_classes(self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"):
         """
-        Create or replace the classes in schema of Weaviate database.
+        Create or update the classes in schema of Weaviate database.
 
         :param schema_json: Json containing the schema. Format {"class_name": "class_dict"}
             .. seealso:: `example of class_dict <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.create>`_.
@@ -419,10 +372,7 @@ class WeaviateHook(BaseHook):
             for index, data_obj in enumerate(data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
+                    retry=retry_if_exception_type(requests.exceptions.RequestException),
                 ):
                     with attempt:
                         self.log.debug(
