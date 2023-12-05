@@ -47,7 +47,7 @@ class OpenAIHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "port", "login", "extra"],
+            "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {},
         }
@@ -67,11 +67,14 @@ class OpenAIHook(BaseHook):
     def get_conn(self) -> OpenAI:
         """Return an OpenAI connection object."""
         conn = self.get_connection(self.conn_id)
-        url = conn.host or None
-        password = conn.password
+        extras = conn.extra_dejson
+        openai_client_kwargs = extras.get("openai_client_kwargs", {})
+        api_key = openai_client_kwargs.pop("api_key", None) or conn.password
+        base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
         return OpenAI(
-            api_key=password,
-            base_url=url,
+            api_key=api_key,
+            base_url=base_url,
+            **openai_client_kwargs,
         )
 
     def create_embeddings(

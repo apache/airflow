@@ -16,19 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
+import os
+from unittest.mock import patch
 
 import pytest
-from openai import OpenAI
 from openai.types import CreateEmbeddingResponse, Embedding
 
+from airflow.models import Connection
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
 @pytest.fixture
-def openai_hook():
+def mock_openai_connection():
+    conn_id = "openai_conn"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    yield conn
+
+
+@pytest.fixture
+def mock_openai_hook(mock_openai_connection):
     with patch("airflow.providers.openai.hooks.openai.OpenAI"):
-        yield OpenAIHook(conn_id="test_conn_id")
+        yield OpenAIHook(conn_id=mock_openai_connection.conn_id)
 
 
 @pytest.fixture
@@ -41,33 +53,88 @@ def mock_embeddings_response():
     )
 
 
-@patch("airflow.hooks.base.BaseHook.get_connection")
-def test_create_embeddings(mock_get_connection, openai_hook, mock_embeddings_response):
+def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
     text = "Sample text"
-    openai_hook.conn.embeddings.create.return_value = mock_embeddings_response
-    embeddings = openai_hook.create_embeddings(text)
+    mock_openai_hook.conn.embeddings.create.return_value = mock_embeddings_response
+    embeddings = mock_openai_hook.create_embeddings(text)
     assert embeddings == [0.1, 0.2, 0.3]
 
 
-@patch("openai.OpenAI")
-@patch("airflow.hooks.base.BaseHook.get_connection")
-def test_openai_hook_get_conn(mock_get_connection, mock_openai):
-    mock_connection = MagicMock()
-    mock_connection.host = "http://example.com"
-    mock_connection.password = "test-api-key"
-    mock_get_connection.return_value = mock_connection
-    OpenAIHook.get_connection = Mock(return_value=mock_connection)
-
-    openai_hook = OpenAIHook(conn_id="test_conn")
-    conn = openai_hook.conn
-
-    assert isinstance(conn, OpenAI)
-    assert conn.api_key == "test-api-key"
-    assert conn.base_url == "http://example.com"
-
-
-@patch("openai.OpenAI")
-def test_openai_hook_test_connection(mock_openai, openai_hook):
-    result, message = openai_hook.test_connection()
+def test_openai_hook_test_connection(mock_openai_hook):
+    result, message = mock_openai_hook.test_connection()
     assert result is True
     assert message == "Connection established!"
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_api_key_in_extra(mock_client):
+    conn_id = "api_key_in_extra"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={"openai_client_kwargs": {"api_key": "api_key_in_extra"}},
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_api_key_in_password(mock_client):
+    conn_id = "api_key_in_password"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        password="api_key_in_password",
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_password",
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_base_url_in_extra(mock_client):
+    conn_id = "base_url_in_extra"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={"openai_client_kwargs": {"base_url": "base_url_in_extra", "api_key": "api_key_in_extra"}},
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url="base_url_in_extra",
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_openai_client_kwargs(mock_client):
+    conn_id = "openai_client_kwargs"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={
+            "openai_client_kwargs": {
+                "api_key": "api_key_in_extra",
+                "organization": "organization_in_extra",
+            }
+        },
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url=None,
+        organization="organization_in_extra",
+    )
