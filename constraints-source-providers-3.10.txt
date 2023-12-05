@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-05T11:12:42Z
+# This constraints file was automatically generated on 2023-12-05T14:30:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -439,7 +439,7 @@ pyspnego==0.10.2
 pytest-asyncio==0.23.2
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
-pytest-icdiff==0.8
+pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.12.0
 pytest-rerunfailures==13.0
@@ -597,7 +597,7 @@ yamllint==1.33.0
 yandexcloud==0.246.0
 yarl==1.9.3
 zeep==4.2.1
-zenpy==2.0.41
+zenpy==2.0.42
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
