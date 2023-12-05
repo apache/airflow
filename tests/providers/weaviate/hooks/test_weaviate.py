@@ -463,25 +463,25 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     ],
     ids=["ignore", "replace", "fail", "invalid_option"],
 )
-@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_schema")
+@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_classes")
 @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
 @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
 def test_upsert_schema_scenarios(
-    get_schema, create_schema, delete_schema, get_schema_value, existing, expected_value, weaviate_hook
+    get_schema, create_schema, delete_classes, get_schema_value, existing, expected_value, weaviate_hook
 ):
     schema_json = {
         "B": {"class": "B"},
         "C": {"class": "C"},
     }
     with ExitStack() as stack:
-        delete_schema.return_value = None
+        delete_classes.return_value = None
         if existing in ["fail", "invalid_option"]:
             stack.enter_context(pytest.raises(ValueError))
         get_schema.return_value = get_schema_value
         weaviate_hook.upsert_classes(schema_json=schema_json, existing=existing)
         create_schema.assert_called_once_with({"classes": expected_value})
         if existing == "replace":
-            delete_schema.assert_called_once_with(class_names=["B"])
+            delete_classes.assert_called_once_with(class_names=["B"])
 
 
 @patch("builtins.open")
@@ -500,29 +500,20 @@ def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, we
 
 
 @patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
-@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_class")
-def test_delete_schema(delete_class, get_client, weaviate_hook):
+def test_delete_schema(get_client, weaviate_hook):
     class_names = ["class_a", "class_b"]
-    delete_class.side_effect = [
+    get_client.return_value.schema.delete_class.side_effect = [
         weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
         None,
     ]
-    error_list = weaviate_hook.delete_schema(class_names)
-    assert len(error_list) == 1
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == ["class_a"]
 
-    weaviate_hook.delete_schema()
-    get_client.return_value.schema.delete_all.assert_called()
-
-
-@patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.update_class")
-def test_update_multiple_classes(update_class, weaviate_hook):
-    update_class.side_effect = [
-        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
-        None,
-    ]
-    schema_json = [{"class": "A"}, {"class": "B"}]
-    error_list = weaviate_hook.update_multiple_classes(schema_json)
-    assert len(error_list) == 1
+    get_client.return_value.schema.delete_class.side_effect = weaviate.UnexpectedStatusCodeException(
+        "something failed", requests.Response()
+    )
+    with pytest.raises(weaviate.UnexpectedStatusCodeException):
+        weaviate_hook.delete_classes("class_a", if_error="stop")
 
 
 @pytest.mark.parametrize(

@@ -23,12 +23,8 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
-import pandas as pd
 import requests
-
 from weaviate import Client as WeaviateClient
-from weaviate import UnexpectedStatusCodeException
-
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -153,7 +149,7 @@ class WeaviateHook(BaseHook):
 
         Instead of adding classes one by one , you can upload a full schema in JSON format at once.
 
-        :param schema_json: The schema to create or path to the json file holding the schema
+        :param schema_json: Schema as a Python dict or the path to a JSON file, or the URL of a JSON file.
         """
         client = self.conn
         client.schema.create(schema_json)
@@ -176,60 +172,54 @@ class WeaviateHook(BaseHook):
     def get_schema(self, class_name: str | None = None):
         """Get the schema from Weaviate.
 
-        get schema of a class or all classes.
+        :param class_name: The class for which to return the schema. If NOT provided the whole schema is
+            returned, otherwise only the schema of this class is returned. By default None.
         """
         client = self.get_client()
         return client.schema.get(class_name)
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
-    def delete_class(self, class_name: str):
-        """Delete a schema class from Weaviate. This deletes all associated data."""
-        client = self.get_client()
-        client.schema.delete_class(class_name)
+    def delete_classes(self, class_names: list[str] | str, if_error: str = "stop") -> list[str] | None:
+        """Deletes all or specific classes if class_names are provided.
 
-    def delete_schema(
-        self, class_names: list[str] | str | None = None
-    ) -> list[UnexpectedStatusCodeException] | None:
-        """
-        Deletes all or specific class if class_names are provided.
-
-        If no class_name is given remove the entire schema from the Weaviate instance and all data associated
-        with it. If class_names are given, delete schema classes from Weaviate. This deletes all associated data.
-        :return: list of error object if any
+        :param class_names: list of class names to be deleted.
+        :param if_error: define the actions to be taken if there is an error while deleting a class, possible
+         options are `stop` and `continue`
+        :return: if `if_error=continue` return list of classes which we failed to delete.
+            if `if_error=stop` returns None.
         """
         client = self.get_client()
         class_names = [class_names] if class_names and isinstance(class_names, str) else class_names
-        if class_names:
-            error_list = []
-            for class_name in class_names:
-                try:
-                    self.delete_class(class_name=class_name)
-                except UnexpectedStatusCodeException as e:
-                    error_list.append(e)
-            return error_list
-        else:
-            return client.schema.delete_all()
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
-    def update_class(self, class_name: str, config: dict):
-        """Update schema's class."""
+        failed_class_list = []
+        for class_name in class_names:
+            try:
+                for attempt in Retrying(
+                    stop=stop_after_attempt(3),
+                    retry=retry_if_exception_type(requests.exceptions.RequestException),
+                ):
+                    with attempt:
+                        client.schema.delete_class(class_name)
+            except Exception as e:
+                if if_error == "continue":
+                    self.log.error(e)
+                    failed_class_list.append(class_name)
+                elif if_error == "stop":
+                    raise e
+
+        if if_error == "continue":
+            return failed_class_list
+        return None
+
+    def delete_all_schema(self):
+        """Remove the entire schema from the Weaviate instance and all data associated with it."""
+        client = self.get_client()
+        return client.schema.delete_all()
+
+    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.ConnectionError))
+    def update_config(self, class_name: str, config: dict):
+        """Update a schema configuration for a specific class."""
         client = self.get_client()
         client.schema.update_config(class_name=class_name, config=config)
-
-    def update_multiple_classes(self, schema_json: list[dict]) -> list[UnexpectedStatusCodeException] | None:
-        """Updated multiple classes.
-
-        :param schema_json: list of class_config objects
-            .. seealso:: `example of class_config <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.update_config>`_.
-        :return: list of error object if any
-        """
-        error_list = []
-        for config in schema_json:
-            try:
-                self.update_class(class_name=config.pop("class"), config=config)
-            except UnexpectedStatusCodeException as e:
-                error_list.append(e)
-        return error_list
 
     def upsert_classes(self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"):
         """
@@ -256,39 +246,48 @@ class WeaviateHook(BaseHook):
         elif existing == "ignore":
             classes_to_create = set__to_be_added_classes - set__exiting_classes
         elif existing == "replace":
-            error_list = self.delete_schema(class_names=list(intersection_classes))
+            error_list = self.delete_classes(class_names=list(intersection_classes))
             if error_list:
                 raise ValueError(error_list)
             classes_to_create = intersection_classes.union(set__to_be_added_classes)
         classes_to_create_list = [schema_json[item] for item in sorted(list(classes_to_create))]
         self.create_schema({"classes": classes_to_create_list})
 
-    def _compare_schema_subset(self, class_object: Any, class_schema: Any) -> bool:
+    def _compare_schema_subset(self, subset_object: Any, superset_object: Any) -> bool:
         """
-        Recursively check if requested schema/object is a subset of the current schema.
+        Recursively check if requested subset_object is a subset of the superset_object.
 
-        :param class_object: The class object to check against current schema
-        :param class_schema: The current schema class object
+        Example 1:
+        superset_object = {"a": {"b": [1, 2, 3], "c": "d"}}
+        subset_object = {"a": {"c": "d"}}
+        _compare_schema_subset(subset_object, superset_object) # will result in True
+
+        superset_object = {"a": {"b": [1, 2, 3], "c": "d"}}
+        subset_object = {"a": {"d": "e"}}
+        _compare_schema_subset(subset_object, superset_object) # will result in False
+
+        :param subset_object: The object to be checked
+        :param superset_object: The object to check against
         """
         # Direct equality check
-        if class_object == class_schema:
+        if subset_object == superset_object:
             return True
 
         # Type mismatch early return
-        if type(class_object) != type(class_schema):
+        if type(subset_object) != type(superset_object):
             return False
 
         # Dictionary comparison
-        if isinstance(class_object, dict):
-            for k, v in class_object.items():
-                if (k not in class_schema) or (not self._compare_schema_subset(v, class_schema[k])):
+        if isinstance(subset_object, dict):
+            for k, v in subset_object.items():
+                if (k not in superset_object) or (not self._compare_schema_subset(v, superset_object[k])):
                     return False
             return True
 
         # List or Tuple comparison
-        if isinstance(class_object, (list, tuple)):
-            for obj, sch in zip(class_object, class_schema):
-                if len(class_object) > len(class_schema) or not self._compare_schema_subset(obj, sch):
+        if isinstance(subset_object, (list, tuple)):
+            for sub, sup in zip(subset_object, superset_object):
+                if len(subset_object) > len(superset_object) or not self._compare_schema_subset(sub, sup):
                     return False
             return True
 
@@ -297,12 +296,35 @@ class WeaviateHook(BaseHook):
 
     @staticmethod
     def _convert_properties_to_dict(classes_objects, key_property: str = "name"):
+        """
+        Helper function to convert list of class properties into dict by using a `key_property` as key.
+
+        This is done to avoid class properties comparison as list of properties.
+
+        Case 1:
+        A = [1, 2, 3]
+        B = [1, 2]
+        When comparing list we check for the length, but it's not suitable for subset check.
+
+        Case 2:
+        A = [1, 2, 3]
+        B = [1, 3, 2]
+        When we compare two lists, we compare item 1 of list A with item 1 of list B and
+         pass if the two are same, but there can be scenarios when the properties are not in same order.
+        """
         for cls in classes_objects:
             cls["properties"] = {p[key_property]: p for p in cls["properties"]}
         return classes_objects
 
     def check_subset_of_schema(self, classes_objects: list) -> bool:
-        """Check if the class_objects is a subset of existing schema."""
+        """Check if the class_objects is a subset of existing schema.
+
+        Note - weaviate client's `contains()` don't handle the class properties mismatch, if you want to
+         compare `Class A` with `Class B` they must have exactly same properties. If `Class A` has fewer
+          numbers of properties than Class B, `contains()` will result in False.
+
+        .. seealso:: `contains <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.schema.html#weaviate.schema.Schema.contains>`_.
+        """
         # When the class properties are not in same order or not the same length. We convert them to dicts
         # with property `name` as the key. This way we ensure, the subset is checked.
         classes_objects = self._convert_properties_to_dict(classes_objects)
