@@ -40,7 +40,7 @@ class TestDockerSwarmOperator:
                 yield [{"Status": {"State": "complete"}}]
 
         def _client_service_logs_effect():
-            yield b"Testing is awesome."
+            yield b"2023-12-05T00:00:00.000000000Z Testing is awesome."
 
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {"ID": "some_id"}
@@ -99,7 +99,7 @@ class TestDockerSwarmOperator:
         )
 
         client_mock.service_logs.assert_called_with(
-            "some_id", follow=False, stdout=True, stderr=True, is_tty=True
+            "some_id", follow=False, stdout=True, stderr=True, is_tty=True, since=0, timestamps=True
         )
 
         csargs, cskwargs = client_mock.create_service.call_args_list[0]
