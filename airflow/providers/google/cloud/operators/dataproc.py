@@ -2152,7 +2152,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param asynchronous: Flag to return after submitting the job to the Dataproc API.
-        This is useful for submitting long running jobs and
+        This is useful for submitting long-running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :param deferrable: Run operator in the deferrable mode
     :param polling_interval_seconds: time in seconds between polling for job completion.
@@ -2267,10 +2267,11 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
+        job = event["job"]
         if job_state == JobStatus.State.ERROR:
-            raise AirflowException(f"Job failed:\n{job_id}")
+            raise AirflowException(f"Job {job_id} failed:\n{job}")
         if job_state == JobStatus.State.CANCELLED:
-            raise AirflowException(f"Job was cancelled:\n{job_id}")
+            raise AirflowException(f"Job {job_id} was cancelled:\n{job}")
         self.log.info("%s completed successfully.", self.task_id)
         return job_id
 

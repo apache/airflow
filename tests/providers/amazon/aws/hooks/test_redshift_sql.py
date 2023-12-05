@@ -139,16 +139,16 @@ class TestRedshiftSQLHookConn:
         mock_db_pass = "aws_token"
 
         # Mock AWS Connection
-        mock_aws_hook_conn.get_cluster_credentials.return_value = {
-            "DbPassword": mock_db_pass,
-            "DbUser": mock_db_user,
+        mock_aws_hook_conn.get_credentials.return_value = {
+            "dbPassword": mock_db_pass,
+            "dbUser": mock_db_user,
         }
 
         self.db_hook.get_conn()
 
         # Check boto3 'redshift' client method `get_cluster_credentials` call args
-        mock_aws_hook_conn.get_cluster_credentials.assert_called_once_with(
-            DbName=LOGIN_SCHEMA,
+        mock_aws_hook_conn.get_credentials.assert_called_once_with(
+            dbName=LOGIN_SCHEMA,
             workgroupName=mock_work_group,
             durationSeconds=3600,
         )
