@@ -1528,6 +1528,11 @@
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "useExtPgbouncer": {
+                            "description": "Rewrite connection string to pgBouncer. If we used external pgBouncer. For example, it is neccessary to disable prepare statements.",
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 },

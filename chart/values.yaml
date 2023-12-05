@@ -592,6 +592,10 @@ workers:
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
+    # Rewrite connection string to pgBouncer. If we used external pgBouncer.
+    # For example, it is neccessary to disable prepare statements.
+    useExtPgbouncer: false
+
   persistence:
     # Enable persistent volumes
     enabled: true
