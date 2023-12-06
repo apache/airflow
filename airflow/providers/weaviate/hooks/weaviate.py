@@ -20,9 +20,8 @@ from __future__ import annotations
 import json
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
-import pandas as pd
 import requests
 from tenacity import Retrying, retry_if_exception, stop_after_attempt
 from weaviate import Client as WeaviateClient
@@ -34,7 +33,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -158,8 +157,20 @@ class WeaviateHook(BaseHook):
         data: list[dict[str, Any]] | pd.DataFrame,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
-        no_retry_attempts_per_object: int = 5,
+        retry_attempts_per_object: int = 5,
     ) -> None:
+        """
+        Add multiple objects or object references at once into weaviate.
+
+        :param class_name: The name of the class that objects belongs to.
+        :param data: list or dataframe of objects we want to add.
+        :param batch_config_params: dict of batch configuration option.
+            .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
+        :param vector_col: name of the column containing the vector.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        """
+        import pandas as pd
+
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
@@ -170,8 +181,8 @@ class WeaviateHook(BaseHook):
             # Batch import all data
             for index, data_obj in enumerate(data):
                 for attempt in Retrying(
-                    stop=stop_after_attempt(no_retry_attempts_per_object),
-                    retry=retry_if_exception(check_http_error_should_retry),
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=retry_if_exception(self.check_http_error_should_retry),
                 ):
                     with attempt:
                         self.log.debug(
