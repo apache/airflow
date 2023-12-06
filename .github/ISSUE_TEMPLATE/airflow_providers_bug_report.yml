@@ -112,6 +112,7 @@ body:
         - vertica
         - weaviate
         - yandex
+        - yeedu
         - zendesk
     validations:
       required: true
