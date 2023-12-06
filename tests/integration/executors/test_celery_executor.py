@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from unittest import mock
 
@@ -145,6 +146,9 @@ class TestCeleryExecutor:
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
+
+                # allow some time for the task to be processed
+                time.sleep(10)
 
                 assert list(executor.tasks.keys()) == [
                     ("success", "fake_simple_ti", execute_date, 0),
