@@ -410,7 +410,7 @@ def test_create_schema(weaviate_hook):
     argnames=["data", "expected_length"],
     argvalues=[
         ([{"name": "John"}, {"name": "Jane"}], 2),
-        (pd.DataFrame.from_dict([{"name": "John"}, {"name": "Jane"}]), 2),
+        (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
     ],
     ids=("data as list of dicts", "data as dataframe"),
 )

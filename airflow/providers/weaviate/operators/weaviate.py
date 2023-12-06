@@ -39,8 +39,8 @@ class WeaviateIngestOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:WeaviateIngestOperator`
 
-    Operator that accepts input json to generate embeddings on or accepting provided custom vectors
-    and store them in the Weaviate class.
+    Operator that accepts input json or pandas dataframe to generate embeddings on or accepting provided
+    custom vectors and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
     :param class_name: The Weaviate class to be used for storing the data objects into.
@@ -87,5 +87,8 @@ class WeaviateIngestOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
-            self.class_name, self.input_data, **self.batch_params, vector_col=self.vector_col
+            self.class_name,
+            self.input_data,
+            **self.batch_params,
+            vector_col=self.vector_col,  # type: ignore
         )
