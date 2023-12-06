@@ -39,10 +39,10 @@ airflow_version = "2.8.0"
 def upgrade():
     """Apply add priority_weight_strategy to task_instance"""
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("priority_weight_strategy", sa.JSON()))
+        batch_op.add_column(sa.Column("_priority_weight_strategy", sa.JSON()))
 
 
 def downgrade():
     """Unapply add priority_weight_strategy to task_instance"""
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.drop_column("priority_weight_strategy")
+        batch_op.drop_column("_priority_weight_strategy")
