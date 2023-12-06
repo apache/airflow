@@ -149,7 +149,7 @@ class WeaviateHook(BaseHook):
         client.schema.create(schema_json)
 
     @staticmethod
-    def check_http_error_is_retryable(exc: BaseException):
+    def check_http_error_should_retry(exc: BaseException):
         return isinstance(exc, requests.HTTPError) and not exc.response.ok
 
     def batch_data(
