@@ -1086,3 +1086,30 @@ class TestEcsExecutorConfig:
         executor.start()
 
         ecs_mock.stop_task.assert_not_called()
+
+    def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars):
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        expected_error = (
+            "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
+        )
+
+        with pytest.raises(ValueError, match=expected_error):
+            AwsEcsExecutor()
+
+    def test_providing_capacity_provider(self, set_env_vars):
+        valid_capacity_provider = \
+            "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = valid_capacity_provider
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert "launchType" not in task_kwargs
+        assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
+

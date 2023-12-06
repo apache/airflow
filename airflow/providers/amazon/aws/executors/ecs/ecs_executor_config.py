@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     camelize_dict_keys,
     parse_assign_public_ip,
 )
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import prune_dict
 
 
@@ -59,6 +60,26 @@ def build_task_kwargs() -> dict:
     # the code below expects them to be there and will rearrange them as necessary.
     task_kwargs = _fetch_config_values()
     task_kwargs.update(_fetch_templated_kwargs())
+
+    try:
+        has_launch_type: bool = task_kwargs.get("launch_type") is not None
+        has_capacity_provider: bool = task_kwargs.get("capacity_provider_strategy") is not None
+
+        if has_capacity_provider and has_launch_type:
+            raise ValueError(
+                "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
+            )
+        elif not (has_capacity_provider or has_launch_type):
+            # Default API behavior if neither is provided is to fall back on the default capacity
+            # provider if it exists. Since it is not a required value, check if there is one
+            # before using it, and if there is not then use the FARGATE launch_type as
+            # the final fallback.
+            cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])["clusters"][0]
+            if not cluster.get("defaultCapacityProviderStrategy"):
+                task_kwargs["launch_type"] = "FARGATE"
+
+    except IndexError:
+        pass
 
     # There can only be 1 count of these containers
     task_kwargs["count"] = 1  # type: ignore
