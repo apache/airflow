@@ -29,6 +29,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -69,6 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
+from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -93,6 +95,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
+
 pytestmark = pytest.mark.db_test
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
@@ -114,6 +119,11 @@ def clear_datasets():
     clear_db_datasets()
     yield
     clear_db_datasets()
+
+
+class TestPriorityWeightStrategy(PriorityWeightStrategy):
+    def get_weight(self, ti: TaskInstance):
+        return 99
 
 
 class TestDag:
