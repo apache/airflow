@@ -34,9 +34,11 @@ const GanttTooltip = ({ task, instance }: Props) => {
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = instance?.queuedDttm
-    ? getDuration(instance.queuedDttm, instance?.startDate)
-    : 0;
+  const queuedDuration =
+    instance?.queuedDttm &&
+    (instance?.startDate ? instance.queuedDttm < instance.startDate : true)
+      ? getDuration(instance.queuedDttm, instance?.startDate)
+      : 0;
   return (
     <Box>
       <Text>
