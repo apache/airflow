@@ -46,7 +46,7 @@ def _covers_every_hour(cron: croniter) -> bool:
     instead of 3:30am.
 
     While this technically happens for all runs (in such a timezone), we only
-    really want to care about runs that happen at least once an hour, and can
+    really care about runs that happen at least once an hour, and can
     provide a somewhat reasonable rationale to skip the fold hour for things
     such as ``*/2`` (every two hour). So we try to *minially* peak into croniter
     internals to work around the issue.
