@@ -918,7 +918,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         :param package_name: provider package - only needed in case connection_type is missing
         : return
         """
-        from wtforms import BooleanField, IntegerField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField, TextAreaField, SelectField
 
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
@@ -938,7 +938,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 raise ValueError(
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
-        allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
+        allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField, TextAreaField, SelectField]
         hook_class = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
