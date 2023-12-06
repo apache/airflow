@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useReducer } from "react";
 import {
   Flex,
   Button,
@@ -45,16 +45,42 @@ interface Props extends MenuButtonProps {
   state?: RunState;
 }
 
+interface State {
+  showConfirmationModal: boolean;
+  confirmingAction: "success" | "failed" | null;
+}
+
+type Action =
+  | { type: "SHOW_CONFIRMATION_MODAL"; payload: "success" | "failed" }
+  | { type: "HIDE_CONFIRMATION_MODAL" };
+
+const initialState = {
+  showConfirmationModal: false,
+  confirmingAction: null,
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "SHOW_CONFIRMATION_MODAL":
+      return {
+        ...state,
+        showConfirmationModal: true,
+        confirmingAction: action.payload,
+      };
+    case "HIDE_CONFIRMATION_MODAL":
+      return { ...state, showConfirmationModal: false, confirmingAction: null };
+    default:
+      return state;
+  }
+};
+
 const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   const { mutateAsync: markFailed, isLoading: isMarkFailedLoading } =
     useMarkFailedRun(dagId, runId);
   const { mutateAsync: markSuccess, isLoading: isMarkSuccessLoading } =
     useMarkSuccessRun(dagId, runId);
 
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [confirmingAction, setConfirmingAction] = useState<
-    "success" | "failed"
-  >();
+  const [stateReducer, dispatch] = useReducer(reducer, initialState);
 
   const storedValue = localStorage.getItem("doNotShowMarkRunModal");
   const [doNotShowAgain, setDoNotShowAgain] = useState(
@@ -74,27 +100,25 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
       "doNotShowMarkRunModal",
       JSON.stringify(doNotShowAgain)
     );
-    if (confirmingAction === "failed") {
+    if (stateReducer.confirmingAction === "failed") {
       markAsFailed();
-    } else if (confirmingAction === "success") {
+    } else if (stateReducer.confirmingAction === "success") {
       markAsSuccess();
     }
-    setShowConfirmationModal(false);
+    dispatch({ type: "HIDE_CONFIRMATION_MODAL" });
   };
 
   useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => {
     if (state !== "success") {
       if (!doNotShowAgain) {
-        setConfirmingAction("success");
-        setShowConfirmationModal(true);
+        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "success" });
       } else markAsSuccess();
     }
   });
   useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => {
     if (state !== "failed") {
       if (!doNotShowAgain) {
-        setConfirmingAction("failed");
-        setShowConfirmationModal(true);
+        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "failed" });
       } else markAsFailed();
     }
   });
@@ -130,25 +154,26 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
         </MenuList>
       </Menu>
       <ConfirmationModal
-        isOpen={showConfirmationModal}
-        onClose={() => setShowConfirmationModal(false)}
+        isOpen={stateReducer.showConfirmationModal}
+        onClose={() => dispatch({ type: "HIDE_CONFIRMATION_MODAL" })}
         header="Confirmation"
         submitButton={
           <Button
             onClick={confirmAction}
             colorScheme={
-              (confirmingAction === "success" && "green") ||
-              (confirmingAction === "failed" && "red") ||
+              (stateReducer.confirmingAction === "success" && "green") ||
+              (stateReducer.confirmingAction === "failed" && "red") ||
               "grey"
             }
           >
-            Mark as {confirmingAction}
+            Mark as {stateReducer.confirmingAction}
           </Button>
         }
         doNotShowAgain={doNotShowAgain}
         onDoNotShowAgainChange={(value) => setDoNotShowAgain(value)}
       >
-        Are you sure you want to mark the DAG run as {confirmingAction}?
+        Are you sure you want to mark the DAG run as{" "}
+        {stateReducer.confirmingAction}?
       </ConfirmationModal>
     </>
   );
