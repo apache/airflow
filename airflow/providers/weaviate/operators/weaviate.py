@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
@@ -53,7 +55,8 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         class_name: str,
-        input_data: list[dict[str, Any]] | pd.DataFrame,
+        input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
+        input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
         vector_col: str = "Vector",
         **kwargs: Any,
     ) -> None:
@@ -62,8 +65,17 @@ class WeaviateIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
-        self.input_data = input_data
         self.vector_col = vector_col
+        self.input_data = input_data
+        if input_json:
+            warnings.warn(
+                "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
+                " you should use 'input_data' instead",
+                AirflowProviderDeprecationWarning,
+            )
+            self.input_data = input_json
+        if self.input_data is None:
+            raise ValueError("Either input_json or input_data is required")
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -71,7 +83,7 @@ class WeaviateIngestOperator(BaseOperator):
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
-        self.log.debug("Input json: %s", self.input_data)
+        self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             self.class_name, self.input_data, **self.batch_params, vector_col=self.vector_col
         )
