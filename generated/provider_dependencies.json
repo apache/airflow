@@ -962,6 +962,14 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "yeedu": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "requests>=2.27,<3"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "zendesk": {
     "deps": [
       "apache-airflow>=2.5.0",
