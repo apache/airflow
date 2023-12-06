@@ -113,6 +113,30 @@ class HttpHook(BaseHook):
     def auth_type(self, v):
         self._auth_type = v
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms.fields import SelectField, TextAreaField
+
+        auth_types_choices = frozenset({""}) | get_auth_types()
+        return {
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices]
+            ),
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs")),
+            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"))
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {}
+        }
+
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
