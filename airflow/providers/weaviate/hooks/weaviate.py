@@ -171,7 +171,7 @@ class WeaviateHook(BaseHook):
             for index, data_obj in enumerate(data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(no_retry_attempts_per_object),
-                    retry=retry_if_exception(lambda exc: self.check_http_error_is_retryable(exc)),
+                    retry=retry_if_exception(self.check_http_error_is_retryable),
                 ):
                     with attempt:
                         self.log.debug(
