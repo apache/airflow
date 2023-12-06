@@ -46,6 +46,8 @@ class WeaviateIngestOperator(BaseOperator):
     :param class_name: The Weaviate class to be used for storing the data objects into.
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
+    :param input_json: The JSON representing Weaviate data objects to generate embeddings on (or provides
+        custom vectors) and store them in the Weaviate class.
     :param vector_col: key/column name in which the vectors are stored.
     """
 
