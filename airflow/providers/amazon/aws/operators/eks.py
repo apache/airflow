@@ -253,6 +253,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.fargate_profile_name = fargate_profile_name
         self.deferrable = deferrable
+        self.eks_hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
         super().__init__(
             **kwargs,
         )
@@ -271,7 +272,6 @@ class EksCreateClusterOperator(BaseOperator):
                         compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
                     )
                 )
-        self.eks_hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
         self.eks_hook.create_cluster(
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
@@ -382,7 +382,7 @@ class EksCreateClusterOperator(BaseOperator):
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
-            else:
+            elif self.compute == "nodegroup":
                 self.defer(
                     trigger=EksCreateNodegroupTrigger(
                         nodegroup_name=self.nodegroup_name,
@@ -400,9 +400,9 @@ class EksCreateClusterOperator(BaseOperator):
         if event is None:
             self.log.info("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "delteted":
+        elif event["status"] == "deleted":
             self.log.info("Cluster deleted")
-            raise event["exception"]
+            raise AirflowException("Error creating cluster")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         resource = "fargate profile" if self.compute == "fargate" else self.compute
