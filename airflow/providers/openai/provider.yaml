@@ -39,7 +39,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.5.0
-  - openai[datalib]>=0.28.1,<1.0
+  - openai[datalib]>=1.0
 
 hooks:
   - integration-name: OpenAI

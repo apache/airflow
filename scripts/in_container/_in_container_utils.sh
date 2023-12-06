@@ -193,12 +193,19 @@ function install_released_airflow_version() {
     constraints_reference="${2:-}"
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
     if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
-        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
+        bracketed_airflow_extras="[${AIRFLOW_EXTRAS}]"
     else
-        BRACKETED_AIRFLOW_EXTRAS=""
+        bracketed_airflow_extras=""
+    fi
+    if [[ ${version} != https://* ]]; then
+        airflow_package="apache-airflow"
+        airflow_version="==${version}"
+    else
+        airflow_package="${version}"
+        airflow_version=""
     fi
     if [[ ${constraints_reference} == "none" ]]; then
-        pip install "${airflow_package}${extras}"
+        pip install "${airflow_package}${bracketed_airflow_extras}${airflow_version}"
     else
         local dependency_fix=""
         # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
@@ -210,12 +217,47 @@ function install_released_airflow_version() {
         if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
             dependency_fix="pyopenssl"
         fi
-
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
-            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        if [[ ${constraints_reference} == "" ]]; then
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        else
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        fi
+        pip install "${airflow_package}${bracketed_airflow_extras}${airflow_version}" ${dependency_fix} \
+            --constraint "${constraints_location}"
     fi
 }
 
+function install_github_airflow_version() {
+    local url="${1}"
+    local constraints_reference
+    constraints_reference="${2:-}"
+    rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
+    if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
+        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
+    else
+        BRACKETED_AIRFLOW_EXTRAS=""
+    fi
+    if [[ ${constraints_reference} == "none" ]]; then
+        pip install "${url}${extras}"
+    else
+        local dependency_fix=""
+        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
+        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
+        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
+        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
+        # version has it pinned to the right version, but since it is not directly required, it is not
+        # downgraded when installing airflow and it is already installed in a newer version
+        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
+            dependency_fix="pyopenssl"
+        fi
+        if [[ ${constraints_reference} == "" ]]; then
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        else
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        fi
+        pip install "${url}${BRACKETED_AIRFLOW_EXTRAS}" ${dependency_fix} --constraint "${constraints_location}"
+    fi
+}
 function install_local_airflow_with_eager_upgrade() {
     local extras
     extras="${1}"

@@ -306,6 +306,7 @@ doc = [
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
     "sphinx-copybutton",
+    "sphinx-design>=0.5.0",
     "sphinx-jinja>=2.0",
     "sphinx-rtd-theme>=0.1.6",
     "sphinx>=5.2.0",

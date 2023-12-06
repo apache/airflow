@@ -57,7 +57,6 @@ class TaskSchema(Schema):
     retry_exponential_backoff = fields.Boolean(dump_only=True)
     priority_weight = fields.Number(dump_only=True)
     weight_rule = WeightRuleField(dump_only=True)
-    priority_weight_strategy = fields.String(dump_only=True)
     ui_color = ColorField(dump_only=True)
     ui_fgcolor = ColorField(dump_only=True)
     template_fields = fields.List(fields.String(), dump_only=True)

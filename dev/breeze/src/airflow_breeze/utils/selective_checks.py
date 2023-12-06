@@ -27,6 +27,8 @@ from typing import Any, Dict, List, TypeVar
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
+    CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
@@ -1023,4 +1025,15 @@ class SelectiveChecks:
     @cached_property
     def chicken_egg_providers(self) -> str:
         """Space separated list of providers with chicken-egg problem and should be built from sources."""
-        return "fab common.io"
+        return CHICKEN_EGG_PROVIDERS
+
+    @cached_property
+    def providers_compatibility_checks(self) -> str:
+        """Provider compatibility input checks for the current run. Filter out python versions not built"""
+        return json.dumps(
+            [
+                check
+                for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                if check["python-version"] in self.python_versions
+            ]
+        )
