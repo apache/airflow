@@ -41,6 +41,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.task.priority_strategy import DownstreamPriorityWeightStrategy, UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.template import literal
@@ -788,7 +789,7 @@ class TestBaseOperator:
 
     def test_priority_weight_strategy_default(self):
         op = BaseOperator(task_id="test_task")
-        assert op.priority_weight_strategy == "downstream"
+        assert op.priority_weight_strategy == DownstreamPriorityWeightStrategy()
 
     def test_deprecated_weight_rule_override(self):
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
@@ -796,7 +797,7 @@ class TestBaseOperator:
 
     def test_priority_weight_strategy_override(self):
         op = BaseOperator(task_id="test_task", priority_weight_strategy="upstream")
-        assert op.priority_weight_strategy == "upstream"
+        assert op.priority_weight_strategy == UpstreamPriorityWeightStrategy()
 
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")

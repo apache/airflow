@@ -57,7 +57,7 @@ class TaskSchema(Schema):
     retry_exponential_backoff = fields.Boolean(dump_only=True)
     priority_weight = fields.Number(dump_only=True)
     weight_rule = WeightRuleField(dump_only=True)
-    priority_weight_strategy = fields.String(dump_only=True)
+    priority_weight_strategy = fields.Method("_get_priority_weight_strategy", dump_only=True)
     ui_color = ColorField(dump_only=True)
     ui_fgcolor = ColorField(dump_only=True)
     template_fields = fields.List(fields.String(), dump_only=True)
@@ -84,6 +84,12 @@ class TaskSchema(Schema):
     @staticmethod
     def _get_is_mapped(obj):
         return isinstance(obj, MappedOperator)
+
+    @staticmethod
+    def _get_priority_weight_strategy(obj):
+        from airflow.utils.module_loading import qualname
+
+        return qualname(obj.priority_weight_strategy)
 
 
 class TaskCollection(NamedTuple):

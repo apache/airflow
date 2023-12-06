@@ -1386,10 +1386,14 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @property
-    def priority_weight_strategy(self) -> PriorityWeightStrategy:
+    def priority_weight_strategy(self) -> PriorityWeightStrategy | None:
         from airflow.serialization.serialized_objects import _decode_priority_weight_strategy
 
-        return _decode_priority_weight_strategy(self._priority_weight_strategy)
+        return (
+            _decode_priority_weight_strategy(self._priority_weight_strategy)
+            if self._priority_weight_strategy
+            else None
+        )
 
     @priority_weight_strategy.setter
     def priority_weight_strategy(self, value: PriorityWeightStrategy) -> None:
