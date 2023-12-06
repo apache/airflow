@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-05T16:18:20Z
+# This constraints file was automatically generated on 2023-12-06T14:36:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -48,13 +48,13 @@ adal==1.2.7
 adlfs==2023.10.0
 aiobotocore==2.8.0
 aiofiles==23.2.1
-aiohttp==3.9.1
+aiohttp==3.8.6
 aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.13.0
-alibabacloud-adb20211201==1.1.1
+alibabacloud-adb20211201==1.2.0
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
 alibabacloud-gateway-spi==0.0.1
@@ -62,14 +62,14 @@ alibabacloud-openapi-util==0.2.2
 alibabacloud-tea-openapi==0.3.8
 alibabacloud-tea-util==0.3.11
 alibabacloud-tea-xml==0.0.2
-alibabacloud-tea==0.3.3
+alibabacloud-tea==0.3.4
 aliyun-python-sdk-core==2.14.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
 analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
-anyio==4.1.0
+anyio==3.7.1
 apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
@@ -84,7 +84,7 @@ async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.4
 attrs==23.1.0
-aws-sam-translator==1.81.0
+aws-sam-translator==1.82.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
 azure-common==1.1.28
@@ -163,6 +163,7 @@ deltalake==0.14.0
 deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.7
+distro==1.8.0
 dnspython==2.4.2
 docker==6.1.3
 docopt==0.6.2
@@ -200,8 +201,8 @@ google-api-core==2.14.0
 google-api-python-client==2.109.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
-google-auth==2.24.0
-google-cloud-aiplatform==1.36.4
+google-auth==2.25.1
+google-cloud-aiplatform==1.37.0
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.4
@@ -349,12 +350,12 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==0.28.1
+openai==1.3.7
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.5.0
-openlineage-python==1.5.0
-openlineage_sql==1.5.0
+openlineage-integration-common==1.6.0
+openlineage-python==1.6.0
+openlineage_sql==1.6.0
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.21.0
@@ -513,6 +514,7 @@ sphinx-autoapi==2.1.1
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==2.0.0
+sphinx_design==0.5.0
 sphinxcontrib-applehelp==1.0.7
 sphinxcontrib-devhelp==1.0.5
 sphinxcontrib-htmlhelp==2.0.4
@@ -595,7 +597,7 @@ xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
 yandexcloud==0.246.0
-yarl==1.9.3
+yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.42
 zipp==3.17.0
