@@ -88,7 +88,7 @@ class WeaviateIngestOperator(BaseOperator):
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             self.class_name,
-            self.input_data,
+            self.input_data,  # type: ignore
             **self.batch_params,
-            vector_col=self.vector_col,  # type: ignore
+            vector_col=self.vector_col,
         )
