@@ -182,16 +182,21 @@ class DockerSwarmOperator(DockerOperator):
     def _stream_logs_to_output(self) -> None:
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
-        last_line_logged, last_timestamp  = "", 0
+        last_line_logged, last_timestamp = "", 0
+
         def stream_new_logs(last_line_logged, since=0):
             logs = self.cli.service_logs(
-                self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=self.tty,
+                self.service["ID"],
+                follow=False,
+                stdout=True,
+                stderr=True,
+                is_tty=self.tty,
                 since=since,
-                timestamps=True
+                timestamps=True,
             )
             logs = b"".join(logs).decode().splitlines()
             if last_line_logged in logs:
-                logs = logs[logs.index(last_line_logged)+1:]
+                logs = logs[logs.index(last_line_logged) + 1 :]
             for line in logs:
                 match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6,}Z) (.*)", line)
                 timestamp, message = match.groups()
@@ -204,7 +209,7 @@ class DockerSwarmOperator(DockerOperator):
 
         while not self._has_service_terminated():
             sleep(2)
-            last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since= last_timestamp)
+            last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:
