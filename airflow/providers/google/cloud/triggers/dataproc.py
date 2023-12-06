@@ -25,7 +25,6 @@ from typing import Any, AsyncIterator, Sequence
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
-from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -98,12 +97,10 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             )
             state = job.status.state
             self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED):
+            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
                 break
-            elif state == JobStatus.State.ERROR:
-                raise AirflowException(f"Dataproc job execution failed {self.job_id}")
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state})
+        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):

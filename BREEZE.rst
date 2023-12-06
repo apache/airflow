@@ -2369,6 +2369,22 @@ You can read more details about what happens when you update constraints in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
 
+Cleaning up of old providers
+""""""""""""""""""""""""""""
+
+During the provider releases, we need to clean up the older provider versions in the SVN release folder.
+Earlier this was done using a script, but now it is being migrated to a breeze command to ease the life of
+release managers for providers. This can be achieved using ``breeze release-management clean-old-provider-artifacts``
+command.
+
+
+These are all available flags of ``clean-old-provider-artifacts`` command:
+
+.. image:: ./images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :width: 100%
+  :alt: Breeze Clean Old Provider Artifacts
+
 SBOM generation tasks
 ----------------------
 

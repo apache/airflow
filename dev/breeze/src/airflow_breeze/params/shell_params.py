@@ -40,7 +40,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
-    MOUNT_SKIP,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -306,12 +305,6 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.image_tag is not None and self.image_tag != "latest":
-            get_console().print(
-                f"[warning]Running tagged image tag = {self.image_tag}. "
-                f"Forcing mounted sources to be 'skip'[/]"
-            )
-            self.mount_sources = MOUNT_SKIP
         if self.use_airflow_version is not None:
             get_console().print(
                 "[info]Forcing --mount-sources to `remove` since we are not installing airflow "

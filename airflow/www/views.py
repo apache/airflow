@@ -2047,7 +2047,9 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
+        if request.method == "GET" or (
+            not request_conf and (ui_fields_defined or show_trigger_form_if_no_params)
+        ):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -3008,6 +3010,9 @@ class Airflow(AirflowBaseView):
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for("Airflow.index"))
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)

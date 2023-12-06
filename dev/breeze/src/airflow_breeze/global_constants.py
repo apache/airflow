@@ -24,6 +24,7 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -442,6 +443,40 @@ DEFAULT_EXTRAS = [
     "statsd",
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]
+
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "common.io",
+    ]
+)
+
+
+def _exclusion(providers: Iterable[str]) -> str:
+    return " ".join([f"apache_airflow_providers_{provider.replace('.', '_')}*" for provider in providers])
+
+
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.5.0",
+        "remove-providers": _exclusion(["openlineage", "common.io"]),
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere"]),
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io"]),
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.7.1",
+        "remove-providers": _exclusion(["common.io"]),
+    },
 ]
 
 

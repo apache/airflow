@@ -1212,19 +1212,7 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # conflict when we do not limit it. It seems that `pip` has a hard time figuring the right
 # combination of dependencies for aiobotocore, botocore, boto3 and s3fs together
 #
-# The root cause of the problem is that botocore (1.33.2), boto3 (1.33.2), aibotocore (2.8.0) all
-# released on November 28/29 2023. They are all compatible with each other but they
-# do not have corresponding s3fs release that would be compatible with them. The
-# s3fs latest 2023.10.0 release has iobotocore ~=2.7.0 which effectively forbids it to use 2.8.0
-# (and friends) and it confuses `pip` enough that it's not able to figure out that latest s3fs has a working
-# combination of aibotocore,botocore,boto3,s3fs - and it either gets into conflict or backtracks for hours.
-#
-# We need to help `pip` a little bit by limiting
-# limiting aiobotocore (limiting s3fs to latest version causes conflict)
-# This limit should be removed once new version of s3fs is released that is compatible with
-# aiobotocore 2.8.0 (beyond 2023.10.0).
-#
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.7.0,<2.8.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0 aiobotocore>=2.5.4"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

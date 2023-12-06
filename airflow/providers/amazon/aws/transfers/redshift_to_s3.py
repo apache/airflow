@@ -18,6 +18,7 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
@@ -141,8 +142,10 @@ class RedshiftToS3Operator(BaseOperator):
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
+        # Un-escape already escaped queries
+        select_query = re.sub(r"''(.+)''", r"'\1'", select_query)
         return f"""
-                    UNLOAD ('{select_query}')
+                    UNLOAD ($${select_query}$$)
                     TO 's3://{self.s3_bucket}/{s3_key}'
                     credentials
                     '{credentials_block}'
