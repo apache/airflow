@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import warnings
 from functools import cached_property
+
 from typing import TYPE_CHECKING
 
 import requests
@@ -33,7 +34,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Any, Sequence, cast
+    from typing import Any, Dict, List, Sequence, cast
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -176,7 +177,7 @@ class WeaviateHook(BaseHook):
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
         if isinstance(data, pd.DataFrame):
-            data = cast(list[dict[str, Any]], json.loads(data.to_json(orient="records")))
+            data = cast(List[Dict], json.loads(data.to_json(orient="records")))
         with client.batch as batch:
             # Batch import all data
             for index, data_obj in enumerate(data):
