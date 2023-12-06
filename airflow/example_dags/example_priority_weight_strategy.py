@@ -55,5 +55,6 @@ with DAG(
     decreasing_weight_task = PythonOperator(
         task_id="decreasing_weight_task",
         python_callable=success_on_third_attempt,
-        priority_weight_strategy=("decreasing_priority_weight_strategy.DecreasingPriorityStrategy"),
+        # TODO: Uncomment this line to use the decreasing priority weight strategy.
+        # priority_weight_strategy=("decreasing_priority_weight_strategy.DecreasingPriorityStrategy"),
     )
