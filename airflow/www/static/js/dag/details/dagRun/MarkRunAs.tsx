@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Flex,
   Button,
@@ -55,8 +55,12 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   const [confirmingAction, setConfirmingAction] = useState<
     "success" | "failed"
   >();
-  const [doNotShowAgainSuccess, setDoNotShowAgainSuccess] = useState(false);
-  const [doNotShowAgainFailed, setDoNotShowAgainFailed] = useState(false);
+
+  const storedValue = localStorage.getItem("doNotShowMarkRunModal");
+  const [doNotShowAgain, setDoNotShowAgain] = useState(
+    storedValue ? JSON.parse(storedValue) : false
+  );
+
   const markAsFailed = () => {
     markFailed({ confirmed: true });
   };
@@ -65,28 +69,11 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     markSuccess({ confirmed: true });
   };
 
-  useEffect(() => {
-    const storedSuccessValue = localStorage.getItem("doNotShowAgainSuccess");
-    const storedFailedValue = localStorage.getItem("doNotShowAgainFailed");
-
-    if (storedSuccessValue) {
-      setDoNotShowAgainSuccess(JSON.parse(storedSuccessValue));
-    }
-    if (storedFailedValue) {
-      setDoNotShowAgainFailed(JSON.parse(storedFailedValue));
-    }
-  }, []);
-
   const confirmAction = () => {
     localStorage.setItem(
-      "doNotShowAgainSuccess",
-      JSON.stringify(doNotShowAgainSuccess)
+      "doNotShowMarkRunModal",
+      JSON.stringify(doNotShowAgain)
     );
-    localStorage.setItem(
-      "doNotShowAgainFailed",
-      JSON.stringify(doNotShowAgainFailed)
-    );
-
     if (confirmingAction === "failed") {
       markAsFailed();
     } else if (confirmingAction === "success") {
@@ -97,7 +84,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
 
   useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => {
     if (state !== "success") {
-      if (!doNotShowAgainSuccess) {
+      if (!doNotShowAgain) {
         setConfirmingAction("success");
         setShowConfirmationModal(true);
       } else markAsSuccess();
@@ -105,7 +92,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   });
   useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => {
     if (state !== "failed") {
-      if (!doNotShowAgainFailed) {
+      if (!doNotShowAgain) {
         setConfirmingAction("failed");
         setShowConfirmationModal(true);
       } else markAsFailed();
@@ -158,18 +145,8 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
             Mark as {confirmingAction}
           </Button>
         }
-        doNotShowAgain={
-          confirmingAction === "success"
-            ? doNotShowAgainSuccess
-            : doNotShowAgainFailed
-        }
-        onDoNotShowAgainChange={(value) => {
-          if (confirmingAction === "success") {
-            setDoNotShowAgainSuccess(value);
-          } else if (confirmingAction === "failed") {
-            setDoNotShowAgainFailed(value);
-          }
-        }}
+        doNotShowAgain={doNotShowAgain}
+        onDoNotShowAgainChange={(value) => setDoNotShowAgain(value)}
       >
         Are you sure you want to mark the DAG run as {confirmingAction}?
       </ConfirmationModal>

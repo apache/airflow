@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Flex,
   Button,
@@ -61,17 +61,17 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
   };
 
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
 
-  useEffect(() => {
-    const storedValue = localStorage.getItem("doNotShowAgain");
-    if (storedValue) {
-      setDoNotShowAgain(JSON.parse(storedValue));
-    }
-  }, []);
+  const storedValue = localStorage.getItem("doNotShowClearRunModal");
+  const [doNotShowAgain, setDoNotShowAgain] = useState(
+    storedValue ? JSON.parse(storedValue) : false
+  );
 
   const confirmAction = () => {
-    localStorage.setItem("doNotShowAgain", JSON.stringify(doNotShowAgain));
+    localStorage.setItem(
+      "doNotShowClearRunModal",
+      JSON.stringify(doNotShowAgain)
+    );
     clearExistingTasks();
     setShowConfirmationModal(false);
   };
