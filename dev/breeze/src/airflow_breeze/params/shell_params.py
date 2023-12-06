@@ -128,9 +128,11 @@ class ShellParams:
     """
 
     airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    airflow_constraints_location: str = ""
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
-    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_constraints_reference: str = ""
     airflow_extras: str = ""
+    airflow_skip_constraints: bool = False
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     builder: str = "autodetect"
@@ -177,6 +179,10 @@ class ShellParams:
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
+    providers_constraints_location: str = ""
+    providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
+    providers_constraints_reference: str = ""
+    providers_skip_constraints: bool = False
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
@@ -185,7 +191,6 @@ class ShellParams:
     run_db_tests_only: bool = False
     run_system_tests: bool = os.environ.get("RUN_SYSTEM_TESTS", "false") == "true"
     run_tests: bool = False
-    skip_constraints: bool = False
     skip_db_tests: bool = False
     skip_environment_initialization: bool = False
     skip_image_upgrade_check: bool = False
@@ -325,8 +330,8 @@ class ShellParams:
 
         if self.use_airflow_version is not None:
             get_console().print(
-                "[info]Forcing --mount-sources to `remove` since we are not installing airflow "
-                f"from sources but from {self.use_airflow_version}[/]"
+                "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
+                f"from sources but from {self.use_airflow_version}[/]\n"
             )
             self.mount_sources = MOUNT_REMOVE
         if self.forward_ports and not self.project_name == "pre-commit":
@@ -478,18 +483,13 @@ class ShellParams:
         _env: dict[str, str] = {}
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
         _set_var(_env, "AIRFLOW_CI_IMAGE_WITH_TAG", self.airflow_image_name_with_tag)
-        _set_var(
-            _env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode, "constraints-source-providers"
-        )
-        _set_var(
-            _env,
-            "AIRFLOW_CONSTRAINTS_REFERENCE",
-            self.airflow_constraints_reference,
-            "constraints-source-providers",
-        )
+        _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
+        _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
+        _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         _set_var(_env, "AIRFLOW_ENABLE_AIP_44", None, "true")
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
+        _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
@@ -541,6 +541,10 @@ class ShellParams:
         _set_var(_env, "PACKAGE_FORMAT", self.package_format)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
+        _set_var(_env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location)
+        _set_var(_env, "PROVIDERS_CONSTRAINTS_MODE", self.providers_constraints_mode)
+        _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
+        _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
         _set_var(_env, "PYTHONWARNINGS", None, None)
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
@@ -550,7 +554,6 @@ class ShellParams:
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)
         _set_var(_env, "RUN_TESTS", self.run_tests)
-        _set_var(_env, "SKIP_CONSTRAINTS", self.skip_constraints)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
@@ -643,3 +646,9 @@ class ShellParams:
             GENERATED_DOCKER_COMPOSE_ENV_FILE.write_text(
                 "\n".join([f"{k}=${{{k}}}" for k in sorted(env.keys())])
             )
+
+    def __post_init__(self):
+        if self.airflow_constraints_reference == "default":
+            self.airflow_constraints_reference = self.default_constraints_branch
+        if self.providers_constraints_reference == "default":
+            self.providers_constraints_reference = self.default_constraints_branch
