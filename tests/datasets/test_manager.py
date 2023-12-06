@@ -85,6 +85,54 @@ class TestDatasetManager:
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
         assert session.query(DatasetDagRunQueue).count() == 2
 
+    def test_register_dataset_change_with_extra(self, session, dag_maker, mock_task_instance):
+        dsem = DatasetManager()
+
+        ds = Dataset(uri="test_dataset_uri_with_extra", extra={"extra_1": "hello", "extra_2": 123})
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        session.add_all([dag1, dag2])
+
+        dsm = DatasetModel(uri="test_dataset_uri_with_extra")
+        session.add(dsm)
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        session.flush()
+
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+
+        extras = session.query(DatasetEvent).filter_by(dataset_id=dsm.id).first().extra
+
+        # Ensure we've created a dataset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert extras["extra_1"] == "hello"
+        assert extras["extra_2"] == 123
+        assert session.query(DatasetDagRunQueue).count() == 2
+
+    def test_register_dataset_change_with_extra_override(self, session, dag_maker, mock_task_instance):
+        dsem = DatasetManager()
+
+        ds = Dataset(uri="test_dataset_uri_with_extra_override", extra={"extra_1": "hello", "extra_2": 123})
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        session.add_all([dag1, dag2])
+
+        dsm = DatasetModel(uri="test_dataset_uri_with_extra_override")
+        session.add(dsm)
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        session.flush()
+
+        dsem.register_dataset_change(
+            task_instance=mock_task_instance, dataset=ds, session=session, extra={"extra_1": "overridden"}
+        )
+
+        extras = session.query(DatasetEvent).filter_by(dataset_id=dsm.id).first().extra
+
+        # Ensure we've created a dataset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert extras["extra_1"] == "overridden"
+        assert extras["extra_2"] == 123
+        assert session.query(DatasetDagRunQueue).count() == 2
+
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
         dsem = DatasetManager()
 
