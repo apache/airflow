@@ -53,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_celery_flower,
     option_database_isolation,
     option_db_reset,
+    option_docker_host,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_executor_shell,
@@ -85,6 +86,7 @@ from airflow_breeze.utils.common_options import (
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
+    option_warn_image_upgrade_needed,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
@@ -179,6 +181,7 @@ class TimerThread(threading.Thread):
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_executor_shell
@@ -203,6 +206,7 @@ class TimerThread(threading.Thread):
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
+@option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
@@ -218,6 +222,7 @@ def shell(
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -248,6 +253,7 @@ def shell(
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
     verbose_commands: bool,
+    warn_image_upgrade_needed: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
@@ -269,6 +275,7 @@ def shell(
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
@@ -298,6 +305,7 @@ def shell(
         use_packages_from_dist=use_packages_from_dist,
         verbose_commands=verbose_commands,
         restart=restart,
+        warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     fix_ownership_using_docker()
     sys.exit(result.returncode)
@@ -326,6 +334,7 @@ def shell(
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_dry_run
 @option_executor_start_airflow
 @option_force_build
@@ -358,6 +367,7 @@ def start_airflow(
     database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -406,6 +416,7 @@ def start_airflow(
         database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
         force_build=force_build,
@@ -693,7 +704,7 @@ def static_checks(
         text=True,
         env=env,
     )
-    if not os.environ.get("SKIP_IMAGE_PRE_COMMITS"):
+    if not os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
         fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
@@ -761,13 +772,10 @@ def compile_www_assets(dev: bool, force_clean: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
     perform_environment_checks()
-    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
-    if not preserve_volumes:
-        command_to_execute.append("--volumes")
     shell_params = ShellParams(
         backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
     )
-    run_command(command_to_execute, env=shell_params.env_variables_for_docker_commands)
+    bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
@@ -824,7 +832,15 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-
+    if shell_params.use_airflow_version:
+        # in case you use specific version of Airflow, you want to bring airflow down automatically before
+        # using it. This prevents the problem that if you have newer DB, airflow will not know how
+        # to migrate to it and fail with "Can't locate revision identified by 'xxxx'".
+        get_console().print(
+            f"[warning]Bringing the project down as {shell_params.use_airflow_version} "
+            f"airflow version is used[/]"
+        )
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.backend == "sqlite":
         get_console().print(
             f"\n[warning]backend: sqlite is not "
@@ -847,7 +863,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
             )
             shell_params.airflow_extras = "celery"
     if shell_params.restart:
-        bring_compose_project_down(shell_params)
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
@@ -896,10 +912,13 @@ def enter_shell(**kwargs) -> RunCommandResult:
         return command_result
 
 
-def bring_compose_project_down(shell_params):
-    down_command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
+def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams):
+    down_command_to_execute = ["docker", "compose"]
     if shell_params.project_name:
         down_command_to_execute.extend(["--project-name", shell_params.project_name])
+    down_command_to_execute.extend(["down", "--remove-orphans"])
+    if not preserve_volumes:
+        down_command_to_execute.append("--volumes")
     run_command(
         down_command_to_execute,
         text=True,
@@ -918,7 +937,17 @@ def find_airflow_container() -> str | None:
     shell_params = ShellParams()
     check_docker_resources(shell_params.airflow_image_name)
     shell_params.print_badge_info()
-    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = [
+        "docker",
+        "compose",
+        "--project-name",
+        shell_params.project_name,
+        "ps",
+        "--all",
+        "--filter",
+        "status=running",
+        "airflow",
+    ]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, check=False, env=shell_params.env_variables_for_docker_commands
     )

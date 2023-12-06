@@ -106,7 +106,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 PIP package                       Version required
 ================================  ==================
 ``apache-airflow``                ``>=2.5.0``
-``adlfs``                         ``>=2023.9.2``
+``adlfs``                         ``>=2023.10.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
 ``azure-mgmt-cosmosdb``

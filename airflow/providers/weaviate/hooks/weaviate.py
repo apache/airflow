@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+import warnings
+from functools import cached_property
 from typing import Any
 
-import weaviate
+from weaviate import Client as WeaviateClient
+from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -40,19 +44,19 @@ class WeaviateHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField
 
         return {
-            "token": PasswordField(lazy_gettext("Weaviate API Token"), widget=BS3PasswordFieldWidget()),
+            "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
@@ -62,32 +66,53 @@ class WeaviateHook(BaseHook):
             },
         }
 
-    def get_client(self) -> weaviate.Client:
+    def get_conn(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
         url = conn.host
         username = conn.login or ""
         password = conn.password or ""
         extras = conn.extra_dejson
-        token = extras.pop("token", "")
+        access_token = extras.get("access_token", None)
+        refresh_token = extras.get("refresh_token", None)
+        expires_in = extras.get("expires_in", 60)
+        # previously token was used as api_key(backwards compatibility)
+        api_key = extras.get("api_key", None) or extras.get("token", None)
+        client_secret = extras.get("client_secret", None)
         additional_headers = extras.pop("additional_headers", {})
-        scope = conn.extra_dejson.get("oidc_scope", "offline_access")
-
-        if token == "" and username != "":
-            auth_client_secret = weaviate.AuthClientPassword(
-                username=username, password=password, scope=scope
+        scope = extras.get("scope", None) or extras.get("oidc_scope", None)
+        if api_key:
+            auth_client_secret = AuthApiKey(api_key)
+        elif access_token:
+            auth_client_secret = AuthBearerToken(
+                access_token, expires_in=expires_in, refresh_token=refresh_token
             )
+        elif client_secret:
+            auth_client_secret = AuthClientCredentials(client_secret=client_secret, scope=scope)
         else:
-            auth_client_secret = weaviate.AuthApiKey(token)
+            auth_client_secret = AuthClientPassword(username=username, password=password, scope=scope)
 
-        client = weaviate.Client(
+        return WeaviateClient(
             url=url, auth_client_secret=auth_client_secret, additional_headers=additional_headers
         )
 
-        return client
+    @cached_property
+    def conn(self) -> WeaviateClient:
+        """Returns a Weaviate client."""
+        return self.get_conn()
+
+    def get_client(self) -> WeaviateClient:
+        """Returns a Weaviate client."""
+        # Keeping this for backwards compatibility
+        warnings.warn(
+            "The `get_client` method has been renamed to `get_conn`",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.conn
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            client = self.get_client()
+            client = self.conn
             client.schema.get()
             return True, "Connection established!"
         except Exception as e:
@@ -96,7 +121,7 @@ class WeaviateHook(BaseHook):
 
     def create_class(self, class_json: dict[str, Any]) -> None:
         """Create a new class."""
-        client = self.get_client()
+        client = self.conn
         client.schema.create_class(class_json)
 
     def create_schema(self, schema_json: dict[str, Any]) -> None:
@@ -107,13 +132,13 @@ class WeaviateHook(BaseHook):
 
         :param schema_json: The schema to create
         """
-        client = self.get_client()
+        client = self.conn
         client.schema.create(schema_json)
 
     def batch_data(
         self, class_name: str, data: list[dict[str, Any]], batch_config_params: dict[str, Any] | None = None
     ) -> None:
-        client = self.get_client()
+        client = self.conn
         if not batch_config_params:
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
@@ -129,7 +154,7 @@ class WeaviateHook(BaseHook):
 
     def delete_class(self, class_name: str) -> None:
         """Delete an existing class."""
-        client = self.get_client()
+        client = self.conn
         client.schema.delete_class(class_name)
 
     def query_with_vector(
@@ -148,7 +173,7 @@ class WeaviateHook(BaseHook):
         external vectorizer. Weaviate then converts this into a vector through the inference API
         (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
-        client = self.get_client()
+        client = self.conn
         results: dict[str, dict[Any, Any]] = (
             client.query.get(class_name, properties[0])
             .with_near_vector({"vector": embeddings, "certainty": certainty})
@@ -167,7 +192,7 @@ class WeaviateHook(BaseHook):
         weaviate with a query search_text. Weaviate then converts this into a vector through the inference
         API (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
-        client = self.get_client()
+        client = self.conn
         results: dict[str, dict[Any, Any]] = (
             client.query.get(class_name, properties[0])
             .with_near_text({"concepts": [search_text]})

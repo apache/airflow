@@ -21,8 +21,16 @@
 
 import { useSearchParams } from "react-router-dom";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import type { DagRun, RunState, TaskState } from "src/types";
 
 declare const defaultDagRunDisplayNumber: number;
+
+declare const filtersOptions: {
+  dagStates: RunState[];
+  numRuns: number[];
+  runTypes: DagRun["runType"][];
+  taskStates: TaskState[];
+};
 
 export interface Filters {
   root: string | undefined;
@@ -30,8 +38,10 @@ export interface Filters {
   filterDownstream: boolean | undefined;
   baseDate: string | null;
   numRuns: string | null;
-  runType: string | null;
-  runState: string | null;
+  runType: string[] | null;
+  runTypeOptions: string[] | null;
+  runState: string[] | null;
+  runStateOptions: string[] | null;
 }
 
 export interface FilterTasksProps {
@@ -43,9 +53,12 @@ export interface FilterTasksProps {
 export interface UtilFunctions {
   onBaseDateChange: (value: string) => void;
   onNumRunsChange: (value: string) => void;
-  onRunTypeChange: (value: string) => void;
-  onRunStateChange: (value: string) => void;
+  onRunTypeChange: (values: string[]) => void;
+  onRunStateChange: (values: string[]) => void;
   onFilterTasksChange: (args: FilterTasksProps) => void;
+  transformArrayToMultiSelectOptions: (
+    options: string[] | null
+  ) => { label: string; value: string }[];
   clearFilters: () => void;
   resetRoot: () => void;
 }
@@ -83,8 +96,12 @@ const useFilters = (): FilterHookReturn => {
   const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
   const numRuns =
     searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
-  const runType = searchParams.get(RUN_TYPE_PARAM);
-  const runState = searchParams.get(RUN_STATE_PARAM);
+
+  const runTypeOptions = filtersOptions.runTypes;
+  const runType = searchParams.getAll(RUN_TYPE_PARAM);
+
+  const runStateOptions = filtersOptions.dagStates;
+  const runState = searchParams.getAll(RUN_STATE_PARAM);
 
   const makeOnChangeFn =
     (paramName: string, formatFn?: (arg: string) => string) =>
@@ -98,14 +115,40 @@ const useFilters = (): FilterHookReturn => {
       setSearchParams(params);
     };
 
+  const makeMultiSelectOnChangeFn =
+    (paramName: string, options: string[]) => (values: string[]) => {
+      const params = new URLSearchParamsWrapper(searchParams);
+      if (values.length === options.length || values.length === 0) {
+        params.delete(paramName);
+      } else {
+        // Delete and reinsert anew each time; otherwise, there will be duplicates
+        params.delete(paramName);
+        values.forEach((value) => params.append(paramName, value));
+      }
+      setSearchParams(params);
+    };
+
+  const transformArrayToMultiSelectOptions = (
+    options: string[] | null
+  ): { label: string; value: string }[] =>
+    options === null
+      ? []
+      : options.map((option) => ({ label: option, value: option }));
+
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
     // @ts-ignore
     (localDate: string) => moment(localDate).utc().format()
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
-  const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
-  const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);
+  const onRunTypeChange = makeMultiSelectOnChangeFn(
+    RUN_TYPE_PARAM,
+    filtersOptions.runTypes
+  );
+  const onRunStateChange = makeMultiSelectOnChangeFn(
+    RUN_STATE_PARAM,
+    filtersOptions.dagStates
+  );
 
   const onFilterTasksChange = ({
     root: newRoot,
@@ -154,7 +197,9 @@ const useFilters = (): FilterHookReturn => {
       baseDate,
       numRuns,
       runType,
+      runTypeOptions,
       runState,
+      runStateOptions,
     },
     onBaseDateChange,
     onNumRunsChange,
@@ -163,6 +208,7 @@ const useFilters = (): FilterHookReturn => {
     onFilterTasksChange,
     clearFilters,
     resetRoot,
+    transformArrayToMultiSelectOptions,
   };
 };
 

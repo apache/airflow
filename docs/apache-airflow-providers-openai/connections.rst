@@ -35,3 +35,20 @@ API Key (required)
 
 Host (optional)
     The host address of the OpenAI instance.
+
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in the
+    connection. All parameters are optional.
+    This ``extra`` field accepts a nested dictionary with key ``openai_client_kwargs`` as key-value pairs that
+    are passed to the `OpenAI client <https://github.com/openai/openai-python/blob/main/src/openai/_client.py>`__
+    on instantiation. For example, to set the timeout for the client, you can pass the following dictionary
+    as the ``extra`` field:
+
+    .. code-block:: json
+
+        {
+          "openai_client_kwargs": {
+            "timeout": 10,
+            "api_key": "YOUR_API_KEY"
+          }
+        }

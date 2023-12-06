@@ -36,6 +36,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "verify-provider-packages",
         "generate-providers-metadata",
         "generate-issue-content-providers",
+        "clean-old-provider-artifacts",
     ],
 }
 
@@ -63,6 +64,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider verification flags",
             "options": [
+                "--python",
                 "--use-airflow-version",
                 "--install-selected-providers",
                 "--airflow-constraints-reference",
@@ -79,6 +81,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider installation flags",
             "options": [
+                "--python",
                 "--use-airflow-version",
                 "--install-selected-providers",
                 "--airflow-constraints-reference",
@@ -134,6 +137,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--python",
                 "--airflow-constraints-mode",
+                "--chicken-egg-providers",
                 "--debug",
                 "--github-repository",
             ],
@@ -160,6 +164,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-platform",
                 "--skip-latest",
                 "--commit-sha",
+                "--chicken-egg-providers",
             ],
         }
     ],
@@ -199,6 +204,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--disable-progress",
             ],
+        }
+    ],
+    "breeze release-management clean-old-provider-artifacts": [
+        {
+            "name": "Cleans the old provider artifacts",
+            "options": ["--directory"],
         }
     ],
     "breeze release-management generate-providers-metadata": [

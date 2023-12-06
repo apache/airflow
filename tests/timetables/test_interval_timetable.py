@@ -253,3 +253,308 @@ def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expec
         restriction=TimeRestriction(None, None, True),
     )
     assert info == expected_info
+
+
+class TestCronIntervalDst:
+    """Test cron interval timetable can correctly enter a DST boundary.
+
+    Zurich (Switzerland) is chosen since it is +1/+2 DST, making it a bit easier
+    to get my head around the mental timezone conversion.
+
+    In 2023, DST entered on 26th Mar, 2am local clocks (1am UTC) were turned
+    forward to 3am. DST exited on 29th Oct, 3am local clocks (1am UTC) were
+    turned backward to 2am (making the 2:XX hour fold).
+    """
+
+    def test_entering_exact(self) -> None:
+        timetable = CronDataIntervalTimetable("0 3 * * *", timezone="Europe/Zurich")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2023, 3, 24, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Last run before DST. Interval starts and ends on 2am UTC (local time is +1).
+        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 24, 2, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 25, 2, tz=TIMEZONE),
+        )
+
+        # Crossing the DST switch. Interval starts on 2am UTC (local time +1)
+        # but ends on 1am UTC (local time is +2).
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 25, 2, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 26, 1, tz=TIMEZONE),
+        )
+
+        # In DST. Interval starts and ends on 1am UTC (local time is +2).
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 26, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 27, 1, tz=TIMEZONE),
+        )
+
+    def test_entering_skip(self) -> None:
+        timetable = CronDataIntervalTimetable("0 2 * * *", timezone="Europe/Zurich")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2023, 3, 24, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Last run before DST. Interval starts and ends on 1am UTC (local time is +1).
+        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 24, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 25, 1, tz=TIMEZONE),
+        )
+
+        # Crossing the DST switch. Interval starts on 1am UTC (local time +1)
+        # and ends on 1am UTC (local time is +2) since the 2am wall clock time
+        # does not logically exist due to entering DST.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 25, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 26, 1, tz=TIMEZONE),
+        )
+
+        # In DST. Interval starts on 1am UTC (local time is +2 but 2am local
+        # time is not possible) and ends on 0am UTC.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 3, 26, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 3, 27, 0, tz=TIMEZONE),
+        )
+
+    def test_exiting_exact(self) -> None:
+        timetable = CronDataIntervalTimetable("0 3 * * *", timezone="Europe/Zurich")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2023, 10, 27, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Last run in DST. Interval starts and ends on 1am UTC (local time is +2).
+        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 27, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 28, 1, tz=TIMEZONE),
+        )
+
+        # Crossing the DST switch. Interval starts on 1am UTC (local time +2)
+        # and ends on 2am UTC (local time +1).
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 28, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 29, 2, tz=TIMEZONE),
+        )
+
+        # Out of DST. Interval starts and ends on 2am UTC (local time is +1).
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 29, 2, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 30, 2, tz=TIMEZONE),
+        )
+
+    def test_exiting_fold(self) -> None:
+        timetable = CronDataIntervalTimetable("0 2 * * *", timezone="Europe/Zurich")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2023, 10, 27, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Last run before folding. Interval starts and ends on 0am UTC (local
+        # time is +2).
+        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 27, 0, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 28, 0, tz=TIMEZONE),
+        )
+
+        # Account for folding. Interval starts on 0am UTC (local time +2) and
+        # ends on 1am UTC (local time +1). There are two 2am local times on the
+        # 29th due to folding. We end on the second one (fold=1. There's no
+        # logical reason here; this is simply what Airflow has been doing since
+        # a long time ago, and there's no point breaking it.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 28, 0, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 29, 1, tz=TIMEZONE),
+        )
+
+        # Stepping out of DST. Interval starts from the folded 2am local time
+        # (1am UTC out of DST) since that is when the previous interval ended.
+        # It ends at 1am UTC (local time is +1) normally.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2023, 10, 29, 1, tz=TIMEZONE),
+            pendulum.datetime(2023, 10, 30, 1, tz=TIMEZONE),
+        )
+
+
+class TestCronIntervalDstNonTrivial:
+    """These tests are similar to TestCronIntervalDst but with a different cron.
+
+    The original test cases are from apache/airflow#7999. In 2020 at Los Angeles,
+    DST started on 8th Mar; 10am UTC was turned from 2am UTC-8 to 3am UTC-7.
+    """
+
+    def test_7_to_8_entering(self):
+        timetable = CronDataIntervalTimetable("0 7-8 * * *", timezone="America/Los_Angeles")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2020, 3, 7, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Triggers as expected before the interval touches the DST transition.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 7 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 7, 8 + 8, tz=TIMEZONE),
+        )
+
+        # This interval ends an hour early since it includes the DST switch!
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 8 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+        )
+
+        # We're fully into DST so the interval is as expected.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 8 + 7, tz=TIMEZONE),
+        )
+
+    def test_7_and_9_entering(self):
+        timetable = CronDataIntervalTimetable("0 7,9 * * *", timezone="America/Los_Angeles")
+        restriction = TimeRestriction(
+            earliest=pendulum.datetime(2020, 3, 7, tz=TIMEZONE),
+            latest=None,
+            catchup=True,
+        )
+
+        # Triggers as expected before the interval touches the DST transition.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 7 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 7, 9 + 8, tz=TIMEZONE),
+        )
+
+        # This interval ends an hour early since it includes the DST switch!
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 7, 9 + 8, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+        )
+
+        # We're fully into DST so the interval is as expected.
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=next_info.data_interval,
+            restriction=restriction,
+        )
+        assert next_info and next_info.data_interval == DataInterval(
+            pendulum.datetime(2020, 3, 8, 7 + 7, tz=TIMEZONE),
+            pendulum.datetime(2020, 3, 8, 9 + 7, tz=TIMEZONE),
+        )
+
+
+def test_fold_scheduling():
+    timetable = CronDataIntervalTimetable("*/30 * * * *", timezone="Europe/Zurich")
+    restriction = TimeRestriction(
+        earliest=pendulum.datetime(2023, 10, 28, 23, 30, tz=TIMEZONE),  # Locally 1:30 (DST).
+        latest=None,
+        catchup=True,
+    )
+
+    # Still in DST, acting normally.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 28, 23, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 0, 0, tz=TIMEZONE),  # Locally 2am (DST).
+    )
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 0, 0, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 0, 30, tz=TIMEZONE),  # Locally 2:30 (DST).
+    )
+
+    # Crossing into fold.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 0, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 1, 0, tz=TIMEZONE),  # Locally 2am (fold, not DST).
+    )
+
+    # In the "fold zone".
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 1, 0, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 1, 30, tz=TIMEZONE),  # Locally 2am (fold, not DST).
+    )
+
+    # Stepping out of fold.
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=next_info.data_interval,
+        restriction=restriction,
+    )
+    assert next_info and next_info.data_interval == DataInterval(
+        pendulum.datetime(2023, 10, 29, 1, 30, tz=TIMEZONE),
+        pendulum.datetime(2023, 10, 29, 2, 0, tz=TIMEZONE),  # Locally 3am (not DST).
+    )

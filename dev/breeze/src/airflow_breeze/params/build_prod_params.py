@@ -230,6 +230,7 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_RUNTIME_APT_ENV", self.additional_runtime_apt_env)
         self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
         self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
         self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
         self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)

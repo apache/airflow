@@ -42,6 +42,7 @@ class BuildCiParams(CommonBuildParams):
     eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
     skip_image_upgrade_check: bool = False
+    warn_image_upgrade_needed: bool = False
 
     @property
     def airflow_version(self):
@@ -87,6 +88,7 @@ class BuildCiParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
         self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
         self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
         self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
         self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
         self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)

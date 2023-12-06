@@ -821,6 +821,7 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
+                list(blobs)
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
@@ -932,6 +933,7 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
+                list(blobs)
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)

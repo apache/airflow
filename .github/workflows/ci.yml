@@ -50,6 +50,7 @@ env:
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
+  MOUNT_SOURCES: "skip"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -112,6 +113,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on: ${{steps.selective-checks.outputs.runs-on}}
@@ -121,6 +123,7 @@ jobs:
       is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
       is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
       is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
+      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -466,7 +469,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: >
-      Verify CI Images & Generate constraints
+      Generate constraints with CI image verifying
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -474,6 +477,7 @@ jobs:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: needs.build-info.outputs.ci-image-build == 'true'
     steps:
       - name: Cleanup repo
@@ -502,12 +506,23 @@ jobs:
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints-no-providers
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages
+          --package-format wheel --version-suffix-for-pypi dev0
+          ${{ needs.build-info.outputs.chicken-egg-providers }}
+        if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints
+          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
       - name: "Dependency upgrade summary"
         shell: bash
         run: |
@@ -611,7 +626,7 @@ jobs:
           --skip-image-upgrade-check --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
-          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP_BREEZE_PRE_COMMITS: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
 
@@ -766,70 +781,68 @@ jobs:
           breeze release-management prepare-provider-packages --skip-tag-check
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
 
-  provider-airflow-compatibility-check:
+  providers-compatibility-checks:
     timeout-minutes: 80
-    name: "Providers Airflow 2.5 compatibility check"
+    name: >
+      Compat ${{matrix.airflow-version}}:P${{matrix.python-version}} provider check
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{fromJson(needs.build-info.outputs.providers-compatibility-checks)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: needs.build-info.outputs.skip-provider-tests != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: contains(fromJson(needs.build-info.outputs.python-versions),matrix.python-version)
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+          Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
         run: >
-          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+          breeze release-management prepare-provider-packages
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Fix incompatible 2.5 provider packages"
+      - name: >
+          Remove incompatible Airflow
+          ${{matrix.airflow-version}}:Python ${{matrix.python-version}} provider packages
         run: |
-          # This step should remove the provider packages that are not compatible with 2.5
-          # or replace them with 2.5 compatible versions. Sometimes we have good reasons to bump
-          # the min airflow versions for some providers and then we need to add exclusions here.
-          #
-          # The Removal can be done with:
-          #
-          # rm -vf dist/apache_airflow_providers_<PROVIDER>*.whl
-          #
-          # Then it can be followed by downloading a compatible version from PyPI in case other
-          # providers depend on it and fail with import errors (you need to download compatible version):
-          #
-          # pip download --no-deps --dest dist apache-airflow-providers-<PROVIDER>==3.1.0
-          #
-          rm -vf dist/apache_airflow_providers_openlineage*.whl
-          rm -rf dist/apache_airflow_providers_common_io*.whl
-      - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
-        # Extras might be different on S3 so rather than relying on "all" we should get the list of
-        # packages to be installed from the current provider_dependencies.json file
+          rm -vf ${{ matrix.remove-providers }}
+        working-directory: ./dist
+        if: matrix.remove-providers != ''
+      - name: "Checkout ${{matrix.airflow-version}} of Airflow"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{matrix.airflow-version}}
+          path: old-airflow
+      - name: "Prepare airflow package: wheel"
         run: |
-          python -c 'from pathlib import Path; import json
-          providers = json.loads(Path("generated/provider_dependencies.json").read_text())
-          provider_keys = ",".join(providers.keys())
-          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-      - name: "Install and verify all provider packages and airflow on Airflow 2.5 files"
+          pip install pip==23.3.1 wheel==0.36.2 gitpython==3.1.40
+          python setup.py egg_info --tag-build ".dev0" bdist_wheel -d ../dist
+        working-directory: ./old-airflow
+      - name: >
+          Install and verify all provider packages and airflow on
+          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.5.0
-          --use-packages-from-dist --airflow-constraints-reference constraints-2.5.0
+          breeze release-management verify-provider-packages --use-packages-from-dist
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow on Airflow 2.5 files"
+      - name: >
+          Install affected provider packages and airflow on
+          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
         run: >
-          breeze release-management install-provider-packages --use-airflow-version 2.5.0
-          --airflow-constraints-reference constraints-2.5.0 --run-in-parallel
-        # Make sure to skip the run if the only provider to be installed has been removed
-        # in the previous step
-        if: >
-          needs.build-info.outputs.affected-providers-list-as-string != '' &&
-          needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
+          breeze release-management install-provider-packages --run-in-parallel
+        if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -1608,6 +1621,7 @@ jobs:
         if: needs.build-info.outputs.in-workflow-build == 'true'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -1647,6 +1661,7 @@ jobs:
         uses: ./.github/actions/build-prod-images
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -1694,7 +1709,7 @@ jobs:
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
-    name: "Verify PROD image and docker-compose quick start"
+    name: "Docker-compose quick start with PROD image verifying"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'

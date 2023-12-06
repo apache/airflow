@@ -48,6 +48,14 @@ import usePools from "./usePools";
 import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
+import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
+
+axios.interceptors.request.use((config) => {
+  config.paramsSerializer = {
+    indexes: null,
+  };
+  return config;
+});
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -84,4 +92,6 @@ export {
   useTaskInstance,
   useUpstreamDatasetEvents,
   useHistoricalMetricsData,
+  useTaskXcomEntry,
+  useTaskXcomCollection,
 };

@@ -52,6 +52,7 @@ from airflow_breeze.utils.common_options import (
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
+    option_docker_host,
     option_dry_run,
     option_eager_upgrade_additional_requirements,
     option_github_repository,
@@ -85,6 +86,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     check_remote_ghcr_io_commands,
+    get_docker_build_env,
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
@@ -132,8 +134,6 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     )
     if result.returncode != 0:
         return True
-    if ci_image_params.skip_image_upgrade_check:
-        return False
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
@@ -236,87 +236,86 @@ def get_exitcode(status: int) -> int:
 
 
 @ci_image.command(name="build")
-@option_python
-@option_debian_version
-@option_upgrade_to_newer_dependencies
-@option_upgrade_on_failure
-@option_platform_multiple
-@option_github_token
-@option_docker_cache
-@option_image_tag_for_building
-@option_prepare_buildx_cache
-@option_push
-@option_install_providers_from_sources
 @option_additional_airflow_extras
-@option_additional_dev_apt_deps
-@option_additional_python_deps
 @option_additional_dev_apt_command
+@option_additional_dev_apt_deps
 @option_additional_dev_apt_env
-@option_builder
-@option_build_progress
-@option_commit_sha
-@option_dev_apt_command
-@option_dev_apt_deps
-@option_python_image
-@option_eager_upgrade_additional_requirements
+@option_additional_pip_install_flags
+@option_additional_python_deps
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
-@option_tag_as_latest
-@option_additional_pip_install_flags
-@option_github_repository
-@option_version_suffix_for_pypi_ci
-@option_build_timeout_minutes
-@option_run_in_parallel
-@option_parallelism
-@option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_python_versions
-@option_verbose
-@option_dry_run
 @option_answer
+@option_build_progress
+@option_build_timeout_minutes
+@option_builder
+@option_commit_sha
+@option_debian_version
+@option_debug_resources
+@option_dev_apt_command
+@option_dev_apt_deps
+@option_docker_cache
+@option_docker_host
+@option_dry_run
+@option_eager_upgrade_additional_requirements
+@option_github_repository
+@option_github_token
+@option_image_tag_for_building
+@option_include_success_outputs
+@option_install_providers_from_sources
+@option_parallelism
+@option_platform_multiple
+@option_prepare_buildx_cache
+@option_push
+@option_python
+@option_python_image
+@option_python_versions
+@option_run_in_parallel
+@option_skip_cleanup
+@option_tag_as_latest
+@option_upgrade_on_failure
+@option_upgrade_to_newer_dependencies
+@option_verbose
+@option_version_suffix_for_pypi_ci
 def build(
-    # Build options
-    python: str,
-    debian_version: str,
-    upgrade_to_newer_dependencies: bool,
-    upgrade_on_failure: bool,
-    platform: str | None,
-    github_token: str | None,
-    docker_cache: str,
-    image_tag: str,
-    prepare_buildx_cache: bool,
-    push: bool,
-    install_providers_from_sources: bool,
     additional_airflow_extras: str | None,
-    additional_dev_apt_deps: str | None,
-    additional_python_deps: str | None,
     additional_dev_apt_command: str | None,
+    additional_dev_apt_deps: str | None,
     additional_dev_apt_env: str | None,
-    builder: str,
-    build_progress: str,
-    commit_sha: str | None,
-    dev_apt_command: str | None,
-    dev_apt_deps: str | None,
-    eager_upgrade_additional_requirements: str | None,
+    additional_pip_install_flags: str | None,
+    additional_python_deps: str | None,
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    tag_as_latest: bool,
-    additional_pip_install_flags: str | None,
-    github_repository: str,
-    python_image: str | None,
-    version_suffix_for_pypi: str,
-    # Parallel building
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
-    debug_resources: bool,
-    include_success_outputs,
-    python_versions: str,
-    # Other options
+    build_progress: str,
     build_timeout_minutes: int | None,
+    builder: str,
+    commit_sha: str | None,
+    debian_version: str,
+    debug_resources: bool,
+    dev_apt_command: str | None,
+    dev_apt_deps: str | None,
+    docker_cache: str,
+    docker_host: str | None,
+    eager_upgrade_additional_requirements: str | None,
+    github_repository: str,
+    github_token: str | None,
+    image_tag: str,
+    include_success_outputs,
+    install_providers_from_sources: bool,
+    parallelism: int,
+    platform: str | None,
+    prepare_buildx_cache: bool,
+    push: bool,
+    python: str,
+    python_image: str | None,
+    python_versions: str,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
+    tag_as_latest: bool,
+    upgrade_on_failure: bool,
+    upgrade_to_newer_dependencies: bool,
+    version_suffix_for_pypi: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
 
@@ -353,34 +352,35 @@ def build(
     check_remote_ghcr_io_commands()
     fix_group_permissions()
     base_build_params = BuildCiParams(
-        force_build=True,
-        python=python,
-        debian_version=debian_version,
-        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
-        upgrade_on_failure=upgrade_on_failure,
-        github_token=github_token,
-        docker_cache=docker_cache,
-        image_tag=image_tag,
-        prepare_buildx_cache=prepare_buildx_cache,
-        push=push,
-        install_providers_from_sources=install_providers_from_sources,
         additional_airflow_extras=additional_airflow_extras,
-        additional_python_deps=additional_python_deps,
         additional_dev_apt_command=additional_dev_apt_command,
         additional_dev_apt_env=additional_dev_apt_env,
-        builder=builder,
-        build_progress=build_progress,
-        commit_sha=commit_sha,
-        dev_apt_command=dev_apt_command,
-        dev_apt_deps=dev_apt_deps,
-        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
+        additional_pip_install_flags=additional_pip_install_flags,
+        additional_python_deps=additional_python_deps,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
-        tag_as_latest=tag_as_latest,
-        additional_pip_install_flags=additional_pip_install_flags,
+        build_progress=build_progress,
+        builder=builder,
+        commit_sha=commit_sha,
+        debian_version=debian_version,
+        dev_apt_command=dev_apt_command,
+        dev_apt_deps=dev_apt_deps,
+        docker_cache=docker_cache,
+        docker_host=docker_host,
+        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
+        force_build=True,
         github_repository=github_repository,
+        github_token=github_token,
+        image_tag=image_tag,
+        install_providers_from_sources=install_providers_from_sources,
+        prepare_buildx_cache=prepare_buildx_cache,
+        push=push,
+        python=python,
         python_image=python_image,
+        tag_as_latest=tag_as_latest,
+        upgrade_on_failure=upgrade_on_failure,
+        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -638,6 +638,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     from inputimeout import TimeoutOccurred
 
     if not md5sum_check_if_build_is_needed(
+        build_ci_params=build_ci_params,
         md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
         skip_provider_dependencies_check=build_ci_params.skip_provider_dependencies_check,
     ):
@@ -728,8 +729,7 @@ def run_build_ci_image(
             output=output,
         )
     else:
-        env = os.environ.copy()
-        env["DOCKER_BUILDKIT"] = "1"
+        env = get_docker_build_env(ci_image_params)
         subprocess.run(
             [
                 sys.executable,
@@ -800,14 +800,17 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
     )
     ci_image_params = BuildCiParams(
-        python=command_params.python,
         builder=command_params.builder,
+        docker_host=command_params.docker_host,
+        force_build=command_params.force_build,
         github_repository=command_params.github_repository,
-        upgrade_to_newer_dependencies=False,
         image_tag=command_params.image_tag,
         platform=command_params.platform,
-        force_build=command_params.force_build,
+        python=command_params.python,
+        skip_image_upgrade_check=command_params.skip_image_upgrade_check,
         skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
+        upgrade_to_newer_dependencies=False,
+        warn_image_upgrade_needed=command_params.warn_image_upgrade_needed,
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

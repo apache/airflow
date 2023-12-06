@@ -81,11 +81,13 @@ dependencies:
   # same minimum version specified. Boto3 1.28.0 has been released on July 6 2023. We should also make sure we
   # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
   # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
-  # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  # that supported boto3 1.28.
+  # NOTE!!! BEFORE botocore 1.33 BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
   # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
   - boto3>=1.28.0
-  # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
-  # See https://github.com/boto/boto3/issues/2702
+  # NOTE!!! BEFORE botocore 1.33 version is always shifted by 3 MINOR VERSIONS from boto3, see:
+  # - https://github.com/boto/boto3/issues/2702
+  # - https://github.com/boto/boto3/blob/a3e710df58676c2567b8023dbe09025ad5e0e50f/.changes/1.33.0.json#L13-L15
   - botocore>=1.31.0
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
@@ -301,6 +303,10 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glue_databrew.rst
     logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
+    tags: [aws]
+  - integration-name: Amazon Verified Permissions
+    external-doc-url: https://aws.amazon.com/verified-permissions/
+    logo: /integration-logos/aws/Amazon-Verified-Permissions.png
     tags: [aws]
 
 operators:
@@ -563,6 +569,9 @@ hooks:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue_databrew
+  - integration-name: Amazon Verified Permissions
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.verified_permissions
 
 triggers:
   - integration-name: Amazon Web Services
@@ -746,7 +755,7 @@ additional-extras:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: s3fs
     dependencies:
-      - s3fs>=2023.9.2
+      - s3fs>=2023.10.0
   - name: python3-saml
     dependencies:
       - python3-saml>=1.16.0
@@ -915,6 +924,14 @@ config:
         type: boolean
         example: "True"
         default: "False"
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS
+          Identity Center and Amazon Verified Permissions.
+        version_added: 8.12.0
+        type: string
+        example: "aws_default"
+        default: "aws_default"
       saml_metadata_url:
         description: |
           SAML metadata XML file provided by AWS Identity Center.
@@ -922,6 +939,14 @@ config:
         version_added: 8.12.0
         type: string
         example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
+        default: ~
+      avp_policy_store_id:
+        description: |
+          Amazon Verified Permissions' policy store ID where all the policies defining user permissions
+          in Airflow are stored. Required.
+        version_added: 8.12.0
+        type: string
+        example: ~
         default: ~
 
 executors:

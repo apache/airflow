@@ -206,6 +206,7 @@ option_mount_sources = click.option(
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
+    envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
@@ -530,6 +531,12 @@ option_python_image = click.option(
     "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
 )
+option_docker_host = click.option(
+    "--docker-host",
+    help="Optional - docker host to use when running docker commands. "
+    "When set, the `--builder` option is ignored when building images.",
+    envvar="DOCKER_HOST",
+)
 option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
@@ -557,6 +564,14 @@ option_skip_cleanup = click.option(
     is_flag=True,
     envvar="SKIP_CLEANUP",
 )
+
+option_directory = click.option(
+    "--directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    required=True,
+    help="Directory to clean the provider artifacts from.",
+)
+
 option_include_mypy_volume = click.option(
     "--include-mypy-volume",
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
@@ -758,6 +773,12 @@ option_skip_image_upgrade_check = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_UPGRADE_CHECK",
 )
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
 option_skip_environment_initialization = click.option(
     "--skip-environment-initialization",
     help="Skip running breeze entrypoint initialization - no user output, no db checks.",
@@ -780,4 +801,12 @@ option_restart = click.option(
     help="Restart all containers before entering shell (also removes orphan containers).",
     is_flag=True,
     envvar="RESTART",
+)
+option_chicken_egg_providers = click.option(
+    "--chicken-egg-providers",
+    default="",
+    help="List of chicken-egg provider packages - "
+    "those that have airflow_version >= current_version and should "
+    "be installed in CI from locally built packages with >= current_version.dev0 ",
+    envvar="CHICKEN_EGG_PROVIDERS",
 )
