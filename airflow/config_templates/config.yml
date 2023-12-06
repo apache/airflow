@@ -255,6 +255,13 @@ core:
       type: string
       example: ~
       default: "60"
+    default_unfinished_ti_state:
+      description: |
+        When a DAG timeout, the scheduler will set the unfinished tasks to this state.
+      version_added: ~
+      type: string
+      example: ~
+      default: "skipped"
     dag_run_conf_overrides_params:
       description: |
         Whether to override params with dag_run.conf. If you pass some key-value pairs
