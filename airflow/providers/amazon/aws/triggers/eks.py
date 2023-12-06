@@ -24,6 +24,8 @@ from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import TriggerEvent
+from botocore.exceptions import ClientError
+
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -144,7 +146,13 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)
                 await self.delete_any_fargate_profiles(client=client)
-            await client.delete_cluster(name=self.cluster_name)
+            try:
+                await client.delete_cluster(name=self.cluster_name)
+            except ClientError as ex:
+                if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                    pass
+                else:
+                    raise
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
