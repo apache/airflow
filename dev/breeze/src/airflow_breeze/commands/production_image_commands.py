@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import sys
 from copy import deepcopy
 
@@ -48,6 +47,7 @@ from airflow_breeze.utils.common_options import (
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
+    option_docker_host,
     option_dry_run,
     option_github_repository,
     option_github_token,
@@ -80,6 +80,7 @@ from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     check_remote_ghcr_io_commands,
+    get_docker_build_env,
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
@@ -220,6 +221,7 @@ def prod_image():
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_docker_cache
+@option_docker_host
 @option_dry_run
 @option_github_repository
 @option_github_token
@@ -267,6 +269,7 @@ def build(
     disable_mysql_client_installation: bool,
     disable_postgres_client_installation: bool,
     docker_cache: str,
+    docker_host: str | None,
     github_repository: str,
     github_token: str | None,
     image_tag: str,
@@ -325,6 +328,7 @@ def build(
         debian_version=debian_version,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
+        docker_host=docker_host,
         disable_airflow_repo_cache=disable_airflow_repo_cache,
         disable_mssql_client_installation=disable_mssql_client_installation,
         disable_mysql_client_installation=disable_mysql_client_installation,
@@ -673,8 +677,7 @@ def run_build_production_image(
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:
-        env = os.environ.copy()
-        env["DOCKER_BUILDKIT"] = "1"
+        env = get_docker_build_env(prod_image_params)
         build_command_result = run_command(
             prepare_docker_build_command(
                 image_params=prod_image_params,

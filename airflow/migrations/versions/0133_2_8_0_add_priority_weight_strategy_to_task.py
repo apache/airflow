@@ -19,18 +19,17 @@
 """add priority_weight_strategy to task_instance
 
 Revision ID: 624ecf3b6a5e
-Revises: bd5dfbe21f88
+Revises: 10b52ebd31f7
 Create Date: 2023-10-29 02:01:34.774596
 
 """
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = "624ecf3b6a5e"
-down_revision = "bd5dfbe21f88"
+down_revision = "10b52ebd31f7"
 branch_labels = None
 depends_on = None
 airflow_version = "2.8.0"

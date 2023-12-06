@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable
 
 import jwt
 import re2
-from flask import flash, g, session
+from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
     AUTH_DB,
@@ -209,6 +209,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
@@ -266,7 +267,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
@@ -476,17 +476,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user_session_model = interface.sql_session_model
             num_sessions = session.query(user_session_model).count()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
-                flash(
-                    Markup(
-                        f"The old sessions for user {user.username} have <b>NOT</b> been deleted!<br>"
-                        f"You have a lot ({num_sessions}) of user sessions in the 'SESSIONS' table in "
-                        f"your database.<br> "
-                        "This indicates that this deployment might have an automated API calls that create "
-                        "and not reuse sessions.<br>You should consider reusing sessions or cleaning them "
-                        "periodically using db clean.<br>"
-                        "Make sure to reset password for the user again after cleaning the session table "
-                        "to remove old sessions of the user."
-                    ),
+                _cli_safe_flash(
+                    f"The old sessions for user {user.username} have <b>NOT</b> been deleted!<br>"
+                    f"You have a lot ({num_sessions}) of user sessions in the 'SESSIONS' table in "
+                    f"your database.<br> "
+                    "This indicates that this deployment might have an automated API calls that create "
+                    "and not reuse sessions.<br>You should consider reusing sessions or cleaning them "
+                    "periodically using db clean.<br>"
+                    "Make sure to reset password for the user again after cleaning the session table "
+                    "to remove old sessions of the user.",
                     "warning",
                 )
             else:
@@ -495,15 +493,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
         else:
-            flash(
-                Markup(
-                    "Since you are using `securecookie` session backend mechanism, we cannot prevent "
-                    f"some old sessions for user {user.username} to be reused.<br> If you want to make sure "
-                    "that the user is logged out from all sessions, you should consider using "
-                    "`database` session backend mechanism.<br> You can also change the 'secret_key` "
-                    "webserver configuration for all your webserver instances and restart the webserver. "
-                    "This however will logout all users from all sessions."
-                ),
+            _cli_safe_flash(
+                "Since you are using `securecookie` session backend mechanism, we cannot prevent "
+                f"some old sessions for user {user.username} to be reused.<br> If you want to make sure "
+                "that the user is logged out from all sessions, you should consider using "
+                "`database` session backend mechanism.<br> You can also change the 'secret_key` "
+                "webserver configuration for all your webserver instances and restart the webserver. "
+                "This however will logout all users from all sessions.",
                 "warning",
             )
 
@@ -2666,3 +2662,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             ).one()
             return dm.root_dag_id or dm.dag_id
         return dag_id
+
+
+def _cli_safe_flash(text: str, level: str) -> None:
+    """Shows a flash in a web context or prints a message if not."""
+    if has_request_context():
+        flash(Markup(text), level)
+    else:
+        getattr(log, level)(text.replace("<br>", "\n").replace("<b>", "*").replace("</b>", "*"))

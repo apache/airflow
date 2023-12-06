@@ -113,15 +113,17 @@ class RedshiftSQLHook(DbApiHook):
             serverless_token_duration_seconds = conn.extra_dejson.get(
                 "serverless_token_duration_seconds", 3600
             )
-            redshift_client = AwsBaseHook(
+            redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=self.aws_conn_id, client_type="redshift-serverless"
             ).conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#get-credentials
-            cluster_creds = redshift_client.get_cluster_credentials(
-                DbName=conn.schema,
+            cluster_creds = redshift_serverless_client.get_credentials(
+                dbName=conn.schema,
                 workgroupName=serverless_work_group,
                 durationSeconds=serverless_token_duration_seconds,
             )
+            token = cluster_creds["dbPassword"]
+            login = cluster_creds["dbUser"]
         else:
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
@@ -139,8 +141,8 @@ class RedshiftSQLHook(DbApiHook):
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
             )
-        token = cluster_creds["DbPassword"]
-        login = cluster_creds["DbUser"]
+            token = cluster_creds["DbPassword"]
+            login = cluster_creds["DbUser"]
         return login, token, port
 
     def get_uri(self) -> str:

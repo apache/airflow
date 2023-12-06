@@ -33,6 +33,7 @@ from airflow_breeze.utils.common_options import (
     option_builder,
     option_database_isolation,
     option_db_reset,
+    option_docker_host,
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
@@ -108,6 +109,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_builder
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_dry_run
 @option_forward_credentials
 @option_github_repository

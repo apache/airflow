@@ -19,7 +19,7 @@
 """Add processor_subdir to ImportError.
 
 Revision ID: 10b52ebd31f7
-Revises: 624ecf3b6a5e
+Revises: bd5dfbe21f88
 Create Date: 2023-11-29 16:54:48.101834
 
 """
@@ -30,7 +30,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "10b52ebd31f7"
-down_revision = "624ecf3b6a5e"
+down_revision = "bd5dfbe21f88"
 branch_labels = None
 depends_on = None
 airflow_version = "2.8.0"
