@@ -108,15 +108,15 @@ class TestDatasetManager:
         assert extras["extra_2"] == 123
         assert session.query(DatasetDagRunQueue).count() == 2
 
-    def test_register_dataset_change_with_extra_override(self, session, dag_maker, mock_task_instance):
+    def test_register_dataset_change_with_extra_none(self, session, dag_maker, mock_task_instance):
         dsem = DatasetManager()
 
-        ds = Dataset(uri="test_dataset_uri_with_extra_override", extra={"extra_1": "hello", "extra_2": 123})
+        ds = Dataset(uri="test_dataset_uri_with_extra_none")
         dag1 = DagModel(dag_id="dag1")
         dag2 = DagModel(dag_id="dag2")
         session.add_all([dag1, dag2])
 
-        dsm = DatasetModel(uri="test_dataset_uri_with_extra_override")
+        dsm = DatasetModel(uri="test_dataset_uri_with_extra_none")
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.flush()
@@ -129,8 +129,7 @@ class TestDatasetManager:
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
-        assert extras["extra_1"] == "overridden"
-        assert extras["extra_2"] == 123
+        assert extras == {}
         assert session.query(DatasetDagRunQueue).count() == 2
 
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):

@@ -55,7 +55,7 @@ class DatasetManager(LoggingMixin):
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
 
     def register_dataset_change(
-        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
+        self, *, task_instance: TaskInstance, dataset: Dataset, session: Session, **kwargs
     ) -> None:
         """
         Register dataset related changes.
@@ -68,15 +68,6 @@ class DatasetManager(LoggingMixin):
             self.log.warning("DatasetModel %s not found", dataset)
             return
 
-        # merge dataset extra dict and extra dict parameter
-        event_extra = None
-        if dataset.extra is not None or extra is not None:
-            event_extra = {}
-            if dataset.extra:
-                event_extra.update(dataset.extra)
-            if extra:
-                event_extra.update(extra)
-
         session.add(
             DatasetEvent(
                 dataset_id=dataset_model.id,
@@ -84,7 +75,7 @@ class DatasetManager(LoggingMixin):
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
-                extra=event_extra,
+                extra=dataset.extra,
             )
         )
         session.flush()
