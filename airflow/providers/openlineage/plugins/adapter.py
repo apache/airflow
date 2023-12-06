@@ -164,17 +164,19 @@ class OpenLineageAdapter(LoggingMixin):
 
         if not run_facets:
             run_facets = {}
+        if task:
+            run_facets = {**task.run_facets, **run_facets}
         run_facets["processing_engine"] = processing_engine_version_facet  # type: ignore
         event = RunEvent(
             eventType=RunState.START,
             eventTime=event_time,
             run=self._build_run(
-                run_id,
-                job_name,
-                parent_job_name,
-                parent_run_id,
-                nominal_start_time,
-                nominal_end_time,
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
             job=self._build_job(
@@ -190,19 +192,36 @@ class OpenLineageAdapter(LoggingMixin):
         )
         self.emit(event)
 
-    def complete_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
+    def complete_task(
+        self,
+        run_id: str,
+        job_name: str,
+        parent_job_name: str | None,
+        parent_run_id: str | None,
+        end_time: str,
+        task: OperatorLineage,
+    ):
         """
         Emits openlineage event of type COMPLETE.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
+        :param parent_job_name: the name of the parent job (typically the DAG,
+                but possibly a task group)
+        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
         """
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
-            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
+            run=self._build_run(
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                run_facets=task.run_facets,
+            ),
             job=self._build_job(job_name, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -210,20 +229,37 @@ class OpenLineageAdapter(LoggingMixin):
         )
         self.emit(event)
 
-    def fail_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
+    def fail_task(
+        self,
+        run_id: str,
+        job_name: str,
+        parent_job_name: str | None,
+        parent_run_id: str | None,
+        end_time: str,
+        task: OperatorLineage,
+    ):
         """
         Emits openlineage event of type FAIL.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
+        :param parent_job_name: the name of the parent job (typically the DAG,
+                but possibly a task group)
+        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
         """
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=end_time,
-            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
-            job=self._build_job(job_name),
+            run=self._build_run(
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                run_facets=task.run_facets,
+            ),
+            job=self._build_job(job_name, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
