@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Model Service operations.
@@ -26,15 +24,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomTrainingJobOperator,
     DeleteCustomTrainingJobOperator,
@@ -44,28 +44,32 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     DeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
+    AddVersionAliasesOnModelOperator,
     DeleteModelOperator,
+    DeleteModelVersionOperator,
+    DeleteVersionAliasesOnModelOperator,
     ExportModelOperator,
+    GetModelOperator,
     ListModelsOperator,
+    ListModelVersionsOperator,
+    SetDefaultVersionOnModelOperator,
     UploadModelOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_model_service_operations"
+DAG_ID = "example_vertex_ai_model_service_operations"
 REGION = "us-central1"
 TRAIN_DISPLAY_NAME = f"train-housing-custom-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 STAGING_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_FILE_LOCAL_PATH = "/model_service/california_housing_train.csv"
-RESOURCES_PATH = Path(__file__).parent / "resources"
-CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-ai-model.zip")
 
 TABULAR_DATASET = {
     "display_name": f"tabular-dataset-{ENV_ID}",
@@ -82,7 +86,7 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-LOCAL_TRAINING_SCRIPT_PATH = "/model_service/california_housing_training_script.py"
+LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -106,7 +110,7 @@ MODEL_OBJ = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -120,16 +124,23 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /model_service && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /model_service/",
+
+    move_data_files = GCSSynchronizeBucketsOperator(
+        task_id="move_files_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/california-housing-data",
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=CSV_FILE_LOCAL_PATH,
-        dst=DATA_SAMPLE_GCS_OBJECT_NAME,
+
+    download_training_script_file = GCSToLocalFilesystemOperator(
+        task_id="download_training_script_file",
+        object_name="vertex-ai/california_housing_training_script.py",
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        filename=LOCAL_TRAINING_SCRIPT_PATH,
     )
+
     create_tabular_dataset = CreateDatasetOperator(
         task_id="tabular_dataset",
         dataset=TABULAR_DATASET,
@@ -154,6 +165,57 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    model_id_v1 = create_custom_training_job.output["model_id"]
+
+    create_custom_training_job_v2 = CreateCustomTrainingJobOperator(
+        task_id="custom_task_v2",
+        staging_bucket=f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}",
+        display_name=TRAIN_DISPLAY_NAME,
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=1,
+        model_display_name=MODEL_DISPLAY_NAME,
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    model_id_v2 = create_custom_training_job_v2.output["model_id"]
+
+    # [START how_to_cloud_vertex_ai_get_model_operator]
+    get_model = GetModelOperator(
+        task_id="get_model", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
+    )
+    # [END how_to_cloud_vertex_ai_get_model_operator]
+
+    # [START how_to_cloud_vertex_ai_list_model_versions_operator]
+    list_model_versions = ListModelVersionsOperator(
+        task_id="list_model_versions", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
+    )
+    # [END how_to_cloud_vertex_ai_list_model_versions_operator]
+
+    # [START how_to_cloud_vertex_ai_set_version_as_default_operator]
+    set_default_version = SetDefaultVersionOnModelOperator(
+        task_id="set_default_version",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_set_version_as_default_operator]
+
+    # [START how_to_cloud_vertex_ai_add_version_aliases_operator]
+    add_version_alias = AddVersionAliasesOnModelOperator(
+        task_id="add_version_alias",
+        project_id=PROJECT_ID,
+        region=REGION,
+        version_aliases=["new-version", "beta"],
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_add_version_aliases_operator]
 
     # [START how_to_cloud_vertex_ai_upload_model_operator]
     upload_model = UploadModelOperator(
@@ -192,10 +254,30 @@ with models.DAG(
     )
     # [END how_to_cloud_vertex_ai_list_models_operator]
 
+    # [START how_to_cloud_vertex_ai_delete_version_aliases_operator]
+    delete_version_alias = DeleteVersionAliasesOnModelOperator(
+        task_id="delete_version_alias",
+        project_id=PROJECT_ID,
+        region=REGION,
+        version_aliases=["new-version"],
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_delete_version_aliases_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_version_operator]
+    delete_model_version = DeleteModelVersionOperator(
+        task_id="delete_model_version",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=model_id_v1,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END how_to_cloud_vertex_ai_delete_version_operator]
+
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
-        training_pipeline_id=create_custom_training_job.output["training_id"],
-        custom_job_id=create_custom_training_job.output["custom_job_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_task', key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_task', key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -215,28 +297,29 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /model_service/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_data_files
+        >> download_training_script_file
         >> create_tabular_dataset
         >> create_custom_training_job
+        >> create_custom_training_job_v2
         # TEST BODY
+        >> get_model
+        >> list_model_versions
+        >> set_default_version
+        >> add_version_alias
         >> upload_model
         >> export_model
         >> delete_model
         >> list_models
         # TEST TEARDOWN
+        >> delete_version_alias
+        >> delete_model_version
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

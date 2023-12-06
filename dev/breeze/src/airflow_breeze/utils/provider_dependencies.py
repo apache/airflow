@@ -71,10 +71,9 @@ def generate_providers_metadata_for_package(
         date_released = get_tag_date(
             tag="providers-" + provider_id.replace(".", "-") + "/" + provider_version
         )
-        if date_released is None:
-            continue
-        provider_metadata[provider_version] = {
-            "associated_airflow_version": last_airflow_version,
-            "date_released": date_released,
-        }
+        if date_released:
+            provider_metadata[provider_version] = {
+                "associated_airflow_version": last_airflow_version,
+                "date_released": date_released,
+            }
     return provider_metadata

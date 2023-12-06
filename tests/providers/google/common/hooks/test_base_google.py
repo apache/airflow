@@ -352,6 +352,7 @@ class TestProvideGcpCredentialFileAsContext:
         assert CREDENTIALS not in os.environ
 
 
+@pytest.mark.db_test
 class TestGoogleBaseHook:
     def setup_method(self):
         self.instance = hook.GoogleBaseHook()
@@ -524,12 +525,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
@@ -591,12 +587,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
@@ -661,15 +652,50 @@ class TestGoogleBaseHook:
         assert http_authorized.timeout is not None
 
     @pytest.mark.parametrize(
-        "impersonation_chain, target_principal, delegates",
+        "impersonation_chain, impersonation_chain_from_conn, target_principal, delegates",
         [
-            pytest.param("ACCOUNT_1", "ACCOUNT_1", None, id="string"),
-            pytest.param(["ACCOUNT_1"], "ACCOUNT_1", [], id="single_element_list"),
+            pytest.param("ACCOUNT_1", None, "ACCOUNT_1", None, id="string"),
+            pytest.param(None, "ACCOUNT_1", "ACCOUNT_1", None, id="string_in_conn"),
+            pytest.param("ACCOUNT_2", "ACCOUNT_1", "ACCOUNT_2", None, id="string_with_override"),
+            pytest.param(["ACCOUNT_1"], None, "ACCOUNT_1", [], id="single_element_list"),
+            pytest.param(None, ["ACCOUNT_1"], "ACCOUNT_1", [], id="single_element_list_in_conn"),
+            pytest.param(
+                ["ACCOUNT_1"], ["ACCOUNT_2"], "ACCOUNT_1", [], id="single_element_list_with_override"
+            ),
             pytest.param(
                 ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"],
+                None,
                 "ACCOUNT_3",
                 ["ACCOUNT_1", "ACCOUNT_2"],
                 id="multiple_elements_list",
+            ),
+            pytest.param(
+                None,
+                ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"],
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_in_conn",
+            ),
+            pytest.param(
+                ["ACCOUNT_2", "ACCOUNT_3", "ACCOUNT_4"],
+                ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"],
+                "ACCOUNT_4",
+                ["ACCOUNT_2", "ACCOUNT_3"],
+                id="multiple_elements_list_with_override",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1,ACCOUNT_2,ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1, ACCOUNT_2, ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string_with_space",
             ),
         ],
     )
@@ -678,12 +704,14 @@ class TestGoogleBaseHook:
         self,
         mock_get_creds_and_proj_id,
         impersonation_chain,
+        impersonation_chain_from_conn,
         target_principal,
         delegates,
     ):
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, PROJECT_ID)
         self.instance.impersonation_chain = impersonation_chain
+        self.instance.extras = {"impersonation_chain": impersonation_chain_from_conn}
         result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
@@ -811,6 +839,7 @@ class TestProvideAuthorizedGcloud:
 
 
 class TestNumRetry:
+    @pytest.mark.db_test
     def test_should_return_int_when_set_int_via_connection(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         instance.extras = {

@@ -197,3 +197,42 @@ Notes on schedules
 The ``schedule`` parameter to your DAG can take either a list of datasets to consume or a timetable-based option. The two cannot currently be mixed.
 
 When using datasets, in this first release (v2.4) waiting for all datasets in the list to be updated is the only option when multiple datasets are consumed by a DAG. A later release may introduce more fine-grained options allowing for greater flexibility.
+
+Fetching information from a Triggering Dataset Event
+----------------------------------------------------
+
+A triggered DAG can fetch information from the Dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
+See more at :ref:`templates-ref`.
+
+Example:
+
+.. code-block:: python
+
+    example_snowflake_dataset = Dataset("snowflake://my_db.my_schema.my_table")
+
+    with DAG(dag_id="load_snowflake_data", schedule="@hourly", ...):
+        SQLExecuteQueryOperator(
+            task_id="load", conn_id="snowflake_default", outlets=[example_snowflake_dataset], ...
+        )
+
+    with DAG(dag_id="query_snowflake_data", schedule=[example_snowflake_dataset], ...):
+        SQLExecuteQueryOperator(
+            task_id="query",
+            conn_id="snowflake_default",
+            sql="""
+              SELECT *
+              FROM my_db.my_schema.my_table
+              WHERE "updated_at" >= '{{ (triggering_dataset_events.values() | first | first).source_dag_run.data_interval_start }}'
+              AND "updated_at" < '{{ (triggering_dataset_events.values() | first | first).source_dag_run.data_interval_end }}';
+            """,
+        )
+
+        @task
+        def print_triggering_dataset_events(triggering_dataset_events=None):
+            for dataset, dataset_list in triggering_dataset_events.items():
+                print(dataset, dataset_list)
+                print(dataset_list[0].source_dag_run.dag_id)
+
+        print_triggering_dataset_events()
+
+Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one Dataset given to the DAG, and the first of one DatasetEvent for that Dataset. An implementation may be quite complex if you have multiple Datasets, potentially with multiple DatasetEvents.

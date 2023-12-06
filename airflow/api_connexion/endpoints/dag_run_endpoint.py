@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
 from flask import g
 from marshmallow import ValidationError
 from sqlalchemy import delete, or_, select
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import Select
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -57,7 +56,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -69,15 +68,16 @@ from airflow.utils.types import DagRunType
 from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_connexion.types import APIResponse
+
 RESOURCE_EVENT_PREFIX = "dag_run"
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("DELETE", DagAccessEntity.RUN)
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run."""
@@ -89,12 +89,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
     return NoContent, HTTPStatus.NO_CONTENT
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a DAG Run."""
@@ -107,13 +102,8 @@ def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION)
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
+@security.requires_access_dataset("GET")
 @provide_session
 def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
@@ -190,12 +180,7 @@ def _fetch_dag_runs(
     return session.scalars(query.offset(offset).limit(limit)).all(), total_entries
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @format_parameters(
     {
         "start_date_gte": format_datetime,
@@ -232,8 +217,9 @@ def get_dag_runs(
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
-        appbuilder = get_airflow_app().appbuilder
-        query = query.where(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
+        query = query.where(
+            DagRun.dag_id.in_(get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user))
+        )
     else:
         query = query.where(DagRun.dag_id == dag_id)
 
@@ -258,12 +244,7 @@ def get_dag_runs(
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     """Get list of DAG Runs."""
@@ -273,8 +254,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    appbuilder = get_airflow_app().appbuilder
-    readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
+    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
     query = select(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
@@ -303,12 +283,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("POST", DagAccessEntity.RUN)
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -374,12 +349,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
@@ -406,12 +376,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
@@ -457,12 +422,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-    ],
-)
+@security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""

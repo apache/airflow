@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
 services:
   airflow:
     stdin_open: true  # docker run -i
@@ -36,9 +35,6 @@ services:
       - type: bind
         source: ../../../.build
         target: /opt/airflow/.build
-      - type: bind
-        source: ../../../.coveragerc
-        target: /opt/airflow/.coveragerc
       - type: bind
         source: ../../../.dockerignore
         target: /opt/airflow/.dockerignore
@@ -72,9 +68,6 @@ services:
       - type: bind
         source: ../../../constraints
         target: /opt/airflow/constraints
-      - type: bind
-        source: ../../../provider_packages
-        target: /opt/airflow/provider_packages
       - type: bind
         source: ../../../dags
         target: /opt/airflow/dags

@@ -21,17 +21,13 @@ import contextlib
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
-from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.utils.context import Context
+from airflow.models.taskmixin import DependencyMixin
 from airflow.utils.db import exists_query
-from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -41,8 +37,14 @@ from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DAGNode
+    from airflow.utils.context import Context
+    from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -85,11 +87,11 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @overload
     def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
-        """Called when the user writes ``XComArg(...)`` directly."""
+        """Execute when the user writes ``XComArg(...)`` directly."""
 
     @overload
     def __new__(cls: type[XComArg]) -> XComArg:
-        """Called by Python internals from subclasses."""
+        """Execute by Python internals from subclasses."""
 
     def __new__(cls, *args, **kwargs) -> XComArg:
         if cls is XComArg:
@@ -155,7 +157,8 @@ class XComArg(ResolveMixin, DependencyMixin):
             operator.set_downstream(task_or_task_list, edge_modifier)
 
     def _serialize(self) -> dict[str, Any]:
-        """Called by DAG serialization.
+        """
+        Serialize a DAG.
 
         The implementation should be the inverse function to ``deserialize``,
         returning a data dict converted from this XComArg derivative. DAG
@@ -167,7 +170,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
-        """Called when deserializing a DAG.
+        """
+        Deserialize a DAG.
 
         The implementation should be the inverse function to ``serialize``,
         implementing given a data dict converted from this XComArg derivative,
@@ -246,7 +250,7 @@ class PlainXComArg(XComArg):
         return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item: str) -> XComArg:
-        """Implements xcomresult['some_result_key']."""
+        """Implement xcomresult['some_result_key']."""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return PlainXComArg(operator=self.operator, key=item)
@@ -381,7 +385,7 @@ class PlainXComArg(XComArg):
             )
             if unfinished_ti_exists:
                 return None  # Not all of the expanded tis are done yet.
-            query = session.query(func.count(XCom.map_index)).filter(
+            query = select(func.count(XCom.map_index)).where(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
                 XCom.task_id == task.task_id,
@@ -389,13 +393,13 @@ class PlainXComArg(XComArg):
                 XCom.key == XCOM_RETURN_KEY,
             )
         else:
-            query = session.query(TaskMap.length).filter(
+            query = select(TaskMap.length).where(
                 TaskMap.dag_id == task.dag_id,
                 TaskMap.run_id == run_id,
                 TaskMap.task_id == task.task_id,
                 TaskMap.map_index < 0,
             )
-        return query.scalar()
+        return session.scalar(query)
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:

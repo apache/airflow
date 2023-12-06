@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from asyncio import CancelledError, Future
-from datetime import datetime
 from unittest import mock
 
 import pytest
-import pytz
 from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
@@ -43,7 +42,7 @@ IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
-TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
@@ -121,7 +120,7 @@ class TestGKEStartPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -148,7 +147,7 @@ class TestGKEStartPodTrigger:
                 "message": FAILED_RESULT_MSG,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -315,6 +314,7 @@ def async_get_operation_result():
     return func
 
 
+@pytest.mark.db_test
 class TestGKEOperationTrigger:
     def test_serialize(self, operation_trigger):
         classpath, trigger_init_kwargs = operation_trigger.serialize()
@@ -345,7 +345,7 @@ class TestGKEOperationTrigger:
                 "operation_name": OPERATION_NAME,
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -368,7 +368,7 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.STATUS_UNSPECIFIED}",
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -391,7 +391,7 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.ABORTING}",
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -408,7 +408,7 @@ class TestGKEOperationTrigger:
                 "message": EXC_MSG,
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 

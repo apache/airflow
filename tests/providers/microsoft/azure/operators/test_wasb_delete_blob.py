@@ -25,7 +25,6 @@ from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDel
 
 
 class TestWasbDeleteBlobOperator:
-
     _config = {
         "container_name": "container",
         "blob_name": "blob",

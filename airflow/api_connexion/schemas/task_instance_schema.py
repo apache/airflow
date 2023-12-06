@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -28,9 +28,12 @@ from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
-from airflow.models import SlaMiss, TaskInstance
+from airflow.models import TaskInstance
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -135,7 +138,7 @@ class ClearTaskInstanceFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates clear task instance form."""
+        """Validate clear task instance form."""
         if data["only_failed"] and data["only_running"]:
             raise ValidationError("only_failed and only_running both are set to True")
         if data["start_date"] and data["end_date"]:
@@ -152,7 +155,7 @@ class ClearTaskInstanceFormSchema(Schema):
 class SetTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of setting state of task instance of a DAG."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
     execution_date = fields.DateTime(validate=validate_istimezone)
     dag_run_id = fields.Str()
@@ -169,7 +172,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates set task instance state form."""
+        """Validate set task instance state form."""
         if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
@@ -177,7 +180,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(

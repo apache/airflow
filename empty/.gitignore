@@ -1,0 +1,7 @@
+# This file is here to keep the empty directory in git and protect from accidentally adding files here
+# The purpose of this empty directory is to have an empty folder that we can use during
+# building of the PROD image and when using `--mount-sources=remove` flag in Breeze.
+# See:
+# * `dev/breeze/src/airflow_breeze/utils/docker_command_utils.py`
+# * `dev/breeze/src/airflow_breeze/params/build_prod_params.py`
+*

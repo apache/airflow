@@ -30,8 +30,7 @@ import pendulum
 import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
@@ -43,12 +42,13 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
 
-
-TIMEZONE = pendulum.tz.timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
@@ -56,7 +56,8 @@ try:
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
-    pass
+    TIMEZONE = pendulum.tz.timezone("UTC")
+
 log.info("Configured default timezone %s", TIMEZONE)
 
 
@@ -100,7 +101,6 @@ STATE_COLORS = {
     "restarting": "violet",
     "running": "lime",
     "scheduled": "tan",
-    "shutdown": "blue",
     "skipped": "hotpink",
     "success": "green",
     "up_for_reschedule": "turquoise",
@@ -118,7 +118,7 @@ def _get_rich_console(file):
 
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
-    """Custom function to print rich and visible warnings."""
+    """Print rich and visible warnings."""
     # Delay imports until we need it
     from rich.markup import escape
 
@@ -205,13 +205,33 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
+class SkipDBTestsSession:
+    """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
+
+    def __init__(self):
+        raise RuntimeError(
+            "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
+            "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
+            "See https://github.com/apache/airflow/blob/main/TESTING.rst#best-practices-for-db-tests on how "
+            "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
-    global engine
     global Session
+    global engine
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        # Skip DB initialization in unit tests, if DB tests are skipped
+        Session = SkipDBTestsSession
+        engine = None
+        return
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     if conf.has_option("database", "sql_alchemy_connect_args"):
@@ -273,9 +293,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson(
-        "database", "sql_alchemy_engine_args", fallback=default_args
-    )  # type: ignore
+    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)  # type: ignore
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
@@ -311,7 +329,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
-        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(
@@ -432,7 +450,7 @@ def prepare_syspath():
 
 
 def get_session_lifetime_config():
-    """Gets session timeout configs and handles outdated configs gracefully."""
+    """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
     session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
@@ -465,11 +483,23 @@ def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
         import airflow_local_settings
-
-        if hasattr(airflow_local_settings, "__all__"):
-            names = list(airflow_local_settings.__all__)
+    except ModuleNotFoundError as e:
+        if e.name == "airflow_local_settings":
+            log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
-            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
+            log.critical(
+                "Failed to import airflow_local_settings due to a transitive module not found error.",
+                exc_info=True,
+            )
+            raise
+    except ImportError:
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise
+    else:
+        if hasattr(airflow_local_settings, "__all__"):
+            names = set(airflow_local_settings.__all__)
+        else:
+            names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         if "policy" in names and "task_policy" not in names:
             warnings.warn(
@@ -485,30 +515,15 @@ def import_local_settings():
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
 
-        for name in names:
-            # If we have already handled a function by adding it to the plugin, then don't clobber the global
-            # function
-            if name in plugin_functions:
-                continue
-
+        # If we have already handled a function by adding it to the plugin,
+        # then don't clobber the global function
+        for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
         if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
-    except ModuleNotFoundError as e:
-        if e.name == "airflow_local_settings":
-            log.debug("No airflow_local_settings to import.", exc_info=True)
-        else:
-            log.critical(
-                "Failed to import airflow_local_settings due to a transitive module not found error.",
-                exc_info=True,
-            )
-            raise
-    except ImportError:
-        log.critical("Failed to import airflow_local_settings.", exc_info=True)
-        raise
 
 
 def initialize():
@@ -568,12 +583,12 @@ USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=Tru
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
-LAZY_LOAD_PLUGINS = conf.getboolean("core", "lazy_load_plugins", fallback=True)
+LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=True)
 
 # By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
-LAZY_LOAD_PROVIDERS = conf.getboolean("core", "lazy_discover_providers", fallback=True)
+LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
@@ -581,6 +596,10 @@ IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
     executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
+
+# Executors can set this to true to configure logging correctly for
+# containerized executors.
+IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
 IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
 """Will be True if running in kubernetes executor pod."""
 
@@ -613,4 +632,10 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.
-_ENABLE_AIP_44 = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {"true", "t", "yes", "y", "1"}
+_ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {
+    "true",
+    "t",
+    "yes",
+    "y",
+    "1",
+}

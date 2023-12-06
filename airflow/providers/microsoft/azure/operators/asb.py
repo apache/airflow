@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING, Any, Sequence
+
+from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 
 if TYPE_CHECKING:
+    import datetime
+
     from azure.servicebus.management._models import AuthorizationRule
 
     from airflow.utils.context import Context
@@ -293,7 +296,10 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         with hook.get_conn() as service_mgmt_conn:
-            topic_properties = service_mgmt_conn.get_topic(self.topic_name)
+            try:
+                topic_properties = service_mgmt_conn.get_topic(self.topic_name)
+            except ResourceNotFoundError:
+                topic_properties = None
             if topic_properties and topic_properties.name == self.topic_name:
                 self.log.info("Topic name already exists")
                 return topic_properties.name

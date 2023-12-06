@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import reduce
+from typing import TYPE_CHECKING
 
-from kubernetes.client import models as k8s
+if TYPE_CHECKING:
+    from kubernetes.client import models as k8s
 
 
 class K8SModel(ABC):

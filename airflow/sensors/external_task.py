@@ -27,7 +27,7 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -329,10 +329,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
-        """
-        Airflow runs this method on the worker and defers using the triggers
-        if deferrable is set to True.
-        """
+        """Run on the worker and defer using the triggers if deferrable is set to True."""
         if not self.deferrable:
             super().execute(context)
         else:
@@ -349,7 +346,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
@@ -522,7 +519,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields

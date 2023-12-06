@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models.operator import Operator
+from typing import TYPE_CHECKING
+
 from airflow.operators.bash import BashOperator
+
+if TYPE_CHECKING:
+    from airflow.models.operator import Operator
 
 
 def get_describe_pod_operator(cluster_name: str, pod_name: str) -> Operator:

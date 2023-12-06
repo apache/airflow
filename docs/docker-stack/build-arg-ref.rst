@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bullseye``             | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bookworm``             | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``23.2.1``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``23.3.1``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |
@@ -85,7 +85,6 @@ List of default extras in the production Dockerfile:
 * async
 * celery
 * cncf.kubernetes
-* daskexecutor
 * docker
 * elasticsearch
 * ftp
@@ -98,6 +97,7 @@ List of default extras in the production Dockerfile:
 * microsoft.azure
 * mysql
 * odbc
+* openlineage
 * pandas
 * postgres
 * redis
@@ -169,6 +169,11 @@ for examples of using those arguments.
 | ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT_TYPE``            | ``mysql``                                | (*Experimental*) Type of MySQL client    |
+|                                          |                                          | library. This can be ``mysql`` or        |
+|                                          |                                          | ``mariadb``. Regardless of the parameter |
+|                                          |                                          | will always be used ``mariadb`` on ARM.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -271,4 +276,7 @@ Docker context files.
 |                                          |                                          | from the GitHub of Apache Airflow        |
 |                                          |                                          | This allows to optimize iterations for   |
 |                                          |                                          | Image builds and speeds up CI builds.    |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_CACHE_EPOCH``                      | ``"0"``                                  | Allow to invalidate cache by passing a   |
+|                                          |                                          | new argument.                            |
 +------------------------------------------+------------------------------------------+------------------------------------------+

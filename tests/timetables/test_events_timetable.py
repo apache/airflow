@@ -101,14 +101,8 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
 @pytest.mark.parametrize(
     "last_automated_data_interval, expected_next_info",
     [
-        pytest.param(
-            DataInterval(day, day),
-            DagRunInfo.interval(
-                EVENT_DATES_SORTED[event_num + 1],
-                EVENT_DATES_SORTED[event_num + 1],
-            ),
-        )
-        for event_num, day in enumerate(EVENT_DATES_SORTED[:-1])
+        pytest.param(DataInterval(day1, day1), DagRunInfo.interval(day2, day2))
+        for day1, day2 in zip(EVENT_DATES_SORTED, EVENT_DATES_SORTED[1:])
     ]
     + [pytest.param(DataInterval(EVENT_DATES_SORTED[-1], EVENT_DATES_SORTED[-1]), None)],
 )

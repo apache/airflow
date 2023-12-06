@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 @local_settings_hookspec
 def task_policy(task: BaseOperator) -> None:
     """
-    This policy setting allows altering tasks after they are loaded in the DagBag.
+    Allow altering tasks after they are loaded in the DagBag.
 
     It allows administrator to rewire some task's parameters.  Alternatively you can raise
     ``AirflowClusterPolicyViolation`` exception to stop DAG from being executed.
@@ -53,7 +53,7 @@ def task_policy(task: BaseOperator) -> None:
 @local_settings_hookspec
 def dag_policy(dag: DAG) -> None:
     """
-    This policy setting allows altering DAGs after they are loaded in the DagBag.
+    Allow altering DAGs after they are loaded in the DagBag.
 
     It allows administrator to rewire some DAG's parameters.
     Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
@@ -71,7 +71,7 @@ def dag_policy(dag: DAG) -> None:
 @local_settings_hookspec
 def task_instance_mutation_hook(task_instance: TaskInstance) -> None:
     """
-    This setting allows altering task instances before being queued by the Airflow scheduler.
+    Allow altering task instances before being queued by the Airflow scheduler.
 
     This could be used, for instance, to modify the task instance during retries.
 
@@ -108,7 +108,7 @@ def get_airflow_context_vars(context) -> dict[str, str]:  # type: ignore[empty-b
 @local_settings_hookspec(firstresult=True)
 def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignore[empty-body]
     """
-    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+    Allow for dynamic control of the DAG file parsing timeout based on the DAG file path.
 
     It is useful when there are a few DAG files requiring longer parsing times, while others do not.
     You can control them separately instead of having one value for all DAG files.
@@ -138,7 +138,7 @@ class DefaultPolicy:
         return {}
 
 
-def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: list[str]):
+def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set[str]):
     """
     Turn the functions from airflow_local_settings module into a custom/local plugin.
 
@@ -171,7 +171,7 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: lis
         #
         codestr = textwrap.dedent(
             f"""
-            def {name}_name_mismatch_shim{str(desired_sig)}:
+            def {name}_name_mismatch_shim{desired_sig}:
                 return __target({' ,'.join(desired_sig.parameters)})
             """
         )

@@ -24,12 +24,12 @@ from glob import glob
 from pathlib import Path
 from subprocess import run
 
-from rich.console import Console
-
 from airflow_breeze.global_constants import get_airflow_version
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.publish_docs_helpers import CONSOLE_WIDTH, load_package_data, pretty_format_path
+from airflow_breeze.utils.packages import get_provider_packages_metadata, get_short_package_name
+from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
@@ -37,14 +37,14 @@ PROCESS_TIMEOUT = 15 * 60
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 
-console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
-
 
 class PublishDocsBuilder:
     """Documentation builder for Airflow Docs Publishing."""
 
-    def __init__(self, package_name: str):
+    def __init__(self, package_name: str, output: Output | None, verbose: bool):
         self.package_name = package_name
+        self.output = output
+        self.verbose = verbose
 
     @property
     def _doctree_dir(self) -> str:
@@ -96,8 +96,7 @@ class PublishDocsBuilder:
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
-            all_providers_yaml = load_package_data()
-            provider = next(p for p in all_providers_yaml if p["package-name"] == self.package_name)
+            provider = get_provider_packages_metadata().get(get_short_package_name(self.package_name))
             return provider["versions"][0]
         if self.package_name == "helm-chart":
             return chart_version()
@@ -153,11 +152,13 @@ class PublishDocsBuilder:
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if verbose:
-            console.print(
+            get_console(output=self.output).print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
-            console.print(f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs.")
+            get_console(output=self.output).print(
+                f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs."
+            )
         with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
@@ -186,14 +187,16 @@ class PublishDocsBuilder:
                     warning_text += spelling_file.read()
 
             spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]")
+            get_console(output=self.output).print(
+                f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]"
+            )
         else:
             if spelling_errors:
-                console.print(
+                get_console(output=self.output).print(
                     f"[info]{self.package_name:60}:[/] [yellow]Finished spell-checking with warnings[/]"
                 )
             else:
-                console.print(
+                get_console(output=self.output).print(
                     f"[info]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
                 )
         return spelling_errors
@@ -226,12 +229,12 @@ class PublishDocsBuilder:
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if verbose:
-            console.print(
+            get_console(output=self.output).print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
         else:
-            console.print(
+            get_console(output=self.output).print(
                 f"[info]{self.package_name:60}:[/] Running sphinx. "
                 f"The output is hidden until an error occurs."
             )
@@ -259,32 +262,36 @@ class PublishDocsBuilder:
             warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
             build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
         if build_errors:
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]")
+            get_console(output=self.output).print(
+                f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]"
+            )
         else:
-            console.print(f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
+            get_console(output=self.output).print(
+                f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]"
+            )
         return build_errors
 
     def publish(self, override_versioned: bool, airflow_site_dir: str):
         """Copy documentation packages files to airflow-site repository."""
-        console.print(f"Publishing docs for {self.package_name}")
+        get_console(output=self.output).print(f"Publishing docs for {self.package_name}")
         output_dir = os.path.join(airflow_site_dir, self._publish_dir)
         pretty_source = pretty_format_path(self._build_dir, os.getcwd())
         pretty_target = pretty_format_path(output_dir, airflow_site_dir)
-        console.print(f"Copy directory: {pretty_source} => {pretty_target}")
+        get_console(output=self.output).print(f"Copy directory: {pretty_source} => {pretty_target}")
         if os.path.exists(output_dir):
             if self.is_versioned:
                 if override_versioned:
-                    console.print(f"Overriding previously existing {output_dir}! ")
+                    get_console(output=self.output).print(f"Overriding previously existing {output_dir}! ")
                 else:
-                    console.print(
+                    get_console(output=self.output).print(
                         f"Skipping previously existing {output_dir}! "
                         f"Delete it manually if you want to regenerate it!"
                     )
-                    console.print()
+                    get_console(output=self.output).print()
                     return
             shutil.rmtree(output_dir)
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
                 stable_file.write(self._current_version)
-        console.print()
+        get_console(output=self.output).print()

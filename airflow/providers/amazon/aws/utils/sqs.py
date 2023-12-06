@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Literal
+from typing import Any
 
 from jsonpath_ng import parse
+from typing_extensions import Literal
 
 log = logging.getLogger(__name__)
 
@@ -37,9 +38,7 @@ def process_response(
     :param response: The response from SQS
     :return: The processed response
     """
-    if not isinstance(response, dict):
-        return []
-    elif "Messages" not in response:
+    if not isinstance(response, dict) or "Messages" not in response:
         return []
 
     messages = response["Messages"]
@@ -78,13 +77,9 @@ def filter_messages_jsonpath(messages, message_filtering_match_values, message_f
         # Body is a string, deserialize to an object and then parse
         body = json.loads(body)
         results = jsonpath_expr.find(body)
-        if not results:
-            continue
-        if message_filtering_match_values is None:
+        if results and (
+            message_filtering_match_values is None
+            or any(result.value in message_filtering_match_values for result in results)
+        ):
             filtered_messages.append(message)
-            continue
-        for result in results:
-            if result.value in message_filtering_match_values:
-                filtered_messages.append(message)
-                break
     return filtered_messages

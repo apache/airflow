@@ -17,12 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import re
 from copy import deepcopy
-from typing import Pattern, Type, Union
-
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from typing import TYPE_CHECKING, Pattern, Type, Union
 
 from ..utils.eks_test_constants import (
     STATUS,
@@ -34,6 +31,11 @@ from ..utils.eks_test_constants import (
     NodegroupInputs,
     ResponseAttributes,
 )
+
+if TYPE_CHECKING:
+    import datetime
+
+    from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 InputTypes = Union[Type[ClusterInputs], Type[NodegroupInputs], Type[FargateProfileInputs]]
 
@@ -92,7 +94,7 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> li
     """
     # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
-        eks_hook.create_cluster(name=f"cluster{str(count)}", **_input_builder(ClusterInputs, minimal))[
+        eks_hook.create_cluster(name=f"cluster{count}", **_input_builder(ClusterInputs, minimal))[
             ResponseAttributes.CLUSTER
         ][ClusterAttributes.NAME]
         for count in range(num_clusters)
@@ -114,7 +116,7 @@ def generate_fargate_profiles(
     # Generates N Fargate profiles named profile0, profile1, .., profileN
     return [
         eks_hook.create_fargate_profile(
-            fargateProfileName=f"profile{str(count)}",
+            fargateProfileName=f"profile{count}",
             clusterName=cluster_name,
             **_input_builder(FargateProfileInputs, minimal),
         )[ResponseAttributes.FARGATE_PROFILE][FargateProfileAttributes.FARGATE_PROFILE_NAME]
@@ -137,7 +139,7 @@ def generate_nodegroups(
     # Generates N nodegroups named nodegroup0, nodegroup1, .., nodegroupN
     return [
         eks_hook.create_nodegroup(
-            nodegroupName=f"nodegroup{str(count)}",
+            nodegroupName=f"nodegroup{count}",
             clusterName=cluster_name,
             **_input_builder(NodegroupInputs, minimal),
         )[ResponseAttributes.NODEGROUP][NodegroupAttributes.NODEGROUP_NAME]
@@ -235,7 +237,7 @@ def convert_keys(original: dict) -> dict:
 
 
 def iso_date(input_datetime: datetime.datetime) -> str:
-    return input_datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+    return f"{input_datetime:%Y-%m-%dT%H:%M:%S}Z"
 
 
 def generate_dict(prefix, count) -> dict:

@@ -73,7 +73,16 @@ if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux split-window -h
     tmux send-keys 'airflow celery worker' C-m
 fi
-
+if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux send-keys 'airflow internal-api' C-m
+fi
+if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    tmux send-keys 'airflow dag-processor' C-m
+fi
 if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h

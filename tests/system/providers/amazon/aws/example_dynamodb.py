@@ -20,12 +20,15 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
+# TODO: FIXME The argument types here seems somewhat tricky to fix
+# mypy: disable-error-code="arg-type"
 
 DAG_ID = "example_dynamodbvaluesensor"
 sys_test_context_task = SystemTestContextBuilder().build()
@@ -89,12 +92,26 @@ with DAG(
     )
     # [END howto_sensor_dynamodb_value]
 
+    # [START howto_sensor_dynamodb_any_value]
+    dynamodb_sensor_any_value = DynamoDBValueSensor(
+        task_id="waiting_for_dynamodb_item_any_value",
+        table_name=table_name,
+        partition_key_name=PK_ATTRIBUTE_NAME,
+        partition_key_value="Test",
+        sort_key_name=SK_ATTRIBUTE_NAME,
+        sort_key_value="2022-07-12T11:11:25-0400",
+        attribute_name="Value",
+        attribute_value=["Foo", "Testing", "Bar"],
+    )
+    # [END howto_sensor_dynamodb_any_value]
+
     chain(
         # TEST SETUP
         test_context,
         create_table,
         # TEST BODY
         dynamodb_sensor,
+        dynamodb_sensor_any_value,
         # TEST TEARDOWN
         delete_table,
     )

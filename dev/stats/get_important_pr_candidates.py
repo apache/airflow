@@ -25,12 +25,15 @@ import re
 import textwrap
 from datetime import datetime
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import pendulum
 import rich_click as click
 from github import Github, UnknownObjectException
-from github.PullRequest import PullRequest
 from rich.console import Console
+
+if TYPE_CHECKING:
+    from github.PullRequest import PullRequest
 
 logger = logging.getLogger(__name__)
 

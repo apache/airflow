@@ -35,7 +35,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
-                "--force-build",
+                "--version-suffix-for-pypi",
+                "--build-progress",
+                "--docker-host",
             ],
         },
         {
@@ -50,32 +52,48 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Advanced options (for power users)",
+            "name": "Advanced build options (for power users)",
             "options": [
-                "--builder",
+                "--debian-version",
+                "--python-image",
+                "--commit-sha",
+                "--additional-pip-install-flags",
                 "--install-providers-from-sources",
+            ],
+        },
+        {
+            "name": "Selecting constraint location (for power users)",
+            "options": [
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
-                "--python-image",
+            ],
+        },
+        {
+            "name": "Choosing dependencies and extras (for power users)",
+            "options": [
+                "--additional-airflow-extras",
                 "--additional-python-deps",
-                "--additional-extras",
-                "--additional-pip-install-flags",
-                "--additional-dev-apt-deps",
-                "--additional-dev-apt-env",
-                "--additional-dev-apt-command",
                 "--dev-apt-deps",
+                "--additional-dev-apt-deps",
                 "--dev-apt-command",
-                "--version-suffix-for-pypi",
-                "--commit-sha",
+                "--additional-dev-apt-command",
+                "--additional-dev-apt-env",
+            ],
+        },
+        {
+            "name": "Backtracking options",
+            "options": [
+                "--build-timeout-minutes",
+                "--eager-upgrade-additional-requirements",
             ],
         },
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
             ],
         },
@@ -125,6 +143,17 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--pull",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
         {

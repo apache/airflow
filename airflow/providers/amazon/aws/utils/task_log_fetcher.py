@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta
-from logging import Logger
 from threading import Event, Thread
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 
 class AwsTaskLogFetcher(Thread):
@@ -92,7 +94,7 @@ class AwsTaskLogFetcher(Thread):
 
     def get_last_log_messages(self, number_messages) -> list:
         """
-        Gets the last logs messages in one single request.
+        Get the last logs messages in one single request.
 
          NOTE: some restrictions apply:
          - if logs are too old, the response will be empty

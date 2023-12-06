@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
 import os
 from datetime import datetime
 
@@ -29,6 +27,9 @@ from airflow.providers.alibaba.cloud.operators.oss import (
     OSSUploadObjectOperator,
 )
 
+# Ignore missing args provided by default_args
+# mypy: disable-error-code="call-arg"
+
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "oss_object_dag"
 with DAG(
@@ -39,7 +40,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     create_object = OSSUploadObjectOperator(
         file="your local file",
         key="your oss key",

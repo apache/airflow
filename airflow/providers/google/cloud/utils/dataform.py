@@ -40,6 +40,7 @@ def make_initialization_workspace_flow(
     region: str,
     repository_id: str,
     workspace_id: str,
+    dataform_schema_name: str = "dataform",
     package_name: str | None = None,
     without_installation: bool = False,
 ) -> tuple:
@@ -50,6 +51,7 @@ def make_initialization_workspace_flow(
     :param region: Required. The ID of the Google Cloud region where workspace located.
     :param repository_id: Required. The ID of the Dataform repository where workspace located.
     :param workspace_id: Required. The ID of the Dataform workspace which requires initialization.
+    :param dataform_schema_name: Name of the schema.
     :param package_name: Name of the package. If value is not provided then workspace_id will be used.
     :param without_installation: Defines should installation of npm packages be added to flow.
     """
@@ -135,7 +137,7 @@ def make_initialization_workspace_flow(
     default_location: str = define_default_location(region).value
     dataform_config_content = json.dumps(
         {
-            "defaultSchema": "dataform",
+            "defaultSchema": dataform_schema_name,
             "assertionSchema": "dataform_assertions",
             "warehouse": "bigquery",
             "defaultDatabase": project_id,
@@ -153,7 +155,7 @@ def make_initialization_workspace_flow(
         contents=dataform_config_content,
     )
 
-    package_name = package_name if package_name else workspace_id
+    package_name = package_name or workspace_id
     package_json_content = json.dumps(
         {
             "name": package_name,

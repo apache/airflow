@@ -29,7 +29,6 @@ with DAG(
     tags=["example", "cncf", "kubernetes"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_kubernetes]
     @task.kubernetes(
         image="python:3.8-slim-buster",
@@ -47,10 +46,10 @@ with DAG(
     @task.kubernetes(image="python:3.8-slim-buster", namespace="default", in_cluster=False)
     def print_pattern():
         n = 5
-        for i in range(0, n):
+        for i in range(n):
             # inner loop to handle number of columns
             # values changing acc. to outer loop
-            for j in range(0, i + 1):
+            for j in range(i + 1):
                 # printing stars
                 print("* ", end="")
 

@@ -23,7 +23,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from pytest import param
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
@@ -32,6 +31,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
+@pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance):
@@ -63,7 +63,9 @@ class TestGCSTaskHandler:
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id")
-    @pytest.mark.parametrize("conn_id", [param("", id="no-conn"), param("my_gcs_conn", id="with-conn")])
+    @pytest.mark.parametrize(
+        "conn_id", [pytest.param("", id="no-conn"), pytest.param("my_gcs_conn", id="with-conn")]
+    )
     def test_client_conn_id_behavior(self, mock_get_cred, mock_client, mock_hook, conn_id):
         """When remote log conn id configured, hook will be used"""
         mock_hook.return_value.get_credentials_and_project_id.return_value = ("test_cred", "test_proj")
@@ -238,7 +240,7 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
                     content_type="text/plain",
                 ),
             ],

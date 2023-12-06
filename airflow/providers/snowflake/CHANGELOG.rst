@@ -27,6 +27,95 @@
 Changelog
 ---------
 
+5.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``OpenLineage integration tried to use non-existed method in SnowflakeHook (#35752)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
+* ``Bump min 'snowflake-connector-python' version (#35440)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+5.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Decode response in f-string (#34518)``
+
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: Simplify comparisons (#34181)``
+
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Removed deprecated ``S3ToSnowflakeOperator`` in favor of ``CopyFromExternalStageToSnowflakeOperator``.
+  The parameter that was passed as ``s3_keys`` needs to be changed to ``files``, and the behavior should stay the same.
+
+  Removed deprecated ``SnowflakeToSlackOperator`` in favor of ``SqlToSlackOperator`` from Slack Provider.
+  Parameters that were passed as ``schema``, ``role``, ``database``, ``warehouse`` need to be included into
+  ``sql_hook_params`` parameter, and the behavior should stay the same.
+
+
+* ``Remove deprecated 'S3ToSnowflake' and 'SnowflakeToSlack' operators (#33558)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
+
+
 4.4.2
 .....
 

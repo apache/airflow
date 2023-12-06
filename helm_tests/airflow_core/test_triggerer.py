@@ -73,7 +73,7 @@ class TestTriggerer:
             values=values,
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_disable_wait_for_migration(self):
@@ -201,6 +201,17 @@ class TestTriggerer:
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -378,21 +389,28 @@ class TestTriggerer:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_volume",
+        "log_values, expected_volume",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+    def test_logs_persistence_changes_volume(self, log_values, expected_volume):
         docs = render_chart(
             values={
                 "triggerer": {"persistence": {"enabled": False}},
-                "logs": {"persistence": log_persistence_values},
+                "logs": log_values,
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
@@ -574,6 +592,15 @@ class TestTriggerer:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_triggerer_template_storage_class_name(self):
+        docs = render_chart(
+            values={"triggerer": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestTriggererServiceAccount:
     """Tests triggerer service account."""
@@ -603,7 +630,7 @@ class TestTriggererServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "triggerer": {
@@ -620,3 +647,66 @@ class TestTriggererLogGroomer(LogGroomerTestBase):
 
     obj_name = "triggerer"
     folder = "triggerer"
+
+
+class TestTriggererKedaAutoScaler:
+    """Tests triggerer keda autoscaler."""
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "query, expected_query",
+        [
+            # default query
+            (
+                None,
+                "SELECT ceil(COUNT(*)::decimal / 1000) FROM trigger",
+            ),
+            # test custom static query
+            (
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+            # test custom template query
+            (
+                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.triggerer.default_capacity 2 }})"
+                " FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+        ],
+    )
+    def test_should_use_keda_query(self, query, expected_query):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])

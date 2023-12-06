@@ -20,7 +20,6 @@ import os
 import uuid
 from typing import TYPE_CHECKING
 
-import requests.exceptions
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.facet import (
@@ -38,12 +37,13 @@ from openlineage.client.run import Job, Run, RunEvent, RunState
 
 from airflow.configuration import conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
-from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
 
 _DAG_DEFAULT_NAMESPACE = "default"
@@ -97,7 +97,8 @@ class OpenLineageAdapter(LoggingMixin):
         with open(path) as config_file:
             return yaml.safe_load(config_file)
 
-    def build_dag_run_id(self, dag_id, dag_run_id):
+    @staticmethod
+    def build_dag_run_id(dag_id, dag_run_id):
         return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
 
     @staticmethod
@@ -114,9 +115,12 @@ class OpenLineageAdapter(LoggingMixin):
             self._client = self.get_or_create_openlineage_client()
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
         try:
-            return self._client.emit(redacted_event)
-        except requests.exceptions.RequestException:
-            self.log.exception(f"Failed to emit OpenLineage event of id {event.run.runId}")
+            with Stats.timer("ol.emit.attempts"):
+                return self._client.emit(redacted_event)
+        except Exception as e:
+            Stats.incr("ol.emit.failed")
+            self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
+            self.log.debug("OpenLineage emission failure: %s", e)
 
     def start_task(
         self,
@@ -127,8 +131,8 @@ class OpenLineageAdapter(LoggingMixin):
         parent_job_name: str | None,
         parent_run_id: str | None,
         code_location: str | None,
-        nominal_start_time: str,
-        nominal_end_time: str,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         owners: list[str],
         task: OperatorLineage | None,
         run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets
@@ -160,17 +164,19 @@ class OpenLineageAdapter(LoggingMixin):
 
         if not run_facets:
             run_facets = {}
+        if task:
+            run_facets = {**task.run_facets, **run_facets}
         run_facets["processing_engine"] = processing_engine_version_facet  # type: ignore
         event = RunEvent(
             eventType=RunState.START,
             eventTime=event_time,
             run=self._build_run(
-                run_id,
-                job_name,
-                parent_job_name,
-                parent_run_id,
-                nominal_start_time,
-                nominal_end_time,
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
             job=self._build_job(
@@ -186,19 +192,36 @@ class OpenLineageAdapter(LoggingMixin):
         )
         self.emit(event)
 
-    def complete_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
+    def complete_task(
+        self,
+        run_id: str,
+        job_name: str,
+        parent_job_name: str | None,
+        parent_run_id: str | None,
+        end_time: str,
+        task: OperatorLineage,
+    ):
         """
         Emits openlineage event of type COMPLETE.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
+        :param parent_job_name: the name of the parent job (typically the DAG,
+                but possibly a task group)
+        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
         """
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
-            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
+            run=self._build_run(
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                run_facets=task.run_facets,
+            ),
             job=self._build_job(job_name, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -206,20 +229,37 @@ class OpenLineageAdapter(LoggingMixin):
         )
         self.emit(event)
 
-    def fail_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
+    def fail_task(
+        self,
+        run_id: str,
+        job_name: str,
+        parent_job_name: str | None,
+        parent_run_id: str | None,
+        end_time: str,
+        task: OperatorLineage,
+    ):
         """
         Emits openlineage event of type FAIL.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
+        :param parent_job_name: the name of the parent job (typically the DAG,
+                but possibly a task group)
+        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
         """
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=end_time,
-            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
-            job=self._build_job(job_name),
+            run=self._build_run(
+                run_id=run_id,
+                job_name=job_name,
+                parent_job_name=parent_job_name,
+                parent_run_id=parent_run_id,
+                run_facets=task.run_facets,
+            ),
+            job=self._build_job(job_name, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,

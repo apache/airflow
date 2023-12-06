@@ -22,7 +22,14 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 suspended: false
+source-date-epoch: 1700827454
 versions:
+  - 5.0.1
+  - 5.0.0
+  - 4.7.0
+  - 4.6.0
+  - 4.5.0
+  - 4.4.0
   - 4.3.3
   - 4.3.2
   - 4.3.1
@@ -50,8 +57,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - apache-airflow-providers-common-sql>=1.5.0
+  - apache-airflow>=2.5.0
+  - apache-airflow-providers-common-sql>=1.8.1
   - requests>=2.27,<3
   # The connector 2.9.0 released on Aug 10, 2023 has a bug that it does not properly declare urllib3 and
   # it needs to be excluded. See https://github.com/databricks/databricks-sql-python/issues/190
@@ -63,6 +70,7 @@ integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
     how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/jobs_create.rst
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
     logo: /integration-logos/databricks/Databricks.png
@@ -120,3 +128,10 @@ connection-types:
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
+
+additional-extras:
+  # pip install apache-airflow-providers-databricks[sdk]
+  - name: sdk
+    description: Install Databricks SDK
+    dependencies:
+      - databricks-sdk==0.10.0

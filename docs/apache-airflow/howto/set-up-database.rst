@@ -27,14 +27,14 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**, or **MSSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL** or **MySQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 11, 12, 13, 14, 15
-* MySQL: 5.7, 8
-* MSSQL (Experimental): 2017, 2019
+* PostgreSQL: 12, 13, 14, 15, 16
+* MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
+* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -217,7 +217,7 @@ If you use a current Postgres user with custom search_path, search_path can be c
 
    ALTER USER airflow_user SET search_path = public;
 
-For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/14/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
 .. note::
 
@@ -298,30 +298,33 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
 
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
-We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
+.. important::
+    The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
+    during Apache Airflow's continuous integration (CI) process.
 
-.. code-block:: text
-
-   $ pip install mysql-connector-python
-
-The connection string in this case should look like:
-
-.. code-block:: text
-
-   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
-
-If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/14/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
 
 .. note::
 
-   In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value). To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server. Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it. See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+    In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like
+    ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value).
+    To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server.
+    Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
+    See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
 
 Setting up a MsSQL Database
 ---------------------------
+
+.. warning::
+
+    After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
+    and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
+    the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+
+    For new Airflow installations, it is advised against using MsSQL as the database backend.
 
 You need to create a database and a database user that Airflow will use to access this database.
 In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.

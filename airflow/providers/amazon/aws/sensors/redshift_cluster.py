@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -65,7 +66,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
         )
         return current_status == self.target_status
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> RedshiftHook:
         """Create and return a RedshiftHook."""
         return self.hook

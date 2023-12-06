@@ -23,7 +23,7 @@ Best Practices
 Creating a new DAG is a three-step process:
 
 - writing Python code to create a DAG object,
-- testing if the code meets our expectations,
+- testing if the code meets your expectations,
 - configuring environment dependencies to run your DAG
 
 This tutorial will introduce you to the best practices for these three steps.
@@ -175,6 +175,94 @@ Good example:
       print_array()
 
 In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+
+Since it is not always obvious, see the next chapter to check how my code is "top-level" code.
+
+How to check if my code is "top-level" code
+-------------------------------------------
+
+In order to understand whether your code is "top-level" or not you need to understand a lot of
+intricacies of how parsing Python works. In general, when Python parses the python file it executes
+the code it sees, except (in general) internal code of the methods that it does not execute.
+
+It has a number of special cases that are not obvious - for example top-level code also means
+any code that is used to determine default values of methods.
+
+However, there is an easy way to check whether your code is "top-level" or not. You simply need to
+parse your code and see if the piece of code gets executed.
+
+Imagine this code:
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+  import pendulum
+
+
+  def get_task_id():
+      return "print_array_task"  # <- is that code going to be executed?
+
+
+  def get_array():
+      return [1, 2, 3]  # <- is that code going to be executed?
+
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule=None,
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+      operator = PythonOperator(
+          task_id=get_task_id(),
+          python_callable=get_array,
+          dag=dag,
+      )
+
+What you can do to check it is add some print statements to the code you want to check and then run
+``python <my_dag_file>.py``.
+
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+  import pendulum
+
+
+  def get_task_id():
+      print("Executing 1")
+      return "print_array_task"  # <- is that code going to be executed? YES
+
+
+  def get_array():
+      print("Executing 2")
+      return [1, 2, 3]  # <- is that code going to be executed? NO
+
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule=None,
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+      operator = PythonOperator(
+          task_id=get_task_id(),
+          python_callable=get_array,
+          dag=dag,
+      )
+
+When you execute that code you will see:
+
+.. code-block:: bash
+
+    root@cf85ab34571e:/opt/airflow# python /files/test_python.py
+    Executing 1
+
+This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
 .. _best_practices/dynamic_dag_generation:
 
@@ -331,7 +419,7 @@ Example of watcher pattern with trigger rules
 ---------------------------------------------
 
 The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
-It's primary purpose is to fail a DAG Run when any other task fail.
+Its primary purpose is to fail a DAG Run when any other task fail.
 The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
 
 Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But

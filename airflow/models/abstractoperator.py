@@ -48,7 +48,8 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
@@ -266,7 +267,7 @@ class AbstractOperator(Templater, DAGNode):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
@@ -290,8 +291,19 @@ class AbstractOperator(Templater, DAGNode):
             if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
+
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
+        """
+        Return relevant upstream setups.
+
+        This method is meant to be used when we are checking task dependencies where we need
+        to wait for all the upstream setups to complete before we can run the task.
+        """
+        for task in self.get_upstreams_only_setups_and_teardowns():
+            if task.is_setup:
+                yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
@@ -354,11 +366,9 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        parent = self.task_group
-        while parent is not None:
-            if isinstance(parent, MappedTaskGroup):
-                yield parent
-            parent = parent.task_group
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.
@@ -463,7 +473,8 @@ class AbstractOperator(Templater, DAGNode):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of mapped task instances that can be created on DAG run creation.
+        """
+        Return the number of mapped task instances that can be created on DAG run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -479,7 +490,8 @@ class AbstractOperator(Templater, DAGNode):
         return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of mapped TaskInstances that can be created at run time.
+        """
+        Return the number of mapped TaskInstances that can be created at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The

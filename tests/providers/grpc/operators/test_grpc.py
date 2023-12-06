@@ -77,8 +77,8 @@ class TestGrpcOperator:
             mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
             mocked_hook.run.assert_called_once_with(StubClass, "stream_call", data={}, streaming=False)
             mock_info.assert_any_call("Calling gRPC service")
-            mock_info.assert_any_call("'value1'")
-            mock_info.assert_any_call("'value2'")
+            mock_info.assert_any_call("%r", "value1")
+            mock_info.assert_any_call("%r", "value2")
 
     @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_execute_with_callback(self, mock_hook):

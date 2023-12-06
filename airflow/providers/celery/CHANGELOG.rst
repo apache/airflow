@@ -27,6 +27,67 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix _SECRET and _CMD broker configuration (#34782)``
+* ``Remove sensitive information from Celery executor warning (#34954)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``respect soft_fail argument when exception is raised for celery sensors (#34474)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+3.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix condition of update_task_state in celery executor (#34192)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+3.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+
+Misc
+~~~~~
+
+* ``Make auth managers provide their own airflow CLI commands (#33481)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+
 3.3.2
 .....
 

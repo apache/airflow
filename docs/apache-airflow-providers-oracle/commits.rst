@@ -28,14 +28,58 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ===================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+=================================================================================================  ===========  ===================================================
+
+3.7.4
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`f47a2a8af6 <https://github.com/apache/airflow/commit/f47a2a8af682d39085b0cd4f086300226f1a50e0>`_  2023-09-07   ``Refactor: Consolidate "import numpy as np" (#34111)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+=================================================================================================  ===========  ======================================================================
+
+3.7.3
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`94c8291629 <https://github.com/apache/airflow/commit/94c82916294791df10d30a1cb444daf5d8a34304>`_  2023-08-25   ``Refactor: Use f-strings (#33734)``
+`94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
+`1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+`ea8519c055 <https://github.com/apache/airflow/commit/ea8519c0554d16b13d330a686f8479fc10cc58f2>`_  2023-08-18   ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+=================================================================================================  ===========  =========================================================================
+
 3.7.2
 .....
 
-Latest change: 2023-07-13
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

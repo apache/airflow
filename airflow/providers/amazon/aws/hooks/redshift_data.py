@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from pprint import pformat
-from time import sleep
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -120,14 +120,14 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 if num_rows is not None:
                     self.log.info("Processed %s rows", num_rows)
                 return status
-            elif status == "FAILED" or status == "ABORTED":
+            elif status in ("FAILED", "ABORTED"):
                 raise ValueError(
                     f"Statement {statement_id!r} terminated with status {status}. "
                     f"Response details: {pformat(resp)}"
                 )
             else:
                 self.log.info("Query %s", status)
-            sleep(poll_interval)
+            time.sleep(poll_interval)
 
     def get_table_primary_key(
         self,
@@ -144,7 +144,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         poll_interval: int = 10,
     ) -> list[str] | None:
         """
-        Helper method that returns the table primary key.
+        Return the table primary key.
 
         Copied from ``RedshiftSQLHook.get_table_primary_key()``
 
@@ -188,7 +188,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         pk_columns = []
         token = ""
         while True:
-            kwargs = dict(Id=stmt_id)
+            kwargs = {"Id": stmt_id}
             if token:
                 kwargs["NextToken"] = token
             response = self.conn.get_statement_result(**kwargs)

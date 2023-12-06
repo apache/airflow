@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.base import TaskDecorator, task_decorator_factory
+from airflow.decorators.base import task_decorator_factory
 from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.operators.python import ExternalPythonOperator
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
 
 class _PythonExternalDecoratedOperator(_PythonDecoratedOperator, ExternalPythonOperator):
@@ -35,7 +38,8 @@ def external_python_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a callable into an Airflow operator to run via a Python virtual environment.
+    """
+    Wrap a callable into an Airflow operator to run via a Python virtual environment.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

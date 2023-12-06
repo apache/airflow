@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
-from subprocess import call
 
-from rich.console import Console
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
@@ -31,21 +32,17 @@ BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
 
-console = Console(width=400, color_system="standard")
-
 
 def verify_all_commands_described_in_docs():
     errors = []
     doc_content = (AIRFLOW_SOURCES_DIR / "BREEZE.rst").read_text()
-    for file_name in os.listdir(BREEZE_IMAGES_DIR):
-        if file_name.startswith("output_") and file_name.endswith(".svg"):
-            command = file_name[len("output_") : -len(".svg")]
-            if command == "breeze-commands":
-                continue
-            if file_name not in doc_content:
-                errors.append(command)
-            else:
+    for file_path in BREEZE_IMAGES_DIR.glob("output_*.svg"):
+        command = file_path.stem[len("output_") :]
+        if command != "breeze-commands":
+            if file_path.name in doc_content:
                 console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE.rst.")
+            else:
+                errors.append(command)
     if errors:
         console.print("[red]Some of Breeze commands are not described in BREEZE.rst:[/]")
         for command in errors:
@@ -60,29 +57,40 @@ def verify_all_commands_described_in_docs():
 
 
 def is_regeneration_needed() -> bool:
-    env = os.environ.copy()
-    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
-    # needed to keep consistent output
-    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
-    return_code = call(
-        [
-            sys.executable,
-            str(BREEZE_SOURCES_DIR / "airflow_breeze" / "breeze.py"),
-            "setup",
-            "regenerate-command-images",
-            "--check-only",
-        ],
-        env=env,
+    result = subprocess.run(
+        ["breeze", "setup", "regenerate-command-images", "--check-only"],
+        check=False,
     )
-    return return_code != 0
+    return result.returncode != 0
 
 
-if __name__ == "__main__":
-    verify_all_commands_described_in_docs()
-    if is_regeneration_needed():
-        console.print("\n[bright_blue]Some of the commands changed since last time images were generated.\n")
-        console.print(
-            "\n[red]Image generation is needed. Please run this command:\n\n"
-            "[magenta]breeze setup regenerate-command-images\n"
-        )
-        sys.exit(1)
+initialize_breeze_precommit(__name__, __file__)
+
+return_code = 0
+verify_all_commands_described_in_docs()
+if is_regeneration_needed():
+    console.print(
+        "\n[bright_blue]Some of the commands changed since last time "
+        "images were generated. Regenerating.\n"
+    )
+    return_code = 1
+    res = subprocess.run(
+        ["breeze", "setup", "regenerate-command-images"],
+        check=False,
+    )
+    if res.returncode != 0:
+        console.print("\n[red]Breeze command configuration has changed.\n")
+        console.print("\n[bright_blue]Images have been regenerated.\n")
+        console.print("\n[bright_blue]You might want to run it manually:\n")
+        console.print("\n[magenta]breeze setup regenerate-command-images\n")
+res = subprocess.run(
+    ["breeze", "setup", "check-all-params-in-groups"],
+    check=False,
+)
+if res.returncode != 0:
+    return_code = 1
+    console.print("\n[red]Breeze command configuration has changed.\n")
+    console.print("\n[yellow]Please fix it in the appropriate command_*_config.py file\n")
+    console.print("\n[bright_blue]You can run consistency check manually by running:\n")
+    console.print("\nbreeze setup check-all-params-in-groups\n")
+sys.exit(return_code)

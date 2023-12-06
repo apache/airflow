@@ -22,7 +22,11 @@ description: |
     `Redis <https://redis.io/>`__
 
 suspended: false
+source-date-epoch: 1700827491
 versions:
+  - 3.4.1
+  - 3.4.0
+  - 3.3.2
   - 3.3.1
   - 3.3.0
   - 3.2.1
@@ -38,8 +42,12 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - redis>=3.2.0
+  - apache-airflow>=2.5.0
+  # We limit redis to <5.0.0 because of incompatibility with celery. Both Celery and Kombu limited it
+  # and deferred fixing it for later, we should bump the limit once they do. Also !=4.5.5 matches celery
+  # limits and prevents installing 4.5.5 which is broken.
+  # https://github.com/celery/celery/pull/8442, https://github.com/celery/kombu/pull/1776
+  - redis>=4.5.2,<5.0.0,!=4.5.5
 
 integrations:
   - integration-name: Redis

@@ -103,7 +103,7 @@ the example below.
     $ airflow info
 
     Apache Airflow
-    version                | 2.7.0.dev0
+    version                | 2.8.0.dev0
     executor               | LocalExecutor
     task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
     sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
@@ -121,7 +121,8 @@ Advanced configuration
 ----------------------
 
 You can configure :doc:`advanced features </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`
-- including adding your own custom task log handlers (but also log handlers for all airflow components).
+- including adding your own custom task log handlers (but also log handlers for all airflow components), and creating
+custom log handlers per operators, hooks and tasks.
 
 .. _serving-worker-trigger-logs:
 

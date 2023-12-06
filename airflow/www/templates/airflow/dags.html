@@ -364,13 +364,34 @@
               <div class="btn-group">
                 {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
                 {% if dag %}
+                {% if show_trigger_form_if_no_params %}
+                <div class="dropdown">
+                    <a aria-label="Trigger DAG"
+                       class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn"
+                       data-toggle="dropdown">
+                      <span class="material-icons" aria-hidden="true">play_arrow</span>
+                    </a>
+                    <ul class="dropdown-menu trigger-dropdown-menu">
+                      <li>
+                        <form method="POST" action="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                          <input type="hidden" name="unpause" value="True">
+                          <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
+                        </form>
+                      </li>
+                      <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}">Trigger DAG w/ config</a></li>
+                    </ul>
+                  </div>
+                {% else %}
                   <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
-                    title="Trigger&nbsp;DAG"
+                  onclick="return triggerDag(this, '{{ dag.dag_id }}')" title="Trigger&nbsp;DAG"
                     aria-label="Trigger DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
                   </a>
-                  <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
+                {% endif %}
+                <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG"
                     aria-label="Delete DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}">
@@ -460,6 +481,11 @@
         This cannot be undone.`)) {
         postAsForm(link.href, {});
       }
+      return false;
+    }
+
+    function triggerDag(link, dagId) {
+      postAsForm(link.href, {});
       return false;
     }
   </script>

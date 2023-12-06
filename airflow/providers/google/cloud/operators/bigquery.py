@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
@@ -56,6 +55,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -301,6 +301,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         else:
             hook = BigQueryHook(
                 gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             )
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
@@ -312,6 +313,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                         job_id=job.job_id,
                         project_id=hook.project_id,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
@@ -329,7 +331,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         records = event["records"]
         if not records:
             raise AirflowException("The query returned empty results")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(  # type: ignore[attr-defined]
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
             )
@@ -424,7 +426,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
@@ -439,10 +441,15 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                         pass_value=self.pass_value,
                         tolerance=self.tol,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
             self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            records = next(job.result())  # type: ignore[arg-type]
+            self.check_value(records)
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
@@ -501,6 +508,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param project_id: a string represents the BigQuery projectId
     """
 
     template_fields: Sequence[str] = (
@@ -528,6 +536,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         labels: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
+        project_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -543,6 +552,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
@@ -556,7 +566,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         configuration = {"query": {"query": sql, "useLegacySql": self.use_legacy_sql}}
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
             location=self.location,
             job_id=job_id,
             nowait=True,
@@ -566,7 +576,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             self.log.info("Using ratio formula: %s", self.ratio_formula)
 
             self.log.info("Executing SQL check: %s", self.sql1)
@@ -589,6 +599,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     ratio_formula=self.ratio_formula,
                     ignore_zero=self.ignore_zero,
                     poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
                 ),
                 method_name="execute_complete",
             )
@@ -1039,7 +1050,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
-                table_data = [{k: v for k, v in row.items()} for row in rows]
+                table_data = [dict(row) for row in rows]
             else:
                 table_data = [row.values() for row in rows]
 
@@ -1797,6 +1808,22 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             default_project_id=bq_hook.project_id or "",
         )
 
+        external_data_configuration = {
+            "source_uris": source_uris,
+            "source_format": self.source_format,
+            "autodetect": self.autodetect,
+            "compression": self.compression,
+            "maxBadRecords": self.max_bad_records,
+        }
+        if self.source_format == "CSV":
+            external_data_configuration["csvOptions"] = {
+                "fieldDelimiter": self.field_delimiter,
+                "skipLeadingRows": self.skip_leading_rows,
+                "quote": self.quote_character,
+                "allowQuotedNewlines": self.allow_quoted_newlines,
+                "allowJaggedRows": self.allow_jagged_rows,
+            }
+
         table_resource = {
             "tableReference": {
                 "projectId": project_id,
@@ -1805,20 +1832,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             },
             "labels": self.labels,
             "schema": {"fields": schema_fields},
-            "externalDataConfiguration": {
-                "source_uris": source_uris,
-                "source_format": self.source_format,
-                "maxBadRecords": self.max_bad_records,
-                "autodetect": self.autodetect,
-                "compression": self.compression,
-                "csvOptions": {
-                    "fieldDelimiter": self.field_delimiter,
-                    "skipLeadingRows": self.skip_leading_rows,
-                    "quote": self.quote_character,
-                    "allowQuotedNewlines": self.allow_quoted_newlines,
-                    "allowJaggedRows": self.allow_jagged_rows,
-                },
-            },
+            "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }
@@ -1976,7 +1990,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.dataset_reference = dataset_reference if dataset_reference else {}
+        self.dataset_reference = dataset_reference or {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
             warnings.warn(
@@ -2840,7 +2854,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         project_id = self.project_id or self.hook.project_id
         if project_id:
             job_id_path = convert_job_id(
-                job_id=self.job_id, project_id=project_id, location=self.location  # type: ignore[arg-type]
+                job_id=self.job_id,  # type: ignore[arg-type]
+                project_id=project_id,
+                location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
         # Wait for the job to complete

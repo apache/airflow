@@ -40,7 +40,7 @@ class PackageIndexHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {"host": "Package Index URL"},
@@ -53,7 +53,7 @@ class PackageIndexHook(BaseHook):
 
     @staticmethod
     def _get_basic_auth_conn_url(index_url: str, user: str | None, password: str | None) -> str:
-        """Returns a connection URL with basic auth credentials based on connection config."""
+        """Return a connection URL with basic auth credentials based on connection config."""
         url = urlparse(index_url)
         host = url.netloc.split("@")[-1]
         if user:
@@ -64,11 +64,11 @@ class PackageIndexHook(BaseHook):
         return url._replace(netloc=host).geturl()
 
     def get_conn(self) -> Any:
-        """Returns connection for the hook."""
+        """Return connection for the hook."""
         return self.get_connection_url()
 
     def get_connection_url(self) -> Any:
-        """Returns a connection URL with embedded credentials."""
+        """Return a connection URL with embedded credentials."""
         conn = self.get_connection(self.pi_conn_id)
         index_url = conn.host
         if not index_url:

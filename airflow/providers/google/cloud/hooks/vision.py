@@ -20,10 +20,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.vision_v1 import (
     AnnotateImageRequest,
     Image,
@@ -33,12 +32,15 @@ from google.cloud.vision_v1 import (
     ProductSet,
     ReferenceImage,
 )
-from google.protobuf import field_mask_pb2
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf import field_mask_pb2
 
 ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different
     than the name created from the input parameters ({constructed_name}). Please either:

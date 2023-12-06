@@ -30,8 +30,8 @@ from contextlib import ExitStack
 from functools import partial
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger
@@ -401,7 +401,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

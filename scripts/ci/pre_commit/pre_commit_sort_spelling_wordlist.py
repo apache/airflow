@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -35,7 +34,7 @@ def stable_sort(x):
 
 
 def sort_uniq(sequence):
-    return (x[0] for x in itertools.groupby(sorted(sequence, key=stable_sort)))
+    return sorted(set(sequence), key=stable_sort)
 
 
 if __name__ == "__main__":

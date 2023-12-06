@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import datetime
 
 import pendulum
-from pytz import UTC
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor
@@ -54,32 +53,36 @@ with DAG(
     tags=["example"],
 ) as dag:
     # [START example_time_delta_sensor]
-    t0 = TimeDeltaSensor(task_id="wait_some_seconds", delta=timedelta(seconds=2))
+    t0 = TimeDeltaSensor(task_id="wait_some_seconds", delta=datetime.timedelta(seconds=2))
     # [END example_time_delta_sensor]
 
     # [START example_time_delta_sensor_async]
-    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=timedelta(seconds=2))
+    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2))
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]
-    t1 = TimeSensor(task_id="fire_immediately", target_time=datetime.now(tz=UTC).time())
+    t1 = TimeSensor(
+        task_id="fire_immediately", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+    )
 
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors]
 
     # [START example_time_sensors_async]
-    t1a = TimeSensorAsync(task_id="fire_immediately_async", target_time=datetime.now(tz=UTC).time())
+    t1a = TimeSensorAsync(
+        task_id="fire_immediately_async", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+    )
 
     t2a = TimeSensorAsync(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors_async]
 

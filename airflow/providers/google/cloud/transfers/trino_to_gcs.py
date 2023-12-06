@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
-from trino.client import TrinoResult
-from trino.dbapi import Cursor as TrinoCursor
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
+
+if TYPE_CHECKING:
+    from trino.client import TrinoResult
+    from trino.dbapi import Cursor as TrinoCursor
 
 
 class _TrinoToGCSTrinoCursorAdapter:

@@ -92,18 +92,17 @@ class Arg:
         self.flags = flags
         self.kwargs = {}
         for k, v in locals().items():
-            if v is _UNSET:
-                continue
-            if k in ("self", "flags"):
-                continue
-
-            self.kwargs[k] = v
+            if k not in ("self", "flags") and v is not _UNSET:
+                self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
         if "metavar" in self.kwargs and "type" not in self.kwargs:
             if self.kwargs["metavar"] == "DIRPATH":
-                type = lambda x: self._is_valid_directory(parser, x)
+
+                def type(x):
+                    return self._is_valid_directory(parser, x)
+
                 self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
 
@@ -131,12 +130,12 @@ def positive_int(*, allow_zero):
 
 
 def string_list_type(val):
-    """Parses comma-separated list and returns list of string (strips whitespace)."""
+    """Parse comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
 
 
 def string_lower_type(val):
-    """Lowers arg."""
+    """Lower arg."""
     if not val:
         return
     return val.strip().lower()
@@ -157,9 +156,7 @@ ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
-)
+ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
@@ -228,6 +225,12 @@ ARG_REVISION_RANGE = Arg(
         "Example: ``a13f7613ad25:7b2661a43ba3``"
     ),
     default=None,
+)
+ARG_SKIP_SERVE_LOGS = Arg(
+    ("-s", "--skip-serve-logs"),
+    default=False,
+    help="Don't start the serve logs process along with the workers",
+    action="store_true",
 )
 
 # list_dag_runs
@@ -540,6 +543,12 @@ ARG_VAR_VALUE = Arg(("value",), metavar="VALUE", help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
+ARG_VAR_DESCRIPTION = Arg(
+    ("--description",),
+    default=None,
+    required=False,
+    help="Variable description, optional when setting a variable",
+)
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
@@ -548,10 +557,19 @@ ARG_VAR_EXPORT = Arg(
     help="Export all variables to JSON file",
     type=argparse.FileType("w", encoding="UTF-8"),
 )
+ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
+    ("-a", "--action-on-existing-key"),
+    help="Action to take if we encounter a variable key that already exists.",
+    default="overwrite",
+    choices=("overwrite", "fail", "skip"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KERBEROS_ONE_TIME_MODE = Arg(
+    ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
+)
 # run
 ARG_INTERACTIVE = Arg(
     ("-N", "--interactive"),
@@ -593,7 +611,7 @@ ARG_IGNORE_DEPENDS_ON_PAST = Arg(
 ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
-    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "will check if the past dependencies are met for the tasks having `depends_on_past=True` before run "
     "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
     "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
     "skipping the task",
@@ -753,7 +771,7 @@ ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
 )
 ARG_INTERNAL_API_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default="0.0.0.0",
+    default="0.0.0.0",  # nosec
     help="Set the hostname on which to run the web server",
 )
 ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
@@ -878,76 +896,6 @@ ARG_FULL = Arg(
     action="store_true",
 )
 
-# users
-ARG_USERNAME = Arg(("-u", "--username"), help="Username of the user", required=True, type=str)
-ARG_USERNAME_OPTIONAL = Arg(("-u", "--username"), help="Username of the user", type=str)
-ARG_FIRSTNAME = Arg(("-f", "--firstname"), help="First name of the user", required=True, type=str)
-ARG_LASTNAME = Arg(("-l", "--lastname"), help="Last name of the user", required=True, type=str)
-ARG_ROLE = Arg(
-    ("-r", "--role"),
-    help="Role of the user. Existing roles include Admin, User, Op, Viewer, and Public",
-    required=True,
-    type=str,
-)
-ARG_EMAIL = Arg(("-e", "--email"), help="Email of the user", required=True, type=str)
-ARG_EMAIL_OPTIONAL = Arg(("-e", "--email"), help="Email of the user", type=str)
-ARG_PASSWORD = Arg(
-    ("-p", "--password"),
-    help="Password of the user, required to create a user without --use-random-password",
-    type=str,
-)
-ARG_USE_RANDOM_PASSWORD = Arg(
-    ("--use-random-password",),
-    help="Do not prompt for password. Use random string instead."
-    " Required to create a user without --password ",
-    default=False,
-    action="store_true",
-)
-ARG_USER_IMPORT = Arg(
-    ("import",),
-    metavar="FILEPATH",
-    help="Import users from JSON file. Example format::\n"
-    + textwrap.indent(
-        textwrap.dedent(
-            """
-            [
-                {
-                    "email": "foo@bar.org",
-                    "firstname": "Jon",
-                    "lastname": "Doe",
-                    "roles": ["Public"],
-                    "username": "jondoe"
-                }
-            ]"""
-        ),
-        " " * 4,
-    ),
-)
-ARG_USER_EXPORT = Arg(("export",), metavar="FILEPATH", help="Export all users to JSON file")
-
-# roles
-ARG_CREATE_ROLE = Arg(("-c", "--create"), help="Create a new role", action="store_true")
-ARG_LIST_ROLES = Arg(("-l", "--list"), help="List roles", action="store_true")
-ARG_ROLES = Arg(("role",), help="The name of a role", nargs="*")
-ARG_PERMISSIONS = Arg(("-p", "--permission"), help="Show role permissions", action="store_true")
-ARG_ROLE_RESOURCE = Arg(("-r", "--resource"), help="The name of permissions", nargs="*", required=True)
-ARG_ROLE_ACTION = Arg(("-a", "--action"), help="The action of permissions", nargs="*")
-ARG_ROLE_ACTION_REQUIRED = Arg(("-a", "--action"), help="The action of permissions", nargs="*", required=True)
-ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
-ARG_SKIP_SERVE_LOGS = Arg(
-    ("-s", "--skip-serve-logs"),
-    default=False,
-    help="Don't start the serve logs process along with the workers",
-    action="store_true",
-)
-ARG_ROLE_IMPORT = Arg(("file",), help="Import roles from JSON file", nargs=None)
-ARG_ROLE_EXPORT = Arg(("file",), help="Export all roles to JSON file", nargs=None)
-ARG_ROLE_EXPORT_FMT = Arg(
-    ("-p", "--pretty"),
-    help="Format output JSON file by sorting role names and indenting by 4 spaces",
-    action="store_true",
-)
-
 # info
 ARG_ANONYMIZE = Arg(
     ("--anonymize",),
@@ -1022,11 +970,6 @@ ARG_ALLOW_MULTIPLE = Arg(
     ("--allow-multiple",),
     action="store_true",
     help="If passed, this command will be successful even if multiple matching alive jobs are found.",
-)
-
-# sync-perm
-ARG_INCLUDE_DAGS = Arg(
-    ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
 # triggerer
@@ -1508,7 +1451,7 @@ VARIABLES_COMMANDS = (
         name="set",
         help="Set variable",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_set"),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_VAR_DESCRIPTION, ARG_SERIALIZE_JSON, ARG_VERBOSE),
     ),
     ActionCommand(
         name="delete",
@@ -1520,7 +1463,7 @@ VARIABLES_COMMANDS = (
         name="import",
         help="Import variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_import"),
-        args=(ARG_VAR_IMPORT, ARG_VERBOSE),
+        args=(ARG_VAR_IMPORT, ARG_VAR_ACTION_ON_EXISTING_KEY, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",
@@ -1685,7 +1628,7 @@ CONNECTIONS_COMMANDS = (
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name="delete",
@@ -1839,115 +1782,6 @@ PROVIDERS_COMMANDS = (
 )
 
 
-USERS_COMMANDS = (
-    ActionCommand(
-        name="list",
-        help="List users",
-        func=lazy_load_command("airflow.cli.commands.user_command.users_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="create",
-        help="Create a user",
-        func=lazy_load_command("airflow.cli.commands.user_command.users_create"),
-        args=(
-            ARG_ROLE,
-            ARG_USERNAME,
-            ARG_EMAIL,
-            ARG_FIRSTNAME,
-            ARG_LASTNAME,
-            ARG_PASSWORD,
-            ARG_USE_RANDOM_PASSWORD,
-            ARG_VERBOSE,
-        ),
-        epilog=(
-            "examples:\n"
-            'To create an user with "Admin" role and username equals to "admin", run:\n'
-            "\n"
-            "    $ airflow users create \\\n"
-            "          --username admin \\\n"
-            "          --firstname FIRST_NAME \\\n"
-            "          --lastname LAST_NAME \\\n"
-            "          --role Admin \\\n"
-            "          --email admin@example.org"
-        ),
-    ),
-    ActionCommand(
-        name="delete",
-        help="Delete a user",
-        func=lazy_load_command("airflow.cli.commands.user_command.users_delete"),
-        args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="add-role",
-        help="Add role to a user",
-        func=lazy_load_command("airflow.cli.commands.user_command.add_role"),
-        args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="remove-role",
-        help="Remove role from a user",
-        func=lazy_load_command("airflow.cli.commands.user_command.remove_role"),
-        args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="import",
-        help="Import users",
-        func=lazy_load_command("airflow.cli.commands.user_command.users_import"),
-        args=(ARG_USER_IMPORT, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all users",
-        func=lazy_load_command("airflow.cli.commands.user_command.users_export"),
-        args=(ARG_USER_EXPORT, ARG_VERBOSE),
-    ),
-)
-ROLES_COMMANDS = (
-    ActionCommand(
-        name="list",
-        help="List roles",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_list"),
-        args=(ARG_PERMISSIONS, ARG_OUTPUT, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="create",
-        help="Create role",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_create"),
-        args=(ARG_ROLES, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="delete",
-        help="Delete role",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_delete"),
-        args=(ARG_ROLES, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="add-perms",
-        help="Add roles permissions",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_add_perms"),
-        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION_REQUIRED, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="del-perms",
-        help="Delete roles permissions",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_del_perms"),
-        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export roles (without permissions) from db to JSON file",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_export"),
-        args=(ARG_ROLE_EXPORT, ARG_ROLE_EXPORT_FMT, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="import",
-        help="Import roles (without permissions) from JSON file to db",
-        func=lazy_load_command("airflow.cli.commands.role_command.roles_import"),
-        args=(ARG_ROLE_IMPORT, ARG_VERBOSE),
-    ),
-)
-
 CONFIG_COMMANDS = (
     ActionCommand(
         name="get-value",
@@ -2064,6 +1898,7 @@ core_commands: list[CLICommand] = [
             ARG_KEYTAB,
             ARG_PID,
             ARG_DAEMON,
+            ARG_KERBEROS_ONE_TIME_MODE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
@@ -2171,22 +2006,6 @@ core_commands: list[CLICommand] = [
         help="Display providers",
         subcommands=PROVIDERS_COMMANDS,
     ),
-    GroupCommand(
-        name="users",
-        help="Manage users",
-        subcommands=USERS_COMMANDS,
-    ),
-    GroupCommand(
-        name="roles",
-        help="Manage roles",
-        subcommands=ROLES_COMMANDS,
-    ),
-    ActionCommand(
-        name="sync-perm",
-        help="Update permissions for existing roles and optionally DAGs",
-        func=lazy_load_command("airflow.cli.commands.sync_perm_command.sync_perm"),
-        args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
-    ),
     ActionCommand(
         name="rotate-fernet-key",
         func=lazy_load_command("airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key"),
@@ -2220,7 +2039,7 @@ core_commands: list[CLICommand] = [
         name="standalone",
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
-        args=tuple(),
+        args=(),
     ),
 ]
 

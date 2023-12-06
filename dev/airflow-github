@@ -25,13 +25,16 @@ from __future__ import annotations
 import re
 import sys
 from collections import Counter, defaultdict
+from typing import TYPE_CHECKING
 
 import git
 import rich_click as click
 from github import Github
-from github.Issue import Issue
-from github.PullRequest import PullRequest
 from packaging import version
+
+if TYPE_CHECKING:
+    from github.Issue import Issue
+    from github.PullRequest import PullRequest
 
 GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
 GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
@@ -83,26 +86,31 @@ def get_issue_type(issue):
 def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str | None:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        commit = repo.git.log(f"--grep=#{issue.number}", "origin/main", "--format=%H")
-        if commit:
-            return commit
+        log_output = repo.git.log(f"--grep=(#{issue.number})$", "origin/main", "--format=%H %s")
+        if log_output:
+            for commit_line in log_output.splitlines():
+                # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+                if commit_line and commit_line.endswith(f"(#{issue.number})"):
+                    return commit_line.split(" ")[0]
+            return None
         else:
             pr: PullRequest = issue.as_pull_request()
             if pr.is_merged():
-                commit = pr.merge_commit_sha
-                return commit
+                return pr.merge_commit_sha
     return None
 
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ["--format=%H", f"--grep=(#{issue.number})$"]
+    log_args = ["--format=%H %s", f"--grep=(#{issue.number})$"]
     if previous_version:
         log_args.append(previous_version + "..")
-    log = repo.git.log(*log_args)
+    log_output = repo.git.log(*log_args)
 
-    if log:
-        return True
+    for commit_line in log_output.splitlines():
+        # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+        if commit_line and commit_line.endswith(f"(#{issue.number})"):
+            return True
     return False
 
 
@@ -247,7 +255,10 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     # :<18 says left align, pad to 18, :>6 says right align, pad to 6
     # :<50.50 truncates after 50 chars
     # !s forces as string
-    formatstr = "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} | {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
+    formatstr = (
+        "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} "
+        "| {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
+    )
 
     print(
         formatstr.format(
@@ -261,7 +272,9 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             url="URL",
         )
     )
-
+    milestone_issues = sorted(
+        milestone_issues, key=lambda x: x.closed_at if x.closed_at else x.created_at, reverse=True
+    )
     for issue in milestone_issues:
         commit_in_main = get_commit_in_main_associated_with_pr(repo, issue)
         status = issue.state.capitalize()
@@ -296,7 +309,8 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         )
 
     print(
-        f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} ({dict(num_uncherrypicked)}) yet to be cherry-picked"
+        f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} "
+        f"({dict(num_uncherrypicked)}) yet to be cherry-picked"
     )
 
 

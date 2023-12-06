@@ -27,7 +27,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
     DeadLetterPolicy,
     Duration,
@@ -36,6 +35,7 @@ from google.cloud.pubsub_v1.types import (
     PushConfig,
     ReceivedMessage,
     RetryPolicy,
+    SchemaSettings,
 )
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
@@ -43,6 +43,8 @@ from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, 
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -129,13 +131,14 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
+        schema_settings: dict | SchemaSettings = None,
+        message_retention_duration: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
@@ -144,6 +147,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self.labels = labels
         self.message_storage_policy = message_storage_policy
         self.kms_key_name = kms_key_name
+        self.schema_settings = schema_settings
+        self.message_retention_duration = message_retention_duration
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -163,6 +168,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
             labels=self.labels,
             message_storage_policy=self.message_storage_policy,
             kms_key_name=self.kms_key_name,
+            schema_settings=self.schema_settings,
+            message_retention_duration=self.message_retention_duration,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -709,7 +716,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.

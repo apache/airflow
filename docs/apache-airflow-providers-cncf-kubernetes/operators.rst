@@ -152,6 +152,10 @@ XCom values differently than other operators. In order to pass a XCom value
 from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
 alongside the Pod. The Pod must write the XCom value into this location at the ``/airflow/xcom/return.json`` path.
 
+.. note::
+  An invalid json content will fail, example ``echo 'hello' > /airflow/xcom/return.json`` fail and  ``echo '\"hello\"' > /airflow/xcom/return.json`` work
+
+
 See the following example on how this occurs:
 
 .. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py

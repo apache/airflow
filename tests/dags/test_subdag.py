@@ -63,7 +63,6 @@ with DAG(
     default_args=DEFAULT_TASK_ARGS,
     schedule=timedelta(minutes=1),
 ):
-
     start = EmptyOperator(
         task_id="start",
     )

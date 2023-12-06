@@ -18,7 +18,7 @@
 # This is automatically generated stub for the `common.sql` provider
 #
 # This file is generated automatically by the `update-common-sql-api stubs` pre-commit
-# and the .pyi file represents part of the the "public" API that the
+# and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
 # Any, potentially breaking change in the stubs will require deliberate manual action from the contributor
@@ -32,8 +32,8 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from airflow.hooks.base import BaseHook as BaseForDbApiHook
+from typing import Any, Callable, Iterable, Mapping, Sequence, Union
 from typing_extensions import Protocol
 
 def return_single_query_results(

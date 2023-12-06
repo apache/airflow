@@ -24,7 +24,12 @@ import pendulum
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSensorTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowProviderDeprecationWarning,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -135,7 +140,10 @@ class TestGoogleCloudStorageObjectSensor:
             task.execute(context)
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
 
-    def test_gcs_object_existence_sensor_deferred_execute_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_gcs_object_existence_sensor_deferred_execute_failure(self, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event when deferrable is set to True"""
         task = GCSObjectExistenceSensor(
             task_id="task-id",
@@ -143,11 +151,12 @@ class TestGoogleCloudStorageObjectSensor:
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             deferrable=True,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
 
-    def test_gcs_object_existence_sensor_async_execute_complete(self):
+    def test_gcs_object_existence_sensor_execute_complete(self):
         """Asserts that logging occurs as expected when deferrable is set to True"""
         task = GCSObjectExistenceSensor(
             task_id="task-id",
@@ -161,14 +170,14 @@ class TestGoogleCloudStorageObjectSensor:
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
 
 
-class TestGoogleCloudStorageObjectSensorAsync:
+class TestGoogleCloudStorageObjectAsyncSensor:
     depcrecation_message = (
         "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
         "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
     )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_gcs_object_existence_sensor_async(self, mock_hook):
+    def test_gcs_object_existence_async_sensor(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceAsyncSensor is executed.
@@ -185,7 +194,10 @@ class TestGoogleCloudStorageObjectSensorAsync:
             task.execute(context)
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
 
-    def test_gcs_object_existence_sensor_async_execute_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_gcs_object_existence_async_sensor_execute_failure(self, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
@@ -193,11 +205,12 @@ class TestGoogleCloudStorageObjectSensorAsync:
                 bucket=TEST_BUCKET,
                 object=TEST_OBJECT,
                 google_cloud_conn_id=TEST_GCP_CONN_ID,
+                soft_fail=soft_fail,
             )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
 
-    def test_gcs_object_existence_sensor_async_execute_complete(self):
+    def test_gcs_object_existence_async_sensor_execute_complete(self):
         """Asserts that logging occurs as expected"""
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
@@ -214,7 +227,9 @@ class TestGoogleCloudStorageObjectSensorAsync:
 class TestTsFunction:
     def test_should_support_datetime(self):
         context = {
-            "dag": DAG(dag_id=TEST_DAG_ID, schedule=timedelta(days=5)),
+            "dag": DAG(
+                dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
+            ),
             "execution_date": datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
@@ -267,7 +282,7 @@ class TestGoogleCloudStorageObjectUpdatedSensor:
         assert not mock_defer.called
 
 
-class TestGCSObjectUpdateSensorAsync:
+class TestGCSObjectUpdateAsyncSensor:
     OPERATOR = GCSObjectUpdateSensor(
         task_id="gcs-obj-update",
         bucket=TEST_BUCKET,
@@ -277,10 +292,10 @@ class TestGCSObjectUpdateSensorAsync:
     )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_gcs_object_update_sensor_async(self, mock_hook):
+    def test_gcs_object_update_async_sensor(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
-        when the GCSObjectUpdateSensorAsync is executed.
+        when the GCSObjectUpdateAsyncSensor is executed.
         """
         mock_hook.return_value.is_updated_after.return_value = False
         with pytest.raises(TaskDeferred) as exc:
@@ -289,15 +304,18 @@ class TestGCSObjectUpdateSensorAsync:
             exc.value.trigger, GCSCheckBlobUpdateTimeTrigger
         ), "Trigger is not a GCSCheckBlobUpdateTimeTrigger"
 
-    def test_gcs_object_update_sensor_async_execute_failure(self, context):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_gcs_object_update_async_sensor_execute_failure(self, context, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
-
-        with pytest.raises(AirflowException):
+        self.OPERATOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
                 context=context, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_object_update_sensor_async_execute_complete(self, context):
+    def test_gcs_object_update_async_sensor_execute_complete(self, context):
         """Asserts that logging occurs as expected"""
 
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
@@ -364,13 +382,21 @@ class TestGoogleCloudStoragePrefixSensor:
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         assert response == generated_messages
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowSensorTimeout), (True, AirflowSkipException))
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_execute_timeout(self, mock_hook):
+    def test_execute_timeout(self, mock_hook, soft_fail, expected_exception):
         task = GCSObjectsWithPrefixExistenceSensor(
-            task_id="task-id", bucket=TEST_BUCKET, prefix=TEST_PREFIX, poke_interval=0, timeout=1
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            prefix=TEST_PREFIX,
+            poke_interval=0,
+            timeout=1,
+            soft_fail=soft_fail,
         )
         mock_hook.return_value.list.return_value = []
-        with pytest.raises(AirflowSensorTimeout):
+        with pytest.raises(expected_exception):
             task.execute(mock.MagicMock)
             mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
 
@@ -390,7 +416,7 @@ class TestGoogleCloudStoragePrefixSensor:
         assert not mock_defer.called
 
 
-class TestGCSObjectsWithPrefixExistenceSensorAsync:
+class TestGCSObjectsWithPrefixExistenceAsyncSensor:
     OPERATOR = GCSObjectsWithPrefixExistenceSensor(
         task_id="gcs-obj-prefix",
         bucket=TEST_BUCKET,
@@ -400,25 +426,30 @@ class TestGCSObjectsWithPrefixExistenceSensorAsync:
     )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_gcs_object_with_prefix_existence_sensor_async(self, mock_hook):
+    def test_gcs_object_with_prefix_existence_async_sensor(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSPrefixBlobTrigger will be fired
-        when the GCSObjectsWithPrefixExistenceSensorAsync is executed.
+        when the GCSObjectsWithPrefixExistenceAsyncSensor is executed.
         """
         mock_hook.return_value.list.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.OPERATOR.execute(mock.MagicMock())
         assert isinstance(exc.value.trigger, GCSPrefixBlobTrigger), "Trigger is not a GCSPrefixBlobTrigger"
 
-    def test_gcs_object_with_prefix_existence_sensor_async_execute_failure(self, context):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_gcs_object_with_prefix_existence_async_sensor_execute_failure(
+        self, context, soft_fail, expected_exception
+    ):
         """Tests that an AirflowException is raised in case of error event"""
-
-        with pytest.raises(AirflowException):
+        self.OPERATOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
                 context=context, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_object_with_prefix_existence_sensor_async_execute_complete(self, context):
+    def test_gcs_object_with_prefix_existence_async_sensor_execute_complete(self, context):
         """Asserts that logging occurs as expected"""
 
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
@@ -461,10 +492,14 @@ class TestGCSUploadSessionCompleteSensor:
         )
         assert mock_hook.return_value == self.sensor.hook
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.get_time", mock_time)
-    def test_files_deleted_between_pokes_throw_error(self):
+    def test_files_deleted_between_pokes_throw_error(self, soft_fail, expected_exception):
+        self.sensor.soft_fail = soft_fail
         self.sensor.is_bucket_updated({"a", "b"})
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             self.sensor.is_bucket_updated({"a"})
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.get_time", mock_time)
@@ -525,7 +560,7 @@ class TestGCSUploadSessionCompleteSensor:
         assert not self.sensor.is_bucket_updated(set())
 
 
-class TestGCSUploadSessionCompleteSensorAsync:
+class TestGCSUploadSessionCompleteAsyncSensor:
     OPERATOR = GCSUploadSessionCompleteSensor(
         task_id="gcs-obj-session",
         bucket=TEST_BUCKET,
@@ -537,10 +572,10 @@ class TestGCSUploadSessionCompleteSensorAsync:
     )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_gcs_upload_session_complete_sensor_async(self, mock_hook):
+    def test_gcs_upload_session_complete_async_sensor(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSUploadSessionTrigger will be fired
-        when the GCSUploadSessionCompleteSensorAsync is executed.
+        when the GCSUploadSessionCompleteAsyncSensor is executed.
         """
         mock_hook.return_value.is_bucket_updated.return_value = False
         with pytest.raises(TaskDeferred) as exc:
@@ -549,15 +584,19 @@ class TestGCSUploadSessionCompleteSensorAsync:
             exc.value.trigger, GCSUploadSessionTrigger
         ), "Trigger is not a GCSUploadSessionTrigger"
 
-    def test_gcs_upload_session_complete_sensor_execute_failure(self, context):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_gcs_upload_session_complete_sensor_execute_failure(self, context, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
 
-        with pytest.raises(AirflowException):
+        self.OPERATOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
                 context=context, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_upload_session_complete_sensor_async_execute_complete(self, context):
+    def test_gcs_upload_session_complete_async_sensor_execute_complete(self, context):
         """Asserts that execute complete is completed as expected"""
 
         assert self.OPERATOR.execute_complete(

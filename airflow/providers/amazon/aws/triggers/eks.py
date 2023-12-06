@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -118,7 +120,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-        async with self.hook.async_conn as client:
+        async with self.hook().async_conn as client:
             waiter = client.get_waiter("cluster_deleted")
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)
@@ -138,7 +140,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_nodegroups(self, client) -> None:
         """
-        Deletes all EKS Nodegroups for a provided Amazon EKS Cluster.
+        Delete all EKS Nodegroups for a provided Amazon EKS Cluster.
 
         All the EKS Nodegroups are deleted simultaneously. We wait for
         all Nodegroups to be deleted before returning.
@@ -146,10 +148,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         nodegroups = await client.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
-            # ignoring attr-defined here because aws_base hook defines get_waiter for all hooks
-            waiter = self.hook.get_waiter(  # type: ignore[attr-defined]
-                "all_nodegroups_deleted", deferrable=True, client=client
-            )
+            waiter = self.hook().get_waiter("all_nodegroups_deleted", deferrable=True, client=client)
             for group in nodegroups["nodegroups"]:
                 await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             await async_wait(
@@ -167,7 +166,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_fargate_profiles(self, client) -> None:
         """
-        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+        Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.

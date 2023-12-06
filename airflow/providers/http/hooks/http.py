@@ -103,10 +103,10 @@ class HttpHook(BaseHook):
                 # schema defaults to HTTP
                 schema = conn.schema if conn.schema else "http"
                 host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
+                self.base_url = f"{schema}://{host}"
 
             if conn.port:
-                self.base_url = self.base_url + ":" + str(conn.port)
+                self.base_url += f":{conn.port}"
             if conn.login:
                 session.auth = self.auth_type(conn.login, conn.password)
             elif self._auth_type:
@@ -329,7 +329,7 @@ class HttpAsyncHook(BaseHook):
                 self.base_url = schema + "://" + host
 
             if conn.port:
-                self.base_url = self.base_url + ":" + str(conn.port)
+                self.base_url += f":{conn.port}"
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
@@ -340,10 +340,9 @@ class HttpAsyncHook(BaseHook):
         if headers:
             _headers.update(headers)
 
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            url = self.base_url + "/" + endpoint
-        else:
-            url = (self.base_url or "") + (endpoint or "")
+        base_url = (self.base_url or "").rstrip("/")
+        endpoint = (endpoint or "").lstrip("/")
+        url = f"{base_url}/{endpoint}"
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -363,11 +362,10 @@ class HttpAsyncHook(BaseHook):
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
-            attempt_num = 1
-            while True:
+            for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PATCH") else None,
+                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,
@@ -375,22 +373,24 @@ class HttpAsyncHook(BaseHook):
                 )
                 try:
                     response.raise_for_status()
-                    return response
                 except ClientResponseError as e:
                     self.log.warning(
                         "[Try %d of %d] Request to %s failed.",
-                        attempt_num,
+                        attempt,
                         self.retry_limit,
                         url,
                     )
-                    if not self._retryable_error_async(e) or attempt_num == self.retry_limit:
+                    if not self._retryable_error_async(e) or attempt == self.retry_limit:
                         self.log.exception("HTTP error with status: %s", e.status)
                         # In this case, the user probably made a mistake.
                         # Don't retry.
                         raise AirflowException(f"{e.status}:{e.message}")
-
-                attempt_num += 1
-                await asyncio.sleep(self.retry_delay)
+                    else:
+                        await asyncio.sleep(self.retry_delay)
+                else:
+                    return response
+            else:
+                raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """Determine whether an exception may successful on a subsequent attempt.

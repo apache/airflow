@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Collection, Literal
+from typing import TYPE_CHECKING, Any, AsyncIterator, Collection
+
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 
 
 class SqsSensorTrigger(BaseTrigger):
@@ -149,9 +153,7 @@ class SqsSensorTrigger(BaseTrigger):
                 response = await client.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
-                    raise AirflowException(
-                        f"Delete SQS Messages failed {str(response)} for messages {str(messages)}"
-                    )
+                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
 
         return message_batch
 

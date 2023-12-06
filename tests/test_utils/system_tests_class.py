@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -131,7 +132,7 @@ class SystemTest:
 
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
-        Runs example dag by it's ID.
+        Runs example dag by its ID.
 
         :param dag_id: id of a DAG to be run
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
@@ -164,9 +165,7 @@ class SystemTest:
     @staticmethod
     def delete_dummy_file(filename, dir_path):
         full_path = os.path.join(dir_path, filename)
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.remove(full_path)
-        except FileNotFoundError:
-            pass
         if dir_path != "/tmp":
             shutil.rmtree(dir_path, ignore_errors=True)

@@ -27,10 +27,11 @@
 {{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.migrateDatabaseJob) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.migrateDatabaseJob) }}
+{{- $containerLifecycleHooks := or .Values.migrateDatabaseJob.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-run-airflow-migrations
+  name: {{ include "airflow.fullname" . }}-run-airflow-migrations
   labels:
     tier: airflow
     component: run-airflow-migrations
@@ -76,6 +77,9 @@ spec:
       restartPolicy: OnFailure
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "migrateDatabaseJob.serviceAccountName" . }}
@@ -88,6 +92,9 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.migrateDatabaseJob.command }}
           command: {{- tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
           {{- end }}

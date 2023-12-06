@@ -120,7 +120,8 @@ export const getDuration = (startDate, endDate) =>
 
 export const formatDuration = (dur) => {
   const duration = moment.duration(dur);
-  const days = duration.days();
+  const totalDays = duration.asDays();
+  const days = Math.floor(totalDays);
   // .as('milliseconds') is necessary for .format() to work correctly
   return `${days > 0 ? `${days}d` : ""}${moment
     .utc(duration.as("milliseconds"))

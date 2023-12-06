@@ -87,7 +87,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
                 quotechar=self.quotechar,
                 quoting=self.quoting,
             )
-            csv_writer.writerow(map(lambda field: field[0], cursor.description))
+            csv_writer.writerow(field[0] for field in cursor.description)
             csv_writer.writerows(cursor)
             csvfile.flush()
 

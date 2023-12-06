@@ -37,6 +37,7 @@ class Log(Base):
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
+    owner_display_name = Column(String(500))
     extra = Column(Text)
 
     __table_args__ = (
@@ -45,7 +46,7 @@ class Log(Base):
         Index("idx_log_event", event),
     )
 
-    def __init__(self, event, task_instance=None, owner=None, extra=None, **kwargs):
+    def __init__(self, event, task_instance=None, owner=None, owner_display_name=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra
@@ -70,6 +71,7 @@ class Log(Base):
             self.map_index = kwargs["map_index"]
 
         self.owner = owner or task_owner
+        self.owner_display_name = owner_display_name or None
 
     def __str__(self) -> str:
-        return f"Log({self.event}, {self.task_id}, {self.owner}, {self.extra})"
+        return f"Log({self.event}, {self.task_id}, {self.owner}, {self.owner_display_name}, {self.extra})"

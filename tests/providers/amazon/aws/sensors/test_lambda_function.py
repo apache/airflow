@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 
@@ -28,6 +28,23 @@ FUNCTION_NAME = "function_name"
 
 
 class TestLambdaFunctionStateSensor:
+    def test_init(self):
+        op = LambdaFunctionStateSensor(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            aws_conn_id="aws_conn_test",
+            region_name="foo-bar-1",
+            verify="/spam/egg.pem",
+            botocore_config={"baz": "qux"},
+        )
+
+        assert op.function_name == FUNCTION_NAME
+
+        assert op.aws_conn_id == "aws_conn_test"
+        assert op.region_name == "foo-bar-1"
+        assert op.verify == "/spam/egg.pem"
+        assert op.botocore_config == {"baz": "qux"}
+
     @pytest.mark.parametrize(
         "get_function_output, expect_failure, expected",
         [
@@ -69,3 +86,19 @@ class TestLambdaFunctionStateSensor:
             mock_conn.get_function.assert_called_once_with(
                 FunctionName=FUNCTION_NAME,
             )
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_fail_poke(self, soft_fail, expected_exception):
+        sensor = LambdaFunctionStateSensor(
+            task_id="test_sensor",
+            function_name=FUNCTION_NAME,
+        )
+        sensor.soft_fail = soft_fail
+        message = "Lambda function state sensor failed because the Lambda is in a failed state"
+        with pytest.raises(expected_exception, match=message), mock.patch(
+            "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn"
+        ) as conn:
+            conn.get_function.return_value = {"Configuration": {"State": "Failed"}}
+            sensor.poke(context={})

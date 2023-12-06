@@ -20,10 +20,11 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -109,7 +110,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     conn_id_name = f"{env_id}-conn-id"
@@ -177,7 +177,7 @@ with DAG(
         import csv
 
         with open(filepath, newline="") as file:
-            return [row for row in csv.reader(file)]
+            return list(csv.reader(file))
 
     transfer_s3_to_sql = S3ToSqlOperator(
         task_id="transfer_s3_to_sql",

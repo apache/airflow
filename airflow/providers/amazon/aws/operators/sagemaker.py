@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.utils.helpers import prune_dict
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -96,7 +97,7 @@ class SageMakerBaseOperator(BaseOperator):
             self.parse_integer(self.config, field)
 
     def expand_role(self) -> None:
-        """Placeholder for calling boto3's `expand_role`, which expands an IAM role name into an ARN."""
+        """Call boto3's `expand_role`, which expands an IAM role name into an ARN."""
 
     def preprocess_config(self) -> None:
         """Process the config into a usable form."""
@@ -122,7 +123,7 @@ class SageMakerBaseOperator(BaseOperator):
         self, proposed_name: str, fail_if_exists: bool, describe_func: Callable[[str], Any]
     ) -> str:
         """
-        Returns the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
+        Return the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
 
         :param proposed_name: Base name.
         :param fail_if_exists: Will throw an error if a job with that name already exists
@@ -142,7 +143,7 @@ class SageMakerBaseOperator(BaseOperator):
         return job_name
 
     def _check_if_job_exists(self, job_name, describe_func: Callable[[str], Any]) -> bool:
-        """Returns True if job exists, False otherwise."""
+        """Return True if job exists, False otherwise."""
         try:
             describe_func(job_name)
             self.log.info("Found existing job with name '%s'.", job_name)
@@ -248,7 +249,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.integer_fields.append(["StoppingCondition", "MaxRuntimeInSeconds"])
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "RoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["RoleArn"] = hook.expand_role(self.config["RoleArn"])
@@ -306,7 +307,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         return {"Processing": self.serialized_job}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by processing job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by processing job."""
         from airflow.providers.openlineage.extractors.base import OperatorLineage
 
         inputs = []
@@ -462,7 +463,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             ]
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "Model" not in self.config:
             return
         hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
@@ -493,16 +494,32 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         try:
             response = sagemaker_operation(
                 endpoint_info,
-                wait_for_completion=False,
+                wait_for_completion=False,  # waiting for completion is handled here in the operator
             )
-            # waiting for completion is handled here in the operator
-        except ClientError:
-            self.operation = "update"
-            sagemaker_operation = self.hook.update_endpoint
-            response = sagemaker_operation(
-                endpoint_info,
-                wait_for_completion=False,
-            )
+        except ClientError as ce:
+            if self.operation == "create" and ce.response["Error"]["Message"].startswith(
+                "Cannot create already existing endpoint"
+            ):
+                # if we get an error because the endpoint already exists, we try to update it instead
+                self.operation = "update"
+                sagemaker_operation = self.hook.update_endpoint
+                self.log.warning(
+                    "cannot create already existing endpoint %s, "
+                    "updating it with the given config instead",
+                    endpoint_info["EndpointName"],
+                )
+                if "Tags" in endpoint_info:
+                    self.log.warning(
+                        "Provided tags will be ignored in the update operation "
+                        "(tags on the existing endpoint will be unchanged)"
+                    )
+                    endpoint_info.pop("Tags")
+                response = sagemaker_operation(
+                    endpoint_info,
+                    wait_for_completion=False,
+                )
+            else:
+                raise
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker endpoint creation failed: {response}")
@@ -626,7 +643,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             )
         self.deferrable = deferrable
         self.serialized_model: dict
-        self.serialized_tranform: dict
+        self.serialized_transform: dict
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -640,7 +657,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 field.pop(0)
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "Model" not in self.config:
             return
         config = self.config["Model"]
@@ -699,10 +716,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             )
 
         self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_tranform = serialize(
+        self.serialized_transform = serialize(
             self.hook.describe_transform_job(transform_config["TransformJobName"])
         )
-        return {"Model": self.serialized_model, "Transform": self.serialized_tranform}
+        return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
@@ -711,13 +728,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.log.info(event["message"])
         transform_config = self.config.get("Transform", self.config)
         self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_tranform = serialize(
+        self.serialized_transform = serialize(
             self.hook.describe_transform_job(transform_config["TransformJobName"])
         )
-        return {"Model": self.serialized_model, "Transform": self.serialized_tranform}
+        return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by transform job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by transform job."""
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         model_package_arn = None
@@ -730,10 +747,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.log.error("Cannot find Model Package Name.", exc_info=True)
 
         try:
-            transform_input = self.serialized_tranform["TransformInput"]["DataSource"]["S3DataSource"][
+            transform_input = self.serialized_transform["TransformInput"]["DataSource"]["S3DataSource"][
                 "S3Uri"
             ]
-            transform_output = self.serialized_tranform["TransformOutput"]["S3OutputPath"]
+            transform_output = self.serialized_transform["TransformOutput"]["S3OutputPath"]
         except KeyError:
             self.log.error("Cannot find some required input/output details.", exc_info=True)
 
@@ -815,7 +832,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         self.deferrable = deferrable
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "TrainingJobDefinition" in self.config:
             config = self.config["TrainingJobDefinition"]
             if "RoleArn" in config:
@@ -905,7 +922,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "ExecutionRoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["ExecutionRoleArn"] = hook.expand_role(self.config["ExecutionRoleArn"])
@@ -995,7 +1012,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.serialized_training_data: dict
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "RoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["RoleArn"] = hook.expand_role(self.config["RoleArn"])
@@ -1069,7 +1086,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         return {"Training": self.serialized_training_data}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by training job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by training job."""
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         inputs = []
@@ -1523,3 +1540,243 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         arn = ans["ExperimentArn"]
         self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
         return arn
+
+
+class SageMakerCreateNotebookOperator(BaseOperator):
+    """
+    Create a SageMaker notebook.
+
+    More information regarding parameters of this operator can be found here
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker/client/create_notebook_instance.html.
+
+    .. seealso:
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerCreateNotebookOperator`
+
+    :param instance_name: The name of the notebook instance.
+    :param instance_type: The type of instance to create.
+    :param role_arn: The Amazon Resource Name (ARN) of the IAM role that SageMaker can assume to access
+    :param volume_size_in_gb: Size in GB of the EBS root device volume of the notebook instance.
+    :param volume_kms_key_id: The KMS key ID for the EBS root device volume.
+    :param lifecycle_config_name: The name of the lifecycle configuration to associate with the notebook
+    :param direct_internet_access: Whether to enable direct internet access for the notebook instance.
+    :param root_access: Whether to give the notebook instance root access to the Amazon S3 bucket.
+    :param wait_for_completion: Whether or not to wait for the notebook to be InService before returning
+    :param create_instance_kwargs: Additional configuration options for the create call.
+    :param aws_conn_id: The AWS connection ID to use.
+
+    :return: The ARN of the created notebook.
+    """
+
+    template_fields: Sequence[str] = (
+        "instance_name",
+        "instance_type",
+        "role_arn",
+        "volume_size_in_gb",
+        "volume_kms_key_id",
+        "lifecycle_config_name",
+        "direct_internet_access",
+        "root_access",
+        "wait_for_completion",
+        "create_instance_kwargs",
+    )
+
+    ui_color = "#ff7300"
+
+    def __init__(
+        self,
+        *,
+        instance_name: str,
+        instance_type: str,
+        role_arn: str,
+        volume_size_in_gb: int | None = None,
+        volume_kms_key_id: str | None = None,
+        lifecycle_config_name: str | None = None,
+        direct_internet_access: str | None = None,
+        root_access: str | None = None,
+        create_instance_kwargs: dict[str, Any] = {},
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.instance_name = instance_name
+        self.instance_type = instance_type
+        self.role_arn = role_arn
+        self.volume_size_in_gb = volume_size_in_gb
+        self.volume_kms_key_id = volume_kms_key_id
+        self.lifecycle_config_name = lifecycle_config_name
+        self.direct_internet_access = direct_internet_access
+        self.root_access = root_access
+        self.wait_for_completion = wait_for_completion
+        self.aws_conn_id = aws_conn_id
+        self.create_instance_kwargs = create_instance_kwargs
+
+        if self.create_instance_kwargs.get("tags") is not None:
+            self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context: Context):
+        create_notebook_instance_kwargs = {
+            "NotebookInstanceName": self.instance_name,
+            "InstanceType": self.instance_type,
+            "RoleArn": self.role_arn,
+            "VolumeSizeInGB": self.volume_size_in_gb,
+            "KmsKeyId": self.volume_kms_key_id,
+            "LifecycleConfigName": self.lifecycle_config_name,
+            "DirectInternetAccess": self.direct_internet_access,
+            "RootAccess": self.root_access,
+        }
+        if self.create_instance_kwargs:
+            create_notebook_instance_kwargs.update(self.create_instance_kwargs)
+
+        self.log.info("Creating SageMaker notebook %s.", self.instance_name)
+        response = self.hook.conn.create_notebook_instance(**prune_dict(create_notebook_instance_kwargs))
+
+        self.log.info("SageMaker notebook created: %s", response["NotebookInstanceArn"])
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for SageMaker notebook %s to be in service", self.instance_name)
+            waiter = self.hook.conn.get_waiter("notebook_instance_in_service")
+            waiter.wait(NotebookInstanceName=self.instance_name)
+
+        return response["NotebookInstanceArn"]
+
+
+class SageMakerStopNotebookOperator(BaseOperator):
+    """
+    Stop a notebook instance.
+
+    .. seealso:
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStopNotebookOperator`
+
+    :param instance_name: The name of the notebook instance to stop.
+    :param wait_for_completion: Whether or not to wait for the notebook to be stopped before returning
+    :param aws_conn_id: The AWS connection ID to use.
+    """
+
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
+
+    ui_color = "#ff7300"
+
+    def __init__(
+        self,
+        instance_name: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.instance_name = instance_name
+        self.wait_for_completion = wait_for_completion
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context):
+        self.log.info("Stopping SageMaker notebook %s.", self.instance_name)
+        self.hook.conn.stop_notebook_instance(NotebookInstanceName=self.instance_name)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for SageMaker notebook %s to stop", self.instance_name)
+            self.hook.conn.get_waiter("notebook_instance_stopped").wait(
+                NotebookInstanceName=self.instance_name
+            )
+
+
+class SageMakerDeleteNotebookOperator(BaseOperator):
+    """
+    Delete a notebook instance.
+
+    .. seealso:
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerDeleteNotebookOperator`
+
+    :param instance_name: The name of the notebook instance to delete.
+    :param wait_for_completion: Whether or not to wait for the notebook to delete before returning.
+    :param aws_conn_id: The AWS connection ID to use.
+    """
+
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
+
+    ui_color = "#ff7300"
+
+    def __init__(
+        self,
+        instance_name: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.instance_name = instance_name
+        self.aws_conn_id = aws_conn_id
+        self.wait_for_completion = wait_for_completion
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context):
+        self.log.info("Deleting SageMaker notebook %s....", self.instance_name)
+        self.hook.conn.delete_notebook_instance(NotebookInstanceName=self.instance_name)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for SageMaker notebook %s to delete...", self.instance_name)
+            self.hook.conn.get_waiter("notebook_instance_deleted").wait(
+                NotebookInstanceName=self.instance_name
+            )
+
+
+class SageMakerStartNoteBookOperator(BaseOperator):
+    """
+    Start a notebook instance.
+
+    .. seealso:
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStartNotebookOperator`
+
+    :param instance_name: The name of the notebook instance to start.
+    :param wait_for_completion: Whether or not to wait for notebook to be InService before returning
+    :param aws_conn_id: The AWS connection ID to use.
+    """
+
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
+
+    ui_color = "#ff7300"
+
+    def __init__(
+        self,
+        instance_name: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.instance_name = instance_name
+        self.aws_conn_id = aws_conn_id
+        self.wait_for_completion = wait_for_completion
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context):
+        self.log.info("Starting SageMaker notebook %s....", self.instance_name)
+        self.hook.conn.start_notebook_instance(NotebookInstanceName=self.instance_name)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for SageMaker notebook %s to start...", self.instance_name)
+            self.hook.conn.get_waiter("notebook_instance_in_service").wait(
+                NotebookInstanceName=self.instance_name
+            )

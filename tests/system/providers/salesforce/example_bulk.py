@@ -31,7 +31,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     # [START howto_salesforce_bulk_insert_operation]
     bulk_insert = SalesforceBulkOperator(
         task_id="bulk_insert",

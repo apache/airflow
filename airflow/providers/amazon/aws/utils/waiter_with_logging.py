@@ -20,13 +20,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jmespath
 from botocore.exceptions import WaiterError
-from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
+
+if TYPE_CHECKING:
+    from botocore.waiter import Waiter
 
 
 def wait(

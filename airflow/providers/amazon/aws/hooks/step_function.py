@@ -71,7 +71,7 @@ class StepFunctionHook(AwsBaseHook):
 
     def describe_execution(self, execution_arn: str) -> dict:
         """
-        Describes a State Machine Execution.
+        Describe a State Machine Execution.
 
         .. seealso::
             - :external+boto3:py:meth:`SFN.Client.describe_execution`

@@ -23,12 +23,13 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
-from pytest import param
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
+
+pytestmark = pytest.mark.db_test
 
 CONNECTION: dict[str, Any] = {
     "conn_id": "test_conn",
@@ -135,9 +136,9 @@ def test_prefill_form_sensitive_fields_extra():
 @pytest.mark.parametrize(
     "extras, expected",
     [
-        param({"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"),
-        param({"my_param": "my_val"}, "my_val", id="conn_upgraded"),
-        param(
+        pytest.param({"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"),
+        pytest.param({"my_param": "my_val"}, "my_val", id="conn_upgraded"),
+        pytest.param(
             {"extra__test__my_param": "this_val", "my_param": "my_val"},
             "my_val",
             id="conn_upgraded_old_val_present",

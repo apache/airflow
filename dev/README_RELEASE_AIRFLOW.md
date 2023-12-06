@@ -129,9 +129,7 @@ branch you can run:
 ./dev/airflow-github compare 2.1.2 --unmerged
 ```
 
-Be careful and verify the hash commit specified. This is a 'best effort' to find it, and
-could be inaccurate if the PR was referenced in other commits after it was merged. You can start
-cherry picking from the bottom of the list. (older commits first)
+You can start cherry picking from the bottom of the list. (older commits first)
 
 When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
 You'll move them over to be on `vX-Y-stable` once the release is cut. Use the `-x` option
@@ -242,6 +240,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pipx install -e ./dev/breeze
     ```
 
+
+
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -258,6 +258,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -280,7 +283,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
   ./dev/airflow-github changelog v2-3-stable v2-3-test
   ```
 
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 
 - PR from the 'test' branch to the 'stable' branch
@@ -613,7 +615,7 @@ Only in /Users/jarek/code/airflow: .bash_history
 Check if .whl is the same as in tag:
 
 ```
-unzip -d a *-.whl
+unzip -d a *.whl
 pushd a
 diff -r airflow "${SOURCE_DIR}"
 popd && rm -rf a
@@ -683,8 +685,18 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.8 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
 ```
+
+You can also choose different executors and extras to install when you are installing airflow this way. For
+example in order to run Airflow with CeleryExecutor and install celery, google and amazon provider (as of
+Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
+
+```shell script
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+  --executor CeleryExecutor --airflow-extras "celery,google,amazon"
+```
+
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
@@ -818,7 +830,9 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
-    breeze release-management add-back-references apache-airflow
+    breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
+    cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
@@ -962,11 +976,12 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
-- For major/minor release, update version in `airflow/__main__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
+- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- For the first MINOR (X.Y.0) release - remove all providers from ``CHICKEN_EGG_PROVIDERS`` list
+  in ``src/airflow_breeze/global_constants.py`` that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 ## Update default Airflow version in the helm chart
 
@@ -995,29 +1010,27 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 After releasing airflow core, we need to check if we have to follow up with API clients release.
 
-Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
-ASF policy does not allow to vote against multiple artifacts with different versions.
+Clients are released in a separate process, with their own vote.
 
-### API Clients versioning policy
-
-For major/minor version release, always release new versions of the API clients.
+Clients can be found here:
 
 - [Python client](https://github.com/apache/airflow-client-python)
 - [Go client](https://github.com/apache/airflow-client-go)
 
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
-There are other external reasons for which we might want to release a patch version for clients only, but they are not
-tied to an airflow release and therefore out of scope.
+### API Clients versioning policy
 
-To determine if you should also release API clients you can run:
+Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+changed, clients need to be released.
+
+To determine if you should release API clients, you can run from the airflow repository:
 
 ```shell
-./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+./dev/airflow-github api-clients-policy 2.3.2 2.4.0
 ```
 
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
-> You need to check for each client what is the next patch version to be released.
+> All clients follow SemVer and you should check what the appropriate new version for each client should be. Depending on the current
+> client version and type of content added (feature, fix, breaking change etc.) appropriately increment the version number.
 
 ### Releasing the clients
 

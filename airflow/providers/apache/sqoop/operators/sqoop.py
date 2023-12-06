@@ -246,7 +246,7 @@ class SqoopOperator(BaseOperator):
         os.killpg(os.getpgid(self.hook.sub_process_pid), signal.SIGTERM)
 
     def _get_hook(self) -> SqoopHook:
-        """Returns a SqoopHook instance."""
+        """Return a SqoopHook instance."""
         # Add `create-hcatalog-table` to extra options if option passed to operator in case of `import`
         # command. Similarly, if new parameters are added to the operator, you can pass them to
         # `extra_options` so that you don't need to modify `SqoopHook` for each new parameter.

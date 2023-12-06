@@ -23,11 +23,11 @@ Builds documentation and runs spell checking
 from __future__ import annotations
 
 import argparse
+import itertools
 import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from itertools import filterfalse, tee
 from typing import Callable, Iterable, NamedTuple, TypeVar
 
 from rich.console import Console
@@ -74,8 +74,8 @@ T = TypeVar("T")
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def _promote_new_flags():
@@ -89,7 +89,7 @@ def _promote_new_flags():
         console.print("[yellow]Still too slow?[/]")
         console.print()
     console.print("You can only build one documentation package:")
-    console.print("    [info]breeze build-docs --package-filter <PACKAGE-NAME>[/]")
+    console.print("    [info]breeze build-docs <PACKAGES>[/]")
     console.print()
     console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
     console.print()
@@ -430,7 +430,6 @@ def main():
     disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
-
     with with_group("Available packages"):
         for pkg in sorted(available_packages):
             console.print(f" - {pkg}")
@@ -438,7 +437,6 @@ def main():
     if package_filters:
         console.print("Current package filters: ", package_filters)
     current_packages = process_package_filters(available_packages, package_filters)
-
     with with_group("Fetching inventories"):
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.

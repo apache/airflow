@@ -44,7 +44,8 @@ class GlueJobHook(AwsBaseHook):
     :param retry_limit: Maximum number of times to retry this job if it fails
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
     :param region_name: aws region name (example: us-east-1)
-    :param iam_role_name: AWS IAM Role for Glue Job Execution
+    :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
+    :param iam_role_arn: AWS IAM Role ARN for Glue Job Execution, If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param update_config: Update job configuration on Glue (default: False)
 
@@ -72,6 +73,7 @@ class GlueJobHook(AwsBaseHook):
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
+        iam_role_arn: str | None = None,
         create_job_kwargs: dict | None = None,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
@@ -85,6 +87,7 @@ class GlueJobHook(AwsBaseHook):
         self.retry_limit = retry_limit
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
+        self.role_arn = iam_role_arn
         self.s3_glue_logs = "logs/glue-logs/"
         self.create_job_kwargs = create_job_kwargs or {}
         self.update_config = update_config
@@ -93,6 +96,8 @@ class GlueJobHook(AwsBaseHook):
         worker_type_exists = "WorkerType" in self.create_job_kwargs
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
 
+        if self.role_arn and self.role_name:
+            raise ValueError("Cannot set iam_role_arn and iam_role_name simultaneously")
         if worker_type_exists and num_workers_exists:
             if num_of_dpus is not None:
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
@@ -114,12 +119,16 @@ class GlueJobHook(AwsBaseHook):
             "ScriptLocation": self.script_location,
         }
         command = self.create_job_kwargs.pop("Command", default_command)
-        execution_role = self.get_iam_execution_role()
+        if not self.role_arn:
+            execution_role = self.get_iam_execution_role()
+            role_arn = execution_role["Role"]["Arn"]
+        else:
+            role_arn = self.role_arn
 
         config = {
             "Name": self.job_name,
             "Description": self.desc,
-            "Role": execution_role["Role"]["Arn"],
+            "Role": role_arn,
             "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
             "Command": command,
             "MaxRetries": self.retry_limit,
@@ -144,7 +153,6 @@ class GlueJobHook(AwsBaseHook):
         return self.conn.get_jobs()
 
     def get_iam_execution_role(self) -> dict:
-        """Get IAM Role for job execution."""
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
                 "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
@@ -162,7 +170,7 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs: dict | None = None,
     ) -> dict[str, str]:
         """
-        Initializes connection with AWS Glue to run job.
+        Initialize connection with AWS Glue to run job.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.start_job_run`
@@ -196,7 +204,11 @@ class GlueJobHook(AwsBaseHook):
         return job_run["JobRun"]["JobRunState"]
 
     async def async_get_job_state(self, job_name: str, run_id: str) -> str:
-        """The async version of get_job_state."""
+        """
+        Get state of the Glue job; the job state can be running, finished, failed, stopped or timeout.
+
+        The async version of get_job_state.
+        """
         async with self.async_conn as client:
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
@@ -208,7 +220,7 @@ class GlueJobHook(AwsBaseHook):
         continuation_tokens: LogContinuationTokens,
     ):
         """
-        Prints the latest job logs to the Airflow task log and updates the continuation tokens.
+        Print the latest job logs to the Airflow task log and updates the continuation tokens.
 
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
@@ -217,7 +229,7 @@ class GlueJobHook(AwsBaseHook):
         paginator = log_client.get_paginator("filter_log_events")
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
-            """Internal method to mutualize iteration over the 2 different log streams glue jobs write to."""
+            """Mutualize iteration over the 2 different log streams glue jobs write to."""
             fetched_logs = []
             next_token = continuation_token
             try:
@@ -305,7 +317,7 @@ class GlueJobHook(AwsBaseHook):
         verbose: bool,
         next_log_tokens: GlueJobHook.LogContinuationTokens,
     ) -> dict | None:
-        """Helper function to process Glue Job state while polling. Used by both sync and async methods."""
+        """Process Glue Job state while polling; used by both sync and async methods."""
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
 
@@ -333,7 +345,7 @@ class GlueJobHook(AwsBaseHook):
 
     def has_job(self, job_name) -> bool:
         """
-        Checks if the job already exists.
+        Check if the job already exists.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_job`
@@ -351,7 +363,7 @@ class GlueJobHook(AwsBaseHook):
 
     def update_job(self, **job_kwargs) -> bool:
         """
-        Updates job configurations.
+        Update job configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_job`
@@ -393,7 +405,7 @@ class GlueJobHook(AwsBaseHook):
 
     def create_or_update_glue_job(self) -> str | None:
         """
-        Creates (or updates) and returns the Job name.
+        Create (or update) and return the Job name.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_job`

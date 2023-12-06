@@ -57,13 +57,14 @@ class DataSyncHook(AwsBaseHook):
         self.locations: list = []
         self.tasks: list = []
         # wait_interval_seconds = 0 is used during unit tests
-        if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
+        if 0 <= wait_interval_seconds <= 15 * 60:
+            self.wait_interval_seconds = wait_interval_seconds
+        else:
             raise ValueError(f"Invalid wait_interval_seconds {wait_interval_seconds}")
-        self.wait_interval_seconds = wait_interval_seconds
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
         """
-        Creates a new location.
+        Create a new location.
 
         .. seealso::
             - :external+boto3:py:meth:`DataSync.Client.create_location_s3`
@@ -174,7 +175,7 @@ class DataSyncHook(AwsBaseHook):
         self.get_conn().delete_task(TaskArn=task_arn)
 
     def _refresh_tasks(self) -> None:
-        """Refreshes the local list of Tasks."""
+        """Refresh the local list of Tasks."""
         tasks = self.get_conn().list_tasks()
         self.tasks = tasks["Tasks"]
         while "NextToken" in tasks:
@@ -301,25 +302,18 @@ class DataSyncHook(AwsBaseHook):
         if not task_execution_arn:
             raise AirflowBadRequest("task_execution_arn not specified")
 
-        status = None
-        iterations = max_iterations
-        while status is None or status in self.TASK_EXECUTION_INTERMEDIATE_STATES:
+        for _ in range(max_iterations):
             task_execution = self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
             status = task_execution["Status"]
             self.log.info("status=%s", status)
-            iterations -= 1
-            if status in self.TASK_EXECUTION_FAILURE_STATES:
-                break
             if status in self.TASK_EXECUTION_SUCCESS_STATES:
-                break
-            if iterations <= 0:
-                break
+                return True
+            elif status in self.TASK_EXECUTION_FAILURE_STATES:
+                return False
+            elif status is None or status in self.TASK_EXECUTION_INTERMEDIATE_STATES:
+                time.sleep(self.wait_interval_seconds)
+            else:
+                raise AirflowException(f"Unknown status: {status}")  # Should never happen
             time.sleep(self.wait_interval_seconds)
-
-        if status in self.TASK_EXECUTION_SUCCESS_STATES:
-            return True
-        if status in self.TASK_EXECUTION_FAILURE_STATES:
-            return False
-        if iterations <= 0:
+        else:
             raise AirflowTaskTimeout("Max iterations exceeded!")
-        raise AirflowException(f"Unknown status: {status}")  # Should never happen

@@ -338,7 +338,7 @@ for creating and distributing Python packages.
 
 ``wheel``: The wheel package provides a bdist_wheel command for setuptools. It
 creates .whl file which is directly installable through the ``pip install``
-command. We can then upload the same file to `PyPI <pypi.org>`_.
+command. We can then upload the same file to `PyPI <https://pypi.org>`_.
 
 .. code-block:: bash
 

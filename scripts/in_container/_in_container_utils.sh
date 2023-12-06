@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPTIONAL_VERBOSE_FLAG=()
-PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
-
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -59,42 +56,6 @@ function in_container_script_start() {
     fi
 }
 
-#
-# Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
-# changed to the Host user via osxfs filesystem
-#
-function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "linux" ]]; then
-        DIRECTORIES_TO_FIX=(
-            "/dist"
-            "/files"
-            "${AIRFLOW_SOURCES}/logs"
-            "${AIRFLOW_SOURCES}/docs"
-            "${AIRFLOW_SOURCES}/dags"
-            "${AIRFLOW_SOURCES}/airflow/"
-            "${AIRFLOW_SOURCES}/constraints/"
-            "${AIRFLOW_SOURCES}/images/"
-            "${AIRFLOW_SOURCES}/.mypy_cache/"
-            "${AIRFLOW_SOURCES}/dev/"
-        )
-        count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
-        if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
-            echo
-            echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
-            echo
-            find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-            echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
-            echo
-        fi
-     else
-        echo
-        echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
-        echo
-    fi
-}
-
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
@@ -102,29 +63,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-}
-
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
-function start_output_heartbeat() {
-    MESSAGE=${1:-"Still working!"}
-    INTERVAL=${2:=10}
-    echo
-    echo "Starting output heartbeat"
-    echo
-
-    bash 2>/dev/null <<EOF &
-while true; do
-  echo "\$(date): ${MESSAGE} "
-  sleep ${INTERVAL}
-done
-EOF
-    export HEARTBEAT_PID=$!
-}
-
-function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}" || true
-    wait "${HEARTBEAT_PID}" || true 2>/dev/null
 }
 
 function dump_airflow_logs() {
@@ -181,9 +119,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -220,9 +158,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -255,12 +193,19 @@ function install_released_airflow_version() {
     constraints_reference="${2:-}"
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
     if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
-        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
+        bracketed_airflow_extras="[${AIRFLOW_EXTRAS}]"
     else
-        BRACKETED_AIRFLOW_EXTRAS=""
+        bracketed_airflow_extras=""
+    fi
+    if [[ ${version} != https://* ]]; then
+        airflow_package="apache-airflow"
+        airflow_version="==${version}"
+    else
+        airflow_package="${version}"
+        airflow_version=""
     fi
     if [[ ${constraints_reference} == "none" ]]; then
-        pip install "${airflow_package}${extras}"
+        pip install "${airflow_package}${bracketed_airflow_extras}${airflow_version}"
     else
         local dependency_fix=""
         # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
@@ -272,19 +217,54 @@ function install_released_airflow_version() {
         if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
             dependency_fix="pyopenssl"
         fi
-
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
-            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        if [[ ${constraints_reference} == "" ]]; then
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        else
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        fi
+        pip install "${airflow_package}${bracketed_airflow_extras}${airflow_version}" ${dependency_fix} \
+            --constraint "${constraints_location}"
     fi
 }
 
+function install_github_airflow_version() {
+    local url="${1}"
+    local constraints_reference
+    constraints_reference="${2:-}"
+    rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
+    if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
+        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
+    else
+        BRACKETED_AIRFLOW_EXTRAS=""
+    fi
+    if [[ ${constraints_reference} == "none" ]]; then
+        pip install "${url}${extras}"
+    else
+        local dependency_fix=""
+        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
+        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
+        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
+        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
+        # version has it pinned to the right version, but since it is not directly required, it is not
+        # downgraded when installing airflow and it is already installed in a newer version
+        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
+            dependency_fix="pyopenssl"
+        fi
+        if [[ ${constraints_reference} == "" ]]; then
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        else
+            constraints_location="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        fi
+        pip install "${url}${BRACKETED_AIRFLOW_EXTRAS}" ${dependency_fix} --constraint "${constraints_location}"
+    fi
+}
 function install_local_airflow_with_eager_upgrade() {
     local extras
     extras="${1}"
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -295,16 +275,29 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local packages_to_install=()
     local provider_package
     local res
+    local chicken_egg_prefixes
+    chicken_egg_prefixes=""
+    if [[ ${CHICKEN_EGG_PROVIDERS=} != "" ]]; then
+        echo "${COLOR_BLUE}Finding providers to install from dist: ${CHICKEN_EGG_PROVIDERS}${COLOR_RESET}"
+        for chicken_egg_provider in ${CHICKEN_EGG_PROVIDERS}
+        do
+            chicken_egg_prefixes="${chicken_egg_prefixes} apache-airflow-providers-${chicken_egg_provider//./-}"
+        done
+        echo "${COLOR_BLUE}Chicken egg prefixes: ${chicken_egg_prefixes}${COLOR_RESET}"
+        ls /dist/
+    fi
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
-        echo -n "Checking if ${provider_package} is available in PyPI: "
-        if [[ ${provider_package} == "apache-airflow-providers-openlineage" ]]; then
-            # The openlineage provider has 2.7.0 airflow dependency so it should be excluded for now in
-            # "pypi" dependency calculation
-            # We should remove it right after 2.7.0 is released to PyPI and regenerate the 2.7.0 constraints
-            echo "${COLOR_YELLOW}Skipped until 2.7.0 is released${COLOR_RESET}"
+        if [[ "${chicken_egg_prefixes}" == *"${provider_package}"* ]]; then
+            # add the provider prepared in dist folder where chicken - egg problem is mitigated
+            for file in /dist/"${provider_package//-/_}"*.whl
+            do
+                packages_to_install+=( "${file}" )
+                echo "Added ${file} from dist folder as this is a chicken-egg package ${COLOR_GREEN}OK${COLOR_RESET}"
+            done
             continue
         fi
+        echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
             packages_to_install+=( "${provider_package}" )
@@ -313,74 +306,22 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
             echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
         fi
     done
+
+
     echo "Installing provider packages: ${packages_to_install[*]}"
+
+
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers. We install only those packages that are available in PyPI - we might
     # Have some new providers in the works and they might not yet be simply available in PyPI
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    set -x
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
-
+    set +x
 }
-
-function install_all_provider_packages_from_wheels() {
-    echo
-    echo "Installing all provider packages from wheels"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache_airflow_providers_*.whl
-}
-
-function install_all_provider_packages_from_sdist() {
-    echo
-    echo "Installing all provider packages from .tar.gz"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache-airflow-providers-*.tar.gz
-}
-
-function twine_check_provider_packages_from_wheels() {
-    echo
-    echo "Twine check of all provider packages from wheels"
-    echo
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    twine check /dist/apache_airflow_providers_*.whl
-}
-
-function twine_check_provider_packages_from_sdist() {
-    echo
-    echo "Twine check all provider packages from sdist"
-    echo
-    twine check /dist/apache-airflow-providers-*.tar.gz
-}
-
-function setup_provider_packages() {
-    export PACKAGE_TYPE="regular"
-    export PACKAGE_PREFIX_UPPERCASE=""
-    export PACKAGE_PREFIX_LOWERCASE=""
-    export PACKAGE_PREFIX_HYPHEN=""
-    if [[ ${VERBOSE:="false"} == "true" ||  ${VERBOSE} == "True" ]]; then
-        OPTIONAL_VERBOSE_FLAG+=("--verbose")
-    fi
-    if [[ ${ANSWER:=""} != "" ]]; then
-        OPTIONAL_ANSWER_FLAG+=("--answer" "${ANSWER}")
-    fi
-    readonly PACKAGE_TYPE
-    readonly PACKAGE_PREFIX_UPPERCASE
-    readonly PACKAGE_PREFIX_LOWERCASE
-    readonly PACKAGE_PREFIX_HYPHEN
-}
-
 
 function install_supported_pip_version() {
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
@@ -390,16 +331,6 @@ function install_supported_pip_version() {
     fi
 
 }
-
-function filename_to_python_module() {
-    # Turn the file name into a python package name
-    file="$1"
-    no_leading_dotslash="${file#./}"
-    no_py="${no_leading_dotslash/.py/}"
-    no_init="${no_py/\/__init__/}"
-    echo "${no_init//\//.}"
-}
-
 
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
@@ -414,71 +345,6 @@ function in_container_set_colors() {
     export COLOR_YELLOW
 }
 
-
-function check_missing_providers() {
-    PACKAGE_ERROR="false"
-
-    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null 2>&1 || exit 1
-
-    LIST_OF_DIRS_FILE=$(mktemp)
-    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
-        > "${LIST_OF_DIRS_FILE}"
-
-    popd >/dev/null 2>&1 || exit 1
-
-    # Check if all providers are included
-    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
-    do
-        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
-            echo "The package ${PACKAGE} is not available in providers dir"
-            PACKAGE_ERROR="true"
-        fi
-        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
-    done
-
-    if [[ ${PACKAGE_ERROR} == "true" ]]; then
-        echo
-        echo "ERROR! Some packages from ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py are missing in providers dir"
-        exit 1
-    fi
-
-    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
-        echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py:"
-        echo
-        cat "${LIST_OF_DIRS_FILE}"
-        echo
-
-        rm "$LIST_OF_DIRS_FILE"
-        exit 1
-    fi
-    rm "$LIST_OF_DIRS_FILE"
-}
-
-function get_providers_to_act_on() {
-    group_start "Get all providers"
-    if [[ -z "$*" ]]; then
-        while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages
-        )
-    else
-        if [[ "${1}" == "--help" ]]; then
-            echo
-            echo "Builds all provider packages."
-            echo
-            echo "You can provide list of packages to build out of:"
-            echo
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages \
-                | tr '\n ' ' ' | fold -w 100 -s
-            echo
-            echo
-            exit
-        fi
-    fi
-    group_end
-}
 
 # Starts group for GitHub Actions - makes logs much more readable
 function group_start {

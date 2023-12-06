@@ -40,12 +40,12 @@ class TriggerRule(str, Enum):
 
     @classmethod
     def is_valid(cls, trigger_rule: str) -> bool:
-        """Validates a trigger rule."""
+        """Validate a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
     def all_triggers(cls) -> set[str]:
-        """Returns all trigger rules."""
+        """Return all trigger rules."""
         return set(cls.__members__.values())
 
     def __str__(self) -> str:

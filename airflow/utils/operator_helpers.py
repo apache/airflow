@@ -199,7 +199,7 @@ def determine_kwargs(
 
 def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
     """
-    Creates a new callable that only forwards necessary arguments from any provided input.
+    Create a new callable that only forwards necessary arguments from any provided input.
 
     Make a new callable that can accept any number of positional or keyword arguments
     but only forwards those required by the given callable func.

@@ -22,7 +22,7 @@ import os
 import shutil
 from functools import cached_property
 from pathlib import Path
-from typing import Collection
+from typing import TYPE_CHECKING, Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
@@ -35,6 +35,9 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -96,6 +99,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         **kwargs,
     ):
         super().__init__(base_log_folder, filename_template)
+        self.handler: logging.FileHandler | None = None
         self.remote_base = gcs_log_folder
         self.log_relative_path = ""
         self.closed = False
@@ -137,15 +141,23 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             project=self.project_id if self.project_id else project_id,
         )
 
-    def set_context(self, ti):
-        super().set_context(ti)
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
+        if getattr(super(), "supports_task_context_logging", False):
+            super().set_context(ti, identifier=identifier)
+        else:
+            super().set_context(ti)
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
+        if TYPE_CHECKING:
+            assert self.handler is not None
+
         full_path = self.handler.baseFilename
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
 
     def close(self):
         """Close and upload local log file to remote storage GCS."""
@@ -241,13 +253,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
-            log = "\n".join([old_log, log]) if old_log else log
+            log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
-            if self.no_log_found(e):
-                pass
-            else:
+            if not self.no_log_found(e):
                 log += self._add_message(
-                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
+                    f"Error checking for previous log; if exists, may be overwritten: {e}"
                 )
                 self.log.warning("Error checking for previous log: %s", e)
         try:
@@ -265,8 +275,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         :meta private:
         """
-        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
-            return True
-        elif getattr(exc, "resp", {}).get("status") == "404":
+        if (exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]) or getattr(
+            exc, "resp", {}
+        ).get("status") == "404":
             return True
         return False

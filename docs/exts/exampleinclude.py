@@ -20,8 +20,8 @@
 from __future__ import annotations
 
 """Nice formatted include for examples"""
+import os
 import traceback
-from os import path
 
 from docutils import nodes
 
@@ -227,8 +227,8 @@ def doctree_read(app, doctree):
 
     for objnode in doctree.traverse(ExampleHeader):
         filepath = objnode.get("filename")
-        relative_path = path.relpath(
-            filepath, path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
+        relative_path = os.path.relpath(
+            filepath, os.path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
         )
         modname = relative_path.replace("/", ".")[:-3]
         show_button = register_source(app, env, modname)

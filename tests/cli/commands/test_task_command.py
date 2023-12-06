@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import io
+import contextlib
 import json
 import logging
 import os
 import re
 import shutil
 import sys
-import tempfile
 import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
+from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import sentinel
 
@@ -36,7 +37,6 @@ import pendulum
 import pytest
 import sqlalchemy.exc
 
-from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.cli.commands.task_command import LoggerMutationHelper
@@ -52,6 +52,12 @@ from airflow.utils.types import DagRunType
 from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = os.path.realpath(
@@ -120,7 +126,7 @@ class TestCliTasks:
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
         )
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
@@ -135,7 +141,7 @@ class TestCliTasks:
         ds = now.strftime("%Y%m%d")
         args = self.parser.parse_args(["tasks", "test", "example_python_operator", "print_the_context"])
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
@@ -171,12 +177,12 @@ class TestCliTasks:
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
-    def test_cli_test_different_path(self, session):
+    def test_cli_test_different_path(self, session, tmp_path):
         """
         When thedag processor has a different dags folder
         from the worker, ``airflow tasks run --local`` should still work.
         """
-        repo_root = Path(__file__).parent.parent.parent.parent
+        repo_root = Path(__file__).parents[3]
         orig_file_path = repo_root / "tests/dags/test_dags_folder.py"
         orig_dags_folder = orig_file_path.parent
 
@@ -202,51 +208,50 @@ class TestCliTasks:
         # additionally let's update the dags folder to be the new path
         # ideally since dags_folder points correctly to the file, airflow
         # should be able to find the dag.
-        with tempfile.TemporaryDirectory() as td:
-            new_file_path = Path(td) / Path(orig_file_path).name
-            new_dags_folder = new_file_path.parent
-            with move_back(orig_file_path, new_file_path), conf_vars(
-                {("core", "dags_folder"): new_dags_folder.as_posix()}
-            ):
-                ser_dag = (
-                    session.query(SerializedDagModel)
-                    .filter(SerializedDagModel.dag_id == "test_dags_folder")
-                    .one()
-                )
-                # confirm that the serialized dag location has not been updated
-                assert ser_dag.fileloc == orig_file_path.as_posix()
-                assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
-                assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
-                assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
-                from airflow.settings import DAGS_FOLDER
-
-                assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
-                task_command.task_run(
-                    self.parser.parse_args(
-                        [
-                            "tasks",
-                            "run",
-                            "--ignore-all-dependencies",
-                            "--local",
-                            "test_dags_folder",
-                            "task",
-                            "abc123",
-                        ]
-                    )
-                )
-            ti = (
-                session.query(TaskInstance)
-                .filter(
-                    TaskInstance.task_id == "task",
-                    TaskInstance.dag_id == "test_dags_folder",
-                    TaskInstance.run_id == "abc123",
-                    TaskInstance.map_index == -1,
-                )
+        new_file_path = tmp_path / orig_file_path.name
+        new_dags_folder = new_file_path.parent
+        with move_back(orig_file_path, new_file_path), conf_vars(
+            {("core", "dags_folder"): new_dags_folder.as_posix()}
+        ):
+            ser_dag = (
+                session.query(SerializedDagModel)
+                .filter(SerializedDagModel.dag_id == "test_dags_folder")
                 .one()
             )
-            assert ti.state == "success"
-            # verify that the file was in different location when run
-            assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
+            # confirm that the serialized dag location has not been updated
+            assert ser_dag.fileloc == orig_file_path.as_posix()
+            assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
+            assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
+            assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
+            from airflow.settings import DAGS_FOLDER
+
+            assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "run",
+                        "--ignore-all-dependencies",
+                        "--local",
+                        "test_dags_folder",
+                        "task",
+                        "abc123",
+                    ]
+                )
+            )
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.task_id == "task",
+                TaskInstance.dag_id == "test_dags_folder",
+                TaskInstance.run_id == "abc123",
+                TaskInstance.map_index == -1,
+            )
+            .one()
+        )
+        assert ti.state == "success"
+        # verify that the file was in different location when run
+        assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_with_existing_dag_run_id(self, mock_local_job_runner):
@@ -365,7 +370,7 @@ class TestCliTasks:
         )
 
     def test_cli_test_with_env_vars(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(
                 self.parser.parse_args(
                     [
@@ -431,7 +436,7 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given task
         """
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
             )
@@ -445,7 +450,7 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -482,7 +487,7 @@ class TestCliTasks:
 
             BashOperator.partial(task_id="some_command").expand(bash_command=commands)
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -503,7 +508,7 @@ class TestCliTasks:
         assert 'echo "2022-01-08"' in output
 
     @mock.patch("airflow.cli.commands.task_command.select")
-    @mock.patch("airflow.cli.commands.task_command.Session.scalars")
+    @mock.patch("sqlalchemy.orm.session.Session.scalars")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
         """
@@ -549,7 +554,6 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-
         dag2 = DagBag().dags["example_python_operator"]
         task2 = dag2.get_task(task_id="print_the_context")
         default_date2 = timezone.datetime(2016, 1, 9)
@@ -567,7 +571,7 @@ class TestCliTasks:
         ti_start = ti2.start_date
         ti_end = ti2.end_date
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
@@ -659,10 +663,8 @@ class TestLogsfromTaskRunCommand:
         self.root_filters = root.filters.copy()
         self.root_level = root.level
 
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def teardown_method(self) -> None:
         root = self.root_logger
@@ -671,10 +673,8 @@ class TestLogsfromTaskRunCommand:
         root.filters[:] = self.root_filters
 
         reset(self.dag_id)
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def assert_log_line(self, text, logs_list, expect_from_logging_mixin=False):
         """
@@ -735,8 +735,10 @@ class TestLogsfromTaskRunCommand:
                 external_executor_id="ABCD12345",
             )
 
-    @pytest.mark.parametrize("is_k8s", ["true", ""])
-    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s):
+    @pytest.mark.parametrize(
+        "is_k8s, is_container_exec", [("true", "true"), ("true", ""), ("", "true"), ("", "")]
+    )
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec):
         """
         When running task --local as k8s executor pod, all logging should make it to stdout.
         Otherwise, all logging after "running TI" is redirected to logs (and the actual log
@@ -750,7 +752,10 @@ class TestLogsfromTaskRunCommand:
         import subprocess
 
         with mock.patch.dict(
-            "os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s, PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT)
+            "os.environ",
+            AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s,
+            AIRFLOW_IS_EXECUTOR_CONTAINER=is_container_exec,
+            PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT),
         ):
             with subprocess.Popen(
                 args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
@@ -766,7 +771,7 @@ class TestLogsfromTaskRunCommand:
                 found_start = True
             if found_start:
                 lines.append(line)
-        if is_k8s:
+        if any((is_k8s, is_container_exec)):
             # 10 is arbitrary, but, with enough padding to hopefully not be flakey
             assert len(lines) > 10
             self.assert_log_line("Starting attempt 1 of 1", lines)
@@ -818,7 +823,7 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args(self.task_args + ["--pool", pool_name]))
+            task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
 
             session.delete(pool)
@@ -863,10 +868,8 @@ class TestLogsfromTaskRunCommand:
 
                 assert os.path.exists(log_file_path)
             finally:
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(log_file_path)
-                except OSError:
-                    pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     def test_root_logger_restored(self, run_task_mock, caplog):

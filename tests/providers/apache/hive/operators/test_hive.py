@@ -41,7 +41,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
 
         # just check that the correct default value in test_default.cfg is used
         test_config_hive_mapred_queue = conf.get("hive", "default_hive_mapred_queue")
-        assert op.get_hook().mapred_queue == test_config_hive_mapred_queue
+        assert op.hook.mapred_queue == test_config_hive_mapred_queue
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = "default"
@@ -54,7 +54,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
             dag=self.dag,
         )
 
-        assert op.get_hook().mapred_queue == specific_mapred_queue
+        assert op.hook.mapred_queue == specific_mapred_queue
 
 
 class HiveOperatorTest(TestHiveEnvironment):
@@ -75,10 +75,8 @@ class HiveOperatorTest(TestHiveEnvironment):
         op.prepare_template()
         assert op.hql == "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
 
-    @mock.patch("airflow.providers.apache.hive.operators.hive.HiveOperator.get_hook")
-    def test_mapred_job_name(self, mock_get_hook):
-        mock_hook = mock.MagicMock()
-        mock_get_hook.return_value = mock_hook
+    @mock.patch("airflow.providers.apache.hive.operators.hive.HiveOperator.hook", mock.MagicMock())
+    def test_mapred_job_name(self, mock_hook):
         op = HiveOperator(task_id="test_mapred_job_name", hql=self.hql, dag=self.dag)
 
         fake_run_id = "test_mapred_job_name"

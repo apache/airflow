@@ -26,7 +26,7 @@ permissions:
   issues: write
 jobs:
   recheck-old-bug-report:
-    runs-on: ubuntu-22.04
+    runs-on: "ubuntu-22.04"
     steps:
       - uses: actions/stale@v8
         with:
@@ -43,7 +43,6 @@ jobs:
           remove-stale-when-updated: false
           remove-issue-stale-when-updated: true
           labels-to-add-when-unstale: 'needs-triage'
-          ascending: true
           stale-issue-message: >
             This issue has been automatically marked as stale because it has been open for 365 days
             without any activity. There has been several Airflow releases since last activity on this issue.

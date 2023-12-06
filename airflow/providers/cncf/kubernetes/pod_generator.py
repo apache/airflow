@@ -25,11 +25,11 @@ is supported and no serialization need be written.
 from __future__ import annotations
 
 import copy
-import datetime
 import logging
 import os
 import warnings
 from functools import reduce
+from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
@@ -38,11 +38,8 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
+    AirflowException,
     RemovedInAirflow3Warning,
-)
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-    PodMutationHookException,
-    PodReconciliationError,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
@@ -55,9 +52,20 @@ from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
+if TYPE_CHECKING:
+    import datetime
+
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 def make_safe_label_value(string: str) -> str:
@@ -144,7 +152,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod."""
+        """Generate pod."""
         warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
@@ -157,7 +165,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar."""
+        """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -173,7 +181,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 
@@ -207,7 +215,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 
@@ -342,9 +350,10 @@ class PodGenerator:
         client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
-        return [client_container] + PodGenerator.reconcile_containers(
-            base_containers[1:], client_containers[1:]
-        )
+        return [
+            client_container,
+            *PodGenerator.reconcile_containers(base_containers[1:], client_containers[1:]),
+        ]
 
     @classmethod
     def construct_pod(
@@ -425,8 +434,8 @@ class PodGenerator:
         )
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
+        pod_list = [base_worker_pod, dynamic_pod, pod_override_object]
 
         try:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)

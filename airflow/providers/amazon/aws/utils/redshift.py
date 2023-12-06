@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from botocore.credentials import ReadOnlyCredentials
+if TYPE_CHECKING:
+    from botocore.credentials import ReadOnlyCredentials
 
 log = logging.getLogger(__name__)
 

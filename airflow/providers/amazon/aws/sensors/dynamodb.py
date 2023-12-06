@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.sensors.base import BaseSensorOperator
@@ -61,7 +61,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         partition_key_name: str,
         partition_key_value: str,
         attribute_name: str,
-        attribute_value: str,
+        attribute_value: str | Iterable[str],
         sort_key_name: str | None = None,
         sort_key_value: str | None = None,
         aws_conn_id: str | None = DynamoDBHook.default_conn_name,
@@ -84,7 +84,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
             f"Checking table {self.table_name} for "
-            + f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
+            f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
         )
 
         if self.sort_key_name and self.sort_key_value:
@@ -99,12 +99,13 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.log.info("Key: %s", key)
         response = table.get_item(Key=key)
         try:
+            item_attribute_value = response["Item"][self.attribute_name]
             self.log.info("Response: %s", response)
             self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-            self.log.info(
-                "Got: {response['Item'][self.attribute_name]} = %s", response["Item"][self.attribute_name]
+            self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
+            return item_attribute_value in (
+                [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
             )
-            return response["Item"][self.attribute_name] == self.attribute_value
         except KeyError:
             return False
 

@@ -22,26 +22,27 @@ import contextlib
 import os
 import re
 import shlex
+import shutil
 import signal
 import stat
 import subprocess
 import sys
-from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from typing import Mapping, Union
 
 from rich.markup import escape
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     WWW_ASSET_COMPILE_LOCK,
+    WWW_ASSET_HASH_FILE,
     WWW_ASSET_OUT_DEV_MODE_FILE,
     WWW_ASSET_OUT_FILE,
+    WWW_NODE_MODULES_DIR,
+    WWW_STATIC_DIST_DIR,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -51,7 +52,7 @@ OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: list[str],
+    cmd: list[str] | str,
     title: str | None = None,
     *,
     check: bool = True,
@@ -97,7 +98,7 @@ def run_command(
             return False
         if _arg.startswith("-"):
             return True
-        if len(_arg) == 0:
+        if not _arg:
             return True
         if _arg.startswith("/"):
             # Skip any absolute paths
@@ -116,7 +117,7 @@ def run_command(
     if not title:
         shortened_command = [
             shorten_command(index, argument)
-            for index, argument in enumerate(cmd)
+            for index, argument in enumerate(cmd if isinstance(cmd, list) else shlex.split(cmd))
             if not exclude_command(index, argument)
         ]
         # Heuristics to get a (possibly) short but explanatory title showing what the command does
@@ -131,7 +132,7 @@ def run_command(
         if "capture_output" not in kwargs or not kwargs["capture_output"]:
             kwargs["stdout"] = output.file
             kwargs["stderr"] = subprocess.STDOUT
-    command_to_print = " ".join(shlex.quote(c) for c in cmd)
+    command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
     if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
@@ -148,7 +149,7 @@ def run_command(
         if get_dry_run(dry_run_override):
             return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
-            if output_outside_the_group:
+            if output_outside_the_group and os.environ.get("GITHUB_ACTIONS") == "true":
                 get_console().print("::endgroup::")
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
         except subprocess.CalledProcessError as ex:
@@ -172,6 +173,8 @@ def run_command(
                 get_console(output=output).print(
                     "[error]========================= STDERR end ==============================[/]"
                 )
+            if check:
+                raise
             return ex
 
 
@@ -200,6 +203,7 @@ def assert_pre_commit_installed():
     """
     # Local import to make autocomplete work
     import yaml
+    from packaging.version import Version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
@@ -215,7 +219,7 @@ def assert_pre_commit_installed():
     if command_result.returncode == 0:
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
-            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
+            if Version(pre_commit_version) >= Version(min_pre_commit_version):
                 get_console().print(
                     f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
@@ -244,14 +248,16 @@ def get_filesystem_type(filepath: str):
     :return: type of filesystem
     """
     # We import it locally so that click autocomplete works
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
         if part.mountpoint == "/":
             root_type = part.fstype
-            continue
-        if filepath.startswith(part.mountpoint):
+        elif filepath.startswith(part.mountpoint):
             return part.fstype
 
     return root_type
@@ -302,14 +308,14 @@ def fix_group_permissions():
         get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
+        files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
         ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
+        directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
@@ -374,28 +380,6 @@ def check_if_image_exists(image: str) -> bool:
     return cmd_result.returncode == 0
 
 
-def get_ci_image_for_pre_commits() -> str:
-    github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    python_version = "3.8"
-    airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
-    skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
-    if skip_image_pre_commits[0].lower() == "t":
-        get_console().print(
-            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
-        )
-        sys.exit(0)
-    if not check_if_image_exists(
-        image=airflow_image,
-    ):
-        get_console().print(f"[red]The image {airflow_image} is not available.[/]\n")
-        get_console().print(
-            f"\n[yellow]Please run this to fix it:[/]\n\n"
-            f"breeze ci-image build --python {python_version}\n\n"
-        )
-        sys.exit(1)
-    return airflow_image
-
-
 def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunCommandResult:
     from filelock import SoftFileLock, Timeout
 
@@ -410,10 +394,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
         )
     else:
         WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            WWW_ASSET_COMPILE_LOCK.unlink()
-        except FileNotFoundError:
-            pass
+        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
         try:
             with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
                 with open(WWW_ASSET_OUT_FILE, "w") as output_file:
@@ -427,10 +408,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
                         stdout=output_file,
                     )
                 if result.returncode == 0:
-                    try:
-                        WWW_ASSET_OUT_FILE.unlink()
-                    except FileNotFoundError:
-                        pass
+                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
                 return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
@@ -453,10 +431,21 @@ def kill_process_group(gid: int):
         pass
 
 
+def clean_www_assets():
+    get_console().print("[info]Cleaning www assets[/]")
+    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
+    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
+    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
+    get_console().print("[success]Cleaned www assets[/]")
+
+
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
+    force_clean: bool,
 ):
+    if force_clean:
+        clean_www_assets()
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
         get_console().print(

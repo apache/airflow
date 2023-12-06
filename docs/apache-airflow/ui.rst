@@ -166,9 +166,9 @@ DAG over many runs.
 
 Landing Times
 .............
-Airflow landing times are calculated from the task's scheduled time to
-the time the task finishes, either with success or another state (see
-:ref:`concepts:task-instances`).
+
+The landing time for a task instance is the delta between the dag run's data interval end
+(typically this means, when the dag "should" run) and the task instance completion time.
 
 ------------
 

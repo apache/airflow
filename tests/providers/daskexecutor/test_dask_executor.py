@@ -31,6 +31,8 @@ from airflow.providers.daskexecutor.executors.dask_executor import DaskExecutor
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 try:
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests
@@ -40,10 +42,13 @@ try:
     skip_tls_tests = False
 except ImportError:
     skip_tls_tests = True
+
     # In case the tests are skipped because of lacking test harness, get_cert should be
     # overridden to avoid get_cert failing during test discovery as get_cert is used
     # in conf_vars decorator
-    get_cert = lambda x: x
+    def get_cert(x):
+        return x
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 SUCCESS_COMMAND = ["airflow", "tasks", "run", "--help"]
@@ -57,7 +62,6 @@ skip_dask_tests = False
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
 class TestBaseDask:
     def assert_tasks_on_executor(self, executor, timeout_executor=120):
-
         # start the executor
         executor.start()
 
@@ -104,6 +108,7 @@ class TestDaskExecutor(TestBaseDask):
     # This test is quarantined because it became rather flaky on our CI in July 2023 and reason for this
     # is unknown. An issue for that was created: https://github.com/apache/airflow/issues/32778 and the
     # marker should be removed while (possibly) the reason for flaky behaviour is found and fixed.
+    @pytest.mark.quarantined
     @pytest.mark.execution_timeout(180)
     def test_backfill_integration(self):
         """
@@ -148,7 +153,6 @@ class TestDaskExecutorTLS(TestBaseDask):
             worker_kwargs={"security": tls_security(), "protocol": "tls"},
             scheduler_kwargs={"security": tls_security(), "protocol": "tls"},
         ) as (cluster, _):
-
             executor = DaskExecutor(cluster_address=cluster["address"])
 
             self.assert_tasks_on_executor(executor, timeout_executor=120)
@@ -211,6 +215,7 @@ class TestDaskExecutorQueue:
         assert success_future.done()
         assert success_future.exception() is None
 
+    @pytest.mark.execution_timeout(120)
     def test_dask_queues_no_queue_specified(self):
         self.cluster = LocalCluster(resources={"queue1": 1})
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
@@ -221,7 +226,7 @@ class TestDaskExecutorQueue:
         success_future = next(k for k, v in executor.futures.items() if v == "success")
 
         # wait for the futures to execute, with a timeout
-        timeout = timezone.utcnow() + timedelta(seconds=30)
+        timeout = timezone.utcnow() + timedelta(seconds=100)
         while not success_future.done():
             if timezone.utcnow() > timeout:
                 raise ValueError(

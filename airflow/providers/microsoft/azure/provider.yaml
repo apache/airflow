@@ -14,14 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 ---
 package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
-    `Microsoft Azure <https://azure.microsoft.com/>`__
+  `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
+source-date-epoch: 1700827474
 versions:
+  - 8.3.0
+  - 8.2.0
+  - 8.1.0
+  - 8.0.0
+  - 7.0.0
+  - 6.3.0
   - 6.2.4
   - 6.2.3
   - 6.2.2
@@ -63,30 +69,34 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
+  - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.0.0
+  - azure-mgmt-cosmosdb
   - azure-datalake-store>=0.0.45
   - azure-identity>=1.3.1
   - azure-keyvault-secrets>=4.1.0
   - azure-mgmt-datalake-store>=0.5.0
   - azure-mgmt-resource>=2.2.0
   - azure-storage-blob>=12.14.0
-  - azure-storage-common>=2.1.0
-  - azure-storage-file>=2.1.0
+  - azure-mgmt-storage>=16.0.0
+  - azure-storage-file-share
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
+  - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
-  # TODO: upgrade to newer versions of all the below libraries.
-  #   See issue https://github.com/apache/airflow/issues/30199
-  - azure-mgmt-containerinstance>=1.5.0,<2.0
-  - azure-mgmt-datafactory>=1.0.0,<2.0
-  - azure-kusto-data>=0.0.43,<0.1
+  - azure-kusto-data>=4.1.0
+  - azure-mgmt-datafactory>=2.0.0
+  - azure-mgmt-containerregistry>=8.0.0
+  - azure-mgmt-containerinstance>=9.0.0
 
 integrations:
   - integration-name: Microsoft Azure Batch
     external-doc-url: https://azure.microsoft.com/en-us/services/batch/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/batch.rst
     logo: /integration-logos/azure/Microsoft-Azure-Batch.png
     tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
@@ -185,6 +195,9 @@ sensors:
     python-modules:
       - airflow.providers.microsoft.azure.sensors.data_factory
 
+filesystems:
+  - airflow.providers.microsoft.azure.fs.adls
+
 hooks:
   - integration-name: Microsoft Azure Container Instances
     python-modules:
@@ -245,9 +258,6 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/local_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.local_to_wasb
-  - source-integration-name: Microsoft Azure Blob Storage
-    target-integration-name: Google Cloud Storage (GCS)
-    python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/sftp_to_wasb.rst
@@ -256,7 +266,6 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
-
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
@@ -273,15 +282,13 @@ connection-types:
     connection-type: azure_fileshare
   - hook-class-name: airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
     connection-type: azure_container_volume
-  - hook-class-name: >-
-      airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
     connection-type: azure_container_instance
   - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
     connection-type: wasb
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
     connection-type: azure_data_factory
-  - hook-class-name: >-
-      airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
@@ -289,6 +296,8 @@ connection-types:
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
+    connection-type: azure_synapse_pipeline
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
@@ -298,3 +307,18 @@ logging:
 
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
+  - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink
+
+config:
+  azure_remote_logging:
+    description: |
+      Configuration that needs to be set for enable remote logging in Azure Blob Storage
+    options:
+      remote_wasb_log_container:
+        description: |
+          WASB storage container where the remote logs will be stored.
+          The container should exist.
+        version_added: 8.0.0
+        type: string
+        example: ~
+        default: "airflow-logs"

@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
@@ -40,7 +44,6 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = None,
         region_name: str | None = None,
     ) -> None:
-
         super().__init__(
             serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
             waiter_name="step_function_succeeded",

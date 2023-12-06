@@ -90,7 +90,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
     .. code-block:: python
 
-        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+        CreateBucket = GCSCreateBucketOperator(
             task_id="CreateNewBucket",
             bucket_name="test-bucket",
             storage_class="MULTI_REGIONAL",
@@ -187,7 +187,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         The following Operator would list all the Avro files from ``sales/sales-2017``
         folder in ``data`` bucket. ::
 
-            GCS_Files = GoogleCloudStorageListOperator(
+            GCS_Files = GCSListOperator(
                 task_id='GCS_Files',
                 bucket='data',
                 prefix='sales/sales-2017/',
@@ -313,6 +313,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             )
             raise ValueError(err_message)
 
+        self._objects: list[str] = []
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
@@ -322,12 +323,46 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         )
 
         if self.objects is not None:
-            objects = self.objects
+            self._objects = self.objects
         else:
-            objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-        self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
-        for object_name in objects:
+            self._objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
+        self.log.info("Deleting %s objects from %s", len(self._objects), self.bucket_name)
+        for object_name in self._objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implementing on_complete as execute() resolves object names."""
+        from openlineage.client.facet import (
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+        )
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._objects:
+            return OperatorLineage()
+
+        bucket_url = f"gs://{self.bucket_name}"
+        input_datasets = [
+            Dataset(
+                namespace=bucket_url,
+                name=object_name,
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name=object_name,
+                        ),
+                    )
+                },
+            )
+            for object_name in self._objects
+        ]
+
+        return OperatorLineage(inputs=input_datasets)
 
 
 class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
@@ -596,6 +631,22 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
                 filename=destination_file.name,
             )
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_dataset = Dataset(
+            namespace=f"gs://{self.source_bucket}",
+            name=self.source_object,
+        )
+        output_dataset = Dataset(
+            namespace=f"gs://{self.destination_bucket}",
+            name=self.destination_object,
+        )
+
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
+
 
 class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     """
@@ -722,6 +773,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
+        self._source_object_names: list[str] = []
+        self._destination_object_names: list[str] = []
+
     def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
         try:
@@ -773,7 +827,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
 
         # Fetch list of files.
-        blobs_to_transform = source_hook.list_by_timespan(
+        self._source_object_names = source_hook.list_by_timespan(
             bucket_name=self.source_bucket,
             prefix=source_prefix_interp,
             timespan_start=timespan_start,
@@ -785,7 +839,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             temp_output_dir_path = Path(temp_output_dir)
 
             # TODO: download in parallel.
-            for blob_to_transform in blobs_to_transform:
+            for blob_to_transform in self._source_object_names:
                 destination_file = temp_input_dir_path / blob_to_transform
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -797,9 +851,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         num_max_attempts=self.download_num_attempts,
                     )
                 except GoogleCloudError:
-                    if self.download_continue_on_fail:
-                        continue
-                    raise
+                    if not self.download_continue_on_fail:
+                        raise
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
@@ -823,8 +876,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
 
-            files_uploaded = []
-
             # TODO: upload in parallel.
             for upload_file in temp_output_dir_path.glob("**/*"):
                 if upload_file.is_dir():
@@ -845,13 +896,35 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         chunk_size=self.chunk_size,
                         num_max_attempts=self.upload_num_attempts,
                     )
-                    files_uploaded.append(str(upload_file_name))
+                    self._destination_object_names.append(str(upload_file_name))
                 except GoogleCloudError:
-                    if self.upload_continue_on_fail:
-                        continue
-                    raise
+                    if not self.upload_continue_on_fail:
+                        raise
 
-            return files_uploaded
+            return self._destination_object_names
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implementing on_complete as execute() resolves object names."""
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_datasets = [
+            Dataset(
+                namespace=f"gs://{self.source_bucket}",
+                name=object_name,
+            )
+            for object_name in self._source_object_names
+        ]
+        output_datasets = [
+            Dataset(
+                namespace=f"gs://{self.destination_bucket}",
+                name=object_name,
+            )
+            for object_name in self._destination_object_names
+        ]
+
+        return OperatorLineage(inputs=input_datasets, outputs=output_datasets)
 
 
 class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
@@ -921,7 +994,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBucketsOperator`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :param destination_bucket: The name of the bucket containing the destination objects.

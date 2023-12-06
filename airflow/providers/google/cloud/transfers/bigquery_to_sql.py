@@ -22,11 +22,11 @@ import abc
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 
 if TYPE_CHECKING:
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 

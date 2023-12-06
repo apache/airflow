@@ -42,10 +42,11 @@ import re2
 
 from airflow import settings
 from airflow.compat.functools import cache
-from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
+
+    from airflow.typing_compat import TypeGuard
 
 Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
@@ -86,7 +87,11 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
+    """
+    Return if the value for this given name should be hidden.
+
+    Name might be a Variable name, or key in conn.extra_dejson, for example.
+    """
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -172,7 +177,7 @@ class SecretsMasker(logging.Filter):
             __file__,
             1,
             "",
-            tuple(),
+            (),
             exc_info=None,
             func="funcname",
         )
@@ -201,9 +206,8 @@ class SecretsMasker(logging.Filter):
 
         if self.replacer:
             for k, v in record.__dict__.items():
-                if k in self._record_attrs_to_ignore:
-                    continue
-                record.__dict__[k] = self.redact(v)
+                if k not in self._record_attrs_to_ignore:
+                    record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 self._redact_exception_with_context(exc)
@@ -257,7 +261,7 @@ class SecretsMasker(logging.Filter):
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub("***", item)
+                    return self.replacer.sub("***", str(item))
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
@@ -272,14 +276,15 @@ class SecretsMasker(logging.Filter):
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
-        # but it caused infinite recursion, so we need to cast it to str first.
-        except Exception as e:
+        # but it caused infinite recursion, to avoid this we mark the log as already filtered.
+        except Exception as exc:
             log.warning(
-                "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
-                "Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
+                "Unable to redact value of type %s, please report this via "
+                "<https://github.com/apache/airflow/issues>. Error was: %s: %s",
+                item,
+                type(exc).__name__,
+                exc,
+                extra={self.ALREADY_FILTERED_FLAG: True},
             )
             return item
 
@@ -313,7 +318,7 @@ class SecretsMasker(logging.Filter):
         return conf.getboolean("core", "unit_test_mode")
 
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
-        """Yields the secret along with any adaptations to the secret that should be masked."""
+        """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
         if self._mask_adapter:

@@ -100,7 +100,7 @@ def load_file(file_path: str):
     if file_path.lower().endswith(".json"):
         with open(file_path) as input_file:
             return json.load(input_file)
-    elif file_path.lower().endswith(".yaml") or file_path.lower().endswith(".yml"):
+    elif file_path.lower().endswith((".yaml", ".yml")):
         with open(file_path) as input_file:
             return yaml.safe_load(input_file)
     raise _ValidatorError("Unknown file format. Supported extension: '.yaml', '.json'")

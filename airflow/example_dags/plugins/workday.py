@@ -20,12 +20,16 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 # [START howto_timetable]
 from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from airflow.timetables.base import TimeRestriction
 
 log = logging.getLogger(__name__)
 try:
@@ -34,22 +38,21 @@ try:
     holiday_calendar = USFederalHolidayCalendar()
 except ImportError:
     log.warning("Could not import pandas. Holidays will not be considered.")
-    holiday_calendar = None
+    holiday_calendar = None  # type: ignore[assignment]
 
 
 class AfterWorkdayTimetable(Timetable):
     def get_next_workday(self, d: DateTime, incr=1) -> DateTime:
         next_start = d
         while True:
-            if next_start.weekday() in (5, 6):  # If next start is in the weekend go to next day
-                next_start = next_start + incr * timedelta(days=1)
-                continue
-            if holiday_calendar is not None:
-                holidays = holiday_calendar.holidays(start=next_start, end=next_start).to_pydatetime()
-                if next_start in holidays:  # If next start is a holiday go to next day
-                    next_start = next_start + incr * timedelta(days=1)
-                    continue
-            break
+            if next_start.weekday() not in (5, 6):  # not on weekend
+                if holiday_calendar is None:
+                    holidays = set()
+                else:
+                    holidays = holiday_calendar.holidays(start=next_start, end=next_start).to_pydatetime()
+                if next_start not in holidays:
+                    break
+            next_start = next_start.add(days=incr)
         return next_start
 
     # [START howto_timetable_infer_manual_data_interval]

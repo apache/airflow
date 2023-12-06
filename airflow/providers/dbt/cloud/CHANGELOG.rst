@@ -28,6 +28,74 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``added cancelled handling in DbtCloudRunJobOperator deferred (#35597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Remove useless print from dbt operator (#34322)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for DBT Cloud. (#33959)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
+* ``dbt, openlineage: set run_id after defer, do not log error if operator has no run_id set (#34270)``
+
+Misc
+~~~~
+
+* ``Remove some useless try/except from providers code (#33967)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+
+3.2.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 3.2.2
 .....
 

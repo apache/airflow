@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -148,23 +147,22 @@ class TestEmail:
 
 class TestEmailSmtp:
     @mock.patch("airflow.utils.email.send_mime_email")
-    def test_send_smtp(self, mock_send_mime):
-        with tempfile.NamedTemporaryFile() as attachment:
-            attachment.write(b"attachment")
-            attachment.seek(0)
-            email.send_email_smtp("to", "subject", "content", files=[attachment.name])
-            assert mock_send_mime.called
-            _, call_args = mock_send_mime.call_args
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-            assert ["to"] == call_args["e_to"]
-            msg = call_args["mime_msg"]
-            assert "subject" == msg["Subject"]
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-            assert 2 == len(msg.get_payload())
-            filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
-            assert filename == msg.get_payload()[-1].get("Content-Disposition")
-            mimeapp = MIMEApplication("attachment")
-            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+    def test_send_smtp(self, mock_send_mime, tmp_path):
+        path = tmp_path / "testfile"
+        path.write_text("attachment")
+        email.send_email_smtp("to", "subject", "content", files=[os.fspath(path)])
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert ["to"] == call_args["e_to"]
+        msg = call_args["mime_msg"]
+        assert "subject" == msg["Subject"]
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert 2 == len(msg.get_payload())
+        filename = f'attachment; filename="{path.name}"'
+        assert filename == msg.get_payload()[-1].get("Content-Disposition")
+        mimeapp = MIMEApplication("attachment")
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch("airflow.utils.email.send_mime_email")
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
@@ -176,33 +174,30 @@ class TestEmailSmtp:
         assert mimetext.get_payload() == msg.get_payload()[0].get_payload()
 
     @mock.patch("airflow.utils.email.send_mime_email")
-    def test_send_bcc_smtp(self, mock_send_mime):
-        with tempfile.NamedTemporaryFile() as attachment:
-            attachment.write(b"attachment")
-            attachment.seek(0)
-            email.send_email_smtp(
-                "to",
-                "subject",
-                "content",
-                files=[attachment.name],
-                cc="cc",
-                bcc="bcc",
-                custom_headers={"Reply-To": "reply_to@example.com"},
-            )
-            assert mock_send_mime.called
-            _, call_args = mock_send_mime.call_args
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-            assert ["to", "cc", "bcc"] == call_args["e_to"]
-            msg = call_args["mime_msg"]
-            assert "subject" == msg["Subject"]
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-            assert 2 == len(msg.get_payload())
-            assert 'attachment; filename="' + os.path.basename(attachment.name) + '"' == msg.get_payload()[
-                -1
-            ].get("Content-Disposition")
-            mimeapp = MIMEApplication("attachment")
-            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
-            assert msg["Reply-To"] == "reply_to@example.com"
+    def test_send_bcc_smtp(self, mock_send_mime, tmp_path):
+        path = tmp_path / "testfile"
+        path.write_text("attachment")
+        email.send_email_smtp(
+            "to",
+            "subject",
+            "content",
+            files=[os.fspath(path)],
+            cc="cc",
+            bcc="bcc",
+            custom_headers={"Reply-To": "reply_to@example.com"},
+        )
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert ["to", "cc", "bcc"] == call_args["e_to"]
+        msg = call_args["mime_msg"]
+        assert "subject" == msg["Subject"]
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert 2 == len(msg.get_payload())
+        assert f'attachment; filename="{path.name}"' == msg.get_payload()[-1].get("Content-Disposition")
+        mimeapp = MIMEApplication("attachment")
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+        assert msg["Reply-To"] == "reply_to@example.com"
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")

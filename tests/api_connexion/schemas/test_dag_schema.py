@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
+import pytest
+
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     DAGCollectionSchema,
@@ -26,6 +27,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGSchema,
 )
 from airflow.models import DagModel, DagTag
+from airflow.models.dag import DAG
 
 
 def test_serialize_test_dag_schema(url_safe_serializer):
@@ -141,6 +143,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
     } == schema.dump(instance)
 
 
+@pytest.mark.db_test
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
         dag_id="test_dag",
@@ -180,6 +183,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "schedule_interval": {"__type": "TimeDelta", "days": 1, "seconds": 0, "microseconds": 0},
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
+        "template_searchpath": None,
         "timezone": "Timezone('UTC')",
         "max_active_runs": 16,
         "pickle_id": None,

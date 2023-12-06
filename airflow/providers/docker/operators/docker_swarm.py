@@ -143,7 +143,7 @@ class DockerSwarmOperator(DockerOperator):
         )
         if self.service is None:
             raise Exception("Service should be set here")
-        self.log.info("Service started: %s", str(self.service))
+        self.log.info("Service started: %s", self.service)
 
         # wait for the service to start the task
         while not self.cli.tasks(filters={"service": self.service["ID"]}):
@@ -161,7 +161,7 @@ class DockerSwarmOperator(DockerOperator):
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
                 self.cli.remove_service(self.service["ID"])
-            raise AirflowException("Service did not complete: " + repr(self.service))
+            raise AirflowException(f"Service did not complete: {self.service!r}")
         elif self.auto_remove == "success":
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")

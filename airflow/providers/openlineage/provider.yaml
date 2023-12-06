@@ -22,7 +22,13 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 suspended: false
+source-date-epoch: 1700827483
 versions:
+  - 1.2.1
+  - 1.2.0
+  - 1.1.1
+  - 1.1.0
+  - 1.0.2
   - 1.0.1
   - 1.0.0
 
@@ -59,6 +65,13 @@ config:
         example: ~
         default: "False"
         version_added: ~
+      disabled_for_operators:
+        description: |
+          Semicolon separated string of Airflow Operator names to disable
+        type: string
+        example: "airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator"
+        default: ""
+        version_added: 1.1.0
       namespace:
         description: |
           OpenLineage namespace
@@ -68,10 +81,10 @@ config:
         default: ~
       extractors:
         description: |
-          Comma-separated paths to custom OpenLineage extractors.
+          Semicolon separated paths to custom OpenLineage extractors.
         type: string
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
-        default: ''
+        default: ""
         version_added: ~
       config_path:
         description: |
@@ -80,7 +93,7 @@ config:
         version_added: ~
         type: string
         example: ~
-        default: ''
+        default: ""
       transport:
         description: |
           OpenLineage Client transport configuration. It should contain type
@@ -93,7 +106,7 @@ config:
             * Console
         type: string
         example: '{"type": "http", "url": "http://localhost:5000"}'
-        default: ''
+        default: ""
         version_added: ~
       disable_source_code:
         description: |

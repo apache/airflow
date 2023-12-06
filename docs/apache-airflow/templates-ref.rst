@@ -74,6 +74,10 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
+``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.dataset.DatasetEvent`
+                                            list[DatasetEvent]]   | (there may be more than one, if there are multiple Datasets with different frequencies).
+                                                                  | Read more here :doc:`Datasets <authoring-and-scheduling/datasets>`.
+                                                                  | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
 .. note::
@@ -81,13 +85,25 @@ Variable                                    Type                  Description
     The DAG run's logical date, and values derived from it, such as ``ds`` and
     ``ts``, **should not** be considered unique in a DAG. Use ``run_id`` instead.
 
+Accessing Airflow context variables from TaskFlow tasks
+-------------------------------------------------------
+
+While ``@task`` decorated tasks don't support rendering jinja templates passed as arguments,
+all of the variables listed above can be accessed directly from tasks. The following code block
+is an example of accessing a ``task_instance`` object from its task:
+
+.. include:: ../shared/template-examples/taskflow.rst
+
+Deprecated variables
+-------------------------------------------------------
+
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
-``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
+``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
 ``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
                                         you may be able to use ``data_interval_end`` instead
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
@@ -116,7 +132,7 @@ You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
-It is also possible to fetch a variable by string if needed with
+It is also possible to fetch a variable by string if needed (for example your variable key contains dots) with
 ``{{ var.value.get('my.var', 'fallback') }}`` or
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.
@@ -132,6 +148,7 @@ Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{
 
 Additionally, the ``extras`` field of a connection can be fetched as a Python Dictionary with the ``extra_dejson`` field, e.g.
 ``conn.my_aws_conn_id.extra_dejson.region_name`` would fetch ``region_name`` out of ``extras``.
+This way, defaults in ``extras`` can be provided as well (e.g. ``{{ conn.my_aws_conn_id.extra_dejson.get('region_name', 'Europe (Frankfurt)') }}``).
 
 Filters
 -------

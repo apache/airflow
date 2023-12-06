@@ -37,6 +37,7 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     func,
+    select,
 )
 from sqlalchemy.orm import backref, declared_attr, relationship
 
@@ -210,12 +211,13 @@ class User(Model, BaseUser):
             if current_app:
                 sm = current_app.appbuilder.sm
                 self._perms: set[tuple[str, str]] = set(
-                    sm.get_session.query(sm.action_model.name, sm.resource_model.name)
-                    .join(sm.permission_model.action)
-                    .join(sm.permission_model.resource)
-                    .join(sm.permission_model.role)
-                    .filter(sm.role_model.user.contains(self))
-                    .all()
+                    sm.get_session.execute(
+                        select(sm.action_model.name, sm.resource_model.name)
+                        .join(sm.permission_model.action)
+                        .join(sm.permission_model.resource)
+                        .join(sm.permission_model.role)
+                        .where(sm.role_model.user.contains(self))
+                    )
                 )
             else:
                 self._perms = {
@@ -225,6 +227,9 @@ class User(Model, BaseUser):
 
     def get_id(self):
         return self.id
+
+    def get_name(self) -> str:
+        return self.username or self.email or self.user_id
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
@@ -255,11 +260,15 @@ class RegisterUser(Model):
 def add_index_on_ab_user_username_postgres(table, conn, **kw):
     if conn.dialect.name != "postgresql":
         return
-    table.indexes.add(Index("idx_ab_user_username", func.lower(table.c.username), unique=True))
+    index_name = "idx_ab_user_username"
+    if not any(table_index.name == index_name for table_index in table.indexes):
+        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
 
 
 @event.listens_for(RegisterUser.__table__, "before_create")
 def add_index_on_ab_register_user_username_postgres(table, conn, **kw):
     if conn.dialect.name != "postgresql":
         return
-    table.indexes.add(Index("idx_ab_register_user_username", func.lower(table.c.username), unique=True))
+    index_name = "idx_ab_register_user_username"
+    if not any(table_index.name == index_name for table_index in table.indexes):
+        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))

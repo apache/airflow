@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
 
-from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class JdbcHook(DbApiHook):
@@ -42,7 +44,7 @@ class JdbcHook(DbApiHook):
            configuration, you should make sure that you trust the users who can edit connections in the UI
            to not use it maliciously.
         4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
-           "local_settings.py" file.
+           ``local_settings.py`` file.
 
     See :doc:`/connections/jdbc` for full documentation.
 

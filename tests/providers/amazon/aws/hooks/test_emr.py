@@ -39,6 +39,7 @@ class TestEmrHook:
             "notebook_running",
             "notebook_stopped",
             "step_wait_for_terminal",
+            "steps_wait_for_terminal",
         ]
 
         assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])
@@ -151,6 +152,7 @@ class TestEmrHook:
         assert "test failure details" in caplog.messages[-1]
         mock_conn.get_waiter.assert_called_with("step_complete")
 
+    @pytest.mark.db_test
     @mock_emr
     def test_create_job_flow_extra_args(self):
         """

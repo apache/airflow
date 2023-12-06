@@ -18,9 +18,10 @@
 """Operators that interact with Google Cloud Life Sciences service."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from airflow.providers.google.cloud.links.life_sciences import LifeSciencesLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -32,6 +33,11 @@ if TYPE_CHECKING:
 class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
     """
     Runs a Life Sciences Pipeline.
+
+    .. warning::
+        This operator is deprecated. Consider using Google Cloud Batch Operators instead.
+        The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
+        of Google Cloud Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -80,6 +86,14 @@ class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self._validate_inputs()
         self.impersonation_chain = impersonation_chain
+
+        warnings.warn(
+            """This operator is deprecated. Consider using Google Cloud Batch Operators instead.
+            The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
+            of Google Cloud Batch.""",
+            AirflowProviderDeprecationWarning,
+            stacklevel=3,
+        )
 
     def _validate_inputs(self) -> None:
         if not self.body:

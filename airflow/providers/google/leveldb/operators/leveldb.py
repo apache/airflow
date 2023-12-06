@@ -88,7 +88,7 @@ class LevelDBOperator(BaseOperator):
             keys=self.keys,
             values=self.values,
         )
-        self.log.info("Done. Returned value was: %s", str(value))
+        self.log.info("Done. Returned value was: %s", value)
         leveldb_hook.close_conn()
         str_value = value if value is None else value.decode()
         return str_value

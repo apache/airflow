@@ -44,6 +44,8 @@ class S3ToSqlOperator(BaseOperator):
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: reference to a specific S3 key
     :param sql_conn_id: reference to a specific SQL database. Must be of type DBApiHook
+    :param sql_hook_params: Extra config params to be passed to the underlying hook.
+        Should match the desired hook constructor params.
     :param aws_conn_id: reference to a specific S3 / AWS connection
     :param column_list: list of column names to use in the insert SQL.
     :param commit_every: The maximum number of rows to insert in one
@@ -83,6 +85,7 @@ class S3ToSqlOperator(BaseOperator):
         commit_every: int = 1000,
         schema: str | None = None,
         sql_conn_id: str = "sql_default",
+        sql_hook_params: dict | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
@@ -96,6 +99,7 @@ class S3ToSqlOperator(BaseOperator):
         self.column_list = column_list
         self.commit_every = commit_every
         self.parser = parser
+        self.sql_hook_params = sql_hook_params
 
     def execute(self, context: Context) -> None:
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
@@ -104,7 +108,6 @@ class S3ToSqlOperator(BaseOperator):
         s3_obj = s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
 
         with NamedTemporaryFile() as local_tempfile:
-
             s3_obj.download_fileobj(local_tempfile)
             local_tempfile.flush()
             local_tempfile.seek(0)
@@ -120,7 +123,8 @@ class S3ToSqlOperator(BaseOperator):
     @cached_property
     def db_hook(self):
         self.log.debug("Get connection for %s", self.sql_conn_id)
-        hook = BaseHook.get_hook(self.sql_conn_id)
+        conn = BaseHook.get_connection(self.sql_conn_id)
+        hook = conn.get_hook(hook_params=self.sql_hook_params)
         if not callable(getattr(hook, "insert_rows", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have an `insert_rows` method."

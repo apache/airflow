@@ -207,7 +207,7 @@ class GCSToGCSOperator(BaseOperator):
                 stacklevel=2,
             )
         self.source_object = source_object
-        if source_objects and any([WILDCARD in obj for obj in source_objects]):
+        if source_objects and any(WILDCARD in obj for obj in source_objects):
             warnings.warn(
                 "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead",
                 AirflowProviderDeprecationWarning,
@@ -237,7 +237,6 @@ class GCSToGCSOperator(BaseOperator):
         self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
-
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -277,7 +276,6 @@ class GCSToGCSOperator(BaseOperator):
         for prefix in self.source_objects:
             # Check if prefix contains wildcard
             if WILDCARD in prefix:
-
                 self._copy_source_with_wildcard(hook=hook, prefix=prefix)
             # Now search with prefix using provided delimiter if any
             else:
@@ -307,7 +305,7 @@ class GCSToGCSOperator(BaseOperator):
             ]
 
         objects = set(objects) - set(existing_objects)
-        if len(objects) > 0:
+        if objects:
             self.log.info("%s files are going to be synced: %s.", len(objects), objects)
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
@@ -429,7 +427,7 @@ class GCSToGCSOperator(BaseOperator):
         # Check whether the prefix is a root directory for all the rest of objects.
         _pref = prefix.rstrip("/")
         is_directory = prefix.endswith("/") or all(
-            [obj.replace(_pref, "", 1).startswith("/") for obj in source_objects]
+            obj.replace(_pref, "", 1).startswith("/") for obj in source_objects
         )
 
         if is_directory:

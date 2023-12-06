@@ -157,11 +157,11 @@ class TestSsmSecrets:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):
         backends = initialize_secrets_backends()
-        systems_manager = [
+        systems_manager = next(
             backend
             for backend in backends
             if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
-        ][0]
+        )
 
         # Mock SessionFactory, session and client
         mock_session_factory_instance = mock_session_factory.return_value

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -28,7 +30,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestSparkSubmitOperator:
-
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
         "files": "hive-site.xml",
@@ -64,6 +65,7 @@ class TestSparkSubmitOperator:
             "--with-spaces",
             "args should keep embedded spaces",
         ],
+        "use_krb5ccache": True,
     }
 
     def setup_method(self):
@@ -71,11 +73,13 @@ class TestSparkSubmitOperator:
         self.dag = DAG("test_dag_id", default_args=args)
 
     def test_execute(self):
-
         # Given / When
         conn_id = "spark_default"
         operator = SparkSubmitOperator(
-            task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **self._config
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            **self._config,
         )
 
         # Then expected results
@@ -115,6 +119,7 @@ class TestSparkSubmitOperator:
                 "args should keep embedded spaces",
             ],
             "spark_binary": "sparky",
+            "use_krb5ccache": True,
         }
 
         assert conn_id == operator._conn_id
@@ -142,7 +147,9 @@ class TestSparkSubmitOperator:
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["application_args"] == operator._application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
+        assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
+    @pytest.mark.db_test
     def test_render_template(self):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)

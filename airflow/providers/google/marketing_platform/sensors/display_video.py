@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -86,9 +86,12 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
-
         if "error" in operation:
-            raise AirflowException(f'The operation finished in error with {operation["error"]}')
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f'The operation finished in error with {operation["error"]}'
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         if operation and operation.get("done"):
             return True
         return False

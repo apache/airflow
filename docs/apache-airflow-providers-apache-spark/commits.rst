@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-apache-spark
 ------------------------------------------------------
@@ -28,14 +28,81 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.0
+.....
+
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`3b8db612ff <https://github.com/apache/airflow/commit/3b8db612ff39abbf9e965081c859e9e439ed832d>`_  2023-11-07   ``Add information about Qubole removal and make it possible to release it (#35492)``
+`0a4ed7d557 <https://github.com/apache/airflow/commit/0a4ed7d557809ad81ecc50d197c33c8d178c42ce>`_  2023-11-01   ``Add pyspark decorator (#35247)``
+`880a85bbb7 <https://github.com/apache/airflow/commit/880a85bbb704724492a7a727583e0c81341e78e1>`_  2023-11-01   ``Add use_krb5ccache option to SparkSubmitOperator (#35331)``
+=================================================================================================  ===========  ====================================================================================
+
+4.3.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`645d52f129 <https://github.com/apache/airflow/commit/645d52f1298c49b2111d058971e1a9f159f1e257>`_  2023-10-21   ``Add 'use_krb5ccache' option to 'SparkSubmitHook' (#34386)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  ==================================================================
+
+4.2.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+=================================================================================================  ===========  ===============================================================
+
+4.1.5
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+=================================================================================================  ===========  =============================================================
+
+4.1.4
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+=================================================================================================  ===========  =======================================================================
+
 4.1.3
 .....
 
-Latest change: 2023-07-31
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `4f83e831d2 <https://github.com/apache/airflow/commit/4f83e831d2e6985b6c82b2e0c45673b58ef81074>`_  2023-07-31   ``Validate conn_prefix in extra field for Spark JDBC hook (#32946)``
 =================================================================================================  ===========  ====================================================================
 
