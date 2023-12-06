@@ -67,7 +67,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         self,
         pipeline_options: dict,
         job_name_variable_key: str | None = None,
-    ) -> tuple[str, dict, Callable[[str], None], Callable[[bool], None]]:
+    ) -> tuple[str, dict, Callable[[str], None], Callable[[], bool | None]]:
         self.dataflow_hook = self.__set_dataflow_hook()
         self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
         dataflow_job_name = self.__get_dataflow_job_name()
@@ -124,14 +124,16 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             on_new_job_id_callback=set_current_dataflow_job_id
         )
 
-    def __check_dataflow_job_status_callback(self) -> Callable[[bool], None]:
+    def __check_dataflow_job_status_callback(self) -> Callable[[], bool | None]:
         def check_dataflow_job_status() -> bool | None:
-            if self.dataflow_job_id:
+            if self.dataflow_job_id and self.dataflow_hook:
                 return self.dataflow_hook.is_job_done(
                     location=self.dataflow_config.location,
                     project_id=self.dataflow_config.project_id,
                     job_id=self.dataflow_job_id,
                 )
+            else:
+                return None
 
         return check_dataflow_job_status
 
@@ -196,11 +198,11 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self,
         format_pipeline_options: bool = False,
         job_name_variable_key: str | None = None,
-    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None]:
+    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None, Callable[[], bool | None] | None]:
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Callable[[str], None] | None = None
-        check_job_status_callback: Callable[[bool], None] | None = None
+        check_job_status_callback: Callable[[], bool | None] | None = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: str | None = None
         if is_dataflow:

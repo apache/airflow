@@ -90,7 +90,7 @@ def process_fd(
     fd,
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
-    check_job_status_callback: Callable[[bool], None] | None = None,
+    check_job_status_callback: Callable[[], bool | None] | None = None,
 ):
     """
     Print output to logs.
@@ -121,7 +121,7 @@ def run_beam_command(
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
-    check_job_status_callback: Callable[[bool], None] | None = None,
+    check_job_status_callback: Callable[[], bool | None] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -193,7 +193,7 @@ class BeamHook(BaseHook):
         command_prefix: list[str],
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
-        check_job_status_callback: Callable[[bool], None] | None = None,
+        check_job_status_callback: Callable[[], bool | None] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -215,7 +215,7 @@ class BeamHook(BaseHook):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
-        check_job_status_callback: Callable[[bool], None] | None = None,
+        check_job_status_callback: Callable[[], bool | None] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
