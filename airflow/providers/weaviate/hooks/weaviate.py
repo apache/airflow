@@ -20,8 +20,7 @@ from __future__ import annotations
 import json
 import warnings
 from functools import cached_property
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, cast
 
 import requests
 from tenacity import Retrying, retry_if_exception, stop_after_attempt
@@ -34,7 +33,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, List, Sequence, cast
+    from typing import Any, Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
