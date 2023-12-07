@@ -200,9 +200,11 @@ class CassandraHook(BaseHook, LoggingMixin):
         if "." in table:
             keyspace, table = table.split(".", 1)
         ks_str = " AND ".join(f"{key}=%({key})s" for key in keys)
-        query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
+        query = "SELECT * FROM %(query_keyspace).%(query_table) WHERE " + ks_str
         try:
-            result = self.get_conn().execute(query, keys)
+            result = self.get_conn().execute(
+                query, {**keys, "query_keyspace": keyspace, "query_table": table}
+            )
             return result.one() is not None
         except Exception:
             return False
