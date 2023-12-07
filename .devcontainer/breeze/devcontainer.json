@@ -4,7 +4,7 @@
     "workspaceFolder": "/workspaces/airflow",
     "customizations": {
         "vscode": {
-            "settings": { 
+            "settings": {
                 "terminal.integrated.defaultProfile.linux": "bash"
             },
             "extensions": [
