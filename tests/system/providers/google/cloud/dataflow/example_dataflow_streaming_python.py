@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
@@ -34,20 +33,18 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateTopicOperator,
     PubSubDeleteTopicOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "dataflow_native_python_streaming"
 
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-PYTHON_FILE_NAME = "streaming_wordcount.py"
 GCS_TMP = f"gs://{BUCKET_NAME}/temp/"
 GCS_STAGING = f"gs://{BUCKET_NAME}/staging/"
-GCS_PYTHON_SCRIPT = f"gs://{BUCKET_NAME}/{PYTHON_FILE_NAME}"
-PYTHON_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / PYTHON_FILE_NAME)
+GCS_PYTHON_SCRIPT = f"gs://{RESOURCE_DATA_BUCKET}/dataflow/python/streaming_wordcount.py"
 LOCATION = "europe-west3"
 TOPIC_ID = f"topic-{DAG_ID}"
 
@@ -67,13 +64,6 @@ with DAG(
     tags=["example", "dataflow"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
-
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=PYTHON_FILE_LOCAL_PATH,
-        dst=PYTHON_FILE_NAME,
-        bucket=BUCKET_NAME,
-    )
 
     create_pub_sub_topic = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
@@ -114,7 +104,6 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> upload_file
         >> create_pub_sub_topic
         # TEST BODY
         >> start_streaming_python_job
