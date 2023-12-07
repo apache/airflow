@@ -136,7 +136,6 @@ class WeaviateHook(BaseHook):
             self.log.error("Error testing Weaviate connection: %s", e)
             return False, str(e)
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def create_class(self, class_json: dict[str, Any]) -> None:
         """Create a new class."""
         client = self.conn
@@ -215,7 +214,6 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         return client.schema.delete_all()
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.ConnectionError))
     def update_config(self, class_name: str, config: dict):
         """Update a schema configuration for a specific class."""
         client = self.get_client()
