@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import warnings
 from functools import cached_property
@@ -151,6 +152,20 @@ class WeaviateHook(BaseHook):
     def check_http_error_should_retry(exc: BaseException):
         return isinstance(exc, requests.HTTPError) and not exc.response.ok
 
+    @staticmethod
+    def _convert_dataframe_to_list(data: pd.DataFrame) -> list[dict[str, Any]]:
+        """Helper function to convert dataframe to list of dicts.
+
+        In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
+        Pandas will fail, which is invalid. This function handles this scenario.
+        """
+        with contextlib.suppress(ImportError):
+            import pandas as pd
+
+            if isinstance(data, pd.DataFrame):
+                data = cast(List[Dict], json.loads(data.to_json(orient="records")))
+        return data
+
     def batch_data(
         self,
         class_name: str,
@@ -169,14 +184,11 @@ class WeaviateHook(BaseHook):
         :param vector_col: name of the column containing the vector.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         """
-        import pandas as pd
-
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
-        if isinstance(data, pd.DataFrame):
-            data = cast(List[Dict], json.loads(data.to_json(orient="records")))
+        data = self._convert_dataframe_to_list(data)
         with client.batch as batch:
             # Batch import all data
             for index, data_obj in enumerate(data):
