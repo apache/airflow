@@ -22,8 +22,9 @@ description: |
     `Exasol <https://www.exasol.com/>`__
 
 suspended: false
-source-date-epoch: 1700827461
+source-date-epoch: 1701983378
 versions:
+  - 4.4.0
   - 4.3.0
   - 4.2.5
   - 4.2.4

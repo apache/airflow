@@ -22,8 +22,9 @@ description: |
     `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 suspended: false
-source-date-epoch: 1700827462
+source-date-epoch: 1701983379
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1
