@@ -37,7 +37,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - weaviate-client>=3.24.2
 
 hooks:
