@@ -45,11 +45,11 @@ def _covers_every_hour(cron: croniter) -> bool:
     the last run was 2:30am (UTC+2), the next needs to be 2:30am (UTC+1, folded)
     instead of 3:30am.
 
-    While this technically happens for all runs (in such a timezone), we only
-    really care about runs that happen at least once an hour, and can
-    provide a somewhat reasonable rationale to skip the fold hour for things
-    such as ``*/2`` (every two hour). So we try to *minially* peak into croniter
-    internals to work around the issue.
+    While this technically happens for all cron schedules (in such a timezone),
+    we only care about schedules that create at least one run every hour, and
+    can provide a somewhat reasonable rationale to skip the fold hour for things
+    such as ``*/2`` (every two hours). Therefore, we try to *minially* peak into
+    croniter internals to work around the issue.
 
     The check is simple since croniter internally normalizes things to ``*``.
     More edge cases can be added later as needed.
