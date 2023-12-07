@@ -1,0 +1,26 @@
+{
+    "name": "Apache Airflow - breeze",
+    "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+    "workspaceFolder": "/workspaces/airflow",
+    "customizations": {
+        "vscode": {
+            "settings": { 
+                "terminal.integrated.defaultProfile.linux": "bash"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "mtxr.sqltools",
+                "mtxr.sqltools-driver-pg",
+                "rogalmic.bash-debug",
+                "ms-azuretools.vscode-docker",
+                "dbaeumer.vscode-eslint",
+                "ecmel.vscode-html-css",
+                "timonwong.shellcheck",
+                "redhat.vscode-yaml",
+                "rogalmic.bash-debug"
+            ]
+        }
+    },
+    "postCreateCommand": "bash  ./scripts/ci/install_breeze.sh"
+}
