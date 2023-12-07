@@ -66,6 +66,13 @@ runs:
       with:
         name: source-constraints
         path: ./docker-context-files
+      if: ${{ inputs.build-provider-packages == 'true' }}
+    - name: "Download constraints from the Generate & Verify build"
+      uses: actions/download-artifact@v3
+      with:
+        name: constraints
+        path: ./docker-context-files
+      if: ${{ inputs.build-provider-packages != 'true' }}
     - name: "Build & Push PROD images with source providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: >
