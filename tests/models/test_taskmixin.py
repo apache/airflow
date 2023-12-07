@@ -267,9 +267,9 @@ class TestDependencyMixin:
 
             op_a >> [op_b >> op_c, op_d]
 
-        assert [] == op_b.upstream_list
+        assert [op_a] == op_b.upstream_list
         assert [op_a] == op_d.upstream_list
-        assert {op_a, op_b} == set(op_c.upstream_list)
+        assert [op_b] == op_c.upstream_list
 
     def test_set_upstream_inner_list(self, dag_maker):
         with dag_maker("test_set_upstream_inner_list"):
@@ -277,13 +277,11 @@ class TestDependencyMixin:
             op_b = EmptyOperator(task_id="b")
             op_c = EmptyOperator(task_id="c")
             op_d = EmptyOperator(task_id="d")
-        with pytest.raises(AttributeError) as e_info:
+
             [op_d << [op_c, op_b]] << op_a
 
-        assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
-
-        assert [] == op_b.upstream_list
-        assert [] == op_c.upstream_list
+        assert [op_a] == op_b.upstream_list
+        assert [op_a] == op_c.upstream_list
         assert {op_b, op_c} == set(op_d.upstream_list)
 
     def test_set_downstream_inner_list(self, dag_maker):
@@ -295,30 +293,27 @@ class TestDependencyMixin:
 
             op_a >> [[op_b, op_c] >> op_d]
 
-        assert [] == op_b.upstream_list
-        assert [] == op_c.upstream_list
-        assert {op_b, op_c, op_a} == set(op_d.upstream_list)
+        assert [op_a] == op_b.upstream_list
+        assert [op_a] == op_c.upstream_list
+        assert {op_b, op_c} == set(op_d.upstream_list)
 
     def test_set_upstream_list_subarray(self, dag_maker):
-        with dag_maker("test_set_upstream_list"):
+        with dag_maker("test_set_upstream_list_subarray"):
             op_a = EmptyOperator(task_id="a")
             op_b_1 = EmptyOperator(task_id="b_1")
             op_b_2 = EmptyOperator(task_id="b_2")
             op_c = EmptyOperator(task_id="c")
             op_d = EmptyOperator(task_id="d")
 
-        with pytest.raises(AttributeError) as e_info:
             [op_d, op_c << [op_b_1, op_b_2]] << op_a
 
-        assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
-
-        assert [] == op_b_1.upstream_list
-        assert [] == op_b_2.upstream_list
-        assert [] == op_d.upstream_list
+        assert [op_a] == op_b_1.upstream_list
+        assert [op_a] == op_b_2.upstream_list
+        assert [op_a] == op_d.upstream_list
         assert {op_b_1, op_b_2} == set(op_c.upstream_list)
 
     def test_set_downstream_list_subarray(self, dag_maker):
-        with dag_maker("test_set_downstream_list"):
+        with dag_maker("test_set_downstream_list_subarray"):
             op_a = EmptyOperator(task_id="a")
             op_b_1 = EmptyOperator(task_id="b_1")
             op_b_2 = EmptyOperator(task_id="b2")
@@ -327,7 +322,36 @@ class TestDependencyMixin:
 
             op_a >> [[op_b_1, op_b_2] >> op_c, op_d]
 
-        assert [] == op_b_1.upstream_list
-        assert [] == op_b_2.upstream_list
+        assert [op_a] == op_b_1.upstream_list
+        assert [op_a] == op_b_2.upstream_list
         assert [op_a] == op_d.upstream_list
-        assert {op_a, op_b_1, op_b_2} == set(op_c.upstream_list)
+        assert {op_b_1, op_b_2} == set(op_c.upstream_list)
+
+    def test_complex(self, dag_maker):
+        with dag_maker("test_complex"):
+            op_a = EmptyOperator(task_id="a")
+            op_b_1 = EmptyOperator(task_id="b_1")
+            op_b_2 = EmptyOperator(task_id="b_2")
+            op_b_3 = EmptyOperator(task_id="b_3")
+            op_c = EmptyOperator(task_id="c")
+            op_c_2 = EmptyOperator(task_id="c_2")
+            op_c_3 = EmptyOperator(task_id="c_3")
+            op_d = EmptyOperator(task_id="d")
+
+            tmp = [op_b_1, op_b_3 << op_b_2]
+
+            op_a >> [[op_c_2, op_c_3] << op_c << tmp, op_d]
+
+            assert dag_maker.dag.get_tree_view() == (
+                "<Task(EmptyOperator): a>\n"
+                "    <Task(EmptyOperator): b_1>\n"
+                "        <Task(EmptyOperator): c>\n"
+                "            <Task(EmptyOperator): c_2>\n"
+                "            <Task(EmptyOperator): c_3>\n"
+                "    <Task(EmptyOperator): b_2>\n"
+                "        <Task(EmptyOperator): b_3>\n"
+                "        <Task(EmptyOperator): c>\n"
+                "            <Task(EmptyOperator): c_2>\n"
+                "            <Task(EmptyOperator): c_3>\n"
+                "    <Task(EmptyOperator): d>\n"
+            )
