@@ -592,7 +592,7 @@ workers:
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
-    # Rewrite connection string to pgBouncer. If we used external pgBouncer.
+    # Rewrite connection string to PGBouncer. If we used external PGBouncer.
     # For example, it is necessary to disable prepare statements.
     useExtPgbouncer: false
 
