@@ -20,6 +20,7 @@ import pytest
 
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
@@ -114,6 +115,34 @@ class TestXComArgBuild:
         assert op_a in bash_op1.upstream_list
         assert op_b in op_a.upstream_list
         assert bash_op2 in op_b.upstream_list
+
+    def test_set_upstream_list(self, dag_maker):
+        with dag_maker("test_set_upstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            [op_d, op_c << op_b] << op_a
+
+        dag_maker.create_dagrun()
+        assert [op_a] == op_b.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert op_b in op_c.upstream_list
+
+    def test_set_downstream_list(self, dag_maker):
+        with dag_maker("test_set_downstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_a >> [op_b >> op_c, op_d]
+
+        dag_maker.create_dagrun()
+        assert [op_a] == op_b.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert op_b in op_c.upstream_list
 
     def test_xcom_arg_property_of_base_operator(self, dag_maker):
         with dag_maker("test_xcom_arg_property_of_base_operator"):
