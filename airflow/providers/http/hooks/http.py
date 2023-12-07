@@ -113,6 +113,7 @@ class HttpHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
         from flask_babel import lazy_gettext
         from wtforms.fields import SelectField, TextAreaField
 
@@ -120,19 +121,17 @@ class HttpHook(BaseHook):
         return {
             "auth_type": SelectField(
                 lazy_gettext("Auth type"),
-                choices=[(clazz, clazz) for clazz in auth_types_choices]
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
             ),
-            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs")),
-            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"))
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
+            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget()),
         }
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
-        return {
-            "hidden_fields": ["extra"],
-            "relabeling": {}
-        }
+        return {"hidden_fields": ["extra"], "relabeling": {}}
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
