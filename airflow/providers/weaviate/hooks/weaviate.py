@@ -163,8 +163,8 @@ class WeaviateHook(BaseHook):
             import pandas
 
             if isinstance(data, pandas.DataFrame):
-                data = cast(List[Dict[str, Any]], json.loads(data.to_json(orient="records")))
-        return data
+                data = json.loads(data.to_json(orient="records"))
+        return cast(List[Dict[str, Any]], data)
 
     def batch_data(
         self,
