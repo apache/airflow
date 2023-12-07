@@ -16,12 +16,12 @@
 # under the License.
 """This module contains Amazon EKS operators."""
 from __future__ import annotations
-from functools import cached_property
 
 import logging
 import warnings
 from ast import literal_eval
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
@@ -257,6 +257,7 @@ class EksCreateClusterOperator(BaseOperator):
         super().__init__(
             **kwargs,
         )
+
     @cached_property
     def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
