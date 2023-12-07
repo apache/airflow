@@ -949,6 +949,7 @@
   "weaviate": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "pandas>=0.17.1",
       "weaviate-client>=3.24.2"
     ],
     "cross-providers-deps": [],
