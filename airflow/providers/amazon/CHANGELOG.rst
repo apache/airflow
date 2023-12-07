@@ -51,6 +51,7 @@ Bug Fixes
 * ``Fix EC2Hook get_instance for client_type api (#35960)``
 * ``Avoid creating the hook in the EmrServerlessCancelJobsTrigger init (#35992)``
 * ``Stop getting message from event after migrating 'EmrContainerTrigger' to 'AwsBaseWaiterTrigger' (#35892)``
+* ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
 
 Misc
 ~~~~

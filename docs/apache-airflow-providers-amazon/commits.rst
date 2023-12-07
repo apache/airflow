@@ -43,6 +43,7 @@ Latest change: 2023-12-07
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`7329e9eed9 <https://github.com/apache/airflow/commit/7329e9eed91cc34a03c275dfc9a0fd4c9a0bba6f>`_  2023-12-07   ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `ef5eebdb26 <https://github.com/apache/airflow/commit/ef5eebdb26ca9ddb49c529625660b72b6c9b55b4>`_  2023-12-06   ``Fix AWS system tests (#36091)``
 `acf91af6bf <https://github.com/apache/airflow/commit/acf91af6bff73ae82e9437b2dd8d966657d40377>`_  2023-12-05   ``Update 'boto3' and 'botocore' versions notes (#36073)``

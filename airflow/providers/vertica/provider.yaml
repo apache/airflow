@@ -22,7 +22,7 @@ description: |
     `Vertica <https://www.vertica.com/>`__
 
 suspended: false
-source-date-epoch: 1701980002
+source-date-epoch: 1701983428
 versions:
   - 3.7.0
   - 3.6.0

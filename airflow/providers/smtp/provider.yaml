@@ -23,7 +23,7 @@ description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 suspended: false
-source-date-epoch: 1701979993
+source-date-epoch: 1701983419
 versions:
   - 1.5.0
   - 1.4.1

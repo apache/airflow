@@ -22,7 +22,7 @@ description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 suspended: false
-source-date-epoch: 1701979918
+source-date-epoch: 1701983345
 versions:
   - 2.7.0
   - 2.6.0

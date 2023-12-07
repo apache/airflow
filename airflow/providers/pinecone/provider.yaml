@@ -24,7 +24,7 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 suspended: false
-source-date-epoch: 1701979981
+source-date-epoch: 1701983407
 
 versions:
   - 1.1.0

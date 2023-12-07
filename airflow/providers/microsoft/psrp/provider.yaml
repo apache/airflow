@@ -24,7 +24,7 @@ description: |
     <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 suspended: false
-source-date-epoch: 1701979968
+source-date-epoch: 1701983394
 versions:
   - 2.5.0
   - 2.4.0

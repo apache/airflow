@@ -22,7 +22,7 @@ description: |
     `Segment <https://segment.com/>`__
 
 suspended: false
-source-date-epoch: 1701979988
+source-date-epoch: 1701983414
 versions:
   - 3.4.0
   - 3.3.0

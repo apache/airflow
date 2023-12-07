@@ -22,7 +22,7 @@ description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
 suspended: false
-source-date-epoch: 1701979928
+source-date-epoch: 1701983355
 versions:
   - 1.3.0
   - 1.2.1

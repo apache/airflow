@@ -22,7 +22,7 @@ description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 suspended: false
-source-date-epoch: 1701979959
+source-date-epoch: 1701983385
 versions:
   - 3.6.0
   - 3.5.0

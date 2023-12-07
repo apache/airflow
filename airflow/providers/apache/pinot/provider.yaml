@@ -22,7 +22,7 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1701979932
+source-date-epoch: 1701983359
 versions:
   - 4.3.0
   - 4.2.0
