@@ -64,20 +64,23 @@ class WeaviateIngestOperator(BaseOperator):
     ) -> None:
         self.batch_params = kwargs.pop("batch_params", {})
         self.hook_params = kwargs.pop("hook_params", {})
+
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
         self.vector_col = vector_col
-        self.input_data = input_data
-        if input_json:
+
+        if input_data is not None:
+            self.input_data = input_data
+        elif input_json is not None:
             warnings.warn(
                 "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
                 " you should use 'input_data' instead",
                 AirflowProviderDeprecationWarning,
             )
             self.input_data = input_json
-        if self.input_data is None:
-            raise ValueError("Either input_json or input_data is required")
+        else:
+            raise TypeError("Either input_json or input_data is required")
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -88,7 +91,7 @@ class WeaviateIngestOperator(BaseOperator):
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             self.class_name,
-            self.input_data,  # type: ignore
+            self.input_data,
             **self.batch_params,
             vector_col=self.vector_col,
         )
