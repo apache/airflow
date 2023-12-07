@@ -99,6 +99,7 @@ apache-airflow-providers-apache-drill==2.4.4
 apache-airflow-providers-apache-druid==3.5.0
 apache-airflow-providers-apache-flink==1.1.3
 apache-airflow-providers-apache-hdfs==4.1.1
+apache-airflow-providers-apache-hive==6.1.6
 apache-airflow-providers-apache-impala==1.1.3
 apache-airflow-providers-apache-kafka==1.1.2
 apache-airflow-providers-apache-kylin==3.2.1
