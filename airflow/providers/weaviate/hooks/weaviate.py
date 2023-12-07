@@ -21,7 +21,7 @@ import contextlib
 import json
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Dict, List, cast
+from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
 from tenacity import Retrying, retry_if_exception, stop_after_attempt
@@ -34,7 +34,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Any, Sequence
+    from typing import Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -153,17 +153,17 @@ class WeaviateHook(BaseHook):
         return isinstance(exc, requests.HTTPError) and not exc.response.ok
 
     @staticmethod
-    def _convert_dataframe_to_list(data: pd.DataFrame) -> list[dict[str, Any]]:
+    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame) -> list[dict[str, Any]]:
         """Helper function to convert dataframe to list of dicts.
 
         In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
         Pandas will fail, which is invalid. This function handles this scenario.
         """
         with contextlib.suppress(ImportError):
-            import pandas as pd
+            import pandas
 
-            if isinstance(data, pd.DataFrame):
-                data = cast(List[Dict], json.loads(data.to_json(orient="records")))
+            if isinstance(data, pandas.DataFrame):
+                data = cast(List[Dict[str, Any]], json.loads(data.to_json(orient="records")))
         return data
 
     def batch_data(
