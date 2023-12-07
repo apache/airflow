@@ -24,9 +24,10 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 suspended: false
-source-date-epoch: 1700827507
+source-date-epoch: 1701980002
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:

@@ -24,9 +24,10 @@ description: |
     `pgvector <https://github.com/pgvector/pgvector>`__
 
 suspended: false
-source-date-epoch: 1700827487
+source-date-epoch: 1701979980
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:

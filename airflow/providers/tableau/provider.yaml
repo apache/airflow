@@ -22,8 +22,9 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 suspended: false
-source-date-epoch: 1700827503
+source-date-epoch: 1701979998
 versions:
+  - 4.4.0
   - 4.3.0
   - 4.2.2
   - 4.2.1

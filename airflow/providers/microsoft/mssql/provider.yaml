@@ -22,8 +22,9 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 suspended: false
-source-date-epoch: 1700827475
+source-date-epoch: 1701979967
 versions:
+  - 3.6.0
   - 3.5.0
   - 3.4.2
   - 3.4.1

@@ -22,8 +22,9 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 suspended: false
-source-date-epoch: 1700827471
+source-date-epoch: 1701979963
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.2
   - 4.0.1
