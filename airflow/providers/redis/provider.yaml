@@ -42,7 +42,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   # We limit redis to <5.0.0 because of incompatibility with celery. Both Celery and Kombu limited it
   # and deferred fixing it for later, we should bump the limit once they do. Also !=4.5.5 matches celery
   # limits and prevents installing 4.5.5 which is broken.
