@@ -201,10 +201,7 @@ class WeaviateHook(BaseHook):
                             "Attempt %s of importing data: %s", attempt.retry_state.attempt_number, index + 1
                         )
                         vector = data_obj.pop(vector_col, None)
-                        if vector is not None:
-                            batch.add_data_object(data_obj, class_name, vector=vector)
-                        else:
-                            batch.add_data_object(data_obj, class_name)
+                        batch.add_data_object(data_obj, class_name, vector=vector)
 
     def delete_class(self, class_name: str) -> None:
         """Delete an existing class."""
