@@ -45,7 +45,6 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_SELECTED,
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
@@ -68,11 +67,13 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
     argument_doc_packages,
     argument_provider_packages,
+    option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_airflow_site_directory,
+    option_airflow_skip_constraints,
     option_answer,
     option_chicken_egg_providers,
     option_commit_sha,
@@ -85,13 +86,17 @@ from airflow_breeze.utils.common_options import (
     option_include_success_outputs,
     option_install_selected_providers,
     option_installation_package_format,
+    option_mount_sources,
     option_package_format,
     option_parallelism,
+    option_providers_constraints_location,
+    option_providers_constraints_mode_ci,
+    option_providers_constraints_reference,
+    option_providers_skip_constraints,
     option_python,
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
-    option_skip_constraints,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -862,8 +867,11 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
     name="install-provider-packages",
     help="Installs provider packages that can be found in dist.",
 )
+@option_airflow_constraints_mode_ci
+@option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_debug_release_management
 @option_debug_resources
 @option_dry_run
@@ -871,43 +879,62 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_include_success_outputs
 @option_install_selected_providers
 @option_installation_package_format
+@option_mount_sources
 @option_parallelism
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_python
 @option_run_in_parallel
 @option_skip_cleanup
-@option_skip_constraints
 @option_use_airflow_version
+@option_use_packages_from_dist
 @option_verbose
 def install_provider_packages(
+    airflow_constraints_location: str,
+    airflow_constraints_mode: str,
     airflow_constraints_reference: str,
+    airflow_skip_constraints: bool,
     airflow_extras: str,
     debug: bool,
     debug_resources: bool,
     github_repository: str,
     include_success_outputs: bool,
     install_selected_providers: str,
+    mount_sources: str,
     package_format: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
     parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    skip_constraints: bool,
     use_airflow_version: str | None,
+    use_packages_from_dist: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
-        mount_sources=MOUNT_SELECTED,
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
+        airflow_constraints_reference=airflow_constraints_reference,
+        airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         github_repository=github_repository,
+        install_selected_providers=install_selected_providers,
+        mount_sources=mount_sources,
+        package_format=package_format,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         use_airflow_version=use_airflow_version,
-        airflow_extras=airflow_extras,
-        airflow_constraints_reference=airflow_constraints_reference,
-        install_selected_providers=install_selected_providers,
-        use_packages_from_dist=True,
-        skip_constraints=skip_constraints,
-        package_format=package_format,
+        use_packages_from_dist=use_packages_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     # We just want to install the providers by entrypoint, we do not need to run any command in the container
@@ -994,27 +1021,41 @@ def install_provider_packages(
     name="verify-provider-packages",
     help="Verifies if all provider code is following expectations for providers.",
 )
+@option_airflow_constraints_mode_ci
+@option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_debug_release_management
 @option_dry_run
 @option_github_repository
 @option_install_selected_providers
 @option_installation_package_format
+@option_mount_sources
 @option_python
-@option_skip_constraints
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_use_airflow_version
 @option_use_packages_from_dist
 @option_verbose
 def verify_provider_packages(
+    airflow_constraints_location: str,
+    airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
     debug: bool,
     github_repository: str,
     install_selected_providers: str,
+    mount_sources: str,
     package_format: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
-    skip_constraints: bool,
+    airflow_skip_constraints: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
 ):
@@ -1025,17 +1066,23 @@ def verify_provider_packages(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
+        airflow_constraints_reference=airflow_constraints_reference,
+        airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend="sqlite",
         executor="SequentialExecutor",
-        mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
+        mount_sources=mount_sources,
+        package_format=package_format,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         use_airflow_version=use_airflow_version,
-        airflow_extras=airflow_extras,
-        airflow_constraints_reference=airflow_constraints_reference,
         use_packages_from_dist=use_packages_from_dist,
-        skip_constraints=skip_constraints,
-        package_format=package_format,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = [
