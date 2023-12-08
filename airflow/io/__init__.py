@@ -39,8 +39,7 @@ log = logging.getLogger(__name__)
 
 
 def _file(_: str | None, storage_options: Properties) -> LocalFileSystem:
-    options = storage_options or {}
-    return LocalFileSystem(**options)
+    return LocalFileSystem(**storage_options)
 
 
 # builtin supported filesystems
