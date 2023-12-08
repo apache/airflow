@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
+from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -36,7 +37,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, SQLTableCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests.system.utils.watcher import watcher
@@ -132,15 +133,18 @@ with DAG(
         replace=True,
     )
 
-    create_table = SQLExecuteQueryOperator(
+    create_table = RedshiftDataOperator(
         task_id="create_sample_table",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=f"""
             CREATE TABLE IF NOT EXISTS {SQL_TABLE_NAME} (
             cocktail_id INT NOT NULL,
             cocktail_name VARCHAR NOT NULL,
             base_spirit VARCHAR NOT NULL);
-          """,
+        """,
+        wait_for_completion=True,
     )
 
     # [START howto_transfer_s3_to_sql]
@@ -199,11 +203,13 @@ with DAG(
         },
     )
 
-    drop_table = SQLExecuteQueryOperator(
-        conn_id=conn_id_name,
-        trigger_rule=TriggerRule.ALL_DONE,
+    drop_table = RedshiftDataOperator(
         task_id="drop_table",
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=f"DROP TABLE {SQL_TABLE_NAME}",
+        wait_for_completion=True,
     )
 
     delete_s3_objects = S3DeleteObjectsOperator(
