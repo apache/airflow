@@ -30,12 +30,11 @@ from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, Au
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Sequence, Literal
+    from typing import Literal, Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -140,7 +139,11 @@ class WeaviateHook(BaseHook):
         client = self.conn
         client.schema.create_class(class_json)
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(requests.exceptions.RequestException),
+    )
     def create_schema(self, schema_json: dict[str, Any] | str) -> None:
         """
         Create a new Schema.
@@ -166,7 +169,11 @@ class WeaviateHook(BaseHook):
                 data = json.loads(data.to_json(orient="records"))
         return cast(List[Dict[str, Any]], data)
 
-    @retry(reraise=True, stop=stop_after_attempt(3), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(requests.exceptions.RequestException),
+    )
     def get_schema(self, class_name: str | None = None):
         """Get the schema from Weaviate.
 
