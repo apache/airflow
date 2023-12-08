@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+import contextlib
+import json
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, cast
 
+import requests
+from tenacity import Retrying, retry_if_exception, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -30,7 +34,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -144,22 +148,60 @@ class WeaviateHook(BaseHook):
         client = self.conn
         client.schema.create(schema_json)
 
+    @staticmethod
+    def check_http_error_should_retry(exc: BaseException):
+        return isinstance(exc, requests.HTTPError) and not exc.response.ok
+
+    @staticmethod
+    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame) -> list[dict[str, Any]]:
+        """Helper function to convert dataframe to list of dicts.
+
+        In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
+        Pandas will fail, which is invalid. This function handles this scenario.
+        """
+        with contextlib.suppress(ImportError):
+            import pandas
+
+            if isinstance(data, pandas.DataFrame):
+                data = json.loads(data.to_json(orient="records"))
+        return cast(List[Dict[str, Any]], data)
+
     def batch_data(
-        self, class_name: str, data: list[dict[str, Any]], batch_config_params: dict[str, Any] | None = None
+        self,
+        class_name: str,
+        data: list[dict[str, Any]] | pd.DataFrame,
+        batch_config_params: dict[str, Any] | None = None,
+        vector_col: str = "Vector",
+        retry_attempts_per_object: int = 5,
     ) -> None:
+        """
+        Add multiple objects or object references at once into weaviate.
+
+        :param class_name: The name of the class that objects belongs to.
+        :param data: list or dataframe of objects we want to add.
+        :param batch_config_params: dict of batch configuration option.
+            .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
+        :param vector_col: name of the column containing the vector.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        """
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
+        data = self._convert_dataframe_to_list(data)
         with client.batch as batch:
             # Batch import all data
             for index, data_obj in enumerate(data):
-                self.log.debug("importing data: %s", index + 1)
-                vector = data_obj.pop("Vector", None)
-                if vector is not None:
-                    batch.add_data_object(data_obj, class_name, vector=vector)
-                else:
-                    batch.add_data_object(data_obj, class_name)
+                for attempt in Retrying(
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=retry_if_exception(self.check_http_error_should_retry),
+                ):
+                    with attempt:
+                        self.log.debug(
+                            "Attempt %s of importing data: %s", attempt.retry_state.attempt_number, index + 1
+                        )
+                        vector = data_obj.pop(vector_col, None)
+                        batch.add_data_object(data_obj, class_name, vector=vector)
 
     def delete_class(self, class_name: str) -> None:
         """Delete an existing class."""
