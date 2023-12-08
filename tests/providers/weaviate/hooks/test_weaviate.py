@@ -497,7 +497,7 @@ def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, we
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
-def test_delete_schema(get_client, weaviate_hook):
+def test_delete_classes(get_client, weaviate_hook):
     class_names = ["class_a", "class_b"]
     get_client.return_value.schema.delete_class.side_effect = [
         weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
@@ -511,6 +511,22 @@ def test_delete_schema(get_client, weaviate_hook):
     )
     with pytest.raises(weaviate.UnexpectedStatusCodeException):
         weaviate_hook.delete_classes("class_a", if_error="stop")
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+def test_http_errors_of_delete_classes(get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    resp = requests.Response()
+    resp.status_code = 429
+    get_client.return_value.schema.delete_class.side_effect = [
+        requests.exceptions.HTTPError(response=resp),
+        None,
+        requests.exceptions.ConnectionError,
+        None,
+    ]
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == []
+    assert get_client.return_value.schema.delete_class.call_count == 4
 
 
 @pytest.mark.parametrize(

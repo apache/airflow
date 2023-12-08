@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
-from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
+from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
 from weaviate.exceptions import ObjectAlreadyExistsException
@@ -42,6 +42,23 @@ if TYPE_CHECKING:
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
 
+HTTP_RETRY_STATUS_CODE = [429, 500, 503, 504]
+REQUESTS_EXCEPTIONS_TYPES = (
+    requests.RequestException,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.HTTPError,
+    requests.exceptions.ConnectTimeout,
+)
+
+
+def check_http_error_is_retryable(exc: BaseException):
+    return (
+        isinstance(exc, requests.exceptions.RequestException)
+        and exc.response
+        and exc.response.status_code
+        and exc.response.status_code in HTTP_RETRY_STATUS_CODE
+    )
+
 
 class WeaviateHook(BaseHook):
     """
@@ -55,7 +72,13 @@ class WeaviateHook(BaseHook):
     conn_type = "weaviate"
     hook_name = "Weaviate"
 
-    def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        conn_id: str = default_conn_name,
+        retry_status_codes: list[int] | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
 
@@ -142,7 +165,10 @@ class WeaviateHook(BaseHook):
     @retry(
         reraise=True,
         stop=stop_after_attempt(3),
-        retry=retry_if_exception_type(requests.exceptions.RequestException),
+        retry=(
+            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+        ),
     )
     def create_schema(self, schema_json: dict[str, Any] | str) -> None:
         """
@@ -172,7 +198,10 @@ class WeaviateHook(BaseHook):
     @retry(
         reraise=True,
         stop=stop_after_attempt(3),
-        retry=retry_if_exception_type(requests.exceptions.RequestException),
+        retry=(
+            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+        ),
     )
     def get_schema(self, class_name: str | None = None):
         """Get the schema from Weaviate.
@@ -200,9 +229,13 @@ class WeaviateHook(BaseHook):
             try:
                 for attempt in Retrying(
                     stop=stop_after_attempt(3),
-                    retry=retry_if_exception_type(requests.exceptions.RequestException),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
                 ):
                     with attempt:
+                        print(attempt)
                         client.schema.delete_class(class_name)
             except Exception as e:
                 if if_error == "continue":
@@ -346,10 +379,6 @@ class WeaviateHook(BaseHook):
                 return False
         return True
 
-    @staticmethod
-    def check_http_error_is_retryable(exc: BaseException):
-        return isinstance(exc, requests.HTTPError) and not exc.response.ok
-
     def batch_data(
         self,
         class_name: str,
@@ -378,7 +407,10 @@ class WeaviateHook(BaseHook):
             for index, data_obj in enumerate(data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
-                    retry=retry_if_exception_type(requests.exceptions.RequestException),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
                 ):
                     with attempt:
                         self.log.debug(
