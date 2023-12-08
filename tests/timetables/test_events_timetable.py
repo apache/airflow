@@ -161,3 +161,18 @@ def test_no_catchup_first_starts(
             restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
         )
     assert next_info == expected_info
+
+
+def test_empty_timetable() -> None:
+    empty_timetable = EventsTimetable(event_dates=[])
+    next_info = empty_timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
+    )
+    assert next_info is None
+
+
+def test_empty_timetable_manual_run() -> None:
+    empty_timetable = EventsTimetable(event_dates=[])
+    manual_run_data_interval = empty_timetable.infer_manual_data_interval(run_after=START_DATE)
+    assert manual_run_data_interval == DataInterval(start=START_DATE, end=START_DATE)

@@ -58,10 +58,13 @@ class EventsTimetable(Timetable):
             self.event_dates.sort()
         self.restrict_to_events = restrict_to_events
         if description is None:
-            self.description = (
-                f"{len(self.event_dates)} Events between {self.event_dates[0]} and {self.event_dates[-1]}"
-            )
-            self._summary = f"{len(self.event_dates)} Events"
+            if self.event_dates:
+                self.description = (
+                    f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
+                )
+            else:
+                self.description = "No events"
+            self._summary = f"{len(self.event_dates)} events"
         else:
             self._summary = description
             self.description = description
@@ -106,7 +109,7 @@ class EventsTimetable(Timetable):
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # If Timetable not restricted to events, run for the time specified
-        if not self.restrict_to_events:
+        if not self.restrict_to_events or not self.event_dates:
             return DataInterval.exact(run_after)
 
         # If restricted to events, run for the most recent past event
