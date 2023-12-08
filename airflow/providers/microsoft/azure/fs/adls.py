@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
-def get_fs(conn_id: str | None) -> AbstractFileSystem:
+def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem
 
     if conn_id is None:
@@ -36,24 +36,13 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     conn = BaseHook.get_connection(conn_id)
     extras = conn.extra_dejson
 
-    connection_string = get_field(
-        conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="connection_string"
-    )
-    account_name = get_field(
-        conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="account_name"
-    )
-    account_key = get_field(
-        conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="account_key"
-    )
-    sas_token = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="sas_token")
-    tenant = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="tenant")
+    options = {}
+    fields = ["connection_string", "account_name", "account_key", "sas_token", "tenant"]
+    for field in fields:
+        options[field] = get_field(
+            conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name=field
+        )
 
-    return AzureBlobFileSystem(
-        connection_string=connection_string,
-        account_name=account_name,
-        account_key=account_key,
-        sas_token=sas_token,
-        tenant_id=tenant,
-        client_id=conn.login,
-        client_secret=conn.password,
-    )
+    options.update(storage_options or {})
+
+    return AzureBlobFileSystem(**options)

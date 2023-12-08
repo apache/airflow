@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.11.0
+......
+
+Latest change: 2023-12-07
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`1264316fe7 <https://github.com/apache/airflow/commit/1264316fe7ab15eba3be6c985a28bb573c85c92b>`_  2023-12-05   ``Drive-by improvements to convert_env_vars (#36062)``
+`de71a62848 <https://github.com/apache/airflow/commit/de71a62848bd91e56bdc675246ab51bc6affa629>`_  2023-12-05   ``fix: KPO typing env_vars (#36048)``
+`f5259376b8 <https://github.com/apache/airflow/commit/f5259376b8e7155e21ba0ec15eb192f13e618291>`_  2023-11-28   ``Use fail instead of change_state(failed) in K8S executor (#35900)``
+`623f989329 <https://github.com/apache/airflow/commit/623f9893291daa568563ff65433d797f96abc629>`_  2023-11-27   ``Stop converting state to TaskInstanceState when it's None (#35891)``
+`e57232ff8f <https://github.com/apache/airflow/commit/e57232ff8f5c312774a24d80c7ba0ad4e33cc204>`_  2023-11-25   ``Feature pass dictionary configuration in application_file in SparkKubernetesOperator (#35848)``
+=================================================================================================  ===========  =================================================================================================
+
 7.10.0
 ......
 
-Latest change: 2023-11-23
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `0e157b38a3 <https://github.com/apache/airflow/commit/0e157b38a3e44b5a6fc084c581a025434a97a4c0>`_  2023-11-23   ``Fix K8S executor override config using pod_override_object (#35185)``
 `ca97feed18 <https://github.com/apache/airflow/commit/ca97feed1883dc8134404b017d7f725a4f1010f6>`_  2023-11-23   ``Revert Remove PodLoggingStatus object #35422 (#35822)``
 `8dc1b23116 <https://github.com/apache/airflow/commit/8dc1b2311626146894b09e51f3693de376e5ad87>`_  2023-11-22   ``feat: K8S resource operator - CRD (#35600)``
