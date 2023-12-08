@@ -42,14 +42,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.13.0
+.......
+
+Latest change: 2023-12-07
+
+=================================================================================================  ===========  ============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================================
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`ca20f07a16 <https://github.com/apache/airflow/commit/ca20f07a16934d93792773d788b64652009065ce>`_  2023-12-06   ``GCP Secrets Backend Impersonation (#36072)``
+`d0f4512ecb <https://github.com/apache/airflow/commit/d0f4512ecb9c0683a60be7b0de8945948444df8e>`_  2023-12-04   ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
+`86b1bd22d1 <https://github.com/apache/airflow/commit/86b1bd22d14792d89ddc43627e4a72dcb628c5f0>`_  2023-12-01   ``Fix CloudRunExecuteJobOperator not able to retrieve the Cloud Run job status in deferrable mode (#36012)``
+`cf052dc64f <https://github.com/apache/airflow/commit/cf052dc64f00e851427a41a34ffe576fd39be51b>`_  2023-12-01   ``Add feature to build "chicken-egg" packages from sources (#35890)``
+`5d74ffb320 <https://github.com/apache/airflow/commit/5d74ffb32095d534866f029d085198bc783d82c2>`_  2023-11-27   ``Fix gcs listing - ensure blobs are loaded (#34919)``
+`99b68e2db2 <https://github.com/apache/airflow/commit/99b68e2db2af4724a43e50a57480136f8a986e30>`_  2023-11-27   ``Add OpenLineage support to GcsOperators - Delete, Transform and TimeSpanTransform (#35838)``
+`373d8a57b2 <https://github.com/apache/airflow/commit/373d8a57b225a1a5e79b92c3d84b618b3522bfa5>`_  2023-11-25   ``Deprecate 'CloudComposerEnvironmentSensor' in favor of 'CloudComposerCreateEnvironmentOperator' with defer mode (#35775)``
+`e2a5dbf8b4 <https://github.com/apache/airflow/commit/e2a5dbf8b47b35f2d836c81f8e9e7190a7f66d38>`_  2023-11-25   ``allow multiple elements in impersonation chain (#35694)``
+`770f16425c <https://github.com/apache/airflow/commit/770f16425c3b48b8dd11d2a6fb852404e43d88ca>`_  2023-11-25   ``Add support for service account impersonation with computeEngineSSHHook (google provider) and IAP tunnel (#35136)``
+=================================================================================================  ===========  ============================================================================================================================
+
 10.12.0
 .......
 
-Latest change: 2023-11-22
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `72ba63e0b9 <https://github.com/apache/airflow/commit/72ba63e0b97110a47c9882fd0a644cb0d74dcc20>`_  2023-11-22   ``added Topic params for schema_settings and message_retention_duration. (#35767)``
 `2a06e278d2 <https://github.com/apache/airflow/commit/2a06e278d290e36e861bd3c40fdc9318e620aa16>`_  2023-11-21   ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
 `1fae1a50e9 <https://github.com/apache/airflow/commit/1fae1a50e97fae9e414d062acb4f1e641523fa5a>`_  2023-11-21   ``Add OpenLineage support to GCSToBigQueryOperator (#35778)``

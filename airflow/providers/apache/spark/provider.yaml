@@ -22,8 +22,9 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1700827443
+source-date-epoch: 1701983360
 versions:
+  - 4.5.0
   - 4.4.0
   - 4.3.0
   - 4.2.0
@@ -50,7 +51,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - pyspark
   - grpcio-status
 

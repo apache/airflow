@@ -148,8 +148,8 @@ pre-release versions of Airflow - because ``pip`` does not recognize the ``.dev0
 suffixes of those packages as valid in the ``>=X.Y.Z`` comparison.
 
 When you want to install a provider package with ``apache-airflow>=2.8.0`` requirement and you have
-``2.8.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
-``2.8.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
+``2.9.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
+``2.9.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
 currently implements the minimum version selection algorithm requirement specified in packaging as
 described in the packaging version specification
 https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases
@@ -163,7 +163,7 @@ not possible.
 To work around this limitation, we have introduced the concept of "chicken-egg" providers. Those providers
 are providers that are released together with the version of Airflow they depend on. They are released
 with the same version number as the Airflow version they depend on, but with a different suffix. For example
-``apache-airflow-providers-common-io==2.8.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.8.0.dev0``.
+``apache-airflow-providers-common-io==2.9.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.9.0.dev0``.
 
 However - we should not release providers with such exclusion to ``pypi``, so in order to allow our
 CI to work with pre-release versions and perform both - constraint generation and image releasing,
