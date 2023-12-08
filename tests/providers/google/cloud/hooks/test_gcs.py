@@ -821,6 +821,7 @@ class TestGCSHook:
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_list__delimiter(self, mock_service, prefix, result):
         mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.prefixes = None
         with pytest.deprecated_call():
             self.gcs_hook.list(
                 bucket_name="test_bucket",
@@ -828,6 +829,10 @@ class TestGCSHook:
                 delimiter=",",
             )
         assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+        assert (
+            mock_service.return_value.bucket.return_value.list_blobs.return_value.__next__.call_count
+            == len(result)
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     @mock.patch("airflow.providers.google.cloud.hooks.gcs.functools")

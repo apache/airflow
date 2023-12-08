@@ -821,11 +821,12 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+                if delimiter:
+                    next(blobs, None)
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
-            else:
+            elif not delimiter or (match_glob and delimiter == "/"):
                 ids.extend(blob.name for blob in blobs)
 
             page_token = blobs.next_page_token
@@ -933,11 +934,12 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+                if delimiter:
+                    next(blobs, None)
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
-            else:
+            elif not delimiter or (match_glob and delimiter == "/"):
                 ids.extend(
                     blob.name
                     for blob in blobs
