@@ -353,7 +353,7 @@ class WeaviateHook(BaseHook):
     def batch_data(
         self,
         class_name: str,
-        data: list[dict[str, Any]],
+        data: list[dict[str, Any]] | pd.DataFrame,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         retry_attempts_per_object: int = 5,

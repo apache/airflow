@@ -68,7 +68,6 @@ class WeaviateIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
-
         self.vector_col = vector_col
 
         if input_data is not None:
