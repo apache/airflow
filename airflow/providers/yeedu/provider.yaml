@@ -22,6 +22,7 @@ description: |
     `yeedu`__
 
 suspended: false
+source-date-epoch: 1702036444
 
 versions:
   - 1.0.0
