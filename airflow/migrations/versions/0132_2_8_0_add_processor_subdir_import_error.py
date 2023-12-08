@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add priority_weight_strategy to task_instance
+"""Add processor_subdir to ImportError.
 
-Revision ID: 624ecf3b6a5e
+Revision ID: 10b52ebd31f7
 Revises: bd5dfbe21f88
-Create Date: 2023-10-29 02:01:34.774596
+Create Date: 2023-11-29 16:54:48.101834
 
 """
 
@@ -29,7 +29,7 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = "624ecf3b6a5e"
+revision = "10b52ebd31f7"
 down_revision = "bd5dfbe21f88"
 branch_labels = None
 depends_on = None
@@ -37,12 +37,18 @@ airflow_version = "2.8.0"
 
 
 def upgrade():
-    """Apply add priority_weight_strategy to task_instance"""
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("priority_weight_strategy", sa.String(length=1000)))
+    """Apply Add processor_subdir to ImportError."""
+    conn = op.get_bind()
+
+    with op.batch_alter_table("import_error") as batch_op:
+        if conn.dialect.name == "mysql":
+            batch_op.add_column(sa.Column("processor_subdir", sa.Text(length=2000), nullable=True))
+        else:
+            batch_op.add_column(sa.Column("processor_subdir", sa.String(length=2000), nullable=True))
 
 
 def downgrade():
-    """Unapply add priority_weight_strategy to task_instance"""
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.drop_column("priority_weight_strategy")
+    """Unapply Add processor_subdir to ImportError."""
+    conn = op.get_bind()
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.drop_column("processor_subdir")

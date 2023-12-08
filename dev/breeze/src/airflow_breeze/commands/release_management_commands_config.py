@@ -64,6 +64,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider verification flags",
             "options": [
+                "--python",
                 "--use-airflow-version",
                 "--install-selected-providers",
                 "--airflow-constraints-reference",
@@ -80,6 +81,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider installation flags",
             "options": [
+                "--python",
                 "--use-airflow-version",
                 "--install-selected-providers",
                 "--airflow-constraints-reference",
