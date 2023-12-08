@@ -24,13 +24,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
+from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
-
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-from tenacity import Retrying, retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -219,9 +218,11 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         client.schema.update_config(class_name=class_name, config=config)
 
-    def upsert_classes(self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"):
+    def create_or_replace_classes(
+        self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"
+    ):
         """
-        Create or update the classes in schema of Weaviate database.
+        Create or replace the classes in schema of Weaviate database.
 
         :param schema_json: Json containing the schema. Format {"class_name": "class_dict"}
             .. seealso:: `example of class_dict <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.create>`_.
