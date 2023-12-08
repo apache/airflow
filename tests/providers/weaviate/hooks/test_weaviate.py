@@ -17,16 +17,13 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
-
-from unittest.mock import MagicMock, Mock, patch, call
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pandas as pd
 import pytest
-from weaviate import ObjectAlreadyExistsException
-
 import requests
 import weaviate
-
+from weaviate import ObjectAlreadyExistsException
 
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
@@ -477,7 +474,7 @@ def test_upsert_schema_scenarios(
         if existing in ["fail", "invalid_option"]:
             stack.enter_context(pytest.raises(ValueError))
         get_schema.return_value = get_schema_value
-        weaviate_hook.upsert_classes(schema_json=schema_json, existing=existing)
+        weaviate_hook.create_or_replace_classes(schema_json=schema_json, existing=existing)
         create_schema.assert_called_once_with({"classes": expected_value})
         if existing == "replace":
             delete_classes.assert_called_once_with(class_names=["B"])
@@ -494,7 +491,7 @@ def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, we
         "B": {"class": "B"},
         "C": {"class": "C"},
     }
-    weaviate_hook.upsert_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
+    weaviate_hook.create_or_replace_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
     create_schema.assert_called_once_with({"classes": [{"class": "C"}]})
 
 
