@@ -46,10 +46,8 @@ from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
     PodDefaults,
     PodGenerator as PodGeneratorDeprecated,
 )
-
-# replace it with airflow.utils.hashlib_wrapper.md5 when min airflow version for k8s provider is 2.6.0
-from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
+from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:

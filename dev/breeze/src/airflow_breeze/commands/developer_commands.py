@@ -130,7 +130,7 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
         and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z\.]*|main|v[0-9]_.*", use_airflow_version)
     ):
         get_console().print(f"[info]Using constraints {use_airflow_version} - matching airflow version used.")
-        return use_airflow_version
+        return f"constraints-{use_airflow_version}"
     return airflow_constraints_reference
 
 

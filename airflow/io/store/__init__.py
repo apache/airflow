@@ -24,6 +24,8 @@ from airflow.utils.module_loading import qualname
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
+    from airflow.io.typedef import Properties
+
 
 class ObjectStore:
     """Manages a filesystem or object storage."""
@@ -33,13 +35,21 @@ class ObjectStore:
     method: str
     conn_id: str | None
     protocol: str
+    storage_options: Properties | None
 
     _fs: AbstractFileSystem | None = None
 
-    def __init__(self, protocol: str, conn_id: str | None, fs: AbstractFileSystem | None = None):
+    def __init__(
+        self,
+        protocol: str,
+        conn_id: str | None,
+        fs: AbstractFileSystem | None = None,
+        storage_options: Properties | None = None,
+    ):
         self.conn_id = conn_id
         self.protocol = protocol
         self._fs = fs
+        self.storage_options = storage_options
 
     def __str__(self):
         return f"{self.protocol}-{self.conn_id}" if self.conn_id else self.protocol
@@ -69,6 +79,7 @@ class ObjectStore:
             "protocol": self.protocol,
             "conn_id": self.conn_id,
             "filesystem": qualname(self._fs) if self._fs else None,
+            "storage_options": self.storage_options,
         }
 
     @classmethod
@@ -90,7 +101,7 @@ class ObjectStore:
                 f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
             )
 
-        return attach(protocol=protocol, conn_id=conn_id)
+        return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
 
     def _connect(self) -> AbstractFileSystem:
         if self._fs is None:
@@ -110,6 +121,7 @@ def attach(
     alias: str | None = None,
     encryption_type: str | None = "",
     fs: AbstractFileSystem | None = None,
+    **kwargs,
 ) -> ObjectStore:
     """
     Attach a filesystem or object storage.
@@ -134,6 +146,6 @@ def attach(
         if store := _STORE_CACHE.get(alias):
             return store
 
-    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
+    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs, **kwargs)
 
     return store
