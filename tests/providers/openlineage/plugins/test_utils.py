@@ -23,10 +23,10 @@ import uuid
 from json import JSONEncoder
 from typing import Any
 
+import pendulum
 import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
-from pendulum.tz.timezone import Timezone
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
@@ -86,8 +86,8 @@ def test_get_dagrun_start_end():
         state=State.NONE, run_id=run_id, data_interval=dag.get_next_data_interval(dag_model)
     )
     assert dagrun.data_interval_start is not None
-    start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=Timezone("UTC"))
-    end_date_tz = datetime.datetime(2022, 1, 1, hour=2, tzinfo=Timezone("UTC"))
+    start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=pendulum.tz.timezone("UTC"))
+    end_date_tz = datetime.datetime(2022, 1, 1, hour=2, tzinfo=pendulum.tz.timezone("UTC"))
     assert dagrun.data_interval_start, dagrun.data_interval_end == (start_date_tz, end_date_tz)
 
 

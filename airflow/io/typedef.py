@@ -14,28 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# this is a backcompat hashlib wrapper for kubernetes provider. It should be removed (with corresponding
-# imports in the provider when min airflow version is 2.6.0 for the provider
-
 from __future__ import annotations
 
-import hashlib
-from typing import TYPE_CHECKING
+from typing import Dict
 
-if TYPE_CHECKING:
-    from _typeshed import ReadableBuffer
-
-from airflow import PY39
-
-
-def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
-    """
-    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
-
-    :param __string: The data to hash. Default to empty str byte.
-    :return: The hashed value.
-    """
-    if PY39:
-        return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
-    return hashlib.md5(__string)
+Properties = Dict[str, str]

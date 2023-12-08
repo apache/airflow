@@ -22,8 +22,9 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 suspended: false
-source-date-epoch: 1700827492
+source-date-epoch: 1701983412
 versions:
+  - 5.6.0
   - 5.5.1
   - 5.5.0
   - 5.4.3
@@ -49,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - simple-salesforce>=1.0.0
   - pandas>=0.17.1
 
