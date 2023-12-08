@@ -31,7 +31,6 @@ from upath.registry import get_upath_class
 
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
-from airflow.models.crypto import get_fernet
 
 if typing.TYPE_CHECKING:
     from urllib.parse import SplitResult
@@ -393,22 +392,13 @@ class ObjectStoragePath(CloudPath):
         self.unlink()
 
     def serialize(self) -> dict[str, typing.Any]:
-        fernet = get_fernet()
-        _enc_kwargs = {}
         _kwargs = self._kwargs.copy()
-
         conn_id = _kwargs.pop("conn_id", None)
-
-        for k, v in _kwargs.items():
-            if isinstance(v, str):
-                _enc_kwargs[k] = fernet.encrypt(v.encode()).decode()
-            else:
-                _enc_kwargs[k] = fernet.encrypt(bytes(v)).decode()
 
         return {
             "path": str(self),
             "conn_id": conn_id,
-            "encrypted_kwargs": _enc_kwargs,
+            "kwargs": _kwargs,
         }
 
     @classmethod
@@ -416,11 +406,7 @@ class ObjectStoragePath(CloudPath):
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
 
-        _kwargs = {}
-        fernet = get_fernet()
-        for k, v in data["encrypted_kwargs"].items():
-            _kwargs[k] = fernet.decrypt(v.encode()).decode()
-
+        _kwargs = data.pop("kwargs")
         path = data.pop("path")
         conn_id = data.pop("conn_id", None)
 

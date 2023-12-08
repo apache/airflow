@@ -255,15 +255,14 @@ class TestFs:
 
         o = ObjectStoragePath(path, my_setting="foo")
         s = o.serialize()
-        assert "my_setting" in s["encrypted_kwargs"]
-        assert s["encrypted_kwargs"]["my_setting"] != "foo"
+        assert "my_setting" in s["kwargs"]
         d = ObjectStoragePath.deserialize(s, 1)
         assert o == d
 
         store = attach("filex", conn_id="mock")
         o = ObjectStoragePath(path, store=store)
         s = o.serialize()
-        assert s["store"] == store
+        assert s["kwargs"]["store"] == store
 
         d = ObjectStoragePath.deserialize(s, 1)
         assert o == d
