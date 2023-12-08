@@ -20,7 +20,6 @@ import glob
 import operator
 import os
 import re
-import shlex
 import shutil
 import sys
 import textwrap
@@ -107,8 +106,8 @@ from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
+    execute_command_in_shell,
     fix_ownership_using_docker,
-    get_extra_docker_flags,
     perform_environment_checks,
 )
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
@@ -144,20 +143,12 @@ from airflow_breeze.utils.provider_dependencies import (
 from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
-    RunCommandResult,
     clean_www_assets,
     run_command,
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.versions import is_pre_release
-
-option_debug_release_management = click.option(
-    "--debug",
-    is_flag=True,
-    help="Drop user in shell instead of running the command. Useful for debugging.",
-    envvar="DEBUG",
-)
 
 if TYPE_CHECKING:
     from packaging.version import Version
@@ -169,60 +160,6 @@ class VersionedFile(NamedTuple):
     suffix: str
     type: str
     comparable_version: Version
-
-
-def run_docker_command_with_debug(
-    shell_params: ShellParams,
-    command: list[str],
-    debug: bool,
-    enable_input: bool = False,
-    output_outside_the_group: bool = False,
-    **kwargs,
-) -> RunCommandResult:
-    env = shell_params.env_variables_for_docker_commands
-    extra_docker_flags = get_extra_docker_flags(mount_sources=shell_params.mount_sources)
-    if enable_input or debug:
-        term_flag = "-it"
-    else:
-        term_flag = "-t"
-    base_command = [
-        "docker",
-        "run",
-        term_flag,
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        shell_params.airflow_image_name_with_tag,
-    ]
-    if debug:
-        cmd_string = " ".join([shlex.quote(s) for s in command if s != "-c"])
-        base_command.extend(
-            [
-                "-c",
-                f"""
-echo -e '\\e[34mRun this command to debug:
-
-    {cmd_string}
-
-\\e[0m\n'; exec bash
-""",
-            ]
-        )
-        return run_command(
-            base_command,
-            output_outside_the_group=output_outside_the_group,
-            env=env,
-            **kwargs,
-        )
-    else:
-        base_command.extend(command)
-        return run_command(
-            base_command,
-            check=False,
-            env=env,
-            output_outside_the_group=output_outside_the_group,
-            **kwargs,
-        )
 
 
 AIRFLOW_PIP_VERSION = "23.3.1"
@@ -627,22 +564,16 @@ def prepare_provider_packages(
 
 def run_generate_constraints(
     shell_params: ShellParams,
-    debug: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    cmd_to_run = [
-        "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
-    ]
-    generate_constraints_result = run_docker_command_with_debug(
-        shell_params=shell_params,
-        command=cmd_to_run,
-        debug=debug,
-        output=output,
-        output_outside_the_group=True,
+    result = execute_command_in_shell(
+        shell_params,
+        project_name="constraints",
+        command="/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     )
     fix_ownership_using_docker()
     return (
-        generate_constraints_result.returncode,
+        result.returncode,
         f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
     )
 
@@ -679,7 +610,6 @@ def run_generate_constraints_in_parallel(
                     run_generate_constraints,
                     kwds={
                         "shell_params": shell_params,
-                        "debug": False,
                         "output": outputs[index],
                     },
                 )
@@ -707,7 +637,6 @@ def run_generate_constraints_in_parallel(
 @option_debug_resources
 @option_python_versions
 @option_image_tag_for_running
-@option_debug_release_management
 @option_airflow_constraints_mode_ci
 @option_chicken_egg_providers
 @option_github_repository
@@ -716,7 +645,6 @@ def run_generate_constraints_in_parallel(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
-    debug: bool,
     debug_resources: bool,
     github_repository: str,
     image_tag: str | None,
@@ -731,9 +659,6 @@ def generate_constraints(
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    if debug and run_in_parallel:
-        get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
-        sys.exit(1)
     if run_in_parallel:
         given_answer = user_confirm(
             f"Did you build all CI images {python_versions} with --upgrade-to-newer-dependencies flag set?",
@@ -765,37 +690,33 @@ def generate_constraints(
         python_version_list = get_python_version_list(python_versions)
         shell_params_list = [
             ShellParams(
-                image_tag=image_tag,
-                python=python,
-                github_repository=github_repository,
                 airflow_constraints_mode=airflow_constraints_mode,
                 chicken_egg_providers=chicken_egg_providers,
+                github_repository=github_repository,
+                image_tag=image_tag,
+                python=python,
             )
             for python in python_version_list
         ]
         run_generate_constraints_in_parallel(
-            shell_params_list=shell_params_list,
-            parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
             include_success_outputs=True,
+            parallelism=parallelism,
             python_version_list=python_version_list,
+            shell_params_list=shell_params_list,
+            skip_cleanup=skip_cleanup,
         )
     else:
         shell_params = ShellParams(
-            image_tag=image_tag,
-            python=python,
-            github_repository=github_repository,
-            skip_environment_initialization=True,
-            skip_image_upgrade_check=True,
-            quiet=True,
             airflow_constraints_mode=airflow_constraints_mode,
             chicken_egg_providers=chicken_egg_providers,
+            github_repository=github_repository,
+            image_tag=image_tag,
+            python=python,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
             output=None,
-            debug=debug,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
@@ -849,17 +770,11 @@ def get_all_providers_in_dist(package_format: str, install_selected_providers: s
 
 def _run_command_for_providers(
     shell_params: ShellParams,
-    cmd_to_run: list[str],
     list_of_providers: list[str],
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = run_docker_command_with_debug(
-        shell_params=shell_params,
-        command=cmd_to_run,
-        debug=False,
-        output=output,
-    )
+    result_command = execute_command_in_shell(shell_params, project_name="providers")
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -875,7 +790,6 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
-@option_debug_release_management
 @option_debug_resources
 @option_dry_run
 @option_github_repository
@@ -900,7 +814,6 @@ def install_provider_packages(
     airflow_constraints_reference: str,
     airflow_skip_constraints: bool,
     airflow_extras: str,
-    debug: bool,
     debug_resources: bool,
     github_repository: str,
     include_success_outputs: bool,
@@ -927,12 +840,15 @@ def install_provider_packages(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        # We just want to install the providers by entrypoint
+        # we do not need to run any command in the container
+        extra_args=("exit 0",),
         github_repository=github_repository,
         install_selected_providers=install_selected_providers,
         mount_sources=mount_sources,
         package_format=package_format,
-        providers_constraints_mode=providers_constraints_mode,
         providers_constraints_location=providers_constraints_location,
+        providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
@@ -940,11 +856,6 @@ def install_provider_packages(
         use_packages_from_dist=use_packages_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    # We just want to install the providers by entrypoint, we do not need to run any command in the container
-    cmd_to_run = [
-        "-c",
-        "exit 0",
-    ]
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
             package_format=package_format, install_selected_providers=install_selected_providers
@@ -995,7 +906,6 @@ def install_provider_packages(
                         _run_command_for_providers,
                         kwds={
                             "shell_params": shell_params,
-                            "cmd_to_run": cmd_to_run,
                             "list_of_providers": list_of_providers,
                             "output": outputs[index],
                         },
@@ -1010,12 +920,7 @@ def install_provider_packages(
             skip_cleanup=skip_cleanup,
         )
     else:
-        result_command = run_docker_command_with_debug(
-            shell_params=shell_params,
-            command=cmd_to_run,
-            debug=debug,
-            output_outside_the_group=True,
-        )
+        result_command = execute_command_in_shell(shell_params, project_name="providers")
         fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
@@ -1029,7 +934,6 @@ def install_provider_packages(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
-@option_debug_release_management
 @option_dry_run
 @option_github_repository
 @option_install_selected_providers
@@ -1048,7 +952,6 @@ def verify_provider_packages(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    debug: bool,
     github_repository: str,
     install_selected_providers: str,
     mount_sources: str,
@@ -1074,13 +977,11 @@ def verify_provider_packages(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
-        backend="sqlite",
-        executor="SequentialExecutor",
         github_repository=github_repository,
         mount_sources=mount_sources,
         package_format=package_format,
-        providers_constraints_mode=providers_constraints_mode,
         providers_constraints_location=providers_constraints_location,
+        providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
@@ -1088,15 +989,10 @@ def verify_provider_packages(
         use_packages_from_dist=use_packages_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    cmd_to_run = [
-        "-c",
-        "python /opt/airflow/scripts/in_container/verify_providers.py",
-    ]
-    result_command = run_docker_command_with_debug(
-        shell_params=shell_params,
-        command=cmd_to_run,
-        debug=debug,
-        output_outside_the_group=True,
+    result_command = execute_command_in_shell(
+        shell_params,
+        project_name="providers",
+        command="python /opt/airflow/scripts/in_container/verify_providers.py",
     )
     fix_ownership_using_docker()
     sys.exit(result_command.returncode)

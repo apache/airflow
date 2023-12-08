@@ -356,11 +356,17 @@ def cleanup_python_generated_files():
     for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
         try:
             path.unlink()
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
         try:
             shutil.rmtree(path)
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     if permission_errors:

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import sys
 import threading
@@ -33,14 +34,11 @@ from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     ALLOWED_TTY,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    DOCKER_DEFAULT_PLATFORM,
-    MOUNT_SELECTED,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
-from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
     argument_doc_packages,
@@ -98,26 +96,24 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    bring_compose_project_down,
     check_docker_resources,
+    enter_shell,
+    execute_command_in_shell,
     fix_ownership_using_docker,
-    get_extra_docker_flags,
     perform_environment_checks,
 )
 from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
-    create_mypy_volume_if_needed,
 )
 from airflow_breeze.utils.run_utils import (
-    RunCommandResult,
     assert_pre_commit_installed,
-    filter_out_none,
     run_command,
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
-from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -288,11 +284,12 @@ def shell(
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
-    result = enter_shell(
+    shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -320,6 +317,7 @@ def shell(
         providers_constraints_location=providers_constraints_location,
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         quiet=quiet,
         run_db_tests_only=run_db_tests_only,
@@ -335,6 +333,8 @@ def shell(
         restart=restart,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
@@ -450,12 +450,12 @@ def start_airflow(
         airflow_constraints_reference, use_airflow_version
     )
 
-    result = enter_shell(
+    shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
-        airflow_skip_constraints=airflow_skip_constraints,
         airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -492,6 +492,8 @@ def start_airflow(
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
@@ -549,7 +551,6 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
-    ci_image_name = build_params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,
@@ -557,32 +558,20 @@ def build_docs(
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(doc_packages),
     )
+    cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(
+        [shlex.quote(arg) for arg in doc_builder.args_doc_builder]
+    )
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        quiet=True,
-        skip_environment_initialization=True,
-        skip_image_upgrade_check=True,
     )
-    extra_docker_flags = get_extra_docker_flags(mount_sources=MOUNT_SELECTED)
-    cmd = [
-        "docker",
-        "run",
-        "-t",
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        ci_image_name,
-        "/opt/airflow/scripts/in_container/run_docs_build.sh",
-        *doc_builder.args_doc_builder,
-    ]
-    process = run_command(cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands)
+    result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()
-    if process.returncode == 0:
+    if result.returncode == 0:
         get_console().print(
             "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
         )
-    sys.exit(process.returncode)
+    sys.exit(result.returncode)
 
 
 @main.command(
@@ -859,125 +848,6 @@ def exec(exec_args: tuple):
         if not process:
             sys.exit(1)
         sys.exit(process.returncode)
-
-
-def enter_shell(**kwargs) -> RunCommandResult:
-    """
-    Executes entering shell using the parameters passed as kwargs:
-
-    * checks if docker version is good
-    * checks if docker-compose version is good
-    * updates kwargs with cached parameters
-    * displays ASCIIART and CHEATSHEET unless disabled
-    * build ShellParams from the updated kwargs
-    * shuts down existing project
-    * executes the command to drop the user to Breeze shell
-
-    """
-    quiet: bool = kwargs.get("quiet") or False
-    perform_environment_checks(quiet=quiet)
-    fix_ownership_using_docker(quiet=quiet)
-    cleanup_python_generated_files()
-    if read_from_cache_file("suppress_asciiart") is None and not quiet:
-        get_console().print(ASCIIART, style=ASCIIART_STYLE)
-    if read_from_cache_file("suppress_cheatsheet") is None and not quiet:
-        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
-    shell_params = ShellParams(**filter_out_none(**kwargs))
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    if shell_params.use_airflow_version:
-        # in case you use specific version of Airflow, you want to bring airflow down automatically before
-        # using it. This prevents the problem that if you have newer DB, airflow will not know how
-        # to migrate to it and fail with "Can't locate revision identified by 'xxxx'".
-        get_console().print(
-            f"[warning]Bringing the project down as {shell_params.use_airflow_version} "
-            f"airflow version is used[/]"
-        )
-        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
-    if shell_params.backend == "sqlite":
-        get_console().print(
-            f"\n[warning]backend: sqlite is not "
-            f"compatible with executor: {shell_params.executor}. "
-            f"Changing the executor to SequentialExecutor.\n"
-        )
-        shell_params.executor = "SequentialExecutor"
-
-    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
-        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
-            get_console().print(
-                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
-            )
-            shell_params.airflow_extras += ",celery"
-        elif not shell_params.airflow_extras:
-            get_console().print(
-                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                "Setting airflow extras to 'celery'.\n"
-            )
-            shell_params.airflow_extras = "celery"
-    if shell_params.restart:
-        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
-    if shell_params.include_mypy_volume:
-        create_mypy_volume_if_needed()
-    shell_params.print_badge_info()
-    cmd = ["docker", "compose"]
-    if shell_params.quiet:
-        cmd.extend(["--progress", "quiet"])
-    if shell_params.project_name:
-        cmd.extend(["--project-name", shell_params.project_name])
-    cmd.extend(["run", "--service-ports", "--rm"])
-    if shell_params.tty == "disabled":
-        cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
-    cmd.append("airflow")
-    cmd_added = shell_params.command_passed
-    if cmd_added is not None:
-        cmd.extend(["-c", cmd_added])
-    if "arm64" in DOCKER_DEFAULT_PLATFORM:
-        if shell_params.backend == "mysql":
-            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
-
-    if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
-            get_console().print(
-                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
-                "as a backend with OpenLineage integration via Breeze[/]\n"
-            )
-            sys.exit(1)
-
-    command_result = run_command(
-        cmd,
-        text=True,
-        check=False,
-        env=shell_params.env_variables_for_docker_commands,
-        output_outside_the_group=True,
-    )
-    if command_result.returncode == 0:
-        return command_result
-    else:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        return command_result
-
-
-def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams):
-    down_command_to_execute = ["docker", "compose"]
-    if shell_params.project_name:
-        down_command_to_execute.extend(["--project-name", shell_params.project_name])
-    down_command_to_execute.extend(["down", "--remove-orphans"])
-    if not preserve_volumes:
-        down_command_to_execute.append("--volumes")
-    run_command(
-        down_command_to_execute,
-        text=True,
-        check=False,
-        capture_output=shell_params.quiet,
-        env=shell_params.env_variables_for_docker_commands,
-    )
 
 
 def stop_exec_on_error(returncode: int):

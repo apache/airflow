@@ -87,15 +87,18 @@ def find_airflow_package(extension: str) -> str | None:
 
 def find_provider_packages(extension: str, selected_providers: list[str]) -> list[str]:
     candidates = list(DIST_FOLDER.glob(f"apache_airflow_providers_*.{extension}"))
-    console.print(
-        f"\n[bright_blue]Found the following provider packages: "
-        f"{[candidate.as_posix() for candidate in candidates]}\n"
-    )
+    console.print("\n[bright_blue]Found the following provider packages: ")
+    for candidate in sorted(candidates):
+        console.print(f"  {candidate.as_posix()}")
+    console.print()
     if selected_providers:
         candidates = [
             candidate for candidate in candidates if get_provider_name(candidate.name) in selected_providers
         ]
-        console.print(f"[bright_blue]Selected provider packages: {candidates}\n")
+        console.print("[bright_blue]Selected provider packages:")
+        for candidate in sorted(candidates):
+            console.print(f"  {candidate.as_posix()}")
+        console.print()
     return [candidate.as_posix() for candidate in candidates]
 
 
@@ -232,7 +235,6 @@ def find_installation_spec(
     if use_airflow_version and (AIRFLOW_SOURCE_DIR / "airflow").exists():
         console.print(
             f"[red]The airflow source folder exists in {AIRFLOW_SOURCE_DIR}, but you are "
-            f"removing it and installing airflow from {use_airflow_version}."
             f"removing it and installing airflow from {use_airflow_version}."
         )
         console.print("[red]This is not supported. Please use --mount-sources=remove flag in breeze.")
@@ -501,7 +503,10 @@ def install_airflow_and_providers(
         run_command(install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages:
         install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
-        console.print(f"\n[bright_blue]Installing provider packages: {installation_spec.provider_packages}")
+        console.print("\n[bright_blue]Installing provider packages:")
+        for provider_package in sorted(installation_spec.provider_packages):
+            console.print(f"  {provider_package}")
+        console.print()
         for provider_package in installation_spec.provider_packages:
             install_providers_cmd.append(provider_package)
         if installation_spec.provider_constraints_location:

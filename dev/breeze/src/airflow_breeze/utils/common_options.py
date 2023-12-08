@@ -48,6 +48,7 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
@@ -276,12 +277,14 @@ option_platform_multiple = click.option(
     "--platform",
     help="Platform for Airflow image.",
     envvar="PLATFORM",
+    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else "linux/amd64",
     type=BetterChoice(ALLOWED_PLATFORMS),
 )
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
     envvar="PLATFORM",
+    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else "linux/amd64",
     type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_upgrade_to_newer_dependencies = click.option(
