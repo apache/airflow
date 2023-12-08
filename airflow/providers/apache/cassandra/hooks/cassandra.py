@@ -18,6 +18,7 @@
 """This module contains hook to integrate with Apache Cassandra."""
 from __future__ import annotations
 
+import re
 from typing import Any, Union
 
 from cassandra.auth import PlainTextAuthProvider
@@ -188,6 +189,13 @@ class CassandraHook(BaseHook, LoggingMixin):
         cluster_metadata = self.get_conn().cluster.metadata
         return keyspace in cluster_metadata.keyspaces and table in cluster_metadata.keyspaces[keyspace].tables
 
+    @staticmethod
+    def _sanitize_input(input_string: str) -> str:
+        if re.match(r"^\w+$", input_string):
+            return input_string
+        else:
+            raise ValueError(f"Invalid input: {input_string}")
+
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """
         Check if a record exists in Cassandra.
@@ -196,15 +204,15 @@ class CassandraHook(BaseHook, LoggingMixin):
                       Use dot notation to target a specific keyspace.
         :param keys: The keys and their values to check the existence.
         """
-        keyspace = self.keyspace
+        keyspace = self._sanitize_input(self.keyspace) if self.keyspace else self.keyspace
         if "." in table:
-            keyspace, table = table.split(".", 1)
+            keyspace, table = map(self._sanitize_input, table.split(".", 1))
+        else:
+            table = self._sanitize_input(table)
         ks_str = " AND ".join(f"{key}=%({key})s" for key in keys)
-        query = "SELECT * FROM %(query_keyspace)s.%(query_table)s WHERE " + ks_str
+        query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
         try:
-            result = self.get_conn().execute(
-                query, {**keys, "query_keyspace": keyspace, "query_table": table}
-            )
+            result = self.get_conn().execute(query, keys)
             return result.one() is not None
         except Exception:
             return False
