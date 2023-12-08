@@ -22,8 +22,9 @@ description: |
     `Samba <https://www.samba.org/>`__
 
 suspended: false
-source-date-epoch: 1700827493
+source-date-epoch: 1701983413
 versions:
+  - 4.4.0
   - 4.3.0
   - 4.2.2
   - 4.2.1

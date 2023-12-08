@@ -191,7 +191,7 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def docker_context_files(self) -> str:
-        return "docker-context-files"
+        return "./docker-context-files"
 
     @property
     def airflow_image_kubernetes(self) -> str:
