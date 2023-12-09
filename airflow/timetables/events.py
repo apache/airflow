@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Iterable
 import pendulum
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -84,7 +85,7 @@ class EventsTimetable(Timetable):
     ) -> DagRunInfo | None:
         earliest = restriction.earliest
         if not restriction.catchup:
-            current_time = pendulum.DateTime.utcnow()
+            current_time = timezone.utcnow()
             if earliest is None or current_time > earliest:
                 earliest = current_time
 
