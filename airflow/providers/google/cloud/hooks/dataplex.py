@@ -40,6 +40,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
@@ -896,7 +897,7 @@ class DataplexAsyncHook(GoogleBaseAsyncHook):
         region: str,
         data_scan_id: str | None = None,
         job_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
