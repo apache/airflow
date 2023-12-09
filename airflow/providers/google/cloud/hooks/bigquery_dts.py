@@ -38,6 +38,7 @@ from airflow.providers.google.common.hooks.base_google import (
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from googleapiclient.discovery import Resource
 
 
@@ -321,7 +322,7 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         run_id: str,
         project_id: str | None,
         location: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
