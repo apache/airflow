@@ -158,6 +158,23 @@ class TestSparkSubmitOperator:
         assert expected_dict["properties_file"] == operator._properties_file
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
+    def test_spark_submit_cmd_connection_overrides(self):
+        config = self._config
+        # have to add this otherwise wee can't run
+        # _build_spark_submit_command
+        config["use_krb5ccache"] = False
+        operator = SparkSubmitOperator(
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            **config
+        )
+
+        cmd = operator._get_hook()._build_spark_submit_command("test")[0]
+        assert "--queue yarn_dev_queue2" in cmd
+        assert "--deploy-mode client2" in cmd
+        assert "sparky" in cmd
+
     @pytest.mark.db_test
     def test_render_template(self):
         # Given
