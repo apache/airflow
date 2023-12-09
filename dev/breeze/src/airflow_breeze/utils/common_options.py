@@ -188,9 +188,9 @@ option_forward_credentials = click.option(
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",
-    help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
-    " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
-    "folder respectively. Implies --mount-sources `remove`.",
+    help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
+    "`none`, `wheel`, or `sdist` to install from `dist` folder, or VCS URL to install from "
+    "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
@@ -206,6 +206,7 @@ option_mount_sources = click.option(
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
+    envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
@@ -477,26 +478,17 @@ argument_doc_packages = click.argument(
         get_available_packages(include_non_provider_doc_packages=True, include_all_providers=True)
     ),
 )
-
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
-    help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
-    "constraints for the installed version and to find newer dependencies",
-    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use for airflow installation (used in calculated constraints URL). "
+    "Can be 'default' in which case the default constraints-reference is used.",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
 option_airflow_constraints_location = click.option(
     "--airflow-constraints-location",
     type=str,
-    help="If specified, it is used instead of calculating reference to the constraint file. "
-    "It could be full remote URL to the location file, or local file placed in `docker-context-files` "
-    "(in this case it has to start with /opt/airflow/docker-context-files).",
-)
-option_airflow_constraints_reference_build = click.option(
-    "--airflow-constraints-reference",
-    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
-    help="Constraint reference to use when building the image.",
-    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
+    help="Location of airflow constraints to use (remote URL or local context file).",
+    envvar="AIRFLOW_CONSTRAINTS_LOCATION",
 )
 option_airflow_constraints_mode_update = click.option(
     "--airflow-constraints-mode",
@@ -504,19 +496,57 @@ option_airflow_constraints_mode_update = click.option(
     required=False,
     help="Limit constraint update to only selected constraint mode - if selected.",
 )
-option_airflow_constraints_mode_ci = click.option(
-    "--airflow-constraints-mode",
-    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
-    default=ALLOWED_CONSTRAINTS_MODES_CI[0],
-    show_default=True,
-    help="Mode of constraints for CI image building.",
-)
 option_airflow_constraints_mode_prod = click.option(
     "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
     default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
     show_default=True,
-    help="Mode of constraints for PROD image building.",
+    help="Mode of constraints for Airflow for PROD image building.",
+)
+option_airflow_constraints_mode_ci = click.option(
+    "--airflow-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    default=ALLOWED_CONSTRAINTS_MODES_CI[0],
+    show_default=True,
+    help="Mode of constraints for Airflow for CI image building.",
+)
+option_providers_constraints_reference = click.option(
+    "--providers-constraints-reference",
+    help="Constraint reference to use for providers installation (used in calculated constraints URL). "
+    "Can be 'default' in which case the default constraints-reference is used.",
+    envvar="PROVIDERS_CONSTRAINTS_REFERENCE",
+)
+option_providers_constraints_location = click.option(
+    "--providers-constraints-location",
+    type=str,
+    help="Location of providers constraints to use (remote URL or local context file).",
+    envvar="PROVIDERS_CONSTRAINTS_LOCATION",
+)
+option_providers_constraints_mode_prod = click.option(
+    "--providers-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
+    default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
+    show_default=True,
+    help="Mode of constraints for Providers for PROD image building.",
+)
+option_providers_constraints_mode_ci = click.option(
+    "--providers-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    default=ALLOWED_CONSTRAINTS_MODES_CI[0],
+    show_default=True,
+    help="Mode of constraints for Providers for CI image building.",
+)
+option_providers_skip_constraints = click.option(
+    "--providers-skip-constraints",
+    is_flag=True,
+    help="Do not use constraints when installing providers.",
+    envvar="PROVIDERS_SKIP_CONSTRAINTS",
+)
+option_airflow_constraints_reference_build = click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
 option_pull = click.option(
     "--pull",
@@ -529,6 +559,12 @@ option_python_image = click.option(
     help="If specified this is the base python image used to build the image. "
     "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
+)
+option_docker_host = click.option(
+    "--docker-host",
+    help="Optional - docker host to use when running docker commands. "
+    "When set, the `--builder` option is ignored when building images.",
+    envvar="DOCKER_HOST",
 )
 option_builder = click.option(
     "--builder",
@@ -557,6 +593,14 @@ option_skip_cleanup = click.option(
     is_flag=True,
     envvar="SKIP_CLEANUP",
 )
+
+option_directory = click.option(
+    "--directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    required=True,
+    help="Directory to clean the provider artifacts from.",
+)
+
 option_include_mypy_volume = click.option(
     "--include-mypy-volume",
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
@@ -616,11 +660,11 @@ option_install_selected_providers = click.option(
     envvar="INSTALL_SELECTED_PROVIDERS",
     default="",
 )
-option_skip_constraints = click.option(
-    "--skip-constraints",
+option_airflow_skip_constraints = click.option(
+    "--airflow-skip-constraints",
     is_flag=True,
-    help="Do not use constraints when installing providers.",
-    envvar="SKIP_CONSTRAINTS",
+    help="Do not use constraints when installing airflow.",
+    envvar="AIRFLOW_SKIP_CONSTRAINTS",
 )
 option_historical_python_version = click.option(
     "--python",

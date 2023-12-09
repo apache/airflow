@@ -123,7 +123,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
 
-    if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_PACKAGES_FROM_DIST=} != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -133,141 +133,13 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
         mkdir -p "${AIRFLOW_SOURCES}"/logs/
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-    elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
-        echo
-        echo "${COLOR_BLUE}Skip installing airflow - only install wheel/tar.gz packages that are present locally.${COLOR_RESET}"
-        echo
-        echo
-        echo "${COLOR_BLUE}Uninstalling airflow and providers"
-        echo
-        uninstall_airflow_and_providers
-    elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
-        echo
-        echo "${COLOR_BLUE}Uninstalling airflow and providers"
-        echo
-        uninstall_airflow_and_providers
-        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
-            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
-            echo
-            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "none"
-        else
-            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-            echo
-            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
-        fi
-        uninstall_providers
-    elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
-        echo
-        echo "${COLOR_BLUE}Uninstalling airflow and providers"
-        echo
-        uninstall_airflow_and_providers
-        echo
-        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
-            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
-            echo
-            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "none"
-        else
-            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-            echo
-            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
-        fi
-        uninstall_providers
     else
-        echo
-        echo "${COLOR_BLUE}Uninstalling airflow and providers"
-        echo
-        uninstall_airflow_and_providers
-        echo
-        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
-            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
-            echo
-            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "none"
-        else
-            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-            echo
-            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
-        fi
-        if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
-            # make sure old variable is used for older airflow versions
-            export AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}"
-        fi
+        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
     fi
-    if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
-        echo
-        echo "${COLOR_BLUE}Install all packages from dist folder${COLOR_RESET}"
-        if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
-            echo "${COLOR_BLUE}(except apache-airflow)${COLOR_RESET}"
-        fi
-        if [[ ${PACKAGE_FORMAT} == "both" ]]; then
-            echo
-            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'.${COLOR_RESET}"
-            echo
-            exit 1
-        fi
-        echo
-        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
-            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
-            echo
-            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
-            echo
-        else
-            echo
-            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
-            echo
-            selected_providers=()
-        fi
-        installable_files=()
-        for file in /dist/*.{whl,tar.gz}
-        do
-            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above if
-                # --use-airflow-version was set and should be skipped otherwise
-                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
-                continue
-            fi
-            if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
-                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
-                    # shellcheck disable=SC2076
-                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
-                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
-                        installable_files+=( "${file}" )
-                    else
-                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
-                    fi
-                else
-                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
-                    installable_files+=( "${file}" )
-                fi
-            fi
-            if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
-                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
-                    # shellcheck disable=SC2076
-                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
-                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
-                        installable_files+=( "${file}" )
-                    else
-                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
-                    fi
-                else
-                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
-                    installable_files+=( "${file}" )
-                fi
-            fi
-        done
-        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" && ${USE_AIRFLOW_VERSION} != "" ]]; then
-            echo
-            echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
-            echo
-            installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
-        fi
-        echo
-        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
-        echo
-        if (( ${#installable_files[@]} )); then
-            pip install --root-user-action ignore "${installable_files[@]}"
-        fi
+
+    if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
+        # make sure old variable is used for older airflow versions
+        export AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}"
     fi
 
     # Added to have run-tests on path

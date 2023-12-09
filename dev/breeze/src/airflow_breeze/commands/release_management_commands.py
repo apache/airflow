@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import glob
+import operator
 import os
 import re
 import shlex
@@ -23,11 +25,12 @@ import shutil
 import sys
 import textwrap
 import time
+from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, Any, Generator, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -42,7 +45,6 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_SELECTED,
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
@@ -65,15 +67,18 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
     argument_doc_packages,
     argument_provider_packages,
+    option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_airflow_site_directory,
+    option_airflow_skip_constraints,
     option_answer,
     option_chicken_egg_providers,
     option_commit_sha,
     option_debug_resources,
+    option_directory,
     option_dry_run,
     option_github_repository,
     option_historical_python_version,
@@ -81,13 +86,17 @@ from airflow_breeze.utils.common_options import (
     option_include_success_outputs,
     option_install_selected_providers,
     option_installation_package_format,
+    option_mount_sources,
     option_package_format,
     option_parallelism,
+    option_providers_constraints_location,
+    option_providers_constraints_mode_ci,
+    option_providers_constraints_reference,
+    option_providers_skip_constraints,
     option_python,
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
-    option_skip_constraints,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -123,6 +132,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_WWW_DIR,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
+    GENERATED_PROVIDER_PACKAGES_DIR,
     PROVIDER_METADATA_JSON_FILE_PATH,
     cleanup_python_generated_files,
 )
@@ -148,6 +158,17 @@ option_debug_release_management = click.option(
     help="Drop user in shell instead of running the command. Useful for debugging.",
     envvar="DEBUG",
 )
+
+if TYPE_CHECKING:
+    from packaging.version import Version
+
+
+class VersionedFile(NamedTuple):
+    base: str
+    version: str
+    suffix: str
+    type: str
+    comparable_version: Version
 
 
 def run_docker_command_with_debug(
@@ -208,7 +229,6 @@ AIRFLOW_PIP_VERSION = "23.3.1"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
-
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -581,6 +601,8 @@ def prepare_provider_packages(
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
             success_packages.append(provider_id)
+    if not skip_deleting_generated_files:
+        shutil.rmtree(GENERATED_PROVIDER_PACKAGES_DIR, ignore_errors=True)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
@@ -848,50 +870,74 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
     name="install-provider-packages",
     help="Installs provider packages that can be found in dist.",
 )
-@option_use_airflow_version
-@option_airflow_extras
+@option_airflow_constraints_mode_ci
+@option_airflow_constraints_location
 @option_airflow_constraints_reference
-@option_skip_constraints
+@option_airflow_extras
+@option_airflow_skip_constraints
+@option_debug_release_management
+@option_debug_resources
+@option_dry_run
+@option_github_repository
+@option_include_success_outputs
 @option_install_selected_providers
 @option_installation_package_format
-@option_debug_release_management
-@option_github_repository
-@option_verbose
-@option_dry_run
+@option_mount_sources
+@option_parallelism
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
+@option_python
 @option_run_in_parallel
 @option_skip_cleanup
-@option_parallelism
-@option_debug_resources
-@option_include_success_outputs
+@option_use_airflow_version
+@option_use_packages_from_dist
+@option_verbose
 def install_provider_packages(
-    use_airflow_version: str | None,
+    airflow_constraints_location: str,
+    airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    skip_constraints: bool,
-    install_selected_providers: str,
+    airflow_skip_constraints: bool,
     airflow_extras: str,
     debug: bool,
-    package_format: str,
+    debug_resources: bool,
     github_repository: str,
+    include_success_outputs: bool,
+    install_selected_providers: str,
+    mount_sources: str,
+    package_format: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
+    python: str,
+    parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    parallelism: int,
-    debug_resources: bool,
-    include_success_outputs: bool,
+    use_airflow_version: str | None,
+    use_packages_from_dist: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
-        mount_sources=MOUNT_SELECTED,
-        github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        use_airflow_version=use_airflow_version,
-        airflow_extras=airflow_extras,
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
+        airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
+        github_repository=github_repository,
         install_selected_providers=install_selected_providers,
-        use_packages_from_dist=True,
-        skip_constraints=skip_constraints,
+        mount_sources=mount_sources,
         package_format=package_format,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
+        python=python,
+        use_airflow_version=use_airflow_version,
+        use_packages_from_dist=use_packages_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     # We just want to install the providers by entrypoint, we do not need to run any command in the container
@@ -978,27 +1024,43 @@ def install_provider_packages(
     name="verify-provider-packages",
     help="Verifies if all provider code is following expectations for providers.",
 )
-@option_use_airflow_version
-@option_airflow_extras
+@option_airflow_constraints_mode_ci
+@option_airflow_constraints_location
 @option_airflow_constraints_reference
-@option_skip_constraints
-@option_use_packages_from_dist
+@option_airflow_extras
+@option_airflow_skip_constraints
+@option_debug_release_management
+@option_dry_run
+@option_github_repository
 @option_install_selected_providers
 @option_installation_package_format
-@option_debug_release_management
-@option_github_repository
+@option_mount_sources
+@option_python
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
+@option_use_airflow_version
+@option_use_packages_from_dist
 @option_verbose
-@option_dry_run
 def verify_provider_packages(
-    use_airflow_version: str | None,
+    airflow_constraints_location: str,
+    airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    skip_constraints: bool,
-    install_selected_providers: str,
     airflow_extras: str,
-    use_packages_from_dist: bool,
     debug: bool,
-    package_format: str,
     github_repository: str,
+    install_selected_providers: str,
+    mount_sources: str,
+    package_format: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
+    python: str,
+    airflow_skip_constraints: bool,
+    use_airflow_version: str | None,
+    use_packages_from_dist: bool,
 ):
     if install_selected_providers and not use_packages_from_dist:
         get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
@@ -1007,17 +1069,23 @@ def verify_provider_packages(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
+        airflow_constraints_reference=airflow_constraints_reference,
+        airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend="sqlite",
         executor="SequentialExecutor",
-        mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        use_airflow_version=use_airflow_version,
-        airflow_extras=airflow_extras,
-        airflow_constraints_reference=airflow_constraints_reference,
-        use_packages_from_dist=use_packages_from_dist,
-        skip_constraints=skip_constraints,
+        mount_sources=mount_sources,
         package_format=package_format,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
+        python=python,
+        use_airflow_version=use_airflow_version,
+        use_packages_from_dist=use_packages_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = [
@@ -1212,6 +1280,56 @@ def _add_chicken_egg_providers_to_build_args(
         )
         python_build_args["INSTALL_PACKAGES_FROM_CONTEXT"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
+
+
+@release_management.command(
+    name="clean-old-provider-artifacts",
+    help="Cleans the old provider artifacts",
+)
+@option_directory
+@option_verbose
+@option_dry_run
+def clean_old_provider_artifacts(
+    directory: str,
+):
+    """Cleans up the old airflow providers artifacts in order to maintain
+    only one provider version in the release SVN folder"""
+    cleanup_suffixes = [
+        ".tar.gz",
+        ".tar.gz.sha512",
+        ".tar.gz.asc",
+        "-py3-none-any.whl",
+        "-py3-none-any.whl.sha512",
+        "-py3-none-any.whl.asc",
+    ]
+
+    for suffix in cleanup_suffixes:
+        get_console().print(f"[info]Running provider cleanup for suffix: {suffix}[/]")
+        package_types_dicts: dict[str, list[VersionedFile]] = defaultdict(list)
+        os.chdir(directory)
+
+        for file in glob.glob(f"*{suffix}"):
+            versioned_file = split_version_and_suffix(file, suffix)
+            package_types_dicts[versioned_file.type].append(versioned_file)
+
+        for package_types in package_types_dicts.values():
+            package_types.sort(key=operator.attrgetter("comparable_version"))
+
+        for package_types in package_types_dicts.values():
+            if len(package_types) == 1:
+                versioned_file = package_types[0]
+                get_console().print(
+                    f"[success]Leaving the only version: "
+                    f"{versioned_file.base + versioned_file.version + versioned_file.suffix}[/]"
+                )
+            # Leave only last version from each type
+            for versioned_file in package_types[:-1]:
+                get_console().print(
+                    f"""[warning]Removing {versioned_file.base + versioned_file.version +
+                versioned_file.suffix} as they are older than remaining file"""
+                )
+                command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
+                run_command(command, check=False)
 
 
 @release_management.command(
@@ -1841,3 +1959,18 @@ def update_constraints(
             if confirm_modifications(constraints_repo):
                 commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
+
+
+def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    from packaging.version import Version
+
+    no_suffix_file = file_name[: -len(suffix)]
+    no_version_file, version = no_suffix_file.rsplit("-", 1)
+    no_version_file = no_version_file.replace("_", "-")
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(version),
+    )

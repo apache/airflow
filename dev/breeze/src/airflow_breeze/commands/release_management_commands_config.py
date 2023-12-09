@@ -36,6 +36,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "verify-provider-packages",
         "generate-providers-metadata",
         "generate-issue-content-providers",
+        "clean-old-provider-artifacts",
     ],
 }
 
@@ -63,15 +64,28 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider verification flags",
             "options": [
-                "--use-airflow-version",
-                "--install-selected-providers",
+                "--python",
+                "--mount-sources",
+                "--github-repository",
+                "--debug",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
-                "--skip-constraints",
-                "--debug",
-                "--github-repository",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
     ],
@@ -79,14 +93,28 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider installation flags",
             "options": [
-                "--use-airflow-version",
-                "--install-selected-providers",
+                "--python",
+                "--mount-sources",
+                "--github-repository",
+                "--debug",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
-                "--skip-constraints",
-                "--debug",
-                "--github-repository",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -201,6 +229,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--disable-progress",
             ],
+        }
+    ],
+    "breeze release-management clean-old-provider-artifacts": [
+        {
+            "name": "Cleans the old provider artifacts",
+            "options": ["--directory"],
         }
     ],
     "breeze release-management generate-providers-metadata": [

@@ -22,8 +22,9 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 suspended: false
-source-date-epoch: 1700827456
+source-date-epoch: 1701983373
 versions:
+  - 3.5.0
   - 3.4.1
   - 3.4.0
   - 3.3.0
@@ -44,7 +45,7 @@ versions:
   - 1.0.1
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-http
   - asgiref
   - aiohttp

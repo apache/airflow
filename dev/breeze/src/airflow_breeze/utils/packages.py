@@ -37,8 +37,8 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
     BREEZE_SOURCES_ROOT,
-    DIST_DIR,
     DOCS_ROOT,
+    GENERATED_PROVIDER_PACKAGES_DIR,
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
@@ -48,7 +48,7 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.5.0"
+MIN_AIRFLOW_VERSION = "2.6.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -347,7 +347,7 @@ def get_documentation_package_path(provider_id: str) -> Path:
 
 
 def get_target_root_for_copied_provider_sources(provider_id: str) -> Path:
-    return (DIST_DIR / "provider_packages").joinpath(*provider_id.split("."))
+    return GENERATED_PROVIDER_PACKAGES_DIR.joinpath(*provider_id.split("."))
 
 
 def get_pip_package_name(provider_id: str) -> str:

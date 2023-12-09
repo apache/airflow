@@ -16,48 +16,125 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+import os
+from unittest.mock import patch
 
 import pytest
+from openai.types import CreateEmbeddingResponse, Embedding
 
+from airflow.models import Connection
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
 @pytest.fixture
-def openai_hook():
-    with patch("airflow.providers.openai.hooks.openai.OpenAIHook._get_api_key"), patch(
-        "airflow.providers.openai.hooks.openai.OpenAIHook._get_api_base"
-    ) as _:
-        yield OpenAIHook(conn_id="test_conn_id")
+def mock_openai_connection():
+    conn_id = "openai_conn"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    yield conn
+
+
+@pytest.fixture
+def mock_openai_hook(mock_openai_connection):
+    with patch("airflow.providers.openai.hooks.openai.OpenAI"):
+        yield OpenAIHook(conn_id=mock_openai_connection.conn_id)
 
 
 @pytest.fixture
 def mock_embeddings_response():
-    return {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
-
-
-@pytest.fixture
-def mock_completions_response():
-    return Mock(
-        id="completion-id",
-        object="completion",
-        created=1234567890,
-        model="text-davinci-002",
-        usage={"prompt_tokens": 15, "completion_tokens": 32, "total_tokens": 47},
-        choices=[Mock(text="the quick brown fox", finish_reason="stop", index=0)],
+    return CreateEmbeddingResponse(
+        data=[Embedding(embedding=[0.1, 0.2, 0.3], index=0, object="embedding")],
+        model="text-embedding-ada-002-v2",
+        object="list",
+        usage={"prompt_tokens": 4, "total_tokens": 4},
     )
 
 
-def test_create_embeddings(openai_hook, mock_embeddings_response):
+def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
     text = "Sample text"
-    with patch("openai.Embedding.create", return_value=mock_embeddings_response):
-        embeddings = openai_hook.create_embeddings(text)
+    mock_openai_hook.conn.embeddings.create.return_value = mock_embeddings_response
+    embeddings = mock_openai_hook.create_embeddings(text)
     assert embeddings == [0.1, 0.2, 0.3]
 
 
-def test_get_api_key():
-    mock_connection = Mock()
-    mock_connection.password = "your_api_key"
-    OpenAIHook.get_connection = Mock(return_value=mock_connection)
-    api_key = OpenAIHook()._get_api_key()
-    assert api_key == "your_api_key"
+def test_openai_hook_test_connection(mock_openai_hook):
+    result, message = mock_openai_hook.test_connection()
+    assert result is True
+    assert message == "Connection established!"
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_api_key_in_extra(mock_client):
+    conn_id = "api_key_in_extra"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={"openai_client_kwargs": {"api_key": "api_key_in_extra"}},
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_api_key_in_password(mock_client):
+    conn_id = "api_key_in_password"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        password="api_key_in_password",
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_password",
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_base_url_in_extra(mock_client):
+    conn_id = "base_url_in_extra"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={"openai_client_kwargs": {"base_url": "base_url_in_extra", "api_key": "api_key_in_extra"}},
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url="base_url_in_extra",
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_with_openai_client_kwargs(mock_client):
+    conn_id = "openai_client_kwargs"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={
+            "openai_client_kwargs": {
+                "api_key": "api_key_in_extra",
+                "organization": "organization_in_extra",
+            }
+        },
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    hook = OpenAIHook(conn_id=conn_id)
+    hook.get_conn()
+    mock_client.assert_called_once_with(
+        api_key="api_key_in_extra",
+        base_url=None,
+        organization="organization_in_extra",
+    )
