@@ -48,6 +48,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference,
     option_airflow_extras,
+    option_airflow_skip_constraints,
     option_answer,
     option_backend,
     option_builder,
@@ -80,6 +81,7 @@ from airflow_breeze.utils.common_options import (
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
     option_providers_constraints_reference,
+    option_providers_skip_constraints,
     option_python,
     option_restart,
     option_run_db_tests_only,
@@ -183,6 +185,7 @@ class TimerThread(threading.Thread):
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -212,6 +215,7 @@ class TimerThread(threading.Thread):
 @option_providers_constraints_location
 @option_providers_constraints_mode_ci
 @option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_python
 @option_restart
 @option_run_db_tests_only
@@ -229,6 +233,7 @@ def shell(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -257,6 +262,7 @@ def shell(
     providers_constraints_location: str,
     providers_constraints_mode: str,
     providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
     quiet: bool,
     restart: bool,
@@ -351,6 +357,7 @@ def shell(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -379,6 +386,7 @@ def shell(
 @option_providers_constraints_location
 @option_providers_constraints_mode_ci
 @option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_python
 @option_restart
 @option_standalone_dag_processor
@@ -386,8 +394,11 @@ def shell(
 @option_use_packages_from_dist
 @option_verbose
 def start_airflow(
+    airflow_constraints_mode: str,
+    airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -403,6 +414,7 @@ def start_airflow(
     github_repository: str,
     image_tag: str | None,
     integration: tuple[str, ...],
+    install_selected_providers: str,
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
@@ -412,6 +424,10 @@ def start_airflow(
     platform: str | None,
     postgres_version: str,
     project_name: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
     restart: bool,
     skip_asset_compilation: bool,
@@ -435,7 +451,10 @@ def start_airflow(
     )
 
     result = enter_shell(
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
+        airflow_skip_constraints=airflow_skip_constraints,
         airflow_extras=airflow_extras,
         backend=backend,
         builder=builder,
@@ -452,6 +471,7 @@ def start_airflow(
         github_repository=github_repository,
         image_tag=image_tag,
         integration=integration,
+        install_selected_providers=install_selected_providers,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
@@ -461,6 +481,10 @@ def start_airflow(
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
         standalone_dag_processor=standalone_dag_processor,
