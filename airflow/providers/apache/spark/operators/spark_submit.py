@@ -73,7 +73,7 @@ class SparkSubmitOperator(BaseOperator):
                               specified, this will look for conf/spark-defaults.conf.
     :param queue: The name of the YARN queue to which the application is submitted.
                         (will overwrite any yarn queue defined in the connection's extra JSON)
-    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as an    client.
+    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as a client.
                         (will overwrite any deployment mode defined in the connection's extra JSON)
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
                            on keytab for Kerberos login
