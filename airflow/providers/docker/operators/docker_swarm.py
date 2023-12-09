@@ -201,6 +201,12 @@ class DockerSwarmOperator(DockerOperator):
                 match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6,}Z) (.*)", line)
                 timestamp, message = match.groups()
                 self.log.info(message)
+
+            if len(logs) == 0:
+                return last_line_logged, since
+
+            last_line_logged = line
+
             # Floor nanoseconds to microseconds
             last_timestamp = re.sub(r"(\.\d{6})\d+Z", r"\1Z", timestamp)
             last_timestamp = datetime.strptime(last_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
