@@ -40,6 +40,12 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+OVERRIDES = {
+    "container_overrides": [{"args": ["python", "main.py"]}],
+    "task_count": 1,
+    "timeout": "60s",
+}
+
 JOB = Job()
 JOB.name = JOB_NAME
 
@@ -78,11 +84,12 @@ class TestCloudRunCreateJobOperator:
 class TestCloudRunExecuteJobOperator:
     def test_template_fields(self):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=OVERRIDES
         )
 
         _assert_common_template_fields(operator.template_fields)
         assert "job_name" in operator.template_fields
+        assert "overrides" in operator.template_fields
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
