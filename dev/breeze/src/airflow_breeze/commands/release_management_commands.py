@@ -132,6 +132,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_WWW_DIR,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
+    GENERATED_PROVIDER_PACKAGES_DIR,
     PROVIDER_METADATA_JSON_FILE_PATH,
     cleanup_python_generated_files,
 )
@@ -600,6 +601,8 @@ def prepare_provider_packages(
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
             success_packages.append(provider_id)
+    if not skip_deleting_generated_files:
+        shutil.rmtree(GENERATED_PROVIDER_PACKAGES_DIR, ignore_errors=True)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
