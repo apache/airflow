@@ -796,6 +796,69 @@ jobs:
           breeze release-management prepare-provider-packages --skip-tag-check
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
 
+  prepare-install-provider-packages-sdist:
+    timeout-minutes: 80
+    name: "Provider packages sdist (install)"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      USE_AIRFLOW_VERSION: "sdist"
+    if: >
+      needs.build-info.outputs.canary-run == 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: sdist"
+        run: >
+          breeze release-management prepare-provider-packages
+          --version-suffix-for-pypi dev0 --package-format sdist
+          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+      - name: "Prepare airflow package: sdist"
+        run: >
+          breeze release-management prepare-airflow-package
+          --version-suffix-for-pypi dev0 --package-format sdist
+      - name: "Verify sdist packages with twine"
+        run: pipx install twine --force && twine check dist/*.tar.gz
+      - name: "Generate source constraints from CI image"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
+      - name: "Install all provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
+        if: needs.build-info.outputs.affected-providers-list-as-string == ''
+      - name: "Install affected provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
+        if: needs.build-info.outputs.affected-providers-list-as-string != ''
+
   providers-compatibility-checks:
     timeout-minutes: 80
     name: >
@@ -867,62 +930,6 @@ jobs:
           --use-airflow-version wheel
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
-          --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
-
-  prepare-install-provider-packages-sdist:
-    timeout-minutes: 80
-    name: "Provider packages sdist (install)"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      USE_AIRFLOW_VERSION: "sdist"
-    if: >
-      needs.build-info.outputs.canary-run == 'true' &&
-      needs.build-info.outputs.skip-provider-tests != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: sdist"
-        run: >
-          breeze release-management prepare-provider-packages
-          --version-suffix-for-pypi dev0 --package-format sdist
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Prepare airflow package: sdist"
-        run: >
-          breeze release-management prepare-airflow-package
-          --version-suffix-for-pypi dev0 --package-format sdist
-      - name: "Verify sdist packages with twine"
-        run: pipx install twine --force && twine check dist/*.tar.gz
-      - name: "Install all provider packages and airflow via sdist files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format sdist
-          --use-airflow-version sdist
-          --airflow-constraints-reference default
-          --providers-constraints-reference constraints-main
-          --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow via sdist files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format sdist
-          --use-airflow-version sdist
-          --airflow-constraints-reference default
-          --providers-constraints-reference constraints-main
           --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
