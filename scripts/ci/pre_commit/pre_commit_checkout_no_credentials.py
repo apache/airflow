@@ -48,6 +48,13 @@ def check_file(the_file: Path) -> int:
                     console.print(f"\n[red]The `with` clause is missing in step:[/]\n\n{pretty_step}")
                     error_num += 1
                     continue
+                path = with_clause.get("path")
+                if path == "constraints":
+                    # This is a special case - we are ok with persisting credentials in constraints
+                    # step, because we need them to push constraints back to the repository in "canary"
+                    # build. This is ok for security, because we are pushing it only in the `main` branch
+                    # of the repository and only for unprotected constraints branch
+                    continue
                 persist_credentials = with_clause.get("persist-credentials")
                 if persist_credentials is None:
                     console.print(
@@ -80,7 +87,7 @@ set to False.[/]
 For security reasons - make sure all of the checkout actions have persist_credentials set, similar to:
 
   - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-    uses: actions/checkout@v3
+    uses: actions/checkout@v4
     with:
       persist-credentials: false
 

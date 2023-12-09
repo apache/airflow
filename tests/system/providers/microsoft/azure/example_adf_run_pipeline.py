@@ -23,6 +23,9 @@ from typing import cast
 from airflow.models import DAG
 from airflow.models.xcom_arg import XComArg
 
+# Ignore missing args provided by default_args
+# mypy: disable-error-code="call-arg"
+
 try:
     from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
@@ -73,7 +76,7 @@ with DAG(
     )
 
     # Performs polling on the Airflow Triggerer thus freeing up resources on Airflow Worker
-    pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
+    pipeline_run_sensor_deferred = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor_defered",
         run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
         deferrable=True,
@@ -88,15 +91,24 @@ with DAG(
 
     # [START howto_operator_adf_run_pipeline_with_deferrable_flag]
     run_pipeline3 = AzureDataFactoryRunPipelineOperator(
-        task_id="run_pipeline3", pipeline_name="pipeline1", parameters={"myParam": "value"}, deferrable=True
+        task_id="run_pipeline3",
+        pipeline_name="pipeline1",
+        parameters={"myParam": "value"},
+        deferrable=True,
     )
     # [END howto_operator_adf_run_pipeline_with_deferrable_flag]
 
     begin >> Label("No async wait") >> run_pipeline1
     begin >> Label("Do async wait with sensor") >> run_pipeline2
     begin >> Label("Do async wait with deferrable operator") >> run_pipeline3
-    [run_pipeline1, pipeline_run_sensor, pipeline_run_async_sensor, run_pipeline3] >> end
-    [run_pipeline1, pipeline_run_sensor, pipeline_run_async_sensor] >> end
+    [
+        run_pipeline1,
+        pipeline_run_sensor,
+        pipeline_run_sensor_deferred,
+        pipeline_run_async_sensor,
+        run_pipeline3,
+    ] >> end
+    [run_pipeline1, pipeline_run_sensor, pipeline_run_sensor_deferred, pipeline_run_async_sensor] >> end
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> pipeline_run_sensor

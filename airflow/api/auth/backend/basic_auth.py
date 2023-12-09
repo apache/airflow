@@ -14,56 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Basic authentication backend."""
+"""
+This module is deprecated.
+
+Please use :mod:`airflow.auth.managers.fab.api.auth.backend.basic_auth` instead.
+"""
 from __future__ import annotations
 
-from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+import warnings
+from typing import TYPE_CHECKING, Any, Callable
 
-from flask import Response, request
-from flask_appbuilder.const import AUTH_LDAP
-from flask_login import login_user
-
-from airflow.utils.airflow_flask_app import get_airflow_app
+import airflow.auth.managers.fab.api.auth.backend.basic_auth as fab_basic_auth
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import User
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
+warnings.warn(
+    "This module is deprecated. Please use `airflow.auth.managers.fab.api.auth.backend.basic_auth` instead.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
+)
+
 
 def init_app(_):
-    """Initialize authentication backend."""
-
-
-T = TypeVar("T", bound=Callable)
+    fab_basic_auth.init_app(_)
 
 
 def auth_current_user() -> User | None:
-    """Authenticate and set current user if Authorization header exists."""
-    auth = request.authorization
-    if auth is None or not auth.username or not auth.password:
-        return None
-
-    ab_security_manager = get_airflow_app().appbuilder.sm
-    user = None
-    if ab_security_manager.auth_type == AUTH_LDAP:
-        user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
-    if user is None:
-        user = ab_security_manager.auth_user_db(auth.username, auth.password)
-    if user is not None:
-        login_user(user, remember=False)
-    return user
+    return fab_basic_auth.auth_current_user()
 
 
-def requires_authentication(function: T):
-    """Decorate functions that require authentication."""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        if auth_current_user() is not None:
-            return function(*args, **kwargs)
-        else:
-            return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})
-
-    return cast(T, decorated)
+def requires_authentication(function: Callable):
+    return fab_basic_auth.requires_authentication(function)

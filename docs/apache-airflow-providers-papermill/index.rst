@@ -35,6 +35,7 @@
     :caption: Guides
 
     Operators <operators>
+    Connection types <connections/index>
 
 .. toctree::
     :hidden:
@@ -76,7 +77,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.4.0
+Release: 3.6.0
 
 Provider package
 ----------------
@@ -94,12 +95,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``papermill[all]``  ``>=1.2.1``
 ``scrapbook[all]``
+``ipykernel``
 ==================  ==================

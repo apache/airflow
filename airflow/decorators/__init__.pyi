@@ -26,7 +26,9 @@ from typing import Any, Callable, Collection, Container, Iterable, Mapping, over
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
+from airflow.decorators.branch_virtualenv import branch_virtualenv_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -35,6 +37,7 @@ from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.typing_compat import Literal
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -47,6 +50,8 @@ __all__ = [
     "virtualenv_task",
     "external_python_task",
     "branch_task",
+    "branch_virtualenv_task",
+    "branch_external_python_task",
     "short_circuit_task",
     "sensor_task",
     "setup",
@@ -194,6 +199,99 @@ class TaskDecoratorCollection:
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
+    def branch_virtualenv(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        requirements: None | Iterable[str] | str = None,
+        python_version: None | str | int | float = None,
+        use_dill: bool = False,
+        system_site_packages: bool = True,
+        templates_dict: Mapping[str, Any] | None = None,
+        pip_install_options: list[str] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | str = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
+
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
+        Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param requirements: Either a list of requirement strings, or a (templated)
+            "requirements file" as specified by pip.
+        :param python_version: The Python version to run the virtual environment with. Note that
+            both 2 and 2.7 are acceptable forms.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param system_site_packages: Whether to include
+            system_site_packages in your virtual environment.
+            See virtualenv documentation for more information.
+        :param pip_install_options: a list of pip install options when installing requirements
+            See 'pip install -h' for available options
+        :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
+        :param index_urls: an optional list of index urls to load Python packages from.
+            If not provided the system pip conf will be used to source packages from.
+        :param venv_cache_path: Optional path to the virtual environment parent folder in which the
+            virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
+            with a checksum of requirements. If not provided the virtual environment will be created and
+            deleted in a temp folder for every execution.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
+    @overload
+    def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def branch_external_python(
+        self,
+        *,
+        python: str,
+        multiple_outputs: bool | None = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        use_dill: bool = False,
+        templates_dict: Mapping[str, Any] | None = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a BranchExternalPythonOperator.
+
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
+        Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
+
+        :param python: Full path string (file-system specific) that points to a Python binary inside
+            a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
+            (so usually start with "/" or "X:/" depending on the filesystem/os used).
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
+    @overload
+    def branch_external_python(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
+    @overload
     def short_circuit(
         self,
         *,
@@ -228,6 +326,7 @@ class TaskDecoratorCollection:
         docker_url: str = "unix://var/run/docker.sock",
         environment: dict[str, str] | None = None,
         private_environment: dict[str, str] | None = None,
+        env_file: str | None = None,
         force_pull: bool = False,
         mem_limit: float | str | None = None,
         host_tmp_dir: str | None = None,
@@ -235,22 +334,36 @@ class TaskDecoratorCollection:
         tls_ca_cert: str | None = None,
         tls_client_cert: str | None = None,
         tls_client_key: str | None = None,
+        tls_verify: bool = True,
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
+        mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
         mounts: list[str] | None = None,
+        entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
         docker_conn_id: str | None = None,
         dns: list[str] | None = None,
         dns_search: list[str] | None = None,
-        auto_remove: bool = False,
+        auto_remove: Literal["never", "success", "force"] = "never",
         shm_size: int | None = None,
         tty: bool = False,
+        hostname: str | None = None,
         privileged: bool = False,
         cap_add: str | None = None,
         extra_hosts: dict[str, str] | None = None,
+        retrieve_output: bool = False,
+        retrieve_output_path: str | None = None,
+        timeout: int = 60,
+        device_requests: list[dict] | None = None,
+        log_opts_max_size: str | None = None,
+        log_opts_max_file: str | None = None,
+        ipc_mode: str | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        port_bindings: dict | None = None,
+        ulimits: list[dict] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -264,34 +377,41 @@ class TaskDecoratorCollection:
         :param api_version: Remote API version. Set to ``auto`` to automatically
             detect the server's version.
         :param container_name: Name of the container. Optional (templated)
-        :param cpus: Number of CPUs to assign to the container. This value gets multiplied with 1024.
+        :param cpus: Number of CPUs to assign to the container.
+            This value gets multiplied with 1024. See
+            https://docs.docker.com/engine/reference/run/#cpu-share-constraint
         :param docker_url: URL of the host running the docker daemon.
             Default is unix://var/run/docker.sock
         :param environment: Environment variables to set in the container. (templated)
         :param private_environment: Private environment variables to set in the container.
             These are not templated, and hidden from the website.
+        :param env_file: Relative path to the ``.env`` file with environment variables to set in the container.
+            Overridden by variables in the environment parameter.
         :param force_pull: Pull the docker image on every run. Default is False.
         :param mem_limit: Maximum amount of memory the container can use.
             Either a float value, which represents the limit in bytes,
             or a string like ``128m`` or ``1g``.
         :param host_tmp_dir: Specify the location of the temporary directory on the host which will
             be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
-        :param network_mode: Network mode for the container.
-            It can be one of the following:
-            bridge - Create new network stack for the container with default docker bridge network
-            None - No networking for this container
-            container:<name|id> - Use the network stack of another container specified via <name|id>
-            host - Use the host network stack. Incompatible with `port_bindings`
-            '<network-name>|<network-id>' - Connects the container to user created network(using `docker
-            network create` command)
+        :param network_mode: Network mode for the container. It can be one of the following:
+
+            - ``"bridge"``: Create new network stack for the container with default docker bridge network
+            - ``"none"``: No networking for this container
+            - ``"container:<name|id>"``: Use the network stack of another container specified via <name|id>
+            - ``"host"``: Use the host network stack. Incompatible with `port_bindings`
+            - ``"<network-name>|<network-id>"``: Connects the container to user created network
+              (using ``docker network create`` command)
         :param tls_ca_cert: Path to a PEM-encoded certificate authority
             to secure the docker connection.
         :param tls_client_cert: Path to the PEM-encoded certificate
             used to authenticate docker client.
         :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
+        :param tls_verify: Set ``True`` to verify the validity of the provided certificate.
         :param tls_hostname: Hostname to match against
             the docker server certificate or False to disable the check.
         :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
+        :param mount_tmp_dir: Specify whether the temporary directory should be bind-mounted
+            from the host to the container. Defaults to True
         :param tmp_dir: Mount point inside the container to
             a temporary directory created on the host by the operator.
             The path is also made available via the environment variable
@@ -299,22 +419,49 @@ class TaskDecoratorCollection:
         :param user: Default user inside the docker container.
         :param mounts: List of mounts to mount into the container, e.g.
             ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+        :param entrypoint: Overwrite the default ENTRYPOINT of the image
         :param working_dir: Working directory to
             set on the container (equivalent to the -w switch the docker client)
         :param xcom_all: Push all the stdout or just the last line.
             The default is False (last line).
-        :param docker_conn_id: ID of the Airflow connection to use
+        :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
         :param dns: Docker custom DNS servers
         :param dns_search: Docker custom DNS search domain
-        :param auto_remove: Auto-removal of the container on daemon side when the
-            container's process exits.
-            The default is False.
+        :param auto_remove: Enable removal of the container when the container's process exits. Possible values:
+
+            - ``never``: (default) do not remove container
+            - ``success``: remove on success
+            - ``force``: always remove container
         :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
             greater than 0. If omitted uses system default.
         :param tty: Allocate pseudo-TTY to the container
             This needs to be set see logs of the Docker container.
+        :param hostname: Optional hostname for the container.
         :param privileged: Give extended privileges to this container.
         :param cap_add: Include container capabilities
+        :param extra_hosts: Additional hostnames to resolve inside the container,
+            as a mapping of hostname to IP address.
+        :param retrieve_output: Should this docker image consistently attempt to pull from and output
+            file before manually shutting down the image. Useful for cases where users want a pickle serialized
+            output that is not posted to logs
+        :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
+        :param device_requests: Expose host resources such as GPUs to the container.
+        :param log_opts_max_size: The maximum size of the log before it is rolled.
+            A positive integer plus a modifier representing the unit of measure (k, m, or g).
+            Eg: 10m or 1g Defaults to -1 (unlimited).
+        :param log_opts_max_file: The maximum number of log files that can be present.
+            If rolling the logs creates excess files, the oldest file is removed.
+            Only effective when max-size is also set. A positive integer. Defaults to 1.
+        :param ipc_mode: Set the IPC mode for the container.
+        :param skip_on_exit_code: If task exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
+        :param port_bindings: Publish a container's port(s) to the host. It is a
+            dictionary of value where the key indicates the port to open inside the container
+            and value indicates the host port that binds to the container port.
+            Incompatible with ``"host"`` in ``network_mode``.
+        :param ulimits: List of ulimit options to set for the container. Each item should
+            be a :py:class:`docker.types.Ulimit` instance.
         """
         # [END decorator_signature]
     def kubernetes(
@@ -469,6 +616,28 @@ class TaskDecoratorCollection:
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
+    @overload
+    def pyspark(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        conn_id: str | None = None,
+        config_kwargs: dict[str, str] | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function that is to be injected with a SparkSession.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param conn_id: The connection ID to use for the SparkSession.
+        :param config_kwargs: Additional kwargs to pass to the SparkSession builder. This overrides
+            the config from the connection.
+        """
+    @overload
+    def pyspark(
+        self, python_callable: Callable[FParams, FReturn] | None = None
+    ) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
 setup: Callable

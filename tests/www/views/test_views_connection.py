@@ -29,6 +29,8 @@ from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
+pytestmark = pytest.mark.db_test
+
 CONNECTION: dict[str, Any] = {
     "conn_id": "test_conn",
     "conn_type": "http",

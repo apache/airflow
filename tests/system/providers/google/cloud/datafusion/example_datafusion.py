@@ -159,7 +159,10 @@ PIPELINE = {
 }
 # [END howto_data_fusion_env_variables]
 
-CloudDataFusionCreatePipelineOperator.template_fields += ("pipeline",)
+CloudDataFusionCreatePipelineOperator.template_fields = (
+    *CloudDataFusionCreatePipelineOperator.template_fields,
+    "pipeline",
+)
 
 
 with DAG(
@@ -212,7 +215,7 @@ with DAG(
     # [END howto_cloud_data_fusion_update_instance_operator]
 
     @task(task_id="get_artifacts_versions")
-    def get_artifacts_versions(ti) -> dict:
+    def get_artifacts_versions(ti=None):
         hook = DataFusionHook()
         instance_url = ti.xcom_pull(task_ids="get_instance", key="return_value")["apiEndpoint"]
         artifacts = hook.get_instance_artifacts(instance_url=instance_url, namespace="default")

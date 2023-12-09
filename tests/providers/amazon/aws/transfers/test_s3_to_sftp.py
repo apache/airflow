@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.models import DAG
@@ -27,6 +28,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
+
 
 TASK_ID = "test_s3_to_sftp"
 BUCKET = "test-s3-bucket"

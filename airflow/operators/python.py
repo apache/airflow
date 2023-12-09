@@ -338,6 +338,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
         "prev_start_date_success",
+        "prev_end_date_success",
     }
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
@@ -422,53 +423,56 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         memo[id(self.pickling_library)] = self.pickling_library
         return super().__deepcopy__(memo)
 
-    def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
-        op_kwargs: dict[str, Any] = dict(self.op_kwargs)
-        if self.templates_dict:
-            op_kwargs["templates_dict"] = self.templates_dict
-        input_path = tmp_dir / "script.in"
-        output_path = tmp_dir / "script.out"
-        string_args_path = tmp_dir / "string_args.txt"
-        script_path = tmp_dir / "script.py"
-        termination_log_path = tmp_dir / "termination.log"
-        self._write_args(input_path)
-        self._write_string_args(string_args_path)
-        write_python_script(
-            jinja_context={
-                "op_args": self.op_args,
-                "op_kwargs": op_kwargs,
-                "expect_airflow": self.expect_airflow,
-                "pickling_library": self.pickling_library.__name__,
-                "python_callable": self.python_callable.__name__,
-                "python_callable_source": self.get_python_source(),
-            },
-            filename=os.fspath(script_path),
-            render_template_as_native_obj=self.dag.render_template_as_native_obj,
-        )
+    def _execute_python_callable_in_subprocess(self, python_path: Path):
+        with TemporaryDirectory(prefix="venv-call") as tmp:
+            tmp_dir = Path(tmp)
+            op_kwargs: dict[str, Any] = dict(self.op_kwargs)
+            if self.templates_dict:
+                op_kwargs["templates_dict"] = self.templates_dict
+            input_path = tmp_dir / "script.in"
+            output_path = tmp_dir / "script.out"
+            string_args_path = tmp_dir / "string_args.txt"
+            script_path = tmp_dir / "script.py"
+            termination_log_path = tmp_dir / "termination.log"
 
-        try:
-            execute_in_subprocess(
-                cmd=[
-                    os.fspath(python_path),
-                    os.fspath(script_path),
-                    os.fspath(input_path),
-                    os.fspath(output_path),
-                    os.fspath(string_args_path),
-                    os.fspath(termination_log_path),
-                ]
+            self._write_args(input_path)
+            self._write_string_args(string_args_path)
+            write_python_script(
+                jinja_context={
+                    "op_args": self.op_args,
+                    "op_kwargs": op_kwargs,
+                    "expect_airflow": self.expect_airflow,
+                    "pickling_library": self.pickling_library.__name__,
+                    "python_callable": self.python_callable.__name__,
+                    "python_callable_source": self.get_python_source(),
+                },
+                filename=os.fspath(script_path),
+                render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
-        except subprocess.CalledProcessError as e:
-            if e.returncode in self.skip_on_exit_code:
-                raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
-            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
-                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
-                with open(termination_log_path) as file:
-                    error_msg += file.read()
-                raise AirflowException(error_msg) from None
-            else:
-                raise
 
-        return self._read_result(output_path)
+            try:
+                execute_in_subprocess(
+                    cmd=[
+                        os.fspath(python_path),
+                        os.fspath(script_path),
+                        os.fspath(input_path),
+                        os.fspath(output_path),
+                        os.fspath(string_args_path),
+                        os.fspath(termination_log_path),
+                    ]
+                )
+            except subprocess.CalledProcessError as e:
+                if e.returncode in self.skip_on_exit_code:
+                    raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+                elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                    error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                    with open(termination_log_path) as file:
+                        error_msg += file.read()
+                    raise AirflowException(error_msg) from None
+                else:
+                    raise
+
+            return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
@@ -700,13 +704,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
-            return self._execute_python_callable_in_subprocess(python_path, venv_path)
+            return self._execute_python_callable_in_subprocess(python_path)
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
-            result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            result = self._execute_python_callable_in_subprocess(python_path)
             return result
 
     def _iter_serializable_context_keys(self):
@@ -729,6 +733,10 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
     these paths can't move forward. The ``skipped`` states are propagated
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
     def execute(self, context: Context) -> Any:
@@ -840,9 +848,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. "
                 f"Virtual environment version: {python_version_as_list_of_strings}"
             )
-        with TemporaryDirectory(prefix="tmd") as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            return self._execute_python_callable_in_subprocess(python_path, tmp_path)
+        return self._execute_python_callable_in_subprocess(python_path)
 
     def _get_python_version_from_environment(self) -> list[str]:
         try:
@@ -910,6 +916,10 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
     Extends ExternalPythonOperator, so expects to get Python:
     virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path,
     so it can run on separate virtual environment similarly to ExternalPythonOperator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
     def execute(self, context: Context) -> Any:

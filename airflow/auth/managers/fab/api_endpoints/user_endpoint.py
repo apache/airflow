@@ -25,7 +25,6 @@ from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 from werkzeug.security import generate_password_hash
 
-from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
@@ -34,6 +33,7 @@ from airflow.api_connexion.schemas.user_schema import (
     user_collection_schema,
     user_schema,
 )
+from airflow.api_connexion.security import requires_access_custom_view
 from airflow.auth.managers.fab.models import User
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import Role
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
+@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
     ab_security_manager = get_airflow_app().appbuilder.sm
@@ -53,7 +53,7 @@ def get_user(*, username: str) -> APIResponse:
     return user_collection_item_schema.dump(user)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
+@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)
 @format_parameters({"limit": check_limit})
 def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users."""
@@ -85,7 +85,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
+@requires_access_custom_view(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)
 def post_user() -> APIResponse:
     """Create a new user."""
     try:
@@ -128,7 +128,7 @@ def post_user() -> APIResponse:
     return user_schema.dump(user)
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
+@requires_access_custom_view(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)
 def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a user."""
     try:
@@ -197,7 +197,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     return user_schema.dump(user)
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
+@requires_access_custom_view(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user."""
     security_manager = get_airflow_app().appbuilder.sm

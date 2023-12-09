@@ -29,7 +29,12 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 suspended: false
+source-date-epoch: 1701983383
 versions:
+  - 10.13.0
+  - 10.12.0
+  - 10.11.1
+  - 10.11.0
   - 10.10.1
   - 10.10.0
   - 10.9.0
@@ -77,13 +82,14 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=21.2.0
+  - gcsfs>=2023.10.0
+  - google-ads>=22.1.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
@@ -99,7 +105,7 @@ dependencies:
   - google-cloud-dataflow-client>=0.8.2
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.4.2
-  - google-cloud-dataproc>=5.4.0
+  - google-cloud-dataproc>=5.5.0
   - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
   - google-cloud-kms>=2.15.0
@@ -701,6 +707,9 @@ sensors:
   - integration-name: Google Cloud Tasks
     python-modules:
       - airflow.providers.google.cloud.sensors.tasks
+
+filesystems:
+  - airflow.providers.google.cloud.fs.gcs
 
 hooks:
   - integration-name: Google Ads

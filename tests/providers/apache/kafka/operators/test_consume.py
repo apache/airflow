@@ -21,11 +21,16 @@ import logging
 from typing import Any
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 log = logging.getLogger(__name__)
 

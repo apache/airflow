@@ -71,7 +71,10 @@ You can also see all the available arguments via ``--help``.
 Running the Docs Locally
 ------------------------
 
-Once you have built the documentation run the following command from the root directory,
+Once you have built the documentation you can start the webserver in breeze environment and view the built documentation
+at ``http://localhost:28080/docs/``
+
+Alternatively, run the following command from the root directory.
 You need to have Python installed to run the command:
 
 .. code-block:: bash
@@ -100,7 +103,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
-Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers`` as the
+short hand operator.
 
 Cross-referencing syntax
 ========================

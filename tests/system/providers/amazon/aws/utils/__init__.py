@@ -97,7 +97,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    _test_name: str = test_name if test_name else _get_test_name()
+    _test_name: str = test_name or _get_test_name()
     hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
@@ -106,6 +106,8 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
+    except ClientError as e:
+        log.info("Client error when connecting to SSM: %s", e)
     except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
@@ -157,7 +159,7 @@ class Variable:
 
     def _format_value(self, value):
         if self.to_split:
-            if type(value) is not str:
+            if not isinstance(value, str):
                 raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
             return value.split(self.delimiter)
         return value

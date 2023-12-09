@@ -63,18 +63,18 @@ Docker Community Edition
 
 .. code-block:: bash
 
-  $ sudo apt-get update
+  sudo apt-get update
 
-  $ sudo apt-get install \
+  sudo apt-get install \
       ca-certificates \
       curl \
       gnupg \
       lsb-release
 
-  $ sudo mkdir -p /etc/apt/keyrings
-  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-  $ echo \
+  echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
@@ -82,15 +82,15 @@ Docker Community Edition
 
 .. code-block:: bash
 
-  $ sudo apt-get update
-  $ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo apt-get update
+  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 3. Creating group for docker and adding current user to it.
 
 .. code-block:: bash
 
-  $ sudo groupadd docker
-  $ sudo usermod -aG docker $USER
+  sudo groupadd docker
+  sudo usermod -aG docker $USER
 
 Note : After adding user to docker group Logout and Login again for group membership re-evaluation.
 
@@ -98,7 +98,7 @@ Note : After adding user to docker group Logout and Login again for group member
 
 .. code-block:: bash
 
-  $ docker run hello-world
+  docker run hello-world
 
 Colima
 ------
@@ -110,13 +110,13 @@ If you use Colima as your container runtimes engine, please follow the next step
 
 .. code-block:: bash
 
-  $ sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+  sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
 
 3. Change docker context to use default:
 
 .. code-block:: bash
 
-  $ docker context use default
+  docker context use default
 
 Docker Compose
 --------------
@@ -125,21 +125,21 @@ Docker Compose
 
 .. code-block:: bash
 
-  $ COMPOSE_VERSION="$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":'\
+  COMPOSE_VERSION="$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":'\
   | cut -d '"' -f 4)"
 
-  $ COMPOSE_URL="https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/\
+  COMPOSE_URL="https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/\
   docker-compose-$(uname -s)-$(uname -m)"
 
-  $ sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
+  sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
-  $ sudo chmod +x /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
 
 2. Verifying installation
 
 .. code-block:: bash
 
-  $ docker-compose --version
+  docker-compose --version
 
 Pyenv and setting up virtual-env
 --------------------------------
@@ -154,7 +154,7 @@ Pyenv and setting up virtual-env
 
 .. code-block:: bash
 
-  $ sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use ``devel_all``
@@ -162,7 +162,7 @@ extra while installing airflow.
 
 .. code-block:: bash
 
-  $ sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+  sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
   freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
   libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
   libssl-dev locales lsb-release openssh-client sasl2-bin \
@@ -172,8 +172,8 @@ extra while installing airflow.
 
 .. code-block:: bash
 
-  $ exec $SHELL
-  $ pyenv --version
+  exec $SHELL
+  pyenv --version
 
 4. Checking available version, installing required Python version to pyenv and verifying it
 
@@ -183,17 +183,17 @@ For Architectures other than MacOS/ARM
 
 .. code-block:: bash
 
-  $ pyenv install --list
-  $ pyenv install 3.8.5
-  $ pyenv versions
+  pyenv install --list
+  pyenv install 3.8.5
+  pyenv versions
 
 For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
 
 .. code-block:: bash
 
-  $ pyenv install --list
-  $ pyenv install 3.8.10
-  $ pyenv versions
+  pyenv install --list
+  pyenv install 3.8.10
+  pyenv versions
 
 5. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
    environment ``airflow-env`` will be used for installing airflow.
@@ -204,19 +204,19 @@ For Architectures other than MacOS/ARM
 
 .. code-block:: bash
 
-  $ pyenv virtualenv 3.8.5 airflow-env
+  pyenv virtualenv 3.8.5 airflow-env
 
 For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
 
 .. code-block:: bash
 
-  $ pyenv virtualenv 3.8.10 airflow-env
+  pyenv virtualenv 3.8.10 airflow-env
 
 6. Entering virtual environment ``airflow-env``
 
 .. code-block:: bash
 
-  $ pyenv activate airflow-env
+  pyenv activate airflow-env
 
 
 Forking and cloning Project
@@ -254,7 +254,7 @@ Set it to true for windows.
 
 .. code-block:: bash
 
-  $ git config core.autocrlf true
+  git config core.autocrlf true
 
 Typical development tasks
 #########################
@@ -269,24 +269,41 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
-
+1. Install ``pipx`` (>=1.2.1) - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+   It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
+   in September 2023.
 
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
    available in your PATH.
 
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block::bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
+
 3. Initialize breeze autocomplete
 
 .. code-block:: bash
 
-  $ breeze setup autocomplete
+  breeze setup autocomplete
 
 4. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
 
-  $ breeze --python 3.8 --backend postgres
+  breeze --python 3.8 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -294,7 +311,7 @@ Setting up Breeze
 
    .. code-block:: bash
 
-      $ sudo apt install golang-docker-credential-helper
+      sudo apt install golang-docker-credential-helper
 
    Once the package is installed, execute the breeze command again to resume image building.
 
@@ -336,7 +353,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ breeze down
+  breeze down
 
 
 Using Breeze
@@ -349,7 +366,7 @@ Using Breeze
 
 .. code-block:: bash
 
-  $ breeze start-airflow
+  breeze start-airflow
 
       Use CI image.
 
@@ -395,26 +412,26 @@ Using Breeze
 
   .. code-block:: bash
 
-    $ breeze --python 3.8 --backend postgres
+    breeze --python 3.8 --backend postgres
 
   2. Open tmux
 
   .. code-block:: bash
 
-    $ root@0c6e4ff0ab3d:/opt/airflow# tmux
+    root@0c6e4ff0ab3d:/opt/airflow# tmux
 
   3. Press Ctrl + B and "
 
   .. code-block:: bash
 
-    $ root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
+    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
 
 
   4. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    $ root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
+    root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
 
 
 2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
@@ -448,13 +465,13 @@ Using Breeze
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   root@f3619b74c59a:/opt/airflow# exit
-  $ breeze down
+  breeze down
 
 5. Knowing more about Breeze
 
 .. code-block:: bash
 
-  $ breeze --help
+  breeze --help
 
 
 For more information visit : |Breeze documentation|
@@ -528,27 +545,27 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ sudo apt install libxml2-utils
+  sudo apt install libxml2-utils
 
 2. Installing required Python packages
 
 .. code-block:: bash
 
-  $ pyenv activate airflow-env
-  $ pip install pre-commit
+  pyenv activate airflow-env
+  pip install pre-commit
 
 3. Go to your project directory
 
 .. code-block:: bash
 
-  $ cd ~/Projects/airflow
+  cd ~/Projects/airflow
 
 
 1. Running pre-commit hooks
 
 .. code-block:: bash
 
-  $ pre-commit run --all-files
+  pre-commit run --all-files
     No-tabs checker......................................................Passed
     Add license for all SQL files........................................Passed
     Add license for all other files......................................Passed
@@ -576,7 +593,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 
@@ -584,9 +601,9 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
     black...............................................................Passed
-  $ pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
@@ -595,16 +612,16 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ cd ~/Projects/airflow
-  $ pre-commit install
-  $ git commit -m "Added xyz"
+  cd ~/Projects/airflow
+  pre-commit install
+  git commit -m "Added xyz"
 
 8. To disable Pre-commit
 
 .. code-block:: bash
 
-  $ cd ~/Projects/airflow
-  $ pre-commit uninstall
+  cd ~/Projects/airflow
+  pre-commit uninstall
 
 
 - For more information on visit |STATIC_CODE_CHECKS.rst|
@@ -638,8 +655,8 @@ Installing airflow in the local venv
 
 .. code-block:: bash
 
-  $ sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
-  $ ./scripts/tools/initialize_virtualenv.py
+  sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+  ./scripts/tools/initialize_virtualenv.py
 
 
 2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
@@ -692,7 +709,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
+   breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -702,7 +719,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
+    breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -711,7 +728,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
+   breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

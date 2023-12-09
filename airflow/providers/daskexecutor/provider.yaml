@@ -21,8 +21,11 @@ name: Dask Executor
 description: |
     `Dask <https://www.dask.org/>`__
 
-suspended: false
+removed: true
+suspended: true
+source-date-epoch: 1700827453
 versions:
+  - 1.1.1
   - 1.1.0
   - 1.0.1
   - 1.0.0

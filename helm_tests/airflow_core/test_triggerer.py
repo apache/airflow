@@ -73,7 +73,7 @@ class TestTriggerer:
             values=values,
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_disable_wait_for_migration(self):
@@ -592,6 +592,15 @@ class TestTriggerer:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_triggerer_template_storage_class_name(self):
+        docs = render_chart(
+            values={"triggerer": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestTriggererServiceAccount:
     """Tests triggerer service account."""
@@ -621,7 +630,7 @@ class TestTriggererServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "triggerer": {

@@ -19,10 +19,12 @@
 package-name: apache-airflow-providers-alibaba
 name: Alibaba
 description: |
-    Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
+    Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 suspended: false
+source-date-epoch: 1701983345
 versions:
+  - 2.7.0
   - 2.6.0
   - 2.5.3
   - 2.5.2
@@ -41,7 +43,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - oss2>=2.14.0
   - alibabacloud_adb20211201>=1.0.0
   - alibabacloud_tea_openapi>=0.3.7

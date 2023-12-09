@@ -723,7 +723,7 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34
@@ -787,7 +787,7 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34

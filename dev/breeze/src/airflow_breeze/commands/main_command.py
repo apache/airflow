@@ -31,7 +31,9 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_database_isolation,
     option_db_reset,
+    option_docker_host,
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
@@ -40,7 +42,9 @@ from airflow_breeze.utils.common_options import (
     option_mssql_version,
     option_mysql_version,
     option_postgres_version,
+    option_project_name,
     option_python,
+    option_standalone_dag_processor,
     option_verbose,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
@@ -100,20 +104,24 @@ class MainGroupWithAliases(BreezeGroup):
     invoke_without_command=True,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
-@option_python
+@option_answer
 @option_backend
 @option_builder
-@option_postgres_version
-@option_mysql_version
-@option_mssql_version
-@option_integration
-@option_forward_credentials
+@option_database_isolation
 @option_db_reset
-@option_max_time
-@option_github_repository
-@option_verbose
+@option_docker_host
 @option_dry_run
-@option_answer
+@option_forward_credentials
+@option_github_repository
+@option_integration
+@option_max_time
+@option_mssql_version
+@option_mysql_version
+@option_postgres_version
+@option_python
+@option_project_name
+@option_standalone_dag_processor
+@option_verbose
 @click.pass_context
 def main(ctx: click.Context, **kwargs: dict[str, Any]):
     from airflow_breeze.commands.developer_commands import shell
@@ -277,7 +285,7 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():
