@@ -166,11 +166,19 @@ class TestSparkSubmitOperator:
         operator = SparkSubmitOperator(
             task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **config
         )
-
-        cmd = operator._get_hook()._build_spark_submit_command("test")[0]
+        cmd = " ".join(operator._get_hook()._build_spark_submit_command("test"))
         assert "--queue yarn_dev_queue2" in cmd
         assert "--deploy-mode client2" in cmd
         assert "sparky" in cmd
+
+        # if we don't pass any overrides in arguments
+        config["queue"] = None
+        config["deploy_mode"] = None
+        operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
+        cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
+        assert "--queue root.default" in cmd2
+        assert "--deploy-mode client2" not in cmd2
+        assert "spark-submit" in cmd2
 
     @pytest.mark.db_test
     def test_render_template(self):
