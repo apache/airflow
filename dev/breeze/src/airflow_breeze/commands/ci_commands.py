@@ -30,6 +30,12 @@ from typing import Any, Iterable, NamedTuple
 
 import click
 
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_dry_run,
+    option_github_repository,
+    option_verbose,
+)
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -39,12 +45,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
-    option_answer,
-    option_dry_run,
-    option_github_repository,
-    option_verbose,
-)
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
