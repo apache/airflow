@@ -73,7 +73,9 @@ argument_doc_packages = click.argument(
     nargs=-1,
     required=False,
     type=NotVerifiedBetterChoice(
-        get_available_packages(include_non_provider_doc_packages=True, include_all_providers=True)
+        get_available_packages(
+            include_non_provider_doc_packages=True, include_all_providers=True, include_removed=True
+        )
     ),
 )
 option_airflow_extras = click.option(
@@ -180,6 +182,12 @@ option_historical_python_version = click.option(
     required=False,
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_include_removed_providers = click.option(
+    "--include-removed-providers",
+    help="Whether to include providers that are removed.",
+    is_flag=True,
+    envvar="INCLUDE_REMOVED_PROVIDERS",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
