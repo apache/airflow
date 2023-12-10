@@ -30,69 +30,66 @@ import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.common_options import (
+    argument_doc_packages,
+    option_airflow_extras,
+    option_answer,
+    option_backend,
+    option_builder,
+    option_database_isolation,
+    option_db_reset,
+    option_docker_host,
+    option_downgrade_sqlalchemy,
+    option_dry_run,
+    option_forward_credentials,
+    option_github_repository,
+    option_image_tag_for_running,
+    option_installation_package_format,
+    option_integration,
+    option_max_time,
+    option_mount_sources,
+    option_mssql_version,
+    option_mysql_version,
+    option_postgres_version,
+    option_project_name,
+    option_python,
+    option_run_db_tests_only,
+    option_skip_db_tests,
+    option_standalone_dag_processor,
+    option_upgrade_boto,
+    option_use_airflow_version,
+    option_verbose,
+)
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_ci,
+    option_airflow_constraints_reference,
+    option_airflow_skip_constraints,
+    option_install_selected_providers,
+    option_providers_constraints_location,
+    option_providers_constraints_mode_ci,
+    option_providers_constraints_reference,
+    option_providers_skip_constraints,
+    option_use_packages_from_dist,
+)
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
+    ALLOWED_EXECUTORS,
     ALLOWED_TTY,
+    DEFAULT_ALLOWED_EXECUTOR,
+    DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
+    SINGLE_PLATFORMS,
+    START_AIRFLOW_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
-from airflow_breeze.utils.common_options import (
-    argument_doc_packages,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_ci,
-    option_airflow_constraints_reference,
-    option_airflow_extras,
-    option_airflow_skip_constraints,
-    option_answer,
-    option_backend,
-    option_builder,
-    option_celery_broker,
-    option_celery_flower,
-    option_database_isolation,
-    option_db_reset,
-    option_docker_host,
-    option_downgrade_sqlalchemy,
-    option_dry_run,
-    option_executor_shell,
-    option_executor_start_airflow,
-    option_force_build,
-    option_forward_credentials,
-    option_github_repository,
-    option_image_tag_for_running,
-    option_include_mypy_volume,
-    option_install_selected_providers,
-    option_installation_package_format,
-    option_integration,
-    option_load_default_connection,
-    option_load_example_dags,
-    option_max_time,
-    option_mount_sources,
-    option_mssql_version,
-    option_mysql_version,
-    option_platform_single,
-    option_postgres_version,
-    option_project_name,
-    option_providers_constraints_location,
-    option_providers_constraints_mode_ci,
-    option_providers_constraints_reference,
-    option_providers_skip_constraints,
-    option_python,
-    option_restart,
-    option_run_db_tests_only,
-    option_skip_db_tests,
-    option_skip_environment_initialization,
-    option_skip_image_upgrade_check,
-    option_standalone_dag_processor,
-    option_upgrade_boto,
-    option_use_airflow_version,
-    option_use_packages_from_dist,
-    option_verbose,
-    option_warn_image_upgrade_needed,
-)
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -108,6 +105,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
 )
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
@@ -157,6 +155,63 @@ class TimerThread(threading.Thread):
 # Is used for a shorthand of shell and except the extra
 # Args it should have the same parameters.
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+option_celery_broker = click.option(
+    "--celery-broker",
+    type=click.Choice(ALLOWED_CELERY_BROKERS, case_sensitive=False),
+    help="Specify the celery message broker",
+    default=DEFAULT_CELERY_BROKER,
+    show_default=True,
+)
+option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_executor_shell = click.option(
+    "--executor",
+    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with shell command.",
+    default=DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
+option_force_build = click.option(
+    "--force-build", help="Force image build no matter if it is determined as needed.", is_flag=True
+)
+option_include_mypy_volume = click.option(
+    "--include-mypy-volume",
+    help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
+    is_flag=True,
+    envvar="INCLUDE_MYPY_VOLUME",
+)
+option_platform_single = click.option(
+    "--platform",
+    help="Platform for Airflow image.",
+    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
+    envvar="PLATFORM",
+    type=BetterChoice(SINGLE_PLATFORMS),
+)
+option_restart = click.option(
+    "--restart",
+    "--remove-orphans",
+    help="Restart all containers before entering shell (also removes orphan containers).",
+    is_flag=True,
+    envvar="RESTART",
+)
+option_skip_environment_initialization = click.option(
+    "--skip-environment-initialization",
+    help="Skip running breeze entrypoint initialization - no user output, no db checks.",
+    is_flag=True,
+    envvar="SKIP_ENVIRONMENT_INITIALIZATION",
+)
+option_skip_image_upgrade_check = click.option(
+    "--skip-image-upgrade-check",
+    help="Skip checking if the CI image is up to date.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_UPGRADE_CHECK",
+)
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
 
 
 @main.command()
@@ -337,6 +392,31 @@ def shell(
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
+
+
+option_load_example_dags = click.option(
+    "-e",
+    "--load-example-dags",
+    help="Enable configuration to load example DAGs when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_EXAMPLES",
+)
+
+option_load_default_connection = click.option(
+    "-c",
+    "--load-default-connections",
+    help="Enable configuration to load default connections when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_DEFAULT_CONNECTIONS",
+)
+
+option_executor_start_airflow = click.option(
+    "--executor",
+    type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with start-airflow command.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
 
 
 @main.command(name="start-airflow")
