@@ -568,7 +568,7 @@ def run_generate_constraints(
 ) -> tuple[int, str]:
     result = execute_command_in_shell(
         shell_params,
-        project_name="constraints",
+        project_name=f"constraints-{shell_params.python.replace('.', '-')}",
         command="/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     )
     fix_ownership_using_docker()
@@ -771,10 +771,11 @@ def get_all_providers_in_dist(package_format: str, install_selected_providers: s
 def _run_command_for_providers(
     shell_params: ShellParams,
     list_of_providers: list[str],
+    index: int,
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name="providers")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -908,6 +909,7 @@ def install_provider_packages(
                             "shell_params": shell_params,
                             "list_of_providers": list_of_providers,
                             "output": outputs[index],
+                            "index": index,
                         },
                     )
                     for index, list_of_providers in enumerate(provider_chunks)
