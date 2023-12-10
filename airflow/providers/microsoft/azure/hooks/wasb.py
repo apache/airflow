@@ -487,9 +487,9 @@ class WasbHook(BaseHook):
             self._get_container_client(container_name).delete_container()
             self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
-            self.log.info("Unable to delete container %s (not found)", container_name)
-        except:
-            self.log.info("Error deleting container: %s", container_name)
+            self.log.warning("Unable to delete container %s (not found)", container_name)
+        except Exception:
+            self.log.error("Error deleting container: %s", container_name)
             raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:

@@ -19,7 +19,9 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from botocore.exceptions import ClientError
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
@@ -67,6 +69,25 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    async def run(self):
+        async with self.hook().async_conn as client:
+            waiter = client.get_waiter(self.waiter_name)
+            try:
+                await async_wait(
+                    waiter,
+                    self.waiter_delay,
+                    self.attempts,
+                    self.waiter_args,
+                    self.failure_message,
+                    self.status_message,
+                    self.status_queries,
+                )
+            except AirflowException as exception:
+                self.log.error("Error creating cluster: %s", exception)
+                yield TriggerEvent({"status": "failed"})
+            else:
+                yield TriggerEvent({"status": "success"})
 
 
 class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
@@ -125,7 +146,13 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)
                 await self.delete_any_fargate_profiles(client=client)
+            try:
                 await client.delete_cluster(name=self.cluster_name)
+            except ClientError as ex:
+                if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                    pass
+                else:
+                    raise
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),

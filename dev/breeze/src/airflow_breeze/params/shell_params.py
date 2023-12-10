@@ -20,7 +20,6 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
-from os import _Environ
 from pathlib import Path
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -42,7 +41,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
-    MOUNT_SKIP,
     MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
@@ -54,7 +52,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os
+from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.packages import get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
@@ -78,6 +76,26 @@ def add_mssql_compose_file(compose_file_list: list[Path]):
         compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-tmpfs-volume.yml")
     else:
         compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-docker-volume.yml")
+
+
+def generated_socket_compose_file(local_socket_path: str) -> str:
+    return f"""
+---
+services:
+  airflow:
+    volumes:
+      - {local_socket_path}:/var/run/docker.sock
+"""
+
+
+def generated_docker_host_environment() -> str:
+    return """
+---
+services:
+  airflow:
+    environment:
+      - DOCKER_HOST=${DOCKER_HOST}
+"""
 
 
 def _set_var(env: dict[str, str], variable: str, attribute: str | bool | None, default: str | None = None):
@@ -126,6 +144,7 @@ class ShellParams:
         "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
     dev_mode: bool = False
+    docker_host: str | None = os.environ.get("DOCKER_HOST")
     downgrade_sqlalchemy: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
@@ -300,15 +319,10 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
+        self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.image_tag is not None and self.image_tag != "latest":
-            get_console().print(
-                f"[warning]Running tagged image tag = {self.image_tag}. "
-                f"Forcing mounted sources to be 'skip'[/]"
-            )
-            self.mount_sources = MOUNT_SKIP
         if self.use_airflow_version is not None:
             get_console().print(
                 "[info]Forcing --mount-sources to `remove` since we are not installing airflow "
@@ -382,6 +396,56 @@ class ShellParams:
             # mssql_data_volume variable is only used in case of tmpfs
             return ""
 
+    def add_docker_in_docker(self, compose_file_list: list[Path]):
+        generated_compose_file = DOCKER_COMPOSE_DIR / "_generated_docker_in_docker.yml"
+        unix_prefix = "unix://"
+        if self.docker_host:
+            if self.docker_host.startswith(unix_prefix):
+                # Socket is locally available
+                socket_path = Path(self.docker_host[len(unix_prefix) :])
+                if (
+                    get_host_os() == "darwin"
+                    and socket_path.resolve() == (Path.home() / ".docker" / "run" / "docker.sock").resolve()
+                ):
+                    # We are running on MacOS and the socket is the default "user" bound one
+                    # We need to pretend that we are running on Linux and use the default socket
+                    # in the VM instead - see https://github.com/docker/for-mac/issues/6545
+                    compose_file_list.append(DOCKER_COMPOSE_DIR / "docker-socket.yml")
+                    return
+                if socket_path.is_socket():
+                    generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
+                    compose_file_list.append(generated_compose_file)
+                else:
+                    get_console().print(
+                        f"[warning]The socket {socket_path} pointed at by DOCKER_HOST does not exist or is "
+                        "not a socket. Cannot use it for docker-compose for docker-in-docker forwarding[/]\n"
+                        "[info]If you know where your socket is, you can set DOCKER_HOST "
+                        "environment variable to unix://path_to_docker.sock[/]\n"
+                    )
+            else:
+                # Socket is something different (TCP?) just pass it through as DOCKER_HOST variable
+                generated_compose_file.write_text(generated_docker_host_environment())
+                compose_file_list.append(generated_compose_file)
+        elif self.rootless_docker:
+            xdg_runtime_dir = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{get_host_user_id()}"))
+            socket_path = xdg_runtime_dir / "docker.sock"
+            if socket_path.is_socket():
+                generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
+                compose_file_list.append(generated_compose_file)
+            else:
+                get_console().print(
+                    f"[warning]The socket {socket_path} does not exist or is not a socket. "
+                    "Cannot use it for docker-compose for docker-in-docker forwarding[/]\n"
+                    "[info]If you know where your socket is, you can set DOCKER_HOST environment variable "
+                    "to unix://path_to_docker.sock[/]\n"
+                )
+        else:
+            # We fall back to default docker socket when no host is defined including MacOS
+            # NOTE! Even if we are using "desktop-linux" context where "/var/run/docker.sock" is not used,
+            # Docker engine works fine because "/var/run/docker.sock" is mounted at the VM and there
+            # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "docker-socket.yml")
+
     @cached_property
     def rootless_docker(self) -> bool:
         try:
@@ -400,7 +464,7 @@ class ShellParams:
         return False
 
     @cached_property
-    def env_variables_for_docker_commands(self) -> _Environ:
+    def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
         passed to it.
@@ -505,12 +569,11 @@ class ShellParams:
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
-
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
-        target_environment = deepcopy(os.environ)
-        target_environment.update(_env)
-        return target_environment
+        _target_env: dict[str, str] = os.environ.copy()
+        _target_env.update(_env)
+        return _target_env
 
     @staticmethod
     def _generate_env_for_docker_compose_file_if_needed(env: dict[str, str]):

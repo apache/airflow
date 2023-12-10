@@ -125,6 +125,7 @@ class ClassifiedChanges:
 
     def __init__(self):
         self.fixes: list[Change] = []
+        self.misc: list[Change] = []
         self.features: list[Change] = []
         self.breaking_changes: list[Change] = []
         self.other: list[Change] = []
@@ -777,8 +778,14 @@ def _get_changes_classified(
     """
     classified_changes = ClassifiedChanges()
     for change in changes:
-        if "fix" in change.message.lower():
+        # Special cases
+        if "bump minimum Airflow version in providers" in change.message.lower():
+            classified_changes.misc.append(change)
+        # General cases
+        elif "fix" in change.message.lower():
             classified_changes.fixes.append(change)
+        elif "misc" in change.message.lower():
+            classified_changes.misc.append(change)
         elif "add" in change.message.lower() and maybe_with_new_features:
             classified_changes.features.append(change)
         elif "breaking" in change.message.lower() and with_breaking_changes:

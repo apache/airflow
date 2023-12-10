@@ -33,7 +33,7 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
@@ -405,6 +405,13 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-airflow-diagrams
+        name: Generate airflow diagrams
+        entry: ./scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
+        language: python
+        files: ^scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_supported_versions.py
