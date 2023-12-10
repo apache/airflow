@@ -68,7 +68,7 @@ class TestSparkSubmitOperator:
         ],
         "use_krb5ccache": True,
         "queue": "yarn_dev_queue2",
-        "deploy_mode": "client2"
+        "deploy_mode": "client2",
     }
 
     def setup_method(self):
@@ -164,10 +164,7 @@ class TestSparkSubmitOperator:
         # _build_spark_submit_command
         config["use_krb5ccache"] = False
         operator = SparkSubmitOperator(
-            task_id="spark_submit_job",
-            spark_binary="sparky",
-            dag=self.dag,
-            **config
+            task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **config
         )
 
         cmd = operator._get_hook()._build_spark_submit_command("test")[0]
