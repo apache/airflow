@@ -610,9 +610,9 @@ def run_generate_constraints(
     result = execute_command_in_shell(
         shell_params,
         project_name=f"constraints-{shell_params.python.replace('.', '-')}",
-        command="/opt/airflow/scripts/in_container/run_generate_constraints.sh",
+        command="/opt/airflow/scripts/in_container/run_generate_constraints.py",
+        output=output,
     )
-    fix_ownership_using_docker()
     return (
         result.returncode,
         f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
@@ -747,6 +747,7 @@ def generate_constraints(
             shell_params_list=shell_params_list,
             skip_cleanup=skip_cleanup,
         )
+        fix_ownership_using_docker()
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
@@ -759,6 +760,7 @@ def generate_constraints(
             shell_params=shell_params,
             output=None,
         )
+        fix_ownership_using_docker()
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
             sys.exit(return_code)
