@@ -36,9 +36,45 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.common_options import (
+    argument_doc_packages,
+    option_airflow_extras,
+    option_answer,
+    option_commit_sha,
+    option_debug_resources,
+    option_dry_run,
+    option_github_repository,
+    option_historical_python_version,
+    option_image_tag_for_running,
+    option_include_success_outputs,
+    option_installation_package_format,
+    option_mount_sources,
+    option_parallelism,
+    option_python,
+    option_python_versions,
+    option_run_in_parallel,
+    option_skip_cleanup,
+    option_use_airflow_version,
+    option_verbose,
+    option_version_suffix_for_pypi,
+)
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_ci,
+    option_airflow_constraints_mode_update,
+    option_airflow_constraints_reference,
+    option_airflow_skip_constraints,
+    option_install_selected_providers,
+    option_providers_constraints_location,
+    option_providers_constraints_mode_ci,
+    option_providers_constraints_reference,
+    option_providers_skip_constraints,
+    option_use_packages_from_dist,
+)
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_PACKAGE_FORMATS,
     ALLOWED_PLATFORMS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -63,47 +99,9 @@ from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.common_options import (
-    argument_doc_packages,
-    argument_provider_packages,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_ci,
-    option_airflow_constraints_mode_update,
-    option_airflow_constraints_reference,
-    option_airflow_extras,
-    option_airflow_site_directory,
-    option_airflow_skip_constraints,
-    option_answer,
-    option_chicken_egg_providers,
-    option_commit_sha,
-    option_debug_resources,
-    option_directory,
-    option_dry_run,
-    option_github_repository,
-    option_historical_python_version,
-    option_image_tag_for_running,
-    option_include_success_outputs,
-    option_install_selected_providers,
-    option_installation_package_format,
-    option_mount_sources,
-    option_package_format,
-    option_parallelism,
-    option_providers_constraints_location,
-    option_providers_constraints_mode_ci,
-    option_providers_constraints_reference,
-    option_providers_skip_constraints,
-    option_python,
-    option_python_versions,
-    option_run_in_parallel,
-    option_skip_cleanup,
-    option_use_airflow_version,
-    option_use_packages_from_dist,
-    option_verbose,
-    option_version_suffix_for_pypi,
-)
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     execute_command_in_shell,
@@ -149,6 +147,49 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.versions import is_pre_release
+
+argument_provider_packages = click.argument(
+    "provider_packages",
+    nargs=-1,
+    required=False,
+    type=NotVerifiedBetterChoice(get_available_packages()),
+)
+option_airflow_site_directory = click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
+)
+option_chicken_egg_providers = click.option(
+    "--chicken-egg-providers",
+    default="",
+    help="List of chicken-egg provider packages - "
+    "those that have airflow_version >= current_version and should "
+    "be installed in CI from locally built packages with >= current_version.dev0 ",
+    envvar="CHICKEN_EGG_PROVIDERS",
+)
+option_debug_release_management = click.option(
+    "--debug",
+    is_flag=True,
+    help="Drop user in shell instead of running the command. Useful for debugging.",
+    envvar="DEBUG",
+)
+option_directory = click.option(
+    "--directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    required=True,
+    help="Directory to clean the provider artifacts from.",
+)
+option_package_format = click.option(
+    "--package-format",
+    type=BetterChoice(ALLOWED_PACKAGE_FORMATS),
+    help="Format of packages.",
+    default=ALLOWED_PACKAGE_FORMATS[0],
+    show_default=True,
+    envvar="PACKAGE_FORMAT",
+)
 
 if TYPE_CHECKING:
     from packaging.version import Version

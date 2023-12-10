@@ -23,11 +23,7 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
-from airflow_breeze.commands.production_image_commands import prod_image
-from airflow_breeze.commands.testing_commands import group_for_testing
-from airflow_breeze.configure_rich_click import click
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_builder,
@@ -47,6 +43,10 @@ from airflow_breeze.utils.common_options import (
     option_standalone_dag_processor,
     option_verbose,
 )
+from airflow_breeze.commands.production_image_commands import prod_image
+from airflow_breeze.commands.testing_commands import group_for_testing
+from airflow_breeze.configure_rich_click import click
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks

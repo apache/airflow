@@ -25,22 +25,12 @@ import click
 from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.global_constants import (
-    ALLOWED_HELM_TEST_PACKAGES,
-)
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_backend,
-    option_collect_only,
     option_db_reset,
     option_debug_resources,
     option_downgrade_sqlalchemy,
     option_dry_run,
-    option_enable_coverage,
-    option_excluded_parallel_test_types,
     option_github_repository,
     option_image_name,
     option_image_tag_for_running,
@@ -49,26 +39,28 @@ from airflow_breeze.utils.common_options import (
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
-    option_parallel_test_types,
     option_parallelism,
     option_postgres_version,
     option_python,
-    option_remove_arm_packages,
     option_run_db_tests_only,
     option_run_in_parallel,
     option_skip_cleanup,
     option_skip_db_tests,
-    option_skip_docker_compose_down,
-    option_skip_provider_tests,
-    option_test_timeout,
-    option_test_type,
     option_upgrade_boto,
     option_use_airflow_version,
-    option_use_xdist,
     option_verbose,
 )
+from airflow_breeze.global_constants import (
+    ALLOWED_HELM_TEST_PACKAGES,
+    ALLOWED_PARALLEL_TEST_TYPE_CHOICES,
+    ALLOWED_TEST_TYPE_CHOICES,
+)
+from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
@@ -87,6 +79,7 @@ from airflow_breeze.utils.run_tests import (
     run_docker_compose_tests,
 )
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
+from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
@@ -369,6 +362,78 @@ def _verify_parallelism_parameters(
     if use_xdist and run_db_tests_only:
         get_console().print("\n[error]You can only specify one of --use-xdist, --run-db-tests-only[/]\n")
         sys.exit(1)
+
+
+option_collect_only = click.option(
+    "--collect-only",
+    help="Collect tests only, do not run them.",
+    is_flag=True,
+    envvar="COLLECT_ONLY",
+)
+option_enable_coverage = click.option(
+    "--enable-coverage",
+    help="Enable coverage capturing for tests in the form of XML files",
+    is_flag=True,
+    envvar="ENABLE_COVERAGE",
+)
+option_excluded_parallel_test_types = click.option(
+    "--excluded-parallel-test-types",
+    help="Space separated list of test types that will be excluded from parallel tes runs.",
+    default="",
+    show_default=True,
+    envvar="EXCLUDED_PARALLEL_TEST_TYPES",
+    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+)
+option_parallel_test_types = click.option(
+    "--parallel-test-types",
+    help="Space separated list of test types used for testing in parallel",
+    default=ALL_CI_SELECTIVE_TEST_TYPES,
+    show_default=True,
+    envvar="PARALLEL_TEST_TYPES",
+    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+)
+option_skip_docker_compose_down = click.option(
+    "--skip-docker-compose-down",
+    help="Skips running docker-compose down after tests",
+    is_flag=True,
+    envvar="SKIP_DOCKER_COMPOSE_DOWN",
+)
+option_skip_provider_tests = click.option(
+    "--skip-provider-tests",
+    help="Skip provider tests",
+    is_flag=True,
+    envvar="SKIP_PROVIDER_TESTS",
+)
+option_test_timeout = click.option(
+    "--test-timeout",
+    help="Test timeout in seconds. Set the pytest setup, execution and teardown timeouts to this value",
+    default=60,
+    envvar="TEST_TIMEOUT",
+    type=IntRange(min=0),
+    show_default=True,
+)
+option_test_type = click.option(
+    "--test-type",
+    help="Type of test to run. With Providers, you can specify tests of which providers "
+    "should be run: `Providers[airbyte,http]` or "
+    "excluded from the full test suite: `Providers[-amazon,google]`",
+    default="Default",
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
+)
+option_use_xdist = click.option(
+    "--use-xdist",
+    help="Use xdist plugin for pytest",
+    is_flag=True,
+    envvar="USE_XDIST",
+)
+option_remove_arm_packages = click.option(
+    "--remove-arm-packages",
+    help="Removes arm packages from the image to test if ARM collection works",
+    is_flag=True,
+    envvar="REMOVE_ARM_PACKAGES",
+)
 
 
 @group_for_testing.command(
