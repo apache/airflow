@@ -30,10 +30,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
+from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -128,16 +128,22 @@ with DAG(
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
 
-    create_table_redshift_data = SQLExecuteQueryOperator(
+    create_table_redshift_data = RedshiftDataOperator(
         task_id="create_table_redshift_data",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=SQL_CREATE_TABLE,
+        wait_for_completion=True,
     )
 
-    insert_data = SQLExecuteQueryOperator(
+    insert_data = RedshiftDataOperator(
         task_id="insert_data",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=SQL_INSERT_DATA,
+        wait_for_completion=True,
     )
 
     # [START howto_transfer_sql_to_s3]

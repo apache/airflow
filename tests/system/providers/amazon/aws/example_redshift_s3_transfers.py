@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
+from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -37,7 +38,6 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -144,15 +144,22 @@ with DAG(
         replace=True,
     )
 
-    create_table_redshift_data = SQLExecuteQueryOperator(
+    create_table_redshift_data = RedshiftDataOperator(
         task_id="create_table_redshift_data",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=SQL_CREATE_TABLE,
+        wait_for_completion=True,
     )
-    insert_data = SQLExecuteQueryOperator(
+
+    insert_data = RedshiftDataOperator(
         task_id="insert_data",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=SQL_INSERT_DATA,
+        wait_for_completion=True,
     )
 
     # [START howto_transfer_redshift_to_s3]
@@ -196,10 +203,13 @@ with DAG(
     )
     # [END howto_transfer_s3_to_redshift_multiple_keys]
 
-    drop_table = SQLExecuteQueryOperator(
+    drop_table = RedshiftDataOperator(
         task_id="drop_table",
-        conn_id=conn_id_name,
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
         sql=SQL_DROP_TABLE,
+        wait_for_completion=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_cluster = RedshiftDeleteClusterOperator(
