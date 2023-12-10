@@ -158,9 +158,10 @@ class TestSparkSubmitOperator:
         assert expected_dict["properties_file"] == operator._properties_file
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
+    @pytest.mark.db_test
     def test_spark_submit_cmd_connection_overrides(self):
         config = self._config
-        # have to add this otherwise wee can't run
+        # have to add this otherwise we can't run
         # _build_spark_submit_command
         config["use_krb5ccache"] = False
         operator = SparkSubmitOperator(
