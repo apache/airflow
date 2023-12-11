@@ -193,9 +193,6 @@ class FabAuthManager(BaseAuthManager):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_CONFIG, user=user)
 
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_CLUSTER_ACTIVITY, user=user)
-
     def is_authorized_connection(
         self,
         *,
