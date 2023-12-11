@@ -64,7 +64,7 @@ def pyodbc_row_mock():
 
 @pytest.fixture
 def pyodbc_instancecheck():
-    """Returns a mock of pyodbc.Row class which returns True to any isinstance() checks."""
+    """Mock a pyodbc.Row class which returns True to any isinstance() checks."""
 
     class PyodbcRowMeta(type):
         def __instancecheck__(self, instance):
@@ -300,7 +300,7 @@ class TestOdbcHook:
         """Ensure that pyodbc.Row object has a `cursor_description` method.
 
         In subsequent tests, pyodbc.Row is replaced by the 'pyodbc_row_mock' fixture, which implements the
-        `cursor_description` method. We want to detect any breaking change in the pyodbc object. If it
+        `cursor_description` method. We want to detect any breaking change in the pyodbc object. If this test
         fails, the 'pyodbc_row_mock' fixture needs to be updated.
         """
         assert hasattr(pyodbc.Row, "cursor_description")
