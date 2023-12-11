@@ -31,6 +31,7 @@ from airflow_breeze.commands.common_options import (
     option_debug_resources,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_forward_credentials,
     option_github_repository,
     option_image_name,
     option_image_tag_for_running,
@@ -448,6 +449,7 @@ option_remove_arm_packages = click.option(
 )
 @option_python
 @option_backend
+@option_forward_credentials
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
@@ -495,6 +497,7 @@ def command_for_tests(**kwargs):
 )
 @option_python
 @option_backend
+@option_forward_credentials
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
@@ -542,27 +545,28 @@ def command_for_db_tests(**kwargs):
         allow_extra_args=False,
     ),
 )
-@option_python
-@option_image_tag_for_running
-@option_use_airflow_version
-@option_mount_sources
-@option_test_timeout
-@option_parallelism
-@option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_parallel_test_types
-@option_excluded_parallel_test_types
-@option_upgrade_boto
-@option_downgrade_sqlalchemy
 @option_collect_only
+@option_debug_resources
+@option_downgrade_sqlalchemy
+@option_dry_run
+@option_enable_coverage
+@option_excluded_parallel_test_types
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_include_success_outputs
+@option_mount_sources
+@option_parallel_test_types
+@option_parallelism
+@option_python
 @option_remove_arm_packages
+@option_skip_cleanup
 @option_skip_docker_compose_down
 @option_skip_provider_tests
-@option_enable_coverage
+@option_test_timeout
+@option_upgrade_boto
+@option_use_airflow_version
 @option_verbose
-@option_dry_run
-@option_github_repository
 def command_for_non_db_tests(**kwargs):
     _run_test_command(
         integration=(),
@@ -588,6 +592,7 @@ def _run_test_command(
     enable_coverage: bool,
     excluded_parallel_test_types: str,
     extra_pytest_args: tuple,
+    forward_credentials: bool,
     github_repository: str,
     image_tag: str | None,
     include_success_outputs: bool,
@@ -624,29 +629,30 @@ def _run_test_command(
     if skip_provider_tests or "Providers" in excluded_test_list:
         test_list = [test for test in test_list if not test.startswith("Providers")]
     shell_params = ShellParams(
-        python=python,
         backend=backend,
-        integration=integration,
-        postgres_version=postgres_version,
-        mysql_version=mysql_version,
-        mssql_version=mssql_version,
-        image_tag=image_tag,
-        use_airflow_version=use_airflow_version,
-        mount_sources=mount_sources,
-        forward_ports=False,
-        test_type=test_type,
-        upgrade_boto=upgrade_boto,
-        downgrade_sqlalchemy=downgrade_sqlalchemy,
         collect_only=collect_only,
-        remove_arm_packages=remove_arm_packages,
+        downgrade_sqlalchemy=downgrade_sqlalchemy,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
         github_repository=github_repository,
+        image_tag=image_tag,
+        integration=integration,
+        mount_sources=mount_sources,
+        mssql_version=mssql_version,
+        mysql_version=mysql_version,
+        parallel_test_types_list=test_list,
+        parallelism=parallelism,
+        postgres_version=postgres_version,
+        python=python,
+        remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
-        use_xdist=use_xdist,
-        enable_coverage=enable_coverage,
-        parallelism=parallelism,
         skip_provider_tests=skip_provider_tests,
-        parallel_test_types_list=test_list,
+        test_type=test_type,
+        upgrade_boto=upgrade_boto,
+        use_airflow_version=use_airflow_version,
+        use_xdist=use_xdist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
@@ -698,60 +704,57 @@ def _run_test_command(
         allow_extra_args=True,
     ),
 )
-@option_python
 @option_backend
-@option_postgres_version
-@option_mysql_version
-@option_mssql_version
-@option_image_tag_for_running
-@option_mount_sources
-@option_integration
-@option_enable_coverage
-@option_github_repository
-@click.option(
-    "--test-timeout",
-    help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
-    default=60,
-    type=IntRange(min=0),
-    show_default=True,
-)
-@option_skip_provider_tests
 @option_db_reset
-@option_verbose
 @option_dry_run
+@option_enable_coverage
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_integration
+@option_mount_sources
+@option_mssql_version
+@option_mysql_version
+@option_postgres_version
+@option_python
+@option_skip_provider_tests
+@option_test_timeout
+@option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def integration_tests(
-    python: str,
     backend: str,
-    postgres_version: str,
-    mysql_version: str,
-    mssql_version: str,
-    integration: tuple,
-    github_repository: str,
-    test_timeout: int,
-    skip_provider_tests: bool,
     db_reset: bool,
-    image_tag: str | None,
-    mount_sources: str,
-    extra_pytest_args: tuple,
     enable_coverage: bool,
+    extra_pytest_args: tuple,
+    forward_credentials: bool,
+    github_repository: str,
+    image_tag: str | None,
+    integration: tuple,
+    mount_sources: str,
+    mssql_version: str,
+    mysql_version: str,
+    postgres_version: str,
+    python: str,
+    skip_provider_tests: bool,
+    test_timeout: int,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     shell_params = ShellParams(
-        python=python,
         backend=backend,
-        integration=integration,
-        postgres_version=postgres_version,
-        mysql_version=mysql_version,
-        mssql_version=mssql_version,
-        image_tag=image_tag,
-        mount_sources=mount_sources,
-        forward_ports=False,
-        test_type="Integration",
-        skip_provider_tests=skip_provider_tests,
-        github_repository=github_repository,
         enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        image_tag=image_tag,
+        integration=integration,
+        mount_sources=mount_sources,
+        mssql_version=mssql_version,
+        mysql_version=mysql_version,
+        postgres_version=postgres_version,
+        python=python,
+        skip_provider_tests=skip_provider_tests,
+        test_type="Integration",
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()
