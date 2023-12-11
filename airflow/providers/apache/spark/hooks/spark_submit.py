@@ -100,7 +100,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def __init__(
         self,
         conf: dict[str, Any] | None = None,
-        properties_file: str | None = None,
         conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
@@ -125,12 +124,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
         spark_binary: str | None = None,
+        properties_file: str | None = None,
         *,
         use_krb5ccache: bool = False,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
-        self._properties_file = properties_file
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
@@ -159,6 +158,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
         self.spark_binary = spark_binary
+        self._properties_file = properties_file
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
         self._is_kubernetes = "k8s" in self._connection["master"]
