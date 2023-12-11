@@ -119,6 +119,7 @@ PIP package                              Version required
 ``redshift_connector``                   ``>=2.0.888``
 ``sqlalchemy_redshift``                  ``>=0.8.6``
 ``asgiref``
+``pyAthena``                             ``>=3.0.10``
 =======================================  ==================
 
 Cross provider package dependencies
