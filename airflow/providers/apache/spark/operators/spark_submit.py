@@ -205,7 +205,7 @@ class SparkSubmitOperator(BaseOperator):
             verbose=self._verbose,
             spark_binary=self._spark_binary,
             properties_file=self._properties_file,
-            queue= self._queue ,
-            deploy_mode=self._deploy_mode ,
+            queue=self._queue,
+            deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
         )
