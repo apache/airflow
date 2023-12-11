@@ -87,8 +87,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     conn_type = "spark"
     hook_name = "Spark"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password"],
