@@ -76,7 +76,7 @@ class SparkSubmitOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "_application",
         "_conf",
-        "_properties-file"
+        "_properties_file",
         "_files",
         "_py_files",
         "_jars",
