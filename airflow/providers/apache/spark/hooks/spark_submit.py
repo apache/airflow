@@ -78,6 +78,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+    :param properties_file: Path to a file from which to load extra properties. If not
+                              specified, this will look for conf/spark-defaults.conf.
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
         on keytab for Kerberos login
     """
