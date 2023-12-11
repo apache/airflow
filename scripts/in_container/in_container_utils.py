@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+import textwrap
 from contextlib import contextmanager
 
 import rich_click as click
@@ -30,7 +31,7 @@ console = Console(width=400, color_system="standard")
 @contextmanager
 def ci_group(group_name: str, github_actions: bool):
     if github_actions:
-        console.print(f"::group::{group_name[:200]}[/]", markup=False)
+        console.print(f"::group::{textwrap.shorten(group_name, width=200)}", markup=False)
     console.print(group_name, markup=False)
     try:
         yield
