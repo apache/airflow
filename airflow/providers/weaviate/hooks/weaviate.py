@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import contextlib
 import json
-import logging
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, cast
+from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
 import weaviate.exceptions
@@ -82,7 +81,6 @@ class WeaviateHook(BaseHook):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.logger = logging.getLogger("airflow.task")
         self.conn_id = conn_id
 
     @classmethod
@@ -439,7 +437,7 @@ class WeaviateHook(BaseHook):
                             self.log.debug("Inserted object with uuid: %s", uuid)
             except Exception as e:
                 insertion_errors.append({"uuid": uuid, "result": {"errors": str(e)}})
-                self.logger.error(f"Failed to add object with UUID {uuid}. Error: {e}")
+                self.log.error("Failed to add object with UUID %s. Error: %s", uuid, e)
         return insertion_errors
 
     def query_with_vector(
@@ -662,7 +660,7 @@ class WeaviateHook(BaseHook):
             raise ValueError(f"Columns {', '.join(difference_columns)} don't exist in dataframe")
 
         if uuid_column is None:
-            self.logger.info("No uuid_column provided. Generating UUIDs as column name `id`.")
+            self.log.info("No uuid_column provided. Generating UUIDs as column name `id`.")
             if "id" in column_names:
                 raise ValueError(
                     "Property 'id' already in dataset. Consider renaming or specify 'uuid_column'."
@@ -698,7 +696,7 @@ class WeaviateHook(BaseHook):
         if existing == "replace":
             existing_uuid = set(data[uuid_column].to_list())
         else:
-            self.logger.info(f"checking if {data.shape[0]} objects exists.")
+            self.log.info("checking if %s objects exists.", data.shape[0])
             for uuid in data[uuid_column]:
                 for attempt in Retrying(
                     stop=stop_after_attempt(5),
@@ -710,17 +708,17 @@ class WeaviateHook(BaseHook):
                     with attempt:
                         if self.object_exists(uuid=uuid, class_name=class_name):
                             existing_uuid.add(uuid)
-                            self.logger.debug("object with uuid %s exists.", uuid)
+                            self.log.debug("object with uuid %s exists.", uuid)
                         else:
                             non_existing_uuid.add(uuid)
-                            self.logger.debug("object with uuid %s don't exists.", uuid)
+                            self.log.debug("object with uuid %s don't exists.", uuid)
 
-        self.logger.info(
+        self.log.info(
             f"Objects to override {len(existing_uuid)} and {len(non_existing_uuid)} " f"objects to create"
         )
         return existing_uuid, non_existing_uuid
 
-    def _delete_objects(self, uuids: Iterable, class_name: str, retry_attempts_per_object: int = 5):
+    def _delete_objects(self, uuids: Sequence, class_name: str, retry_attempts_per_object: int = 5):
         """Helper function for `create_or_replace_objects()` to delete multiple objects."""
         for uuid in uuids:
             for attempt in Retrying(
@@ -733,27 +731,25 @@ class WeaviateHook(BaseHook):
                 with attempt:
                     try:
                         self.delete_object(uuid=uuid, class_name=class_name)
-                        self.logger.debug("Deleted object with uuid %s", uuid)
+                        self.log.debug("Deleted object with uuid %s", uuid)
                     except weaviate.exceptions.UnexpectedStatusCodeException as e:
                         if e.status_code == 404:
-                            self.logger.debug("Tried to delete a non existent object with uuid %s", uuid)
+                            self.log.debug("Tried to delete a non existent object with uuid %s", uuid)
                         else:
-                            self.logger.debug(
-                                "Error occurred while trying to delete object with uuid %s", uuid
-                            )
+                            self.log.debug("Error occurred while trying to delete object with uuid %s", uuid)
                             raise e
 
-        self.logger.info(f"Deleted {len(uuids)} objects.")
+        self.log.info("Deleted %s objects.", len(uuids))
 
     def create_or_replace_objects(
         self,
         data: pd.DataFrame | list[dict[str, Any]],
         class_name: str,
         existing: str = "skip",
-        unique_columns: str = None,
+        unique_columns: list[str] | str | None = None,
         uuid_column: str | None = None,
-        vector_column: str = None,
-        batch_config_params: dict = None,
+        vector_column: str = "Vector",
+        batch_config_params: dict | None = None,
         tenant: str | None = None,
     ):
         """
@@ -771,6 +767,9 @@ class WeaviateHook(BaseHook):
         """
         import pandas as pd
 
+        if isinstance(unique_columns, str):
+            unique_columns = [unique_columns]
+
         if existing not in ["skip", "replace", "error"]:
             raise ValueError(
                 "Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'upsert', 'error'."
@@ -779,7 +778,7 @@ class WeaviateHook(BaseHook):
         if isinstance(data, list):
             data = pd.json_normalize(data)
 
-        self.logger.info(f"Inserting {data.shape[0]} objects.")
+        self.log.info("Inserting %s objects.", data.shape[0])
 
         if uuid_column is None or uuid_column not in data.columns:
             data, uuid_column = self._generate_uuids(
@@ -794,7 +793,7 @@ class WeaviateHook(BaseHook):
             data=data, uuid_column=uuid_column, class_name=class_name, existing=existing
         )
         if existing == "error" and len(existing_uuid):
-            self.logger.info(f"Found duplicate UUIDs {' ,'.join(existing_uuid)}")
+            self.log.info("Found duplicate UUIDs %s", " ,".join(existing_uuid))
             raise ValueError(
                 f"Found {len(existing_uuid)} object with duplicate UUIDs. You can either ignore or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
@@ -806,7 +805,7 @@ class WeaviateHook(BaseHook):
             uuids_to_create = non_existing_uuid
         data = data[data[uuid_column].isin(uuids_to_create)]
         if data.shape[0]:
-            self.logger.info(f"Batch inserting {data.shape[0]} objects.")
+            self.log.info("Batch inserting %s objects.", data.shape[0])
             insertion_errors = self.batch_data(
                 class_name=class_name,
                 data=data,
@@ -816,6 +815,6 @@ class WeaviateHook(BaseHook):
                 tenant=tenant,
             )
             if insertion_errors:
-                self.logger.info(f"Failed to insert {len(insertion_errors)} objects.")
+                self.log.info("Failed to insert %s objects.", len(insertion_errors))
                 # Rollback object that were not created properly
                 self._delete_objects([item["uuid"] for item in insertion_errors], class_name=class_name)
