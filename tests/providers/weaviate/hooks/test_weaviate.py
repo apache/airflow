@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import ANY, MagicMock, Mock
 
 import pandas as pd
 import pytest
@@ -670,3 +670,162 @@ def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_
         ]
     }
     assert weaviate_hook.check_subset_of_schema(classes_to_test) == expected_result
+
+
+@mock.patch("weaviate.util.generate_uuid5")
+def test___generate_uuids(generate_uuid5, weaviate_hook):
+    df = pd.DataFrame.from_dict({"name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]})
+    with pytest.raises(ValueError, match=r"Columns last_name don't exist in dataframe"):
+        weaviate_hook._generate_uuids(
+            df=df, class_name="test", unique_columns=["name", "age", "gender", "last_name"]
+        )
+
+    df = pd.DataFrame.from_dict(
+        {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
+    )
+    with pytest.raises(
+        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify" r" 'uuid_column'"
+    ):
+        weaviate_hook._generate_uuids(df=df, class_name="test", unique_columns=["name", "age", "gender"])
+
+    with pytest.raises(
+        ValueError,
+        match=r"Property age already in dataset. Consider renaming or specify" r" a different 'uuid_column'.",
+    ):
+        weaviate_hook._generate_uuids(
+            df=df, uuid_column="age", class_name="test", unique_columns=["name", "age", "gender"]
+        )
+
+
+def test_replace__check_existing_objects(weaviate_hook):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+    existing_uuid, non_existing_uuid = weaviate_hook._check_existing_objects(
+        data=df, uuid_column="id", class_name="test", existing="replace"
+    )
+    assert existing_uuid == {"1", "2", "3"}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.object_exists")
+def test_skip__check_existing_objects(object_exists, weaviate_hook):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+    resp = requests.Response()
+    resp.status_code = 429
+    requests.exceptions.HTTPError(response=resp)
+    http_exception = requests.exceptions.HTTPError(response=resp)
+    object_exists.side_effect = [True, http_exception, http_exception, True, False]
+    existing_uuid, non_existing_uuid = weaviate_hook._check_existing_objects(
+        data=df, uuid_column="id", class_name="test", existing="skip"
+    )
+    assert existing_uuid == {"1", "2"}
+    assert non_existing_uuid == {"3"}
+    assert object_exists.call_count == 5
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_object")
+def test__delete_objects(delete_object, weaviate_hook):
+    resp = requests.Response()
+    resp.status_code = 429
+    requests.exceptions.HTTPError(response=resp)
+    http_429_exception = requests.exceptions.HTTPError(response=resp)
+
+    resp = requests.Response()
+    resp.status_code = 404
+    not_found_exception = weaviate.exceptions.UnexpectedStatusCodeException(
+        message="object not found", response=resp
+    )
+
+    delete_object.side_effect = [not_found_exception, None, http_429_exception, http_429_exception, None]
+    weaviate_hook._delete_objects(uuids=["1", "2", "3"], class_name="test")
+    assert delete_object.call_count == 5
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_error_create_or_replace_objects(_generate_uuids, _check_existing_objects, weaviate_hook):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+
+    _check_existing_objects.return_value = ({"1"}, {"2", "3"})
+    _generate_uuids.return_value = (None, None)
+    with pytest.raises(ValueError, match=f"Found {len({'1'})} object with duplicate UUIDs. You can either"):
+        weaviate_hook.create_or_replace_objects(data=df, class_name="test", existing="error")
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_skip_create_or_replace_objects(
+    _generate_uuids, _check_existing_objects, batch_data, _delete_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+
+    class_name = "test"
+    existing_uuid, non_existing_uuid = ({"1"}, {"2", "3"})
+    batch_data.return_value = [{"uuid": i} for i in non_existing_uuid]
+    _check_existing_objects.return_value = (existing_uuid, non_existing_uuid)
+    _generate_uuids.return_value = (df, "id")
+    weaviate_hook.create_or_replace_objects(data=df, class_name=class_name, existing="skip")
+    batch_data.assert_called_with(
+        class_name="test", data=ANY, batch_config_params=None, vector_col=None, uuid_col="id", tenant=None
+    )
+    assert set(batch_data.call_args_list[0].kwargs["data"]["id"].to_list()) == non_existing_uuid
+    assert sorted(_delete_objects.call_args.args[0]) == sorted(list(non_existing_uuid))
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_replace_create_or_replace_objects(
+    _generate_uuids, _check_existing_objects, batch_data, _delete_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+
+    class_name = "test"
+    existing_uuid, non_existing_uuid = ({"1"}, {"2", "3"})
+    batch_data.return_value = []
+    _check_existing_objects.return_value = (existing_uuid, non_existing_uuid)
+    _generate_uuids.return_value = (df, "id")
+    weaviate_hook.create_or_replace_objects(data=df, class_name=class_name, existing="replace")
+    _delete_objects.assert_called_with(existing_uuid, class_name=class_name)
+    batch_data.assert_called_with(
+        class_name="test", data=ANY, batch_config_params=None, vector_col=None, uuid_col="id", tenant=None
+    )
+    assert set(batch_data.call_args_list[0].kwargs["data"]["id"].to_list()) == existing_uuid.union(
+        non_existing_uuid
+    )

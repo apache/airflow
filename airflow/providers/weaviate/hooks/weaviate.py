@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, cast
 
 import requests
+import weaviate.exceptions
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -80,6 +82,7 @@ class WeaviateHook(BaseHook):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger("airflow.task")
         self.conn_id = conn_id
 
     @classmethod
@@ -385,8 +388,10 @@ class WeaviateHook(BaseHook):
         data: list[dict[str, Any]] | pd.DataFrame,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
+        uuid_col: str = "id",
         retry_attempts_per_object: int = 5,
-    ) -> None:
+        tenant: str | None = None,
+    ) -> list:
         """
         Add multiple objects or object references at once into weaviate.
 
@@ -396,28 +401,46 @@ class WeaviateHook(BaseHook):
             .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
         :param vector_col: name of the column containing the vector.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        :param tenant: The tenant to which the object will be added.
+        :param uuid_col: Name of the column containing the UUID.
         """
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
         client.batch.configure(**batch_config_params)
         data = self._convert_dataframe_to_list(data)
+        insertion_errors = []
         with client.batch as batch:
             # Batch import all data
-            for index, data_obj in enumerate(data):
-                for attempt in Retrying(
-                    stop=stop_after_attempt(retry_attempts_per_object),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
-                ):
-                    with attempt:
-                        self.log.debug(
-                            "Attempt %s of importing data: %s", attempt.retry_state.attempt_number, index + 1
-                        )
-                        vector = data_obj.pop(vector_col, None)
-                        batch.add_data_object(data_obj, class_name, vector=vector)
+            try:
+                for index, data_obj in enumerate(data):
+                    for attempt in Retrying(
+                        stop=stop_after_attempt(retry_attempts_per_object),
+                        retry=(
+                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                        ),
+                    ):
+                        with attempt:
+                            vector = data_obj.pop(vector_col, None)
+                            uuid = data_obj.pop(uuid_col, None)
+                            self.log.debug(
+                                "Attempt %s of inserting object with uuid: %s",
+                                attempt.retry_state.attempt_number,
+                                uuid,
+                            )
+                            batch.add_data_object(
+                                data_object=data_obj,
+                                class_name=class_name,
+                                vector=vector,
+                                uuid=uuid,
+                                tenant=tenant,
+                            )
+                            self.log.debug("Inserted object with uuid: %s", uuid)
+            except Exception as e:
+                insertion_errors.append({"uuid": uuid, "result": {"errors": str(e)}})
+                self.logger.error(f"Failed to add object with UUID {uuid}. Error: {e}")
+        return insertion_errors
 
     def query_with_vector(
         self,
@@ -606,3 +629,193 @@ class WeaviateHook(BaseHook):
         """
         client = self.conn
         return client.data_object.exists(uuid, **kwargs)
+
+    def _generate_uuids(
+        self,
+        df: pd.DataFrame,
+        class_name: str,
+        unique_columns: list[str] | None = None,
+        vector_column: str | None = None,
+        uuid_column: str | None = None,
+    ) -> tuple[pd.DataFrame, str]:
+        """
+        Adds UUIDs to a DataFrame, useful for upsert operations where UUIDs must be known before ingestion.
+
+        By default, UUIDs are generated using a custom function if 'uuid_column' is not specified.
+        The function can potentially ingest the same data multiple times with different UUIDs.
+
+        :param df: A dataframe with data to generate a UUID from.
+        :param class_name: The name of the class use as part of the uuid namespace.
+        :param uuid_column: Name of the column to create. Default is 'id'.
+        :param unique_columns: A list of columns to use for UUID generation. By default, all columns except
+            vector_column will be used.
+        :param vector_column: Name of the column containing the vector data.  If specified the vector will be
+            removed prior to generating the uuid.
+        """
+        column_names = df.columns.to_list()
+
+        unique_columns = unique_columns or column_names
+        unique_columns.sort()
+
+        difference_columns = set(unique_columns).difference(set(df.columns.to_list()))
+        if difference_columns:
+            raise ValueError(f"Columns {', '.join(difference_columns)} don't exist in dataframe")
+
+        if uuid_column is None:
+            self.logger.info("No uuid_column provided. Generating UUIDs as column name `id`.")
+            if "id" in column_names:
+                raise ValueError(
+                    "Property 'id' already in dataset. Consider renaming or specify 'uuid_column'."
+                )
+            else:
+                uuid_column = "id"
+
+        if uuid_column in column_names:
+            raise ValueError(
+                f"Property {uuid_column} already in dataset. Consider renaming or specify a different"
+                f" 'uuid_column'."
+            )
+
+        df[uuid_column] = (
+            df[unique_columns]
+            .drop(columns=[vector_column], inplace=False, errors="ignore")
+            .apply(lambda row: generate_uuid5(identifier=row.to_dict(), namespace=class_name), axis=1)
+        )
+
+        return df, uuid_column
+
+    def _check_existing_objects(self, data: pd.DataFrame, uuid_column: str, class_name: str, existing: str):
+        """
+        Check if the objects with uuid exist or not.
+
+        :param data: A single pandas DataFrame.
+        :param uuid_column: Column with pre-generated UUIDs.
+        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        """
+        existing_uuid = set()
+        non_existing_uuid = set()
+
+        if existing == "replace":
+            existing_uuid = set(data[uuid_column].to_list())
+        else:
+            self.logger.info(f"checking if {data.shape[0]} objects exists.")
+            for uuid in data[uuid_column]:
+                for attempt in Retrying(
+                    stop=stop_after_attempt(5),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        if self.object_exists(uuid=uuid, class_name=class_name):
+                            existing_uuid.add(uuid)
+                            self.logger.debug("object with uuid %s exists.", uuid)
+                        else:
+                            non_existing_uuid.add(uuid)
+                            self.logger.debug("object with uuid %s don't exists.", uuid)
+
+        self.logger.info(
+            f"Objects to override {len(existing_uuid)} and {len(non_existing_uuid)} " f"objects to create"
+        )
+        return existing_uuid, non_existing_uuid
+
+    def _delete_objects(self, uuids: Iterable, class_name: str, retry_attempts_per_object: int = 5):
+        """Helper function for `create_or_replace_objects()` to delete multiple objects."""
+        for uuid in uuids:
+            for attempt in Retrying(
+                stop=stop_after_attempt(retry_attempts_per_object),
+                retry=(
+                    retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                    | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                ),
+            ):
+                with attempt:
+                    try:
+                        self.delete_object(uuid=uuid, class_name=class_name)
+                        self.logger.debug("Deleted object with uuid %s", uuid)
+                    except weaviate.exceptions.UnexpectedStatusCodeException as e:
+                        if e.status_code == 404:
+                            self.logger.debug("Tried to delete a non existent object with uuid %s", uuid)
+                        else:
+                            self.logger.debug(
+                                "Error occurred while trying to delete object with uuid %s", uuid
+                            )
+                            raise e
+
+        self.logger.info(f"Deleted {len(uuids)} objects.")
+
+    def create_or_replace_objects(
+        self,
+        data: pd.DataFrame | list[dict[str, Any]],
+        class_name: str,
+        existing: str = "skip",
+        unique_columns: str = None,
+        uuid_column: str | None = None,
+        vector_column: str = None,
+        batch_config_params: dict = None,
+        tenant: str | None = None,
+    ):
+        """
+        create or replace objects.
+
+        :param data: A single pandas DataFrame or a list of dicts to be ingested.
+        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
+        :param unique_columns: Columns in DataFrame or keys in dict uniquely identifying each document,
+            required for 'upsert' operations.
+        :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
+        :param vector_column: Column with embedding vectors for pre-embedded data.
+        :param batch_config_params: Additional parameters for Weaviate batch configuration.
+        :param tenant: The tenant to which the object will be added.
+        """
+        import pandas as pd
+
+        if existing not in ["skip", "replace", "error"]:
+            raise ValueError(
+                "Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'upsert', 'error'."
+            )
+
+        if isinstance(data, list):
+            data = pd.json_normalize(data)
+
+        self.logger.info(f"Inserting {data.shape[0]} objects.")
+
+        if uuid_column is None or uuid_column not in data.columns:
+            data, uuid_column = self._generate_uuids(
+                df=data,
+                class_name=class_name,
+                unique_columns=unique_columns,
+                vector_column=vector_column,
+                uuid_column=uuid_column,
+            )
+        uuids_to_create = set()
+        existing_uuid, non_existing_uuid = self._check_existing_objects(
+            data=data, uuid_column=uuid_column, class_name=class_name, existing=existing
+        )
+        if existing == "error" and len(existing_uuid):
+            self.logger.info(f"Found duplicate UUIDs {' ,'.join(existing_uuid)}")
+            raise ValueError(
+                f"Found {len(existing_uuid)} object with duplicate UUIDs. You can either ignore or replace"
+                f" them by passing 'existing=skip' or 'existing=replace' respectively."
+            )
+        elif existing == "replace":
+            uuids_to_create = existing_uuid.union(non_existing_uuid)
+            self._delete_objects(existing_uuid, class_name=class_name)
+        elif existing == "skip":
+            uuids_to_create = non_existing_uuid
+        data = data[data[uuid_column].isin(uuids_to_create)]
+        if data.shape[0]:
+            self.logger.info(f"Batch inserting {data.shape[0]} objects.")
+            insertion_errors = self.batch_data(
+                class_name=class_name,
+                data=data,
+                batch_config_params=batch_config_params,
+                vector_col=vector_column,
+                uuid_col=uuid_column,
+                tenant=tenant,
+            )
+            if insertion_errors:
+                self.logger.info(f"Failed to insert {len(insertion_errors)} objects.")
+                # Rollback object that were not created properly
+                self._delete_objects([item["uuid"] for item in insertion_errors], class_name=class_name)
