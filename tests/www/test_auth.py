@@ -257,7 +257,7 @@ class TestHasAccessDagDecorator:
                 permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
             ) as user:
                 with patch(
-                    "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager.get_user"
+                    "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.get_user"
                 ) as mock_get_user:
                     mock_get_user.return_value = user
 

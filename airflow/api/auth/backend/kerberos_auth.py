@@ -140,7 +140,7 @@ def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | 
     if not find_user:
         warnings.warn(
             "This module is deprecated. Please use "
-            "`airflow.auth.managers.fab.api.auth.backend.kerberos_auth` instead.",
+            "`airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth` instead.",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )

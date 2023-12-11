@@ -457,6 +457,7 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join(
     [
         "common.io",
+        "fab",
     ]
 )
 
@@ -469,17 +470,17 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.6.0",
-        "remove-providers": _exclusion(["openlineage", "common.io", "cohere"]),
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab"]),
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.6.0",
-        "remove-providers": _exclusion(["openlineage", "common.io"]),
+        "remove-providers": _exclusion(["openlineage", "common.io", "fab"]),
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.7.1",
-        "remove-providers": _exclusion(["common.io"]),
+        "remove-providers": _exclusion(["common.io", "fab"]),
     },
 ]
 

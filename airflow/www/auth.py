@@ -81,7 +81,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
 
     return _has_access_fab(permissions)
 

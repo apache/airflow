@@ -517,7 +517,6 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/config_templates/|
@@ -532,6 +531,7 @@ repos:
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
+          ^airflow/providers/fab/auth_manager/security_manager/|
           ^airflow/providers/google/cloud/hooks/bigquery.py$|
           ^airflow/providers/google/cloud/operators/cloud_build.py$|
           ^airflow/providers/google/cloud/operators/dataproc.py$|
