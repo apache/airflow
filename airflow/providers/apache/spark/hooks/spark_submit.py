@@ -78,6 +78,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+    :param properties_file: Path to a file from which to load extra properties. If not
+                              specified, this will look for conf/spark-defaults.conf.
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
         on keytab for Kerberos login
     """
@@ -122,6 +124,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
         spark_binary: str | None = None,
+        properties_file: str | None = None,
         *,
         use_krb5ccache: bool = False,
     ) -> None:
@@ -155,6 +158,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
         self.spark_binary = spark_binary
+        self._properties_file = properties_file
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
         self._is_kubernetes = "k8s" in self._connection["master"]
@@ -292,6 +296,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "--conf",
                 f"spark.kubernetes.namespace={self._connection['namespace']}",
             ]
+        if self._properties_file:
+            connection_cmd += ["--properties-file", self._properties_file]
         if self._files:
             connection_cmd += ["--files", self._files]
         if self._py_files:
