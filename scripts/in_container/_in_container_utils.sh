@@ -60,7 +60,7 @@ function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
-function in_container_basic_sanity_check() {
+function in_container_basic_check() {
     assert_in_container
     in_container_go_to_airflow_sources
 }
@@ -78,76 +78,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-
-function uninstall_all_pip_packages() {
-    pip uninstall -y -r <(pip freeze)
-}
-
-function install_local_airflow_with_eager_upgrade() {
-    local extras
-    extras="${1}"
-    # we add eager requirements to make sure to take into account limitations that will allow us to
-    # install all providers
-    # shellcheck disable=SC2086
-    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
-        --upgrade --upgrade-strategy eager
-}
-
-
-function install_all_providers_from_pypi_with_eager_upgrade() {
-    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_DEPENDENCIES))')
-    ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
-    local packages_to_install=()
-    local provider_package
-    local res
-    local chicken_egg_prefixes
-    chicken_egg_prefixes=""
-    if [[ ${CHICKEN_EGG_PROVIDERS=} != "" ]]; then
-        echo "${COLOR_BLUE}Finding providers to install from dist: ${CHICKEN_EGG_PROVIDERS}${COLOR_RESET}"
-        for chicken_egg_provider in ${CHICKEN_EGG_PROVIDERS}
-        do
-            chicken_egg_prefixes="${chicken_egg_prefixes} apache-airflow-providers-${chicken_egg_provider//./-}"
-        done
-        echo "${COLOR_BLUE}Chicken egg prefixes: ${chicken_egg_prefixes}${COLOR_RESET}"
-        ls /dist/
-    fi
-    for provider_package in ${ALL_PROVIDERS_PACKAGES}
-    do
-        if [[ "${chicken_egg_prefixes}" == *"${provider_package}"* ]]; then
-            # add the provider prepared in dist folder where chicken - egg problem is mitigated
-            for file in /dist/"${provider_package//-/_}"*.whl
-            do
-                packages_to_install+=( "${file}" )
-                echo "Added ${file} from dist folder as this is a chicken-egg package ${COLOR_GREEN}OK${COLOR_RESET}"
-            done
-            continue
-        fi
-        echo -n "Checking if ${provider_package} is available in PyPI: "
-        res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
-        if [[ ${res} == "200" ]]; then
-            packages_to_install+=( "${provider_package}" )
-            echo "${COLOR_GREEN}OK${COLOR_RESET}"
-        else
-            echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
-        fi
-    done
-
-
-    echo "Installing provider packages: ${packages_to_install[*]}"
-
-
-    # we add eager requirements to make sure to take into account limitations that will allow us to
-    # install all providers. We install only those packages that are available in PyPI - we might
-    # Have some new providers in the works and they might not yet be simply available in PyPI
-    # Installing it with Airflow makes sure that the version of package that matches current
-    # Airflow requirements will be used.
-    # shellcheck disable=SC2086
-    set -x
-    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
-        --upgrade --upgrade-strategy eager
-    set +x
-}
-
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -159,26 +89,6 @@ function in_container_set_colors() {
     export COLOR_RED
     export COLOR_RESET
     export COLOR_YELLOW
-}
-
-
-# Starts group for GitHub Actions - makes logs much more readable
-function group_start {
-    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
-        echo "::group::${1}"
-    else
-        echo
-        echo "${1}"
-        echo
-    fi
-}
-
-# Ends group for GitHub Actions
-function group_end {
-    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
-        echo -e "\033[0m"  # Disable any colors set in the group
-        echo "::endgroup::"
-    fi
 }
 
 export CI=${CI:="false"}

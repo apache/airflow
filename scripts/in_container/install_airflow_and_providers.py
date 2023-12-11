@@ -20,45 +20,14 @@
 from __future__ import annotations
 
 import re
-import shlex
-import subprocess
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 from typing import NamedTuple
 
-import rich_click as click
-from rich.console import Console
-
-console = Console(width=400, color_system="standard")
-
-click.rich_click.COLOR_SYSTEM = "standard"
+from in_container_utils import click, console, run_command
 
 AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[1]
 DIST_FOLDER = Path("/dist")
-
-
-@contextmanager
-def ci_group(group_name: str, github_actions: bool):
-    if github_actions:
-        console.print(f"::group::{group_name[:200]}[/]", markup=False)
-    console.print(group_name, markup=False)
-    try:
-        yield
-    finally:
-        if github_actions:
-            console.print("::endgroup::")
-
-
-def run_command(cmd, github_actions: bool, **kwargs) -> subprocess.CompletedProcess:
-    with ci_group(
-        f"Running command: {' '.join([shlex.quote(arg) for arg in cmd])}", github_actions=github_actions
-    ):
-        result = subprocess.run(cmd, **kwargs)
-    if result.returncode != 0 and github_actions:
-        console.print(f"[red]Command failed: {' '.join([shlex.quote(entry) for entry in cmd])}[/]")
-        console.print("[red]Please unfold the above group and to investigate the issue[/]")
-    return result
 
 
 def get_provider_name(package_name: str) -> str:
