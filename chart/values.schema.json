@@ -1531,6 +1531,39 @@
                         }
                     }
                 },
+                "hpa": {
+                    "description": "HPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow HPA autoscaling (KEDA must be disabled).",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "metrics": {
+                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "type": "string",
+                            "default": "See values.yaml"
+                        },
+                        "behavior": {
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
