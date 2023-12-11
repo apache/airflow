@@ -82,9 +82,13 @@ ALLOWED_EXECUTORS = [
     "CeleryKubernetesExecutor",
     "SequentialExecutor",
 ]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
@@ -195,7 +199,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine
     # Some additional conversion for various platforms...
-    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
 
 

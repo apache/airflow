@@ -105,8 +105,8 @@ class OpenSearchHook(BaseHook):
         else:
             AirflowException("To delete a document you must include one of either a query or a document id. ")
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom UI field behaviour for OpenSearch Connection."""
         return {
             "hidden_fields": ["schema"],

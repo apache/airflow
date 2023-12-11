@@ -20,8 +20,8 @@ import os
 
 import click
 
+from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
-from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT

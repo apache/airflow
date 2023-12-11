@@ -67,7 +67,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--mount-sources",
                 "--github-repository",
-                "--debug",
             ],
         },
         {
@@ -96,7 +95,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--mount-sources",
                 "--github-repository",
-                "--debug",
             ],
         },
         {
@@ -163,7 +161,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
-                "--debug",
                 "--github-repository",
             ],
         },

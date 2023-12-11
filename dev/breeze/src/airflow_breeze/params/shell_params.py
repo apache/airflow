@@ -52,8 +52,8 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
-from airflow_breeze.utils.packages import get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -153,7 +153,7 @@ class ShellParams:
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
-    forward_credentials: str = "false"
+    forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
@@ -198,7 +198,7 @@ class ShellParams:
     skip_provider_tests: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
     standalone_dag_processor: bool = False
-    start_airflow: str = "false"
+    start_airflow: bool = False
     test_type: str | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
@@ -298,7 +298,13 @@ class ShellParams:
             get_console().print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
-        backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
+        if backend == "sqlite" and self.project_name != "breeze":
+            # When running scripts, we do not want to mount the volume to make sure that the
+            # sqlite database is not persisted between runs of the script and that the
+            # breeze database is not cleaned accidentally
+            backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}-no-volume.yml"
+        else:
+            backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
         if self.project_name == "pre-commit":
@@ -344,8 +350,6 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "forward-credentials.yml")
-        if self.use_airflow_version is not None:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
@@ -383,6 +387,8 @@ class ShellParams:
 
     @cached_property
     def suspended_providers_folders(self):
+        from airflow_breeze.utils.packages import get_suspended_provider_folders
+
         return " ".join(get_suspended_provider_folders()).strip()
 
     @cached_property
@@ -453,20 +459,7 @@ class ShellParams:
 
     @cached_property
     def rootless_docker(self) -> bool:
-        try:
-            response = run_command(
-                ["docker", "info", "-f", "{{println .SecurityOptions}}"],
-                capture_output=True,
-                check=False,
-                text=True,
-            )
-            if response.returncode == 0 and "rootless" in response.stdout.strip():
-                get_console().print("[info]Docker is running in rootless mode.[/]\n")
-                return True
-        except FileNotFoundError:
-            # we ignore if docker is missing
-            pass
-        return False
+        return is_docker_rootless()
 
     @cached_property
     def env_variables_for_docker_commands(self) -> dict[str, str]:

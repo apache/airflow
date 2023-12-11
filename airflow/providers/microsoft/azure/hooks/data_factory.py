@@ -156,9 +156,9 @@ class AzureDataFactoryHook(BaseHook):
     default_conn_name: str = "azure_data_factory_default"
     hook_name: str = "Azure Data Factory"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -173,8 +173,8 @@ class AzureDataFactoryHook(BaseHook):
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
