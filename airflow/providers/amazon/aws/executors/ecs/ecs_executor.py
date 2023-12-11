@@ -57,8 +57,9 @@ if TYPE_CHECKING:
 INVALID_CREDENTIALS_EXCEPTIONS = [
     "ExpiredTokenException",
     "InvalidClientTokenId",
-    "UnrecognizedClientException"
+    "UnrecognizedClientException",
 ]
+
 
 class AwsEcsExecutor(BaseExecutor):
     """
@@ -107,9 +108,7 @@ class AwsEcsExecutor(BaseExecutor):
         self.run_task_kwargs = self._load_run_kwargs()
 
     def start(self):
-        """
-        This is called by the scheduler when the Executor is being run for the first time.
-        """
+        """This is called by the scheduler when the Executor is being run for the first time."""
         check_health = conf.getboolean(
             CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
         )
@@ -123,8 +122,7 @@ class AwsEcsExecutor(BaseExecutor):
         except AirflowException:
             self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
             raise
-        
-    
+
     def check_health(self):
         """
         Make a test API call to check the health of the ECS Executor.
@@ -173,11 +171,6 @@ class AwsEcsExecutor(BaseExecutor):
                 )
                 raise AirflowException(msg_prefix % status + msg_error_suffix)
 
-    def _parse_client_error(self, ex: ClientError):
-        error_code = ex.response["Error"]["Code"]
-        error_message = ex.response["Error"]["Message"]
-        
-        return error_code, error_message
     def load_ecs_connection(self, check_connection: bool = True):
         self.log.info("Loading Connection information")
         aws_conn_id = conf.get(

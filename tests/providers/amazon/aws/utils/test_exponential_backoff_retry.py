@@ -24,10 +24,6 @@ import pytest
 from airflow.providers.amazon.aws.utils.exponential_backoff_retry import exponential_backoff_retry
 
 
-def callable_function():
-    print("This function was called")
-
-
 class TestExponentialBackoffRetry:
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_exponential_backoff_retry_base_case(self, mock_utcnow):
