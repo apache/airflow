@@ -667,7 +667,7 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
 
 
 def execute_command_in_shell(
-    shell_params: ShellParams, project_name: str, command: str | None = None
+    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -712,10 +712,10 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
-    return enter_shell(shell_params)
+    return enter_shell(shell_params, output=output)
 
 
-def enter_shell(shell_params: ShellParams) -> RunCommandResult:
+def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -804,6 +804,7 @@ def enter_shell(shell_params: ShellParams) -> RunCommandResult:
         text=True,
         check=False,
         env=shell_params.env_variables_for_docker_commands,
+        output=output,
         output_outside_the_group=True,
     )
     if command_result.returncode == 0:
