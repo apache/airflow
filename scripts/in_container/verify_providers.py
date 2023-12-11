@@ -578,7 +578,7 @@ def is_camel_case_with_acronyms(s: str):
 
 
 def check_if_classes_are_properly_named(
-    entity_summary: dict[EntityType, EntityTypeSummary]
+    entity_summary: dict[EntityType, EntityTypeSummary],
 ) -> tuple[int, int]:
     """Check if all entities in the dictionary are named properly.
 
