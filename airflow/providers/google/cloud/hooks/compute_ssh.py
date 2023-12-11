@@ -295,7 +295,7 @@ class ComputeEngineSSHHook(SSHHook):
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
                 # Default is RejectPolicy
                 # No known host checking since we are not storing privatekey
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
                 client.connect(
                     hostname=hostname,
                     username=user,

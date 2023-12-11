@@ -1015,7 +1015,7 @@ repos:
         language: python
         language_version: python3
         types: [ python ]
-        additional_dependencies: ['bandit>=1.7.5']
+        additional_dependencies: ['bandit==1.7.6']
         require_serial: true
         files: ^airflow/.*
         exclude:
