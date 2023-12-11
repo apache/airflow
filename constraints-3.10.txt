@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-11T08:15:46.323136
+# This constraints file was automatically generated on 2023-12-11T19:09:22.900375
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -237,7 +237,7 @@ celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.4
+cfn-lint==0.83.5
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -525,7 +525,7 @@ pyarrow-hotfix==0.6
 pyarrow==11.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
-pycountry==23.12.7
+pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.19.0
 pydantic==2.5.2
