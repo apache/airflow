@@ -69,6 +69,7 @@ class SparkSubmitOperator(BaseOperator):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+                         (will overwrite any spark_binary defined in the connection's extra JSON)
     :param properties_file: Path to a file from which to load extra properties. If not
                               specified, this will look for conf/spark-defaults.conf.
     :param queue: The name of the YARN queue to which the application is submitted.
