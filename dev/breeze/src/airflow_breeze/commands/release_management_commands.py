@@ -613,6 +613,7 @@ def run_generate_constraints(
         command="/opt/airflow/scripts/in_container/run_generate_constraints.py",
         output=output,
     )
+
     return (
         result.returncode,
         f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
@@ -622,6 +623,15 @@ def run_generate_constraints(
 CONSTRAINT_PROGRESS_MATCHER = (
     r"Found|Uninstalling|uninstalled|Collecting|Downloading|eta|Running|Installing|built|Attempting"
 )
+
+
+def list_generated_constraints(output: Output | None):
+    get_console(output=output).print("\n[info]List of generated files in './files' folder:[/]\n")
+    found_files = Path("./files").rglob("*")
+    for file in sorted(found_files):
+        if file.is_file():
+            get_console(output=output).print(file.as_posix())
+    get_console(output=output).print()
 
 
 def run_generate_constraints_in_parallel(
@@ -764,6 +774,7 @@ def generate_constraints(
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
             sys.exit(return_code)
+    list_generated_constraints(output=None)
 
 
 SDIST_FILENAME_PREFIX = "apache-airflow-providers-"
