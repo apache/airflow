@@ -96,8 +96,8 @@ class ComputeEngineSSHHook(SSHHook):
     conn_type = "gcpssh"
     hook_name = "Google Cloud SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
