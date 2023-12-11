@@ -182,10 +182,6 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     return redirect(get_auth_manager().get_url_login(next=request.url))
 
 
-def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
-
-
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_configuration(method=method))
 

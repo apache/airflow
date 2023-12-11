@@ -135,20 +135,6 @@ class BaseAuthManager(LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_cluster_activity(
-        self,
-        *,
-        method: ResourceMethod,
-        user: BaseUser | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on the cluster activity.
-
-        :param method: the method to perform
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
-        """
-
-    @abstractmethod
     def is_authorized_connection(
         self,
         *,
