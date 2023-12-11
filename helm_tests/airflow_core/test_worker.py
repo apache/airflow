@@ -1035,32 +1035,21 @@ class TestWorkerHPAAutoScaler:
                 "CeleryExecutor",
                 {
                     "type": "Resource",
-                    "resource": {
-                        "name": "cpu",
-                        "target": {
-                            "type": "Utilization",
-                            "averageUtilization": 80
-                        }
-                    }
+                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
                 },
             ),
             # custom metric
             (
-                "[{\"type\":\"Pods\",\"pods\":{\"metric\":{\"name\":\"custom_prometheus\"},\"target\":{\"type\":\"AverageValue\",\"averageValue\":\"20\"}}}]",
+                '[{"type":"Pods","pods":{"metric":{"name":"custom_prometheus"},"target":{"type":"AverageValue","averageValue":"20"}}}]',
                 "CeleryKubernetesExecutor",
                 {
                     "type": "Pods",
                     "pods": {
-                        "metric": {
-                            "name": "custom_prometheus"
-                        },
-                        "target": {
-                            "type": "AverageValue",
-                            "averageValue": "20"
-                        }
-                    }
+                        "metric": {"name": "custom_prometheus"},
+                        "target": {"type": "AverageValue", "averageValue": "20"},
+                    },
                 },
-            )
+            ),
         ],
     )
     def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
