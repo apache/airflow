@@ -154,6 +154,7 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
         check=True,
         capture_output=True,
     )
+    count_lines = 0
     for line in sorted(result.stdout.split("\n")):
         if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
             continue
@@ -161,9 +162,11 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
             continue
         if line.strip() == "":
             continue
+        count_lines += 1
         file.write(line)
         file.write("\n")
-    console.print(f"[green]Constraints generated to file: {file.name}")
+    file.flush()
+    console.print(f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines")
 
 
 def download_latest_constraint_file(config_params: ConfigParams):
@@ -201,8 +204,8 @@ def diff_constraints(config_params: ConfigParams) -> None:
     )
     if result.returncode == 0:
         console.print("[green]No changes in constraints files. exiting")
-        config_params.current_constraints_file.unlink(missing_ok=True)
-        sys.exit(0)
+        config_params.constraints_diff_file.unlink(missing_ok=True)
+        return
     result = run_command(
         [
             "diff",
@@ -444,6 +447,11 @@ def generate_constraints(
     else:
         console.print(f"[red]Unknown constraints mode: {airflow_constraints_mode}")
         sys.exit(1)
+    console.print("[green]Generated constraints:")
+    files = config_params.constraints_dir.rglob("*.txt")
+    for file in files:
+        console.print(file.as_posix())
+    console.print()
 
 
 if __name__ == "__main__":

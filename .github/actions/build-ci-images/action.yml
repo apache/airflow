@@ -45,3 +45,4 @@ runs:
         name: source-constraints
         path: ./files/constraints-*/constraints-*.txt
         retention-days: 7
+        if-no-files-found: error
