@@ -805,7 +805,7 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
