@@ -34,7 +34,6 @@ from airflow.security.permissions import (
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
-    RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
@@ -52,7 +51,6 @@ from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
-    "is_authorized_cluster_activity": RESOURCE_CLUSTER_ACTIVITY,
     "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_dataset": RESOURCE_DATASET,
     "is_authorized_variable": RESOURCE_VARIABLE,

@@ -45,7 +45,6 @@ class TestHasAccessDecorator:
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",
     [
-        ("has_access_cluster_activity", "is_authorized_cluster_activity"),
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_dataset", "is_authorized_dataset"),
         ("has_access_view", "is_authorized_view"),
