@@ -1,5 +1,6 @@
+
 #
-# This constraints file was automatically generated on 2023-12-10T19:12:42Z
+# This constraints file was automatically generated on 2023-12-11T08:15:46.290459
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -21,12 +22,13 @@
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
 #
 # pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \
-#     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
+#     --constraint \
+#    "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.11.txt"
 #
 # 2. Installing own dependencies that are potentially not matching the constraints (note constraints are not
 #    used, and apache-airflow==X.Y.Z is used to make sure there is no accidental airflow upgrade/downgrade.
 #
-# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]==2.9.0"
+# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 Authlib==1.2.1
 Babel==2.13.1
@@ -486,7 +488,7 @@ papermill==2.5.0
 paramiko==3.3.1
 parso==0.8.3
 pathable==0.4.3
-pathspec==0.12.0
+pathspec==0.12.1
 pbr==6.0.0
 pdpyras==5.1.3
 pendulum==2.1.2
