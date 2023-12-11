@@ -217,11 +217,12 @@ class OdbcHook(DbApiHook):
         """Transform the pyodbc.Row objects returned from an SQL command into JSON-serializable NamedTuple."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
         # instantiated Namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        columns: list[tuple[str, type]] | None = None
         if isinstance(result, list):
-            columns: list[tuple[str, type]] = [col[:2] for col in result[0].cursor_description]
+            columns = [col[:2] for col in result[0].cursor_description]
             row_object = NamedTuple("Row", columns)  # type: ignore[misc]
             return [row_object(*row) for row in result]
         elif isinstance(result, pyodbc.Row):
-            columns: list[tuple[str, type]] = [col[:2] for col in result.cursor_description]
-            return NamedTuple("Row", columns)(*result)  # type: ignore[misc]
+            columns = [col[:2] for col in result.cursor_description]
+            return NamedTuple("Row", columns)(*result)  # type: ignore[misc, operator]
         return result

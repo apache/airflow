@@ -172,6 +172,17 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
             id="The return_last not set on multiple queries not set",
         ),
+        pytest.param(
+            True,
+            False,
+            "select * from test.test",
+            ["select * from test.test"],
+            [["id", "value"]],
+            (Row(id=1, value=2),),
+            [[("id",), ("value",)]],
+            [1, 2],
+            id="The return_last set and no split statements set on single query in string",
+        ),
     ],
 )
 def test_query(
