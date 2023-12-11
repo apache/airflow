@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-07T21:22:12Z
+# This constraints file was automatically generated on 2023-12-11T06:56:17Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -73,7 +73,7 @@ anyio==4.1.0
 apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
-argcomplete==3.1.6
+argcomplete==3.2.1
 arrow==1.3.0
 asana==3.2.2
 asgiref==3.7.2
@@ -115,7 +115,7 @@ backoff==2.2.1
 bcrypt==4.1.1
 beautifulsoup4==4.12.2
 billiard==4.2.0
-bitarray==2.8.4
+bitarray==2.8.5
 black==23.11.0
 blinker==1.7.0
 boto3==1.33.1
@@ -164,13 +164,13 @@ deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.7
 dnspython==2.4.2
-docker==6.1.3
+docker==7.0.0
 docopt==0.6.2
 docutils==0.16
 duckdb==0.9.2
 ecdsa==0.18.0
 elastic-transport==8.10.0
-elasticsearch==8.11.0
+elasticsearch==8.11.1
 email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.8
@@ -200,7 +200,7 @@ google-api-core==2.15.0
 google-api-python-client==2.110.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
-google-auth==2.25.1
+google-auth==2.25.2
 google-cloud-aiplatform==1.37.0
 google-cloud-appengine-logging==1.4.0
 google-cloud-audit-log==0.2.5
@@ -213,7 +213,7 @@ google-cloud-bigtable==2.21.0
 google-cloud-build==3.22.0
 google-cloud-compute==1.15.0
 google-cloud-container==2.36.0
-google-cloud-core==2.4.0
+google-cloud-core==2.4.1
 google-cloud-datacatalog==3.17.0
 google-cloud-dataflow-client==0.8.6
 google-cloud-dataform==0.5.5
@@ -249,7 +249,7 @@ google-resumable-media==2.6.0
 googleapis-common-protos==1.62.0
 graphql-core==3.2.3
 graphviz==0.20.1
-greenlet==3.0.1
+greenlet==3.0.2
 grpc-google-iam-v1==0.13.0
 grpcio-gcp==0.2.2
 grpcio-status==1.60.0
@@ -325,7 +325,7 @@ mongomock==4.1.2
 more-itertools==10.1.0
 moto==4.2.11
 mpmath==1.3.0
-msal-extensions==1.0.0
+msal-extensions==1.1.0
 msal==1.26.0
 msrest==0.7.1
 msrestazure==0.6.4
@@ -374,12 +374,12 @@ oss2==2.18.3
 packaging==23.2
 pandas-gbq==0.19.2
 pandas-stubs==2.0.2.230605
-pandas==2.1.3
+pandas==2.1.4
 papermill==2.5.0
 paramiko==3.3.1
 parso==0.8.3
 pathable==0.4.3
-pathspec==0.11.2
+pathspec==0.12.1
 pbr==6.0.0
 pdpyras==5.1.3
 pendulum==2.1.2
@@ -396,7 +396,7 @@ ply==3.11
 plyvel==1.5.0
 portalocker==2.8.2
 pprintpp==0.4.0
-pre-commit==3.5.0
+pre-commit==3.6.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus-client==0.19.0
@@ -415,7 +415,7 @@ pyarrow-hotfix==0.6
 pyarrow==11.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
-pycountry==22.3.5
+pycountry==23.12.7
 pycparser==2.21
 pycryptodome==3.19.0
 pydantic==2.5.2
@@ -503,7 +503,7 @@ smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.5.0
+snowflake-connector-python==3.6.0
 snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -537,7 +537,7 @@ starkbank-ecdsa==2.2.0
 statsd==4.0.1
 strictyaml==1.7.3
 sympy==1.12
-tableauserverclient==0.25
+tableauserverclient==0.28
 tabulate==0.9.0
 tenacity==8.2.3
 termcolor==2.4.0
@@ -568,20 +568,19 @@ types-python-dateutil==2.8.19.14
 types-python-slugify==8.0.0.3
 types-pytz==2023.3.1.1
 types-redis==4.6.0.11
-types-requests==2.31.0.6
+types-requests==2.31.0.10
 types-setuptools==69.0.0.0
 types-tabulate==0.9.0.3
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
-types-urllib3==1.26.25.14
-typing_extensions==4.8.0
+typing_extensions==4.9.0
 tzdata==2023.3
 tzlocal==5.2
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
 universal-pathlib==0.1.4
 uritemplate==4.1.1
-urllib3==1.26.18
+urllib3==2.0.6
 userpath==1.9.1
 validators==0.22.0
 vertica-python==1.3.7
