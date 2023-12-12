@@ -36,6 +36,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "verify-provider-packages",
         "generate-providers-metadata",
         "generate-issue-content-providers",
+        "clean-old-provider-artifacts",
     ],
 }
 
@@ -63,15 +64,27 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider verification flags",
             "options": [
-                "--use-airflow-version",
-                "--install-selected-providers",
+                "--python",
+                "--mount-sources",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
-                "--skip-constraints",
-                "--debug",
-                "--github-repository",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
     ],
@@ -79,14 +92,27 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider installation flags",
             "options": [
-                "--use-airflow-version",
-                "--install-selected-providers",
+                "--python",
+                "--mount-sources",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
-                "--skip-constraints",
-                "--debug",
-                "--github-repository",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -104,13 +130,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Package flags",
             "options": [
-                "--package-format",
-                "--version-suffix-for-pypi",
                 "--clean-dist",
-                "--skip-tag-check",
-                "--skip-deleting-generated-files",
-                "--package-list-file",
                 "--github-repository",
+                "--include-removed-providers",
+                "--package-format",
+                "--package-list-file",
+                "--skip-deleting-generated-files",
+                "--skip-tag-check",
+                "--version-suffix-for-pypi",
             ],
         }
     ],
@@ -118,12 +145,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider documentation preparation flags",
             "options": [
-                "--github-repository",
-                "--skip-git-fetch",
                 "--base-branch",
+                "--github-repository",
+                "--include-removed-providers",
+                "--non-interactive",
                 "--only-min-version-update",
                 "--reapply-templates-only",
-                "--non-interactive",
+                "--skip-git-fetch",
             ],
         }
     ],
@@ -134,7 +162,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--python",
                 "--airflow-constraints-mode",
-                "--debug",
+                "--chicken-egg-providers",
                 "--github-repository",
             ],
         },
@@ -160,6 +188,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-platform",
                 "--skip-latest",
                 "--commit-sha",
+                "--chicken-egg-providers",
             ],
         }
     ],
@@ -167,9 +196,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Publish Docs",
             "options": [
+                "--airflow-site-directory",
+                "--include-removed-providers",
                 "--override-versioned",
                 "--package-filter",
-                "--airflow-site-directory",
             ],
         },
         {
@@ -186,19 +216,28 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management add-back-references": [
         {
             "name": "Add Back References to Docs",
-            "options": ["--airflow-site-directory"],
+            "options": [
+                "--airflow-site-directory",
+                "--include-removed-providers",
+            ],
         },
     ],
     "breeze release-management generate-issue-content-providers": [
         {
             "name": "Generate issue content flags",
             "options": [
-                "--github-token",
-                "--suffix",
-                "--only-available-in-dist",
-                "--excluded-pr-list",
                 "--disable-progress",
+                "--excluded-pr-list",
+                "--github-token",
+                "--only-available-in-dist",
+                "--suffix",
             ],
+        }
+    ],
+    "breeze release-management clean-old-provider-artifacts": [
+        {
+            "name": "Cleans the old provider artifacts",
+            "options": ["--directory"],
         }
     ],
     "breeze release-management generate-providers-metadata": [

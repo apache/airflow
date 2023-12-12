@@ -53,6 +53,7 @@ class TestSparkSubmitOperator:
         "application": "test_application.py",
         "driver_memory": "3g",
         "java_class": "com.foo.bar.AppMain",
+        "properties_file": "conf/spark-custom.conf",
         "application_args": [
             "-f",
             "foo",
@@ -120,6 +121,7 @@ class TestSparkSubmitOperator:
             ],
             "spark_binary": "sparky",
             "use_krb5ccache": True,
+            "properties_file": "conf/spark-custom.conf",
         }
 
         assert conn_id == operator._conn_id
@@ -147,6 +149,7 @@ class TestSparkSubmitOperator:
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["application_args"] == operator._application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
+        assert expected_dict["properties_file"] == operator._properties_file
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
     @pytest.mark.db_test

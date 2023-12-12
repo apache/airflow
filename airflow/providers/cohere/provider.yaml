@@ -24,9 +24,10 @@ description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
 suspended: false
-source-date-epoch: 1700148058
+source-date-epoch: 1701983368
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -37,7 +38,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - cohere>=4.27
 
 hooks:

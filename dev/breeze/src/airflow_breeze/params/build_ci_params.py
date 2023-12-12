@@ -41,6 +41,8 @@ class BuildCiParams(CommonBuildParams):
     upgrade_on_failure: bool = False
     eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
+    skip_image_upgrade_check: bool = False
+    warn_image_upgrade_needed: bool = False
 
     @property
     def airflow_version(self):
@@ -86,6 +88,7 @@ class BuildCiParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
         self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
         self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
         self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
         self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
         self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
@@ -99,3 +102,6 @@ class BuildCiParams(CommonBuildParams):
         build_args = self._to_build_args()
         # Add cache directive
         return build_args
+
+    def __post_init__(self):
+        self.version_suffix_for_pypi = self.version_suffix_for_pypi or "dev0"

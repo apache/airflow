@@ -70,7 +70,7 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _requires_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _requires_access_fab
 
     return _requires_access_fab(permissions)
 

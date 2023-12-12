@@ -693,6 +693,39 @@ class S3FileTransformOperator(BaseOperator):
             )
             self.log.info("Upload successful")
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
+            bucket=None,
+            key=self.dest_s3_key,
+            bucket_param_name="dest_bucket_name",
+            key_param_name="dest_bucket_key",
+        )
+
+        source_bucket_name, source_bucket_key = S3Hook.get_s3_bucket_key(
+            bucket=None,
+            key=self.source_s3_key,
+            bucket_param_name="source_bucket_name",
+            key_param_name="source_bucket_key",
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{source_bucket_name}",
+            name=source_bucket_key,
+        )
+        output_dataset = Dataset(
+            namespace=f"s3://{dest_bucket_name}",
+            name=dest_bucket_key,
+        )
+
+        return OperatorLineage(
+            inputs=[input_dataset],
+            outputs=[output_dataset],
+        )
+
 
 class S3ListOperator(BaseOperator):
     """

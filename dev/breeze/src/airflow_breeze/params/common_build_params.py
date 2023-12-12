@@ -56,6 +56,7 @@ class CommonBuildParams:
     dev_apt_command: str | None = None
     dev_apt_deps: str | None = None
     docker_cache: str = "registry"
+    docker_host: str | None = os.environ.get("DOCKER_HOST")
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")

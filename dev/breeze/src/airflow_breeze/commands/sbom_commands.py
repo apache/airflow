@@ -24,6 +24,17 @@ from pathlib import Path
 
 import click
 
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_debug_resources,
+    option_dry_run,
+    option_historical_python_version,
+    option_include_success_outputs,
+    option_parallelism,
+    option_run_in_parallel,
+    option_skip_cleanup,
+    option_verbose,
+)
 from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
@@ -41,17 +52,6 @@ from airflow_breeze.utils.cdxgen import (
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
-    option_answer,
-    option_debug_resources,
-    option_dry_run,
-    option_historical_python_version,
-    option_include_success_outputs,
-    option_parallelism,
-    option_run_in_parallel,
-    option_skip_cleanup,
-    option_verbose,
-)
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice

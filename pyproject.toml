@@ -140,6 +140,7 @@ combine-as-imports = true
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
+"scripts/ci/pre_commit/*.py" = ["E402"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]

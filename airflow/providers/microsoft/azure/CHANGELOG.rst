@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+8.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix reraise outside of try block in 'AzureSynapsePipelineRunLink.get_fields_from_url' (#36009)``
+* ``Do not catch too broad exception in 'WasbHook.delete_container' (#36034)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Synapse Pipeline connection-type in the UI (#35709)``
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Add operator to invoke Azure-Synapse pipeline (#35091)``
+* ``Extend task context logging support for remote logging using WASB (Azure Blob Storage) (#32972)``
+
+Misc
+~~~~
+
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 8.2.0
 .....
 

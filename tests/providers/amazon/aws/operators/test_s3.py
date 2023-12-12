@@ -299,6 +299,28 @@ class TestS3FileTransformOperator:
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
         assert self.content == result["Body"].read()
 
+    def test_get_openlineage_facets_on_start(self):
+        expected_input = Dataset(
+            namespace=f"s3://{self.bucket}",
+            name=self.input_key,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.bucket}",
+            name=self.output_key,
+        )
+
+        op = S3FileTransformOperator(
+            task_id="test",
+            source_s3_key=f"s3://{self.bucket}/{self.input_key}",
+            dest_s3_key=f"s3://{self.bucket}/{self.output_key}",
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
+
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
         mock_proc = mock.MagicMock()

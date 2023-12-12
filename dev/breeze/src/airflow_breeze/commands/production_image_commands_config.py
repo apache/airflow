@@ -36,6 +36,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--docker-cache",
                 "--version-suffix-for-pypi",
                 "--build-progress",
+                "--docker-host",
             ],
         },
         {
@@ -155,6 +156,17 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--slim-image",
                 "--image-tag",
                 "--pull",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
         {

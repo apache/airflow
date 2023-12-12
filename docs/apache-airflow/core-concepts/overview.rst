@@ -31,17 +31,36 @@ An Airflow installation generally consists of the following components:
 
 * An :doc:`executor <executor/index>`, which handles running tasks. In the default Airflow installation, this runs everything *inside* the scheduler, but most production-suitable executors actually push task execution out to *workers*.
 
+* A *triggerer*, which executes deferred tasks - executed in an async-io event loop.
+
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of DAGs and tasks.
 
 * A folder of *DAG files*, read by the scheduler and executor (and any workers the executor has)
 
 * A *metadata database*, used by the scheduler, executor and webserver to store state.
 
-.. image:: ../img/arch-diag-basic.png
+
+Basic airflow architecture
+--------------------------
+
+This is the basic architecture of Airflow that you'll see in simple installations:
+
+.. image:: ../img/diagram_basic_airflow_architecture.png
 
 Most executors will generally also introduce other components to let them talk to their workers - like a task queue - but you can still think of the executor and its workers as a single logical component in Airflow overall, handling the actual task execution.
 
 Airflow itself is agnostic to what you're running - it will happily orchestrate and run anything, either with high-level support from one of our providers, or directly as a command using the shell or Python :doc:`operators`.
+
+Separate DAG processing architecture
+------------------------------------
+
+In a more complex installation where security and isolation are important, you'll also see the standalone **dag file processor** component that allows to separate scheduler from accessing DAG file. This is suitable if the
+deployment focus is on isolation between parsed tasks. While Airflow does not yet support full multi-tenant features, it can be used to make sure that DAG-author provided code is never executed in the context of the scheduler.
+
+.. image:: ../img/diagram_dag_processor_airflow_architecture.png
+
+You can read more about the different types of users and how they interact with Airflow and how the
+security model of Airflow access look like in the :doc:`/security/security_model`
 
 Workloads
 ---------

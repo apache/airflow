@@ -222,7 +222,7 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
             # ignore SIGINT in the parent process
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             while proc.poll() is None:
-                readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [])
+                readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [], 0)
                 if sys.stdin in readable_fbs:
                     input_data = os.read(sys.stdin.fileno(), 10240)
                     os.write(primary_fd, input_data)

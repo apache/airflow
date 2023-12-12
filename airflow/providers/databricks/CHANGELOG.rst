@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Make pyodbc.Row and databricks.Row JSON-serializable via new 'make_serializable' method (#32319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
 5.0.0
 .....
 

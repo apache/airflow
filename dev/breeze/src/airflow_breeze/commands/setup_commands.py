@@ -31,10 +31,7 @@ from click import Context
 from rich.console import Console
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.main_command import main
-from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
@@ -44,11 +41,16 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_verbose,
 )
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console, get_stderr_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE,
     get_installation_airflow_sources,
     get_installation_sources_config_metadata_hash,
     get_package_setup_metadata_hash,
@@ -514,12 +516,18 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
 COMMON_PARAM_NAMES = ["--help", "--verbose", "--dry-run", "--answer"]
 COMMAND_PATH_PREFIX = "dev/breeze/src/airflow_breeze/commands/"
 
+DEVELOPER_COMMANDS = ["start-airflow", "build-docs", "down", "exec", "shell", "compile-www-assets", "cleanup"]
+
 
 def command_path(command: str) -> str:
+    if command in DEVELOPER_COMMANDS:
+        return COMMAND_PATH_PREFIX + "developer_commands.py"
     return COMMAND_PATH_PREFIX + command.replace("-", "_") + "_commands.py"
 
 
 def command_path_config(command: str) -> str:
+    if command in DEVELOPER_COMMANDS:
+        return COMMAND_PATH_PREFIX + "developer_commands_config.py"
     return COMMAND_PATH_PREFIX + command.replace("-", "_") + "_commands_config.py"
 
 
@@ -651,3 +659,50 @@ def regenerate_command_images(command: tuple[str, ...], force: bool, check_only:
 def check_all_params_in_groups(command: tuple[str, ...]):
     return_code = check_that_all_params_are_in_groups(commands=command)
     sys.exit(return_code)
+
+
+def _insert_documentation(file_path: Path, content: list[str], header: str, footer: str):
+    text = file_path.read_text().splitlines(keepends=True)
+    replacing = False
+    result: list[str] = []
+    for line in text:
+        if line.strip().startswith(header.strip()):
+            replacing = True
+            result.append(line)
+            result.extend(content)
+        if line.strip().startswith(footer.strip()):
+            replacing = False
+        if not replacing:
+            result.append(line)
+    src = "".join(result)
+    file_path.write_text(src)
+
+
+@setup.command(
+    name="synchronize-local-mounts",
+    help="Synchronize local mounts between python files and docker compose yamls.",
+)
+@option_verbose
+@option_dry_run
+def synchronize_local_mounts():
+    get_console().print("[info]Synchronizing local mounts between python files and docker compose yamls.[/]")
+    mounts_header = (
+        "        # START automatically generated volumes from "
+        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
+    )
+    mounts_footer = (
+        "        # END automatically generated volumes from "
+        "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
+    )
+    prefix = "      "
+    volumes = []
+    for src, dest in VOLUMES_FOR_SELECTED_MOUNTS:
+        volumes.extend(
+            [
+                prefix + "- type: bind\n",
+                prefix + f"  source: ../../../{src}\n",
+                prefix + f"  target: {dest}\n",
+            ]
+        )
+    _insert_documentation(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE, volumes, mounts_header, mounts_footer)
+    get_console().print("[success]Synchronized local mounts.[/]")

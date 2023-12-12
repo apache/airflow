@@ -22,11 +22,13 @@
 
 - [What the provider packages are](#what-the-provider-packages-are)
 - [Provider packages](#provider-packages)
+- [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Apply template updates](#apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -74,6 +76,35 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider packages](PROVIDER_PACKAGE_DETAILS.md).
+
+# Bump min Airflow version for providers
+
+1. Update `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py` to remove
+the versions of Airflow that are not applicable anymore.
+
+2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
+searching and replacing old version occurrences with newer one. For example 2.5.0 to 2.6.0
+
+3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
+command with the `--only-min-version-update` flag. This will only update the min version in
+the `__init__.py` files and package documentation without bumping the provider versions.
+
+```shell script
+branch="update-min-airflow-version"
+git checkout -b "${branch}"
+breeze release-management prepare-provider-documentation --only-min-version-update
+git add .
+git commit -m "Bump minimum Airflow version in providers to Airflow 2.6.0"
+git push --set-upstream origin "${branch}"
+```
+
+Note: that this command will only bump the min airflow versions for those providers that do not have it set to
+a higher version. You do not have to skip specific providers - run it for all providers it will
+handle everything automatically.
+
+Note: this step is **not** part of the release cycle. It should be done independently
+when the time to update min airflow version has come.
 
 # Decide when to release
 
@@ -130,17 +161,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze release-management prepare-provider-documentation [packages]
-```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), documentation for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-documentation removed.provider
+breeze release-management prepare-provider-documentation  --include-removed-providers [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -162,7 +183,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --answer yes [packages]
+breeze release-management prepare-provider-documentation  --include-removed-providers --answer yes [packages]
 ```
 
 NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
@@ -171,11 +192,15 @@ For example if you try to build a `cncf.kubernetes` provider that is build from 
 branch should be prepared like this:
 
 ```shell script
-breeze release-management prepare-provider-documentation \
+breeze release-management prepare-provider-documentation --include-removed-providers \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
-In case you want to **just** regenerate the documentation because you fixed something in the templates, add
+## Apply template updates
+
+(This step can also be executed independently when needed)
+
+Regenerate the documentation templates by running the command with
 `--reapply-templates` flag to the command above. This refreshes the content of:
 
 * `__init__.py` in provider's package
@@ -183,18 +208,9 @@ In case you want to **just** regenerate the documentation because you fixed some
 * Provider index for the documentation
 * Provider README file used when publishing package in PyPI
 
-If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
-in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
-command with the `--only-min-version-update` flag. This will only update the min version in
-the `__init__.py` files and package documentation without bumping the provider versions.
-
 ```shell script
-breeze release-management prepare-provider-documentation --only-min-version-update
+breeze release-management prepare-provider-documentation --include-removed-providers --reapply-templates-only
 ```
-
-Note: that this command will only bump the min airflow versions for those providers that do not have it set to
-a higher version. You do not have to skip specific providers - run it for all providers and it will
-handle everything automatically.
 
 ## Open PR with suggested version releases
 
@@ -227,26 +243,15 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages  --include-removed-providers \
+--package-format both PACKAGE PACKAGE ....
 ```
-
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Sign all your packages
 
@@ -308,25 +313,16 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers \
+ --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --include-removed-providers \
+--version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Verify the artifacts that would be uploaded:
 
@@ -407,7 +403,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build providers-index --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build apache-airflow-providers --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -421,23 +417,21 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), doc for the provider will not be built when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze build-docs removed.provider
-```
-
-
 - Now you can preview the documentation.
 
 ```shell script
 ./docs/start_doc_server.sh
 ```
+
+If you encounter error like:
+
+```shell script
+airflow git:(main) ./docs/start_doc_server.sh
+./docs/start_doc_server.sh: line 22: cd: /Users/eladkal/PycharmProjects/airflow/docs/_build: No such file or directory
+```
+
+That probably means that the doc folder is empty thus it can not build the doc server.
+This indicates that previous step of building the docs did not work.
 
 - Copy the documentation to the ``airflow-site`` repository
 
@@ -448,7 +442,8 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers --include-removed-providers \
+    --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -465,18 +460,7 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs amazon apache.beam google ....
-breeze release-management add-back-references all-providers
-```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), docs for the provider will not be published when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management publish-docs removed.provider
+breeze release-management publish-docs  --include-removed-providers amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
 
@@ -640,6 +624,103 @@ package and verify the correct versions are installed:
 docker build -f Dockerfile.pmc --tag local/airflow .
 docker run --rm --entrypoint "airflow" local/airflow info
 docker image rm local/airflow
+```
+
+### Reproducible package builds checks
+
+For provider packages we introduced a reproducible build mechanism - which means that whoever wants
+to use sources of Airflow from the release tag, can reproducibly build the same "wheel" and "sdist"
+packages as the release manager and they will be byte-by-byte identical, which makes them easy to
+verify - if they came from the same sources. This build is only done using released dependencies
+from PyPI and source code in our repository - no other binary dependencies are used during the build
+process and if the packages produced are byte-by-byte identical with the one we create from tagged sources
+it means that the build has a verified provenance.
+
+How to verify it:
+
+1) Change directory where your airflow sources are checked out
+
+```shell
+cd "${AIRFLOW_REPO_ROOT}"
+```
+
+2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
+   of the release wave. For example:
+
+```shell
+git checkout tags/providers-amazon-1.0.0rc1
+```
+
+3) Remove all the packages you have in dist folder
+
+```shell
+rm -rf dist/*
+```
+
+4) Build the packages using checked out sources
+
+```shell
+breeze release-management prepare-provider-packages --include-removed-providers \
+--package-format both --include-removed-providers
+```
+
+5) Switch to the folder where you checked out the SVN dev files
+
+```shell
+cd {PATH_TO_SVN}
+cd airflow/providers
+```
+
+6) Compare the packages in SVN to the ones you just built
+
+```shell
+for i in *.tar.gz *.whl
+do
+   echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
+done
+```
+
+You should see output similar to:
+
+```
+apache_airflow_providers_amazon-8.12.0.tar.gz:No diff found
+apache_airflow_providers_apache_impala-1.2.1.tar.gz:No diff found
+apache_airflow_providers_atlassian_jira-2.3.0.tar.gz:No diff found
+apache_airflow_providers_cncf_kubernetes-7.10.0.tar.gz:No diff found
+apache_airflow_providers_common_io-1.1.0.tar.gz:No diff found
+apache_airflow_providers_common_sql-1.8.1.tar.gz:No diff found
+apache_airflow_providers_databricks-5.0.1.tar.gz:No diff found
+apache_airflow_providers_dbt_cloud-3.4.1.tar.gz:No diff found
+apache_airflow_providers_docker-3.8.2.tar.gz:No diff found
+apache_airflow_providers_elasticsearch-5.2.0.tar.gz:No diff found
+apache_airflow_providers_google-10.12.0.tar.gz:No diff found
+apache_airflow_providers_microsoft_azure-8.3.0.tar.gz:No diff found
+apache_airflow_providers_odbc-4.2.0.tar.gz:No diff found
+apache_airflow_providers_openai-1.0.1.tar.gz:No diff found
+apache_airflow_providers_opsgenie-5.3.0.tar.gz:No diff found
+apache_airflow_providers_papermill-3.5.0.tar.gz:No diff found
+apache_airflow_providers_redis-3.4.1.tar.gz:No diff found
+apache_airflow_providers_snowflake-5.1.2.tar.gz:No diff found
+apache_airflow_providers_trino-5.4.1.tar.gz:No diff found
+apache_airflow_providers_amazon-8.12.0-py3-none-any.whl:No diff found
+apache_airflow_providers_apache_impala-1.2.1-py3-none-any.whl:No diff found
+apache_airflow_providers_atlassian_jira-2.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_cncf_kubernetes-7.10.0-py3-none-any.whl:No diff found
+apache_airflow_providers_common_io-1.1.0-py3-none-any.whl:No diff found
+apache_airflow_providers_common_sql-1.8.1-py3-none-any.whl:No diff found
+apache_airflow_providers_databricks-5.0.1-py3-none-any.whl:No diff found
+apache_airflow_providers_dbt_cloud-3.4.1-py3-none-any.whl:No diff found
+apache_airflow_providers_docker-3.8.2-py3-none-any.whl:No diff found
+apache_airflow_providers_elasticsearch-5.2.0-py3-none-any.whl:No diff found
+apache_airflow_providers_google-10.12.0-py3-none-any.whl:No diff found
+apache_airflow_providers_microsoft_azure-8.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_odbc-4.2.0-py3-none-any.whl:No diff found
+apache_airflow_providers_openai-1.0.1-py3-none-any.whl:No diff found
+apache_airflow_providers_opsgenie-5.3.0-py3-none-any.whl:No diff found
+apache_airflow_providers_papermill-3.5.0-py3-none-any.whl:No diff found
+apache_airflow_providers_redis-3.4.1-py3-none-any.whl:No diff found
+apache_airflow_providers_snowflake-5.1.2-py3-none-any.whl:No diff found
+apache_airflow_providers_trino-5.4.1-py3-none-any.whl:No diff found
 ```
 
 ### Licences check
@@ -907,11 +988,11 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
+# Check which old packages will be removed using dry run
+breeze release-management clean-old-provider-artifacts --directory . --dry-run
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
+breeze release-management clean-old-provider-artifacts --directory .
 
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
