@@ -44,6 +44,7 @@ from airflow_breeze.commands.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_removed_providers,
     option_installation_package_format,
     option_integration,
     option_max_time,
@@ -579,9 +580,22 @@ def start_airflow(
 
 
 @main.command(name="build-docs")
-@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
-@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_builder
+@click.option(
+    "--clean-build",
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@option_dry_run
+@option_github_repository
+@option_include_removed_providers
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @click.option(
     "--package-filter",
     help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
@@ -590,30 +604,19 @@ def start_airflow(
     type=str,
     multiple=True,
 )
-@click.option(
-    "--clean-build",
-    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
-    "before the build - useful for a clean build.",
-    is_flag=True,
-)
-@click.option(
-    "--one-pass-only",
-    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
-    is_flag=True,
-)
-@argument_doc_packages
-@option_github_repository
+@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
-@option_dry_run
+@argument_doc_packages
 def build_docs(
-    doc_packages: tuple[str, ...],
-    docs_only: bool,
-    spellcheck_only: bool,
     builder: str,
     clean_build: bool,
+    docs_only: bool,
+    github_repository: str,
+    include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
-    github_repository: str,
+    spellcheck_only: bool,
+    doc_packages: tuple[str, ...],
 ):
     """
     Build documents.
@@ -636,7 +639,9 @@ def build_docs(
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
-        short_doc_packages=expand_all_provider_packages(doc_packages),
+        short_doc_packages=expand_all_provider_packages(
+            doc_packages, include_removed=include_removed_providers
+        ),
     )
     cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(
         [shlex.quote(arg) for arg in doc_builder.args_doc_builder]

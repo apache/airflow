@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_historical_python_version,
     option_image_tag_for_running,
+    option_include_removed_providers,
     option_include_success_outputs,
     option_installation_package_format,
     option_mount_sources,
@@ -152,7 +153,7 @@ argument_provider_packages = click.argument(
     "provider_packages",
     nargs=-1,
     required=False,
-    type=NotVerifiedBetterChoice(get_available_packages()),
+    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False)),
 )
 option_airflow_site_directory = click.option(
     "-a",
@@ -342,6 +343,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
+@argument_provider_packages
+@option_answer
+@option_dry_run
+@option_include_removed_providers
+@click.option(
+    "--non-interactive",
+    is_flag=True,
+    help="Run in non-interactive mode. Provides random answers to the type of changes and confirms release"
+    "for providers prepared for release - useful to test the script in non-interactive mode in CI.",
+)
 @click.option(
     "--only-min-version-update",
     is_flag=True,
@@ -353,24 +364,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
-@click.option(
-    "--non-interactive",
-    is_flag=True,
-    help="Run in non-interactive mode. Provides random answers to the type of changes and confirms release"
-    "for providers prepared for release - useful to test the script in non-interactive mode in CI.",
-)
-@argument_provider_packages
 @option_verbose
-@option_dry_run
-@option_answer
 def prepare_provider_documentation(
-    github_repository: str,
-    skip_git_fetch: bool,
     base_branch: str,
-    provider_packages: tuple[str],
-    only_min_version_update: bool,
-    reapply_templates_only: bool,
+    github_repository: str,
+    include_removed_providers: bool,
     non_interactive: bool,
+    only_min_version_update: bool,
+    provider_packages: tuple[str],
+    reapply_templates_only: bool,
+    skip_git_fetch: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -387,7 +390,7 @@ def prepare_provider_documentation(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     if not provider_packages:
-        provider_packages = get_available_packages()
+        provider_packages = get_available_packages(include_removed=include_removed_providers)
 
     if not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
@@ -515,24 +518,28 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     help="Clean dist directory before building packages. Useful when you want to build multiple packages "
     " in a clean environment",
 )
+@option_dry_run
 @option_github_repository
+@option_include_removed_providers
 @argument_provider_packages
 @option_verbose
-@option_dry_run
 def prepare_provider_packages(
-    package_format: str,
-    version_suffix_for_pypi: str,
-    package_list_file: IO | None,
-    skip_tag_check: bool,
-    skip_deleting_generated_files: bool,
     clean_dist: bool,
     github_repository: str,
+    include_removed_providers: bool,
+    package_format: str,
+    package_list_file: IO | None,
     provider_packages: tuple[str, ...],
+    skip_deleting_generated_files: bool,
+    skip_tag_check: bool,
+    version_suffix_for_pypi: str,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    packages_list = get_packages_list_to_act_on(package_list_file, provider_packages)
+    packages_list = get_packages_list_to_act_on(
+        package_list_file, provider_packages, include_removed_providers
+    )
     if not skip_tag_check:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
@@ -1134,8 +1141,13 @@ def run_publish_docs_in_parallel(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
 )
-@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
+@argument_doc_packages
 @option_airflow_site_directory
+@option_debug_resources
+@option_dry_run
+@option_include_removed_providers
+@option_include_success_outputs
+@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
     help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
@@ -1144,23 +1156,20 @@ def run_publish_docs_in_parallel(
     type=str,
     multiple=True,
 )
-@option_run_in_parallel
 @option_parallelism
-@option_debug_resources
-@option_include_success_outputs
+@option_run_in_parallel
 @option_skip_cleanup
-@argument_doc_packages
 @option_verbose
-@option_dry_run
 def publish_docs(
-    override_versioned: bool,
     airflow_site_directory: str,
-    doc_packages: tuple[str, ...],
-    package_filter: tuple[str, ...],
-    run_in_parallel: bool,
-    parallelism: int,
     debug_resources: bool,
+    doc_packages: tuple[str, ...],
     include_success_outputs: bool,
+    include_removed_providers: bool,
+    override_versioned: bool,
+    package_filter: tuple[str, ...],
+    parallelism: int,
+    run_in_parallel: bool,
     skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
@@ -1171,7 +1180,8 @@ def publish_docs(
         )
 
     current_packages = find_matching_long_package_names(
-        short_packages=expand_all_provider_packages(doc_packages), filters=package_filter
+        short_packages=expand_all_provider_packages(doc_packages, include_removed=include_removed_providers),
+        filters=package_filter,
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
@@ -1199,11 +1209,13 @@ def publish_docs(
     help="Command to add back references for documentation to make it backward compatible.",
 )
 @option_airflow_site_directory
+@option_include_removed_providers
 @argument_doc_packages
-@option_verbose
 @option_dry_run
+@option_verbose
 def add_back_references(
     airflow_site_directory: str,
+    include_removed_providers: bool,
     doc_packages: tuple[str, ...],
 ):
     """Adds back references for documentation generated by build-docs and publish-docs"""
@@ -1219,7 +1231,9 @@ def add_back_references(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
         sys.exit(1)
-    start_generating_back_references(site_path, list(expand_all_provider_packages(doc_packages)))
+    start_generating_back_references(
+        site_path, list(expand_all_provider_packages(doc_packages, include_removed=include_removed_providers))
+    )
 
 
 def _add_chicken_egg_providers_to_build_args(
@@ -1239,8 +1253,8 @@ def _add_chicken_egg_providers_to_build_args(
     help="Cleans the old provider artifacts",
 )
 @option_directory
-@option_verbose
 @option_dry_run
+@option_verbose
 def clean_old_provider_artifacts(
     directory: str,
 ):
@@ -1288,16 +1302,13 @@ def clean_old_provider_artifacts(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
+@option_dry_run
+@option_chicken_egg_providers
 @click.option(
     "--dockerhub-repo",
     default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     help="DockerHub repository for the images",
-)
-@click.option(
-    "--slim-images",
-    is_flag=True,
-    help="Whether to prepare slim images instead of the regular ones.",
 )
 @click.option(
     "--limit-python",
@@ -1312,6 +1323,7 @@ def clean_old_provider_artifacts(
     show_default=True,
     help="Specific platform to build images for (if not specified, multiplatform images will be built.",
 )
+@option_commit_sha
 @click.option(
     "--skip-latest",
     is_flag=True,
@@ -1319,10 +1331,12 @@ def clean_old_provider_artifacts(
     "This should only be used if you release image for previous branches. Automatically set when "
     "rc/alpha/beta images are built.",
 )
-@option_commit_sha
-@option_chicken_egg_providers
+@click.option(
+    "--slim-images",
+    is_flag=True,
+    help="Whether to prepare slim images instead of the regular ones.",
+)
 @option_verbose
-@option_dry_run
 def release_prod_images(
     airflow_version: str,
     dockerhub_repo: str,
@@ -1515,6 +1529,8 @@ def get_prs_for_package(provider_id: str) -> list[int]:
 @release_management.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
+@click.option("--disable-progress", is_flag=True, help="Disable progress bar")
+@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
     "--github-token",
     envvar="GITHUB_TOKEN",
@@ -1526,22 +1542,20 @@ def get_prs_for_package(provider_id: str) -> list[int]:
       https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
     ),
 )
-@click.option("--suffix", default="rc1", help="Suffix to add to the version prepared")
 @click.option(
     "--only-available-in-dist",
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
-@click.option("--disable-progress", is_flag=True, help="Disable progress bar")
+@click.option("--suffix", default="rc1", help="Suffix to add to the version prepared")
 @argument_provider_packages
 def generate_issue_content_providers(
-    provider_packages: list[str],
-    github_token: str,
-    suffix: str,
-    only_available_in_dist: bool,
-    excluded_pr_list: str,
     disable_progress: bool,
+    excluded_pr_list: str,
+    github_token: str,
+    only_available_in_dist: bool,
+    suffix: str,
+    provider_packages: list[str],
 ):
     import jinja2
     import yaml

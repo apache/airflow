@@ -161,17 +161,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze release-management prepare-provider-documentation [packages]
-```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), documentation for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-documentation removed.provider
+breeze release-management prepare-provider-documentation  --include-removed-providers [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -193,7 +183,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --answer yes [packages]
+breeze release-management prepare-provider-documentation  --include-removed-providers --answer yes [packages]
 ```
 
 NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
@@ -202,7 +192,7 @@ For example if you try to build a `cncf.kubernetes` provider that is build from 
 branch should be prepared like this:
 
 ```shell script
-breeze release-management prepare-provider-documentation \
+breeze release-management prepare-provider-documentation --include-removed-providers \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
@@ -219,7 +209,7 @@ Regenerate the documentation templates by running the command with
 * Provider README file used when publishing package in PyPI
 
 ```shell script
-breeze release-management prepare-provider-documentation --reapply-templates-only
+breeze release-management prepare-provider-documentation --include-removed-providers --reapply-templates-only
 ```
 
 ## Open PR with suggested version releases
@@ -253,26 +243,15 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages  --include-removed-providers \
+--package-format both PACKAGE PACKAGE ....
 ```
-
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Sign all your packages
 
@@ -334,25 +313,16 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers \
+ --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --include-removed-providers \
+--version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Verify the artifacts that would be uploaded:
 
@@ -447,18 +417,6 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), doc for the provider will not be built when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze build-docs removed.provider
-```
-
-
 - Now you can preview the documentation.
 
 ```shell script
@@ -484,7 +442,8 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers --include-removed-providers \
+    --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -501,18 +460,7 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs amazon apache.beam google ....
-breeze release-management add-back-references all-providers
-```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), docs for the provider will not be published when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management publish-docs removed.provider
+breeze release-management publish-docs  --include-removed-providers amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
 
@@ -712,7 +660,8 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages --include-removed-providers \
+--package-format both --include-removed-providers
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
