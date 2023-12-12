@@ -35,7 +35,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
+    from typing import Collection, Literal, Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -690,8 +690,8 @@ class WeaviateHook(BaseHook):
         :param uuid_column: Column with pre-generated UUIDs.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
         """
-        existing_uuid = set()
-        non_existing_uuid = set()
+        existing_uuid: set = set()
+        non_existing_uuid: set = set()
 
         if existing == "replace":
             existing_uuid = set(data[uuid_column].to_list())
@@ -708,6 +708,8 @@ class WeaviateHook(BaseHook):
                     with attempt:
                         if self.object_exists(uuid=uuid, class_name=class_name):
                             existing_uuid.add(uuid)
+                            if existing == "error":
+                                return existing_uuid, non_existing_uuid
                             self.log.debug("object with uuid %s exists.", uuid)
                         else:
                             non_existing_uuid.add(uuid)
@@ -718,7 +720,7 @@ class WeaviateHook(BaseHook):
         )
         return existing_uuid, non_existing_uuid
 
-    def _delete_objects(self, uuids: Sequence, class_name: str, retry_attempts_per_object: int = 5):
+    def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
         """Helper function for `create_or_replace_objects()` to delete multiple objects."""
         for uuid in uuids:
             for attempt in Retrying(

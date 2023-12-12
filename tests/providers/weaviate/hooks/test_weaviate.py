@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock
+from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
@@ -697,6 +697,23 @@ def test___generate_uuids(generate_uuid5, weaviate_hook):
         )
 
 
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.object_exists")
+def test_error__check_existing_objects(object_exists, weaviate_hook):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+        }
+    )
+    object_exists.return_value = True
+    existing_uuid, non_existing_uuid = weaviate_hook._check_existing_objects(
+        data=df, uuid_column="id", class_name="test", existing="error"
+    )
+    assert existing_uuid == {"1"}
+
+
 def test_replace__check_existing_objects(weaviate_hook):
     df = pd.DataFrame.from_dict(
         {
@@ -755,7 +772,7 @@ def test__delete_objects(delete_object, weaviate_hook):
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
-def test_error_create_or_replace_objects(_generate_uuids, _check_existing_objects, weaviate_hook):
+def test_error_option_of_create_or_replace_objects(_generate_uuids, _check_existing_objects, weaviate_hook):
     df = pd.DataFrame.from_dict(
         {
             "id": ["1", "2", "3"],
@@ -775,7 +792,7 @@ def test_error_create_or_replace_objects(_generate_uuids, _check_existing_object
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
-def test_skip_create_or_replace_objects(
+def test_skip_option_of_create_or_replace_objects(
     _generate_uuids, _check_existing_objects, batch_data, _delete_objects, weaviate_hook
 ):
     df = pd.DataFrame.from_dict(
@@ -793,18 +810,16 @@ def test_skip_create_or_replace_objects(
     _check_existing_objects.return_value = (existing_uuid, non_existing_uuid)
     _generate_uuids.return_value = (df, "id")
     weaviate_hook.create_or_replace_objects(data=df, class_name=class_name, existing="skip")
-    batch_data.assert_called_with(
-        class_name="test", data=ANY, batch_config_params=None, vector_col=None, uuid_col="id", tenant=None
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"], df[df["id"].isin(non_existing_uuid)]
     )
-    assert set(batch_data.call_args_list[0].kwargs["data"]["id"].to_list()) == non_existing_uuid
-    assert sorted(_delete_objects.call_args.args[0]) == sorted(list(non_existing_uuid))
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
-def test_replace_create_or_replace_objects(
+def test_replace_option_of_create_or_replace_objects(
     _generate_uuids, _check_existing_objects, batch_data, _delete_objects, weaviate_hook
 ):
     df = pd.DataFrame.from_dict(
@@ -823,9 +838,6 @@ def test_replace_create_or_replace_objects(
     _generate_uuids.return_value = (df, "id")
     weaviate_hook.create_or_replace_objects(data=df, class_name=class_name, existing="replace")
     _delete_objects.assert_called_with(existing_uuid, class_name=class_name)
-    batch_data.assert_called_with(
-        class_name="test", data=ANY, batch_config_params=None, vector_col=None, uuid_col="id", tenant=None
-    )
-    assert set(batch_data.call_args_list[0].kwargs["data"]["id"].to_list()) == existing_uuid.union(
-        non_existing_uuid
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"], df[df["id"].isin(existing_uuid.union(non_existing_uuid))]
     )
