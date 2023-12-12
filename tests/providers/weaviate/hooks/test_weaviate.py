@@ -783,7 +783,7 @@ def test_error_option_of_create_or_replace_objects(_generate_uuids, _check_exist
     )
 
     _check_existing_objects.return_value = ({"1"}, {"2", "3"})
-    _generate_uuids.return_value = (None, None)
+    _generate_uuids.return_value = (df, "id")
     with pytest.raises(ValueError, match=f"Found {len({'1'})} object with duplicate UUIDs. You can either"):
         weaviate_hook.create_or_replace_objects(data=df, class_name="test", existing="error")
 

@@ -632,7 +632,7 @@ class WeaviateHook(BaseHook):
         self,
         df: pd.DataFrame,
         class_name: str,
-        unique_columns: list[str] | None = None,
+        unique_columns: list[str],
         vector_column: str | None = None,
         uuid_column: str | None = None,
     ) -> tuple[pd.DataFrame, str]:
@@ -651,9 +651,6 @@ class WeaviateHook(BaseHook):
             removed prior to generating the uuid.
         """
         column_names = df.columns.to_list()
-
-        unique_columns = unique_columns or column_names
-        unique_columns.sort()
 
         difference_columns = set(unique_columns).difference(set(df.columns.to_list()))
         if difference_columns:
@@ -781,18 +778,20 @@ class WeaviateHook(BaseHook):
         :param vector_column: Column with embedding vectors for pre-embedded data.
         :param batch_config_params: Additional parameters for Weaviate batch configuration.
         :param tenant: The tenant to which the object will be added.
-        :return: list of uuids which failed to create
+        :return: list of UUID which failed to create
         """
         import pandas as pd
-
-        if isinstance(unique_columns, str):
-            unique_columns = [unique_columns]
 
         if existing not in ["skip", "replace", "error"]:
             raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
 
         if isinstance(data, list):
             data = pd.json_normalize(data)
+
+        if isinstance(unique_columns, str):
+            unique_columns = [unique_columns]
+        elif unique_columns is None:
+            unique_columns = sorted(data.columns.to_list())
 
         self.log.info("Inserting %s objects.", data.shape[0])
 
@@ -807,6 +806,10 @@ class WeaviateHook(BaseHook):
                 vector_column=vector_column,
                 uuid_column=uuid_column,
             )
+        # drop duplicate rows, using uuid_column and unique_columns
+        data = data.drop_duplicates(
+            subset=list({*unique_columns, uuid_column} - {vector_column, None}), keep="first"
+        )
 
         uuids_to_create = set()
         existing_uuid, non_existing_uuid = self._check_existing_objects(
