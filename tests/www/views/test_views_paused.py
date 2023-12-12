@@ -33,6 +33,7 @@ def dags(create_dummy_dag):
     clear_db_dags()
 
 
+@pytest.mark.db_test
 def test_logging_pause_dag(admin_client, dags):
     dag, _ = dags
     # is_paused=false mean pause the dag
@@ -42,6 +43,7 @@ def test_logging_pause_dag(admin_client, dags):
         assert "('is_paused', True)" in dag_query.first().extra
 
 
+@pytest.mark.db_test
 def test_logging_unpuase_dag(admin_client, dags):
     _, paused_dag = dags
     # is_paused=true mean unpause the dag
