@@ -806,10 +806,16 @@ def test_skip_option_of_create_or_replace_objects(
 
     class_name = "test"
     existing_uuid, non_existing_uuid = ({"1"}, {"2", "3"})
-    batch_data.return_value = [{"uuid": i} for i in non_existing_uuid]
+    batch_data_return_value = [{"uuid": i} for i in non_existing_uuid]
+    batch_data.return_value = batch_data_return_value
     _check_existing_objects.return_value = (existing_uuid, non_existing_uuid)
     _generate_uuids.return_value = (df, "id")
-    weaviate_hook.create_or_replace_objects(data=df, class_name=class_name, existing="skip")
+
+    insertion_errors = weaviate_hook.create_or_replace_objects(
+        data=df, class_name=class_name, existing="skip"
+    )
+
+    assert batch_data_return_value == insertion_errors
     pd.testing.assert_frame_equal(
         batch_data.call_args_list[0].kwargs["data"], df[df["id"].isin(non_existing_uuid)]
     )

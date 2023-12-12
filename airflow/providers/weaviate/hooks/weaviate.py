@@ -637,7 +637,7 @@ class WeaviateHook(BaseHook):
         uuid_column: str | None = None,
     ) -> tuple[pd.DataFrame, str]:
         """
-        Adds UUIDs to a DataFrame, useful for upsert operations where UUIDs must be known before ingestion.
+        Adds UUIDs to a DataFrame, useful for replace operations where UUIDs must be known before ingestion.
 
         By default, UUIDs are generated using a custom function if 'uuid_column' is not specified.
         The function can potentially ingest the same data multiple times with different UUIDs.
@@ -684,11 +684,12 @@ class WeaviateHook(BaseHook):
 
     def _check_existing_objects(self, data: pd.DataFrame, uuid_column: str, class_name: str, existing: str):
         """
-        Check if the objects with uuid exist or not.
+        Helper function to check if the objects with uuid exist or not.
 
         :param data: A single pandas DataFrame.
         :param uuid_column: Column with pre-generated UUIDs.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param existing: Strategy for handling existing data: 'skip', or 'replace'.
         """
         existing_uuid: set = set()
         non_existing_uuid: set = set()
@@ -721,7 +722,13 @@ class WeaviateHook(BaseHook):
         return existing_uuid, non_existing_uuid
 
     def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
-        """Helper function for `create_or_replace_objects()` to delete multiple objects."""
+        """
+        Helper function for `create_or_replace_objects()` to delete multiple objects.
+
+        :param uuids: Collection of uuids.
+        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        """
         for uuid in uuids:
             for attempt in Retrying(
                 stop=stop_after_attempt(retry_attempts_per_object),
@@ -753,9 +760,17 @@ class WeaviateHook(BaseHook):
         vector_column: str = "Vector",
         batch_config_params: dict | None = None,
         tenant: str | None = None,
-    ):
+    ) -> list:
         """
         create or replace objects.
+
+        Provides users with multiple ways of dealing with existing values.
+            1. replace: replace the existing object with new object. This option requires to identify the rows
+                uniquely, which by default is done by using all columns(except `vector`) to create a uuid.
+                User can modify this behaviour by providing `unique_columns` params.
+            2. skip: skip the existing objects.
+            3. error: raise an error if an existing object is found.
+
 
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
@@ -766,6 +781,7 @@ class WeaviateHook(BaseHook):
         :param vector_column: Column with embedding vectors for pre-embedded data.
         :param batch_config_params: Additional parameters for Weaviate batch configuration.
         :param tenant: The tenant to which the object will be added.
+        :return: list of uuids which failed to create
         """
         import pandas as pd
 
@@ -773,9 +789,7 @@ class WeaviateHook(BaseHook):
             unique_columns = [unique_columns]
 
         if existing not in ["skip", "replace", "error"]:
-            raise ValueError(
-                "Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'upsert', 'error'."
-            )
+            raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
 
         if isinstance(data, list):
             data = pd.json_normalize(data)
@@ -783,13 +797,17 @@ class WeaviateHook(BaseHook):
         self.log.info("Inserting %s objects.", data.shape[0])
 
         if uuid_column is None or uuid_column not in data.columns:
-            data, uuid_column = self._generate_uuids(
+            (
+                data,
+                uuid_column,
+            ) = self._generate_uuids(
                 df=data,
                 class_name=class_name,
                 unique_columns=unique_columns,
                 vector_column=vector_column,
                 uuid_column=uuid_column,
             )
+
         uuids_to_create = set()
         existing_uuid, non_existing_uuid = self._check_existing_objects(
             data=data, uuid_column=uuid_column, class_name=class_name, existing=existing
@@ -806,6 +824,7 @@ class WeaviateHook(BaseHook):
         elif existing == "skip":
             uuids_to_create = non_existing_uuid
         data = data[data[uuid_column].isin(uuids_to_create)]
+        insertion_errors = []
         if data.shape[0]:
             self.log.info("Batch inserting %s objects.", data.shape[0])
             insertion_errors = self.batch_data(
@@ -820,3 +839,5 @@ class WeaviateHook(BaseHook):
                 self.log.info("Failed to insert %s objects.", len(insertion_errors))
                 # Rollback object that were not created properly
                 self._delete_objects([item["uuid"] for item in insertion_errors], class_name=class_name)
+
+        return insertion_errors
