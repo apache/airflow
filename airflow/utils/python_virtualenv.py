@@ -24,6 +24,7 @@ import warnings
 from pathlib import Path
 
 import jinja2
+from jinja2 import select_autoescape
 
 from airflow.utils.decorators import remove_task_decorator as _remove_task_decorator
 from airflow.utils.process_utils import execute_in_subprocess
@@ -140,6 +141,10 @@ def write_python_script(
             loader=template_loader, undefined=jinja2.StrictUndefined
         )
     else:
-        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+        template_env = jinja2.Environment(
+            loader=template_loader,
+            undefined=jinja2.StrictUndefined,
+            autoescape=select_autoescape(["html", "xml"]),
+        )
     template = template_env.get_template("python_virtualenv_script.jinja2")
     template.stream(**jinja_context).dump(filename)

@@ -56,7 +56,7 @@ class HttpTrigger(BaseTrigger):
         method: str = "POST",
         endpoint: str | None = None,
         headers: dict[str, str] | None = None,
-        data: Any = None,
+        data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
     ):
         super().__init__()
@@ -120,7 +120,7 @@ class HttpTrigger(BaseTrigger):
         response.encoding = client_response.get_encoding()
         response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()
-        for (k, v) in client_response.cookies.items():
+        for k, v in client_response.cookies.items():
             cookies.set(k, v)
         response.cookies = cookies
         return response

@@ -1621,7 +1621,6 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
-
         create_notebook_instance_kwargs = {
             "NotebookInstanceName": self.instance_name,
             "InstanceType": self.instance_type,

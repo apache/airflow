@@ -35,7 +35,6 @@ with DAG(
     schedule="@once",
     tags=["example"],
 ) as dag:
-
     start = EmptyOperator(
         task_id="start",
     )

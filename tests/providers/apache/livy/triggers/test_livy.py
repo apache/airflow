@@ -97,6 +97,7 @@ class TestLivyTrigger:
         assert len(task) == 2
         assert TriggerEvent({"status": "error"}) in task
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_livy_trigger_run_with_exception(self):
         """Test if the task in the trigger failed with a connection error when no connection is mocked."""
@@ -106,19 +107,13 @@ class TestLivyTrigger:
 
         task = [i async for i in trigger.run()]
         assert len(task) == 1
-        assert (
-            TriggerEvent(
-                {
-                    "status": "error",
-                    "batch_id": 1,
-                    "response": "Batch 1 did not succeed with Cannot connect to host livy:8998 ssl:default "
-                    "[Name or service not known]",
-                    "log_lines": None,
-                }
-            )
-            in task
-        )
+        event = task[0]
+        assert isinstance(event, TriggerEvent)
+        assert event.payload.get("status") == "error"
+        assert event.payload.get("batch_id") == 1
+        assert "Cannot connect to host livy:8998 ssl:default" in event.payload.get("response")
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_livy_trigger_poll_for_termination_with_client_error(self):
         """

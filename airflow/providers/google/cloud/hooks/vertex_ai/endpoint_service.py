@@ -15,17 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud Vertex AI hook.
-
-.. spelling:word-list::
-
-    undeployed
-    undeploy
-    Undeploys
-    aiplatform
-    FieldMask
-    unassigns
-"""
+"""This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

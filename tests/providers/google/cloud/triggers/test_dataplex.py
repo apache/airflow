@@ -109,7 +109,7 @@ class TestDataplexDataQualityJobTrigger:
         )
         mock_convert_to_dict.return_value = {}
 
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
         expected_event = TriggerEvent(

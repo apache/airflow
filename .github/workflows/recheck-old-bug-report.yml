@@ -26,7 +26,7 @@ permissions:
   issues: write
 jobs:
   recheck-old-bug-report:
-    runs-on: ubuntu-22.04
+    runs-on: "ubuntu-22.04"
     steps:
       - uses: actions/stale@v8
         with:

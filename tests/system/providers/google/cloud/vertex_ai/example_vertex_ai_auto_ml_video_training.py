@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Auto ML operations.
@@ -119,7 +117,22 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    model_id_v1 = create_auto_ml_video_training_job.output["model_id"]
     # [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
+    create_auto_ml_video_training_job_v2 = CreateAutoMLVideoTrainingJobOperator(
+        task_id="auto_ml_video_v2_task",
+        display_name=VIDEO_DISPLAY_NAME,
+        prediction_type="classification",
+        model_type="CLOUD",
+        dataset_id=video_dataset_id,
+        model_display_name=MODEL_DISPLAY_NAME,
+        parent_model=model_id_v1,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
 
     delete_auto_ml_video_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_video_training_job",
@@ -153,6 +166,7 @@ with DAG(
         >> import_video_dataset
         # TEST BODY
         >> create_auto_ml_video_training_job
+        >> create_auto_ml_video_training_job_v2
         # TEST TEARDOWN
         >> delete_auto_ml_video_training_job
         >> delete_video_dataset

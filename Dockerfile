@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.7.1"
+ARG AIRFLOW_VERSION="2.7.3"
 
-ARG PYTHON_BASE_IMAGE="python:3.8-slim-bullseye"
+ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
-ARG AIRFLOW_PIP_VERSION=23.2.1
+ARG AIRFLOW_PIP_VERSION=23.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -76,7 +76,7 @@ COPY <<"EOF" /install_os_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOCKER_CLI_VERSION=20.10.9
+DOCKER_CLI_VERSION=24.0.6
 
 if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
@@ -97,18 +97,34 @@ function get_dev_apt_deps() {
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
+libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
 }
 
 function get_runtime_apt_deps() {
+    local debian_version
+    local debian_version_apt_deps
+    # Get debian version without installing lsb_release
+    # shellcheck disable=SC1091
+    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    echo
+    echo "DEBIAN CODENAME: ${debian_version}"
+    echo
+    if [[ "${debian_version}" == "bullseye" ]]; then
+        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
+    else
+        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
+    fi
+    echo
+    echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
+    echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
 curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
-ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
-lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
+lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -138,6 +154,27 @@ function install_debian_dev_dependencies() {
         bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}"
     fi
     apt-get update
+    local debian_version
+    local debian_version_apt_deps
+    # Get debian version without installing lsb_release
+    # shellcheck disable=SC1091
+    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    echo
+    echo "DEBIAN CODENAME: ${debian_version}"
+    echo
+    if [[ "${debian_version}" == "bullseye" ]]; then
+        echo
+        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
+        echo
+        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
+        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
+        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
+        echo
+        echo "Replaced bullseye dev apt dependencies"
+        echo "${ADDITIONAL_DEV_APT_COMMAND}"
+        echo
+    fi
+
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
@@ -195,6 +232,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
 
 export_key() {
     local key="${1}"
@@ -288,9 +326,18 @@ install_mariadb_client() {
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+    fi
+
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+        install_mysql_client "${@}"
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
-        install_mysql_client "${@}"
+        echo
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo
+        exit 1
     fi
 fi
 EOF
@@ -299,8 +346,6 @@ EOF
 COPY <<"EOF" /install_mssql.sh
 #!/usr/bin/env bash
 set -euo pipefail
-
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
@@ -327,6 +372,7 @@ function install_mssql_client() {
     distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
     version=$(lsb_release -rs)
     local driver=msodbcsql18
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
     curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
         /etc/apt/sources.list.d/mssql-release.list
@@ -336,40 +382,6 @@ function install_mssql_client() {
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Workaround an issue with installing pymssql on ARM architecture triggered by Cython 3.0.0 release as of
-    # 18 July 2023. The problem is that pip uses latest Cython to compile pymssql and since we are using
-    # setuptools, there is no easy way to fix version of Cython used to compile packages.
-    #
-    # This triggers a problem with newer `pip` versions that have build isolation enabled by default because
-    # There is no (easy) way to pin build dependencies for dependent packages. If a package does not have
-    # limit on build dependencies, it will use the latest version of them to build that particular package.
-    #
-    # The workaround to the problem suggest in the last thread by Pradyun Gedam - pip maintainer - is to
-    # use PIP_CONSTRAINT environment variable and constraint the version of Cython used while installing
-    # the package. Which is precisely what we are doing here.
-    #
-    # Note that it does not work if we pass ``--constraint`` option to pip because it will not be passed to
-    # the package being build in isolation. The fact that the PIP_CONSTRAINT env variable works in the isolation
-    # is a bit of side-effect on how env variables work and that they are passed to subprocesses as pip
-    # launches a subprocess `pip` to build the package.
-    #
-    # This is a temporary solution until the issue is resolved in pymssql or Cython
-    # Issues/discussions that track it:
-    #
-    # * https://github.com/cython/cython/issues/5541
-    # * https://github.com/pymssql/pymssql/pull/827
-    # * https://discuss.python.org/t/no-way-to-pin-build-dependencies/29833
-    #
-    # TODO: Remove this workaround when the issue is resolved.
-    #       ALSO REMOVE THE TOP LINES ABOVE WITH common.sh IMPORT AS WELL AS COPYING common.sh ib
-    #       Dockerfile AND Dockerfile.ci (look for capital PYMSSQL - there are several places to remove)
-    if [[ "${1}" == "dev" ]]; then
-        common::install_pip_version
-        echo "Cython==0.29.36" >> /tmp/mssql-constraints.txt
-        PIP_CONSTRAINT=/tmp/mssql-constraints.txt pip install pymssql
-        rm /tmp/mssql-constraints.txt
-    fi
 }
 
 install_mssql_client "${@}"
@@ -509,7 +521,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.2.1"
+            export AIRFLOW_PIP_VERSION="23.3.1"
         fi
     fi
 }
@@ -543,9 +555,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }
@@ -615,6 +627,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
     fi
 
+    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider packages from docker-context files, we need to still
+        # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
+        # pre-release dockerhub image of airflow is built, but we want to install some providers from
+        # docker-context files
+        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+    fi
     # Find Apache Airflow packages in docker-context files
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \
@@ -1113,7 +1132,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 
@@ -1155,7 +1174,7 @@ while true; do
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f
 
-  find "${DIRECTORY}"/logs -type d -empty -delete
+  find "${DIRECTORY}"/logs -type d -empty -delete || true
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
@@ -1191,7 +1210,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    PIP_CACHE_DIR=/tmp/.cache/pip
 
 ARG DEV_APT_DEPS=""
 ARG ADDITIONAL_DEV_APT_DEPS=""
@@ -1209,8 +1229,41 @@ COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 ARG INSTALL_MYSQL_CLIENT="true"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
+ARG AIRFLOW_PIP_VERSION
+
+ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
+
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here
+COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_mysql.sh dev && \
+    bash /scripts/docker/install_mssql.sh dev && \
+    bash /scripts/docker/install_postgres.sh dev
+ENV PATH=${PATH}:/opt/mssql-tools/bin
+
+# By default we do not install from docker context files but if we decide to install from docker context
+# files, we should override those variables to "docker-context-files"
+ARG DOCKER_CONTEXT_FILES="Dockerfile"
+
+COPY ${DOCKER_CONTEXT_FILES} /docker-context-files
+
+ARG AIRFLOW_HOME
+ARG AIRFLOW_USER_HOME_DIR
+ARG AIRFLOW_UID
+
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+       --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+    mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
+
+USER airflow
+
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -1221,7 +1274,7 @@ ARG AIRFLOW_CONSTRAINTS_MODE="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
-ARG AIRFLOW_PIP_VERSION
+
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
@@ -1250,41 +1303,6 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG AIRFLOW_SOURCES_FROM="Dockerfile"
 ARG AIRFLOW_SOURCES_TO="/Dockerfile"
 
-# By default we do not install from docker context files but if we decide to install from docker context
-# files, we should override those variables to "docker-context-files"
-ARG DOCKER_CONTEXT_FILES="Dockerfile"
-
-ARG AIRFLOW_HOME
-ARG AIRFLOW_USER_HOME_DIR
-ARG AIRFLOW_UID
-
-ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
-
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-
-# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
-# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.2.1
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
-COPY --from=scripts common.sh /scripts/docker/
-
-
-RUN bash /scripts/docker/install_mysql.sh dev && \
-    bash /scripts/docker/install_mssql.sh dev && \
-    bash /scripts/docker/install_postgres.sh dev
-ENV PATH=${PATH}:/opt/mssql-tools/bin
-
-COPY ${DOCKER_CONTEXT_FILES} /docker-context-files
-
-RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-       --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
-    mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
-
-USER airflow
 
 RUN if [[ -f /docker-context-files/pip.conf ]]; then \
         mkdir -p ${AIRFLOW_USER_HOME_DIR}/.config/pip; \
@@ -1374,8 +1392,15 @@ WORKDIR ${AIRFLOW_HOME}
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
 
-# hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
+# Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
+# an incorrect architecture.
+ARG TARGETARCH
+# Value to be able to easily change cache id and therefore use a bare new cache
+ARG PIP_CACHE_EPOCH="0"
+
+# hadolint ignore=SC2086, SC2010, DL3042
+RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+  if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if ! airflow version 2>/dev/null >/dev/null; then \
@@ -1393,8 +1418,10 @@ RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
-RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+# hadolint ignore=DL3042
+RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+    if [[ -f /docker-context-files/requirements.txt ]]; then \
+        pip install --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
@@ -1430,6 +1457,7 @@ ARG RUNTIME_APT_COMMAND="echo"
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 
@@ -1438,6 +1466,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
@@ -1462,7 +1491,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.2.1
+ARG AIRFLOW_PIP_VERSION=23.3.1
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1508,6 +1537,9 @@ RUN chmod a+rx /entrypoint /clean-logs \
 RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sudoers
 
 ARG AIRFLOW_VERSION
+
+COPY --from=scripts install_pip_version.sh /scripts/docker/
+RUN bash /scripts/docker/install_pip_version.sh
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image

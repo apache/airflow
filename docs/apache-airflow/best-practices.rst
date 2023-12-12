@@ -215,14 +215,13 @@ Imagine this code:
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,
           dag=dag,
       )
 
-What you can do check it, add to your code you want to check some print statements and run
+What you can do to check it is add some print statements to the code you want to check and then run
 ``python <my_dag_file>.py``.
 
 
@@ -250,7 +249,6 @@ What you can do check it, add to your code you want to check some print statemen
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,

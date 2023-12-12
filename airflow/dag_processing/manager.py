@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, cast
 
 from setproctitle import setproctitle
+from sqlalchemy import delete, select, update
 from tabulate import tabulate
 
 import airflow.models
@@ -226,28 +227,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         set_new_process_group()
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
-        # Reload configurations and settings to avoid collision with parent process.
-        # Because this process may need custom configurations that cannot be shared,
-        # e.g. RotatingFileHandler. And it can cause connection corruption if we
-        # do not recreate the SQLA connection pool.
-        os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"] = "True"
-        os.environ["AIRFLOW__LOGGING__COLORED_CONSOLE_LOG"] = "False"
-        # Replicating the behavior of how logging module was loaded
-        # in logging_config.py
-
-        # TODO: This reloading should be removed when we fix our logging behaviour
-        # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
-        # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
-        # in a parent process (likely via resources shared in memory by the ORM libraries).
-        # This caused flaky tests in our CI for many months and has been discovered while
-        # iterating on https://github.com/apache/airflow/pull/19860
-        # The issue that describes the problem and possible remediation is
-        # at https://github.com/apache/airflow/issues/19934
-
-        importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit(".", 1)[0]))  # type: ignore
-        importlib.reload(airflow.settings)
-        airflow.settings.initialize()
-        del os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"]
+        reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
             dag_directory=dag_directory,
             max_runs=max_runs,
@@ -525,13 +505,11 @@ class DagFileProcessorManager(LoggingMixin):
         Deactivate them and remove them in the serialized_dag table.
         """
         to_deactivate = set()
-        query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
-            DagModel.is_active
-        )
+        query = select(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).where(DagModel.is_active)
         standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         if standalone_dag_processor:
-            query = query.filter(DagModel.processor_subdir == dag_directory)
-        dags_parsed = query.all()
+            query = query.where(DagModel.processor_subdir == dag_directory)
+        dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
@@ -546,11 +524,13 @@ class DagFileProcessorManager(LoggingMixin):
                 to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
-            deactivated = (
-                session.query(DagModel)
-                .filter(DagModel.dag_id.in_(to_deactivate))
-                .update({DagModel.is_active: False}, synchronize_session="fetch")
+            deactivated_dagmodel = session.execute(
+                update(DagModel)
+                .where(DagModel.dag_id.in_(to_deactivate))
+                .values(is_active=False)
+                .execution_options(synchronize_session="fetch")
             )
+            deactivated = deactivated_dagmodel.rowcount
             if deactivated:
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
@@ -695,15 +675,16 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetch callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
-            query = session.query(DbCallbackRequest)
+            query = select(DbCallbackRequest)
             if self.standalone_dag_processor:
-                query = query.filter(
+                query = query.where(
                     DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                 )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
-            callbacks = with_row_locks(
+            query = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
-            ).all()
+            )
+            callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
                     self._add_callback_to_queue(callback.get_callback_request())
@@ -762,7 +743,9 @@ class DagFileProcessorManager(LoggingMixin):
 
             try:
                 self.log.debug("Removing old import errors")
-                DagFileProcessorManager.clear_nonexistent_import_errors(file_paths=self._file_paths)
+                DagFileProcessorManager.clear_nonexistent_import_errors(
+                    file_paths=self._file_paths, processor_subdir=self.get_dag_directory()
+                )
             except Exception:
                 self.log.exception("Error removing old import errors")
 
@@ -812,17 +795,24 @@ class DagFileProcessorManager(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def clear_nonexistent_import_errors(file_paths: list[str] | None, session=NEW_SESSION):
+    def clear_nonexistent_import_errors(
+        file_paths: list[str] | None, processor_subdir: str | None, session=NEW_SESSION
+    ):
         """
         Clear import errors for files that no longer exist.
 
         :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
-        query = session.query(errors.ImportError)
+        query = delete(errors.ImportError)
+
         if file_paths:
-            query = query.filter(~errors.ImportError.filename.in_(file_paths))
-        query.delete(synchronize_session="fetch")
+            query = query.where(
+                ~errors.ImportError.filename.in_(file_paths),
+                errors.ImportError.processor_subdir == processor_subdir,
+            )
+
+        session.execute(query.execution_options(synchronize_session="fetch"))
         session.commit()
 
     def _log_file_processing_stats(self, known_file_paths):
@@ -1288,3 +1278,26 @@ class DagFileProcessorManager(LoggingMixin):
     @property
     def file_paths(self):
         return self._file_paths
+
+
+def reload_configuration_for_dag_processing():
+    # Reload configurations and settings to avoid collision with parent process.
+    # Because this process may need custom configurations that cannot be shared,
+    # e.g. RotatingFileHandler. And it can cause connection corruption if we
+    # do not recreate the SQLA connection pool.
+    os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"] = "True"
+    os.environ["AIRFLOW__LOGGING__COLORED_CONSOLE_LOG"] = "False"
+    # Replicating the behavior of how logging module was loaded
+    # in logging_config.py
+    # TODO: This reloading should be removed when we fix our logging behaviour
+    # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
+    # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
+    # in a parent process (likely via resources shared in memory by the ORM libraries).
+    # This caused flaky tests in our CI for many months and has been discovered while
+    # iterating on https://github.com/apache/airflow/pull/19860
+    # The issue that describes the problem and possible remediation is
+    # at https://github.com/apache/airflow/issues/19934
+    importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit(".", 1)[0]))  # type: ignore
+    importlib.reload(airflow.settings)
+    airflow.settings.initialize()
+    del os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"]

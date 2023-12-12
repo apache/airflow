@@ -28,7 +28,6 @@ from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake impor
 
 
 class TestOracleToAzureDataLakeTransfer:
-
     mock_module_path = "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
 
     def test_write_temp_file(self, tmp_path):

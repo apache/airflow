@@ -180,7 +180,6 @@ with DAG(
 
     @task_group(group_id="no_wait_cancel_retry_get")
     def no_wait_cancel_retry_get():
-
         # [START howto_operator_create_build_without_wait]
         create_build_without_wait = CloudBuildCreateBuildOperator(
             task_id="create_build_without_wait",

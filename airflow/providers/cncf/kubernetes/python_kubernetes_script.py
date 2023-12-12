@@ -22,6 +22,7 @@ import os
 from collections import deque
 
 import jinja2
+from jinja2 import select_autoescape
 
 
 def _balance_parens(after_decorator):
@@ -39,7 +40,7 @@ def _balance_parens(after_decorator):
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removes @task.kubernetes or similar as well as @setup and @teardown.
+    Remove @task.kubernetes or similar as well as @setup and @teardown.
 
     :param python_source: python source code
     :param task_decorator_name: the task decorator name
@@ -68,7 +69,7 @@ def write_python_script(
     render_template_as_native_obj: bool = False,
 ):
     """
-    Renders the python script to a file to execute in the virtual environment.
+    Render the python script to a file to execute in the virtual environment.
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.
@@ -83,6 +84,10 @@ def write_python_script(
             loader=template_loader, undefined=jinja2.StrictUndefined
         )
     else:
-        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+        template_env = jinja2.Environment(
+            loader=template_loader,
+            undefined=jinja2.StrictUndefined,
+            autoescape=select_autoescape(["html", "xml"]),
+        )
     template = template_env.get_template("python_kubernetes_script.jinja2")
     template.stream(**jinja_context).dump(filename)

@@ -19,12 +19,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -34,7 +38,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
-    from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
     from airflow.utils.state import DagRunState
 
@@ -62,7 +65,7 @@ PydanticOperator = Annotated[
 ]
 
 
-class TaskInstancePydantic(BaseModelPydantic):
+class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API."""
 
     task_id: str
@@ -100,13 +103,14 @@ class TaskInstancePydantic(BaseModelPydantic):
     task: PydanticOperator
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
+    dag_model: Optional[DagModelPydantic]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    def init_run_context(self, raw: bool = False) -> None:
+        """Set the log context."""
+        self.raw = raw
+        self._set_context(self)
 
     def xcom_pull(
         self,
@@ -154,7 +158,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRunPydantic:
         """
-        Returns the DagRun for this TaskInstance.
+        Return the DagRun for this TaskInstance.
 
         :param session: SQLAlchemy ORM Session
 
@@ -166,7 +170,7 @@ class TaskInstancePydantic(BaseModelPydantic):
 
     def _execute_task(self, context, task_orig):
         """
-        Executes Task (optionally with a Timeout) and pushes Xcom results.
+        Execute Task (optionally with a Timeout) and push Xcom results.
 
         :param context: Jinja2 context
         :param task_orig: origin task
@@ -178,7 +182,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
-        Refreshes the task instance from the database based on the primary key.
+        Refresh the task instance from the database based on the primary key.
 
         :param session: SQLAlchemy ORM Session
         :param lock_for_update: if True, indicates that the database should
@@ -197,13 +201,13 @@ class TaskInstancePydantic(BaseModelPydantic):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Returns task instance tags."""
+        """Return task instance tags."""
         from airflow.models.taskinstance import _stats_tags
 
         return _stats_tags(task_instance=self)
 
     def clear_next_method_args(self) -> None:
-        """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
         from airflow.models.taskinstance import _clear_next_method_args
 
         _clear_next_method_args(task_instance=self)
@@ -280,7 +284,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         session: Session | None = None,
     ) -> DagRun | None:
         """
-        The DagRun that ran before this task instance's DagRun.
+        Return the DagRun that ran before this task instance's DagRun.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session.
@@ -296,7 +300,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> pendulum.DateTime | None:
         """
-        The execution date from property previous_ti_success.
+        Return the execution date from property previous_ti_success.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
@@ -334,9 +338,9 @@ class TaskInstancePydantic(BaseModelPydantic):
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | None:
+    ) -> TaskInstance | TaskInstancePydantic | None:
         """
-        The task instance for the task that ran before this task instance.
+        Return the task instance for the task that ran before this task instance.
 
         :param session: SQLAlchemy ORM Session
         :param state: If passed, it only take into account instances of a specific state.
@@ -344,6 +348,86 @@ class TaskInstancePydantic(BaseModelPydantic):
         from airflow.models.taskinstance import _get_previous_ti
 
         return _get_previous_ti(task_instance=self, state=state, session=session)
+
+    @provide_session
+    def check_and_change_state_before_execution(
+        self,
+        verbose: bool = True,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        return TaskInstance._check_and_change_state_before_execution(
+            task_instance=self,
+            verbose=verbose,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            mark_success=mark_success,
+            test_mode=test_mode,
+            hostname=get_hostname(),
+            job_id=job_id,
+            pool=pool,
+            external_executor_id=external_executor_id,
+            session=session,
+        )
+
+    @provide_session
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
+        """
+        Schedule downstream tasks of this task instance.
+
+        :meta: private
+        """
+        return TaskInstance._schedule_downstream_tasks(
+            ti=self, sessions=session, max_tis_per_query=max_tis_per_query
+        )
+
+    def command_as_list(
+        self,
+        mark_success: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_ti_state: bool = False,
+        local: bool = False,
+        pickle_id: int | None = None,
+        raw: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
+    ) -> list[str]:
+        """
+        Return a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by the orchestrator.
+        """
+        return TaskInstance._command_as_list(
+            ti=self,
+            mark_success=mark_success,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_ti_state=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path,
+        )
 
 
 TaskInstancePydantic.model_rebuild()

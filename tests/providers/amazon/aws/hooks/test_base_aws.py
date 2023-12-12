@@ -41,6 +41,7 @@ from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     AwsGenericHook,
@@ -113,14 +114,12 @@ SAML_ASSERTION = """
       </AuthnContext>
     </AuthnStatement>
   </Assertion>
-</samlp:Response>""".format(  # noqa: E501
+</samlp:Response>""".format(
     account_id=DEFAULT_ACCOUNT_ID,
     role_name="test-role",
     provider_name="TestProvFed",
     username="testuser",
-).replace(
-    "\n", ""
-)
+).replace("\n", "")
 
 
 class CustomSessionFactory(BaseSessionFactory):
@@ -390,17 +389,19 @@ class TestAwsBaseHook:
         assert table.item_count == 0
 
     @pytest.mark.parametrize(
-        "client_meta",
+        "hook_params",
         [
-            AwsBaseHook(client_type="s3").get_client_type().meta,
-            AwsBaseHook(resource_type="dynamodb").get_resource_type().meta.client.meta,
+            pytest.param({"client_type": "s3"}, id="client-type"),
+            pytest.param({"resource_type": "dynamodb"}, id="resource-type"),
         ],
     )
-    def test_user_agent_extra_update(self, client_meta):
+    def test_user_agent_extra_update(self, hook_params):
         """
         We are only looking for the keys appended by the AwsBaseHook. A user_agent string
         is a number of key/value pairs such as: `BOTO3/1.25.4 AIRFLOW/2.5.0.DEV0 AMPP/6.0.0`.
         """
+        client_meta = AwsBaseHook(aws_conn_id=None, client_type="s3").conn_client_meta
+
         expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller", "DagRunKey"]
 
         result_user_agent_tags = client_meta.config.user_agent.split(" ")
@@ -410,14 +411,14 @@ class TestAwsBaseHook:
             assert key.lower() in result_user_agent_tag_keys
 
     @staticmethod
-    def fetch_tags() -> dict[str:str]:
+    def fetch_tags() -> dict[str, str]:
         """Helper method which creates an AwsBaseHook and returns the user agent string split into a dict."""
         user_agent_string = AwsBaseHook(client_type="s3").get_client_type().meta.config.user_agent
         # Split the list of {Key}/{Value} into a dict
         return dict(tag.split("/") for tag in user_agent_string.split(" "))
 
     @pytest.mark.parametrize("found_classes", [["RandomOperator"], ["BaseSensorOperator", "TestSensor"]])
-    @mock.patch.object(AwsBaseHook, "_find_class_name")
+    @mock.patch.object(AwsBaseHook, "_find_operator_class_name")
     def test_user_agent_caller_target_function_found(self, mock_class_name, found_classes):
         mock_class_name.side_effect = found_classes
 
@@ -425,6 +426,21 @@ class TestAwsBaseHook:
 
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
+
+    @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
+    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
+        with conf_vars(
+            {
+                ("aws_ecs_executor", "cluster"): "foo",
+                ("aws_ecs_executor", "region_name"): "us-east-1",
+                ("aws_ecs_executor", "container_name"): "bar",
+                ("aws_ecs_executor", "conn_id"): "fish",
+            }
+        ):
+            executor = AwsEcsExecutor()
+
+        user_agent_dict = dict(tag.split("/") for tag in executor.ecs.meta.config.user_agent.split(" "))
+        assert user_agent_dict["Caller"] == "AwsEcsExecutor"
 
     def test_user_agent_caller_target_function_not_found(self):
         default_caller_name = "Unknown"
@@ -477,31 +493,25 @@ class TestAwsBaseHook:
             return sts_response
 
         with mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get"
-        ) as mock_get, mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.boto3"
-        ) as mock_boto3, mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            mock_get.return_value.ok = True
-
-            mock_client = mock_boto3.session.Session.return_value.client
+            "airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._create_basic_session",
+            spec=boto3.session.Session,
+        ) as mocked_basic_session:
+            mocked_basic_session.return_value.region_name = "us-east-2"
+            mock_client = mocked_basic_session.return_value.client
             mock_client.return_value.assume_role.side_effect = mock_assume_role
 
-            hook = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="s3")
-            hook.get_client_type("s3")
-
-        calls_assume_role = [
-            mock.call.session.Session().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
-            mock.call.session.Session()
-            .client()
-            .assume_role(
-                RoleArn=role_arn,
-                RoleSessionName=slugified_role_session_name,
-            ),
-        ]
-        mock_boto3.assert_has_calls(calls_assume_role)
+            AwsBaseHook(aws_conn_id=aws_conn_id, client_type="s3").get_client_type()
+            mocked_basic_session.assert_has_calls(
+                [
+                    mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
+                    mock.call()
+                    .client()
+                    .assume_role(
+                        RoleArn=role_arn,
+                        RoleSessionName=slugified_role_session_name,
+                    ),
+                ]
+            )
 
     def test_get_credentials_from_gcp_credentials(self):
         mock_connection = Connection(
@@ -578,40 +588,40 @@ class TestAwsBaseHook:
             [mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")]
         )
 
-    @mock.patch.object(
-        AwsBaseHook,
-        "get_connection",
-        return_value=Connection(
-            conn_id="aws_default",
-            conn_type="aws",
-            extra=json.dumps(
-                {
-                    "role_arn": "arn:aws:iam::123456:role/role_arn",
-                    "assume_role_method": "assume_role_with_web_identity",
-                    "assume_role_with_web_identity_token_file": "/my-token-path",
-                    "assume_role_with_web_identity_federation": "file",
-                }
-            ),
-        ),
-    )
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.base_aws.botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher"
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.botocore.session.Session")
-    def test_get_credentials_from_token_file(
-        self, mock_session, mock_credentials_fetcher, mock_get_connection
-    ):
-        mock_open_ = mock_open(read_data="TOKEN")
-        with mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
-            new=(mock_open_,),
+    def test_get_credentials_from_token_file(self, mock_session, mock_credentials_fetcher):
+        with mock.patch.object(
+            AwsBaseHook,
+            "get_connection",
+            return_value=Connection(
+                conn_id="aws_default",
+                conn_type="aws",
+                extra=json.dumps(
+                    {
+                        "role_arn": "arn:aws:iam::123456:role/role_arn",
+                        "assume_role_method": "assume_role_with_web_identity",
+                        "assume_role_with_web_identity_token_file": "/my-token-path",
+                        "assume_role_with_web_identity_federation": "file",
+                    }
+                ),
+            ),
         ):
-            AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
+            mock_open_ = mock_open(read_data="TOKEN")
+            with mock.patch(
+                "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
+                new=(mock_open_,),
+            ):
+                AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
 
-        _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
-        assert isinstance(mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader)
-        assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
-        assert mock_open_.call_args.args[0] == "/my-token-path"
+            _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
+            assert isinstance(
+                mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader
+            )
+            assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
+            assert mock_open_.call_args.args[0] == "/my-token-path"
 
     @pytest.mark.parametrize(
         "sts_endpoint",
@@ -684,25 +694,21 @@ class TestAwsBaseHook:
         with mock.patch("builtins.__import__", side_effect=import_mock), mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get"
         ) as mock_get, mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.boto3"
-        ) as mock_boto3, mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            mock_get.return_value.ok = True
-
-            mock_client = mock_boto3.session.Session.return_value.client
+            "airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._create_basic_session",
+            spec=boto3.session.Session,
+        ) as mocked_basic_session:
+            mocked_basic_session.return_value.region_name = "us-east-2"
+            mock_client = mocked_basic_session.return_value.client
             mock_client.return_value.assume_role_with_saml.side_effect = mock_assume_role_with_saml
 
-            hook = AwsBaseHook(aws_conn_id="aws_default", client_type="s3")
-            hook.get_client_type("s3")
+            AwsBaseHook(aws_conn_id="aws_default", client_type="s3").get_client_type()
 
             mock_get.assert_called_once_with(idp_url, auth=mock_auth)
             mock_xpath.assert_called_once_with(xpath)
 
-        calls_assume_role_with_saml = [
-            mock.call.session.Session().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
-            mock.call.session.Session()
+        mocked_basic_session.assert_has_calls = [
+            mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
+            mock.call()
             .client()
             .assume_role_with_saml(
                 DurationSeconds=duration_seconds,
@@ -711,7 +717,6 @@ class TestAwsBaseHook:
                 SAMLAssertion=encoded_saml_assertion,
             ),
         ]
-        mock_boto3.assert_has_calls(calls_assume_role_with_saml)
 
     @mock_iam
     def test_expand_role(self):
@@ -871,6 +876,7 @@ class TestAwsBaseHook:
         assert result
         assert hook.client_type == "s3"  # Same client_type which defined during initialisation
 
+    @pytest.mark.db_test
     @mock.patch("boto3.session.Session")
     def test_hook_connection_test_failed(self, mock_boto3_session):
         """Test ``test_connection`` failure."""
@@ -966,7 +972,12 @@ class TestAwsBaseHook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     @pytest.mark.parametrize("hook_region_name", [None, "eu-west-1"])
     @pytest.mark.parametrize(
-        "hook_botocore_config", [None, Config(s3={"us_east_1_regional_endpoint": "regional"})]
+        "hook_botocore_config",
+        [
+            pytest.param(None, id="empty-botocore-config"),
+            pytest.param(Config(s3={"us_east_1_regional_endpoint": "regional"}), id="botocore-config"),
+            pytest.param({"s3": {"us_east_1_regional_endpoint": "regional"}}, id="botocore-config-as-dict"),
+        ],
     )
     @pytest.mark.parametrize("method_region_name", [None, "cn-north-1"])
     def test_get_session(
@@ -1132,6 +1143,7 @@ def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
     assert "PARAM_1" in str(ae.value)
 
 
+@pytest.mark.db_test
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_no_params_needed(waiter_path_mock: MagicMock, caplog):
     waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION

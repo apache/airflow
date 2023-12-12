@@ -62,7 +62,6 @@ with DAG(
     dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
 ) as dag:
-
     run_this = PapermillOperator(
         task_id="run_example_notebook",
         input_nb=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_notebook.ipynb"),

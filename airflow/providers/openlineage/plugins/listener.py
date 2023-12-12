@@ -28,7 +28,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
-    print_exception,
+    print_warning,
 )
 from airflow.utils.timeout import timeout
 
@@ -51,7 +51,10 @@ class OpenLineageListener:
 
     @hookimpl
     def on_task_instance_running(
-        self, previous_state, task_instance: TaskInstance, session: Session  # This will always be QUEUED
+        self,
+        previous_state,
+        task_instance: TaskInstance,
+        session: Session,  # This will always be QUEUED
     ):
         if not hasattr(task_instance, "task"):
             self.log.warning(
@@ -65,7 +68,7 @@ class OpenLineageListener:
         task = task_instance.task
         dag = task.dag
 
-        @print_exception
+        @print_warning(self.log)
         def on_running():
             # that's a workaround to detect task running from deferred state
             # we return here because Airflow 2.3 needs task from deferred state
@@ -98,7 +101,6 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **task_metadata.run_facets,
                     **get_custom_facets(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
@@ -112,13 +114,16 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
+        dag = task.dag
 
         task_uuid = OpenLineageAdapter.build_task_instance_run_id(
             task.task_id, task_instance.execution_date, task_instance.try_number - 1
         )
 
-        @print_exception
+        @print_warning(self.log)
         def on_success():
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
             )
@@ -128,6 +133,8 @@ class OpenLineageListener:
             self.adapter.complete_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
             )
@@ -140,13 +147,16 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
+        dag = task.dag
 
         task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
+            task.task_id, task_instance.execution_date, task_instance.try_number
         )
 
-        @print_exception
+        @print_warning(self.log)
         def on_failure():
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
             )
@@ -156,6 +166,8 @@ class OpenLineageListener:
             self.adapter.fail_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
             )
@@ -194,14 +206,14 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
         if not self.executor:
-            self.log.error("Executor have not started before `on_dag_run_success`")
+            self.log.debug("Executor have not started before `on_dag_run_success`")
             return
         self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
         if not self.executor:
-            self.log.error("Executor have not started before `on_dag_run_failed`")
+            self.log.debug("Executor have not started before `on_dag_run_failed`")
             return
         self.executor.submit(self.adapter.dag_failed, dag_run=dag_run, msg=msg)
 

@@ -26,6 +26,230 @@
 Changelog
 ---------
 
+8.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Support IAM authentication for Redshift serverless (#35897)``
+* ``Implement 'is_authorized_variable' in AWS auth manager (#35804)``
+* ``Enhance 'attribute_value' in 'DynamoDBValueSensor' to accept list (#35831)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix handling of single quotes in 'RedshiftToS3Operator' (#35986)``
+* ``Fix a bug in get_iam_token for Redshift Serverless (#36001)``
+* ``Fix reraise outside of try block in 'AthenaHook.get_output_location' (#36008)``
+* ``Fix a bug with accessing hooks in EKS trigger (#35989)``
+* ``Fix a bug in method name used in 'GlacierToGCSOperator' (#35978)``
+* ``Fix EC2Hook get_instance for client_type api (#35960)``
+* ``Avoid creating the hook in the EmrServerlessCancelJobsTrigger init (#35992)``
+* ``Stop getting message from event after migrating 'EmrContainerTrigger' to 'AwsBaseWaiterTrigger' (#35892)``
+* ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Update 'boto3' and 'botocore' versions notes (#36073)``
+* ``Improve typing hints for only_client_type decorator (#35997)``
+* ``Refactor some methods in EmrContainerHook (#35999)``
+* ``Refactor get_output_location in AthenaHook (#35996)``
+* ``Move RDS hook to a cached property in RDS trigger (#35990)``
+* ``Replace default empty dict value by None in AzureBlobStorageToS3Operator (#35977)``
+* ``Update 'set_context' signature to match superclass one and stop setting the instance attribute in CloudwatchTaskHandler (#35975)``
+* ``Use S3 hook instead of AwsGenericHook in AWS S3 FS (#35973)``
+* ``AWS auth manager: implement all 'is_authorized_*' methods (but 'is_authorized_dag') (#35928)``
+* ``Remove setting a non-existing object param and use local var instead in S3Hook (#35950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+   * ``Fix AWS system tests (#36091)``
+
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'EC2HibernateInstanceOperator' and 'EC2RebootInstanceOperator' (#35790)``
+* ``Add OpenLineage support to 'S3FileTransformOperator' (#35819)``
+* ``Add OpenLineage support to S3Operators - Copy, Delete and Create Object (#35796)``
+* ``Added retry strategy parameter to Amazon AWS provider Batch Operator to allow dynamic Batch retry strategies (#35789)``
+* ``Added name field to template_fields in EmrServerlessStartJobOperator (#35648)``
+* ``openlineage, aws: Add OpenLineage support for AthenaOperator. (#35090)``
+* ``Implement login and logout in AWS auth manager (#35488)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Batch operator's retry_strategy (#35808)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Make EksPodOperator exec config not rely on log level (#35771)``
+* ``Fix 'configuration_overrides' parameter in 'EmrServerlessStartJobOperator' (#35787)``
+
+Misc
+~~~~
+
+* ``Updated docstring: 'check_key_async' is now in line with description of '_check_key_async' (#35799)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Allow a wider range of watchtower versions (#35713)``
+* ``Extend task context logging support for remote logging using AWS S3 (#32950)``
+* ``Log failure reason for containers if a task fails for ECS Executor (#35496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Update http to s3 system test (#35711)``
+
+8.11.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+* ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+* ``ECS Executor Health Check (#35412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS RDS hook's DB instance state check (#34773)``
+* ``Fix parameter syntax in Amazon docstrings (#35349)``
+* ``Improve error handling in AWS Links (#35518)``
+* ``Update ECS executor healthcheck with a catchall except (#35512)``
+
+Misc
+~~~~
+
+* ``Move ECS Executor to its own file (#35418)``
+* ``Clarify "task" in ECS Executor log messages (#35304)``
+* ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add verificationy that provider docs are as expected (#35424)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Improve docs on objectstorage (#35294)``
+
+
+8.10.0
+......
+
+.. note::
+  This release introduce experimental feature: AWS ECS Executor.
+
+Features
+~~~~~~~~
+
+* ``Add AWS ECS Executor (#34381)``
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Add Http to s3 operator (#35176)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable encryption in S3 download_files() hook. (#35037)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+* ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+* ``Use base aws classes in Amazon Lambda Operators/Sensors (#34890)``
+* ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+* ``Expose catalog parameter in 'AthenaOperator' (#35103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor string splitting (#34185)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Glue 'DataBrew' operator (#34807)``
+* ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+8.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Implements 'AwsBaseOperator' and 'AwsBaseSensor' (#34784)``
+* ``Extend hooks arguments into 'AwsBaseWaiterTrigger' (#34884)``
+* ``Allow setup 'endpoint_url' per-service in AWS Connection (#34593)``
+* ``Include AWS Lambda execution logs to task logs (#34692)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): respect soft_fail argument when exception is raised (#34134)``
+* ``do not fail operator if we cannot find logs (#34570)``
+* ``Respect 'soft_fail' argument when running 'BatchSensors' (#34592)``
+* ``Respect 'soft_fail' argument when running 'SqsSensor' (#34569)``
+* ``Respect 'soft_fail' argument when running 'EcsBaseSensor' (#34596)``
+* ``Respect 'soft_fail' argument when running 'SageMakerBaseSensor' (#34565)``
+* ``Respect 'soft_fail' parameter in 'S3KeysUnchangedSensor' and 'S3KeySensor' (#34550)``
+* ``Respect 'soft_fail' parameter in 'LambdaFunctionStateSensor' (#34551)``
+* ``Respect 'soft_fail' parameter in 'AthenaSensor' (#34553)``
+* ``Respect 'soft_fail' parameter in 'QuickSightSensor' (#34555)``
+* ``Respect 'soft_fail' parameter in 'GlacierJobOperationSensor' (#34557)``
+* ``Respect 'soft_fail' parameter in 'GlueJobSensor', 'GlueCatalogPartitionSensor' and 'GlueCrawlerSensor' (#34559)``
+* ``Respect 'soft_fail' parameter in 'StepFunctionExecutionSensor' (#34560)``
+
+Misc
+~~~~
+
+* ``Refactor consolidate import from io in providers (#34378)``
+* ``Upgrade watchtower to 3.0.1 (#25019) (#34747)``
+* ``Bump min airflow version of providers (#34728)``
+* ``Refactor: consolidate import time in providers (#34402)``
+* ``Refactor usage of str() in providers (#34320)``
+* ``Refactor import from collections (#34406)``
+* ``Clarify Amazon Lambda invocation and sensing (#34653)``
+* ``Refactor multiple equals to contains in providers (#34441)``
+* ``Rename 'bucket' to 'gcs_bucket' in 'GCSToS3Operator' (#33031)``
+* ``Remove duplicate 'asgiref' dependency in Amazon Provider (#34580)``
+* ``Update 'BatchOperator' operator_extra_links property (#34506)``
+* ``sagemaker.py spell error fix (#34445)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+* ``Use 'AirflowProviderDeprecationWarning' in the deprecated decorator in Amazon provider (#34488)``
+* ``Use 'AirflowProviderDeprecationWarning' in EMR Operators (#34453)``
+* ``Deprecate get_hook in DataSyncOperator and use hook instead (#34427)``
+* ``Refactor shorter defaults in providers (#34347)``
+
 8.7.1
 .....
 

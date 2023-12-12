@@ -36,7 +36,11 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
+from airflow.providers.databricks.operators.databricks import (
+    DatabricksCreateJobsOperator,
+    DatabricksRunNowOperator,
+    DatabricksSubmitRunOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
@@ -48,6 +52,69 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    # [START howto_operator_databricks_jobs_create_json]
+    # Example of using the JSON parameter to initialize the operator.
+    job = {
+        "tasks": [
+            {
+                "task_key": "test",
+                "job_cluster_key": "job_cluster",
+                "notebook_task": {
+                    "notebook_path": "/Shared/test",
+                },
+            },
+        ],
+        "job_clusters": [
+            {
+                "job_cluster_key": "job_cluster",
+                "new_cluster": {
+                    "spark_version": "7.3.x-scala2.12",
+                    "node_type_id": "i3.xlarge",
+                    "num_workers": 2,
+                },
+            },
+        ],
+    }
+
+    jobs_create_json = DatabricksCreateJobsOperator(task_id="jobs_create_json", json=job)
+    # [END howto_operator_databricks_jobs_create_json]
+
+    # [START howto_operator_databricks_jobs_create_named]
+    # Example of using the named parameters to initialize the operator.
+    tasks = [
+        {
+            "task_key": "test",
+            "job_cluster_key": "job_cluster",
+            "notebook_task": {
+                "notebook_path": "/Shared/test",
+            },
+        },
+    ]
+    job_clusters = [
+        {
+            "job_cluster_key": "job_cluster",
+            "new_cluster": {
+                "spark_version": "7.3.x-scala2.12",
+                "node_type_id": "i3.xlarge",
+                "num_workers": 2,
+            },
+        },
+    ]
+
+    jobs_create_named = DatabricksCreateJobsOperator(
+        task_id="jobs_create_named", tasks=tasks, job_clusters=job_clusters
+    )
+    # [END howto_operator_databricks_jobs_create_named]
+
+    # [START howto_operator_databricks_run_now]
+    # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
+    run_now = DatabricksRunNowOperator(
+        task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
+    )
+
+    jobs_create_named >> run_now
+    # [END howto_operator_databricks_run_now]
+
     # [START howto_operator_databricks_json]
     # Example of using the JSON parameter to initialize the operator.
     new_cluster = {

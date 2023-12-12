@@ -99,7 +99,6 @@ class SmtpHook(BaseHook):
         return self
 
     def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
-
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
         if self.use_ssl:
             SMTP = smtplib.SMTP_SSL
@@ -379,8 +378,8 @@ class SmtpHook(BaseHook):
     def use_ssl(self) -> bool:
         return not bool(self.conn.extra_dejson.get("disable_ssl", False))
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],

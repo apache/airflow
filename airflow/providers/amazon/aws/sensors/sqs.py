@@ -22,13 +22,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from deprecated import deprecated
-from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
-from airflow.providers.amazon.aws.utils.sqs import process_response
+from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -60,9 +59,9 @@ class SqsSensor(BaseSensorOperator):
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
     :param message_filtering: Specified how received messages should be filtered. Supported options are:
-        `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
-        (message Body filtered using a JSONPath expression).
-        You may add further methods by overriding the relevant class methods.
+        `None` (no filtering, default), `'literal'` (message Body literal match), `'jsonpath'`
+        (message Body filtered using a JSONPath expression), or `'jsonpath-ext'` (like `'jsonpath'`, but with
+        an expanded query grammar). You may add further methods by overriding the relevant class methods.
     :param message_filtering_match_values: Optional value/s for the message filter to match on.
         For example, with literal matching, if a message body matches any of the specified values
         then it is included. For JSONPath matching, the result of the JSONPath expression is used
@@ -90,7 +89,7 @@ class SqsSensor(BaseSensorOperator):
         num_batches: int = 1,
         wait_time_seconds: int = 1,
         visibility_timeout: int | None = None,
-        message_filtering: Literal["literal", "jsonpath"] | None = None,
+        message_filtering: MessageFilteringType | None = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
@@ -197,7 +196,6 @@ class SqsSensor(BaseSensorOperator):
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [

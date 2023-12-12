@@ -28,19 +28,18 @@ from airflow.api_connexion.schemas.event_log_schema import (
     event_log_collection_schema,
     event_log_schema,
 )
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
+@security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a log entry."""
@@ -50,7 +49,7 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
     return event_log_schema.dump(event_log)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
+@security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_event_logs(

@@ -178,7 +178,6 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         events: Collection[DatasetEvent],
     ) -> DataInterval:
-
         if not events:
             return DataInterval(logical_date, logical_date)
 

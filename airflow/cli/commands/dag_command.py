@@ -320,13 +320,13 @@ def dag_next_execution(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
 
-    if dag.get_is_paused():
-        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
-
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(
             select(DagModel).where(DagModel.dag_id == dag.dag_id)
         ).one()
+
+    if last_parsed_dag.get_is_paused():
+        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     def print_execution_interval(interval: DataInterval | None):
         if interval is None:
@@ -409,6 +409,8 @@ def dag_list_import_errors(args) -> None:
         data=data,
         output=args.output,
     )
+    if data:
+        sys.exit(1)
 
 
 @cli_utils.action_cli

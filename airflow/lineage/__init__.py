@@ -70,7 +70,6 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
 
         ret_val = func(self, context, *args, **kwargs)
@@ -120,11 +119,9 @@ def prepare_lineage(func: T) -> T:
 
         if self.inlets and isinstance(self.inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
-            task_ids = (
-                {o for o in self.inlets if isinstance(o, str)}
-                .union(op.task_id for op in self.inlets if isinstance(op, AbstractOperator))
-                .intersection(self.get_flat_relative_ids(upstream=True))
-            )
+            task_ids = {o for o in self.inlets if isinstance(o, str)}.union(
+                op.task_id for op in self.inlets if isinstance(op, AbstractOperator)
+            ).intersection(self.get_flat_relative_ids(upstream=True))
 
             # pick up unique direct upstream task_ids if AUTO is specified
             if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:

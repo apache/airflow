@@ -54,10 +54,10 @@
 Package apache-airflow-providers-celery
 ------------------------------------------------------
 
-`Celery <http://www.celeryproject.org/>`__
+`Celery <https://docs.celeryq.dev/en/stable/>`__
 
 
-Release: 3.3.4
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -75,13 +75,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==============================
 PIP package         Version required
 ==================  ==============================
-``apache-airflow``  ``>=2.4.0``
-``celery``          ``>=5.3.0,<6,!=5.3.3,!=5.3.2``
+``apache-airflow``  ``>=2.6.0``
+``celery``          ``>=5.3.0,!=5.3.2,!=5.3.3,<6``
 ``flower``          ``>=1.0.0``
 ``google-re2``      ``>=1.0``
 ==================  ==============================
@@ -111,5 +111,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-celery 3.3.4 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-celery 3.3.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-celery 3.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-celery 3.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.0-py3-none-any.whl.sha512>`__)

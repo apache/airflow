@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -32,9 +31,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
-
-
-logger = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):
@@ -197,6 +193,7 @@ def create_filter_clauses(
             name.upper() if uppercase_names else name for name in tables
         )
         if schema:
+            schema = schema.upper() if uppercase_names else schema
             filter_clause = and_(information_schema_table.c.table_schema == schema, filter_clause)
         filter_clauses.append(filter_clause)
     return filter_clauses

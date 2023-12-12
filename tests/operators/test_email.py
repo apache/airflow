@@ -20,10 +20,14 @@ from __future__ import annotations
 import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.operators.email import EmailOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)

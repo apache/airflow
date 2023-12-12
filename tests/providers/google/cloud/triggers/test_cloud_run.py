@@ -20,13 +20,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.protobuf.any_pb2 import Any
+from google.rpc.status_pb2 import Status
 
-from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 from airflow.triggers.base import TriggerEvent
 
 OPERATION_NAME = "operation"
 JOB_NAME = "jobName"
+ERROR_CODE = 13
+ERROR_MESSAGE = "Some message"
 PROJECT_ID = "projectId"
 LOCATION = "us-central1"
 GCP_CONNECTION_ID = "gcp_connection_id"
@@ -73,20 +76,21 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
         """
 
-        done = True
-        name = "name"
-        error_code = 10
-        error_message = "message"
+        async def _mock_operation(name):
+            operation = mock.MagicMock()
+            operation.done = True
+            operation.name = "name"
+            operation.error = Any()
+            operation.error.ParseFromString(b"")
+            return operation
 
-        mock_hook.return_value.get_operation.return_value = self._mock_operation(
-            done, name, error_code, error_message
-        )
+        mock_hook.return_value.get_operation = _mock_operation
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
-                    "status": RunJobStatus.SUCCESS,
+                    "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
                 }
             )
@@ -102,18 +106,28 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudRunJobFinishedTrigger raises an exception once the job execution fails.
         """
 
-        done = False
-        name = "name"
-        error_code = 10
-        error_message = "message"
+        async def _mock_operation(name):
+            operation = mock.MagicMock()
+            operation.done = True
+            operation.name = "name"
+            operation.error = Status(code=13, message="Some message")
+            return operation
 
-        mock_hook.return_value.get_operation.return_value = self._mock_operation(
-            done, name, error_code, error_message
-        )
+        mock_hook.return_value.get_operation = _mock_operation
         generator = trigger.run()
 
-        with pytest.raises(expected_exception=AirflowException):
-            await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
+        assert (
+            TriggerEvent(
+                {
+                    "status": RunJobStatus.FAIL.value,
+                    "operation_error_code": ERROR_CODE,
+                    "operation_error_message": ERROR_MESSAGE,
+                    "job_name": JOB_NAME,
+                }
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
@@ -133,7 +147,7 @@ class TestCloudBatchJobFinishedTrigger:
         mock_hook.return_value.get_operation = _mock_operation
 
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
 
         assert (
             TriggerEvent(
@@ -144,12 +158,3 @@ class TestCloudBatchJobFinishedTrigger:
             )
             == actual
         )
-
-    async def _mock_operation(self, done, name, error_code, error_message):
-        operation = mock.MagicMock()
-        operation.done = done
-        operation.name = name
-        operation.error = mock.MagicMock()
-        operation.error.message = error_message
-        operation.error.code = error_code
-        return operation

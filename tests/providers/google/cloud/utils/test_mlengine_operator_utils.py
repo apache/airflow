@@ -226,6 +226,7 @@ class TestMlengineOperatorUtils:
         assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
         assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
+    @pytest.mark.db_test
     @mock.patch.object(GCSHook, "download")
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")

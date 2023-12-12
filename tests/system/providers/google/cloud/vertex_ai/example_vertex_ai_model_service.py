@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Model Service operations.
@@ -46,9 +44,15 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     DeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
+    AddVersionAliasesOnModelOperator,
     DeleteModelOperator,
+    DeleteModelVersionOperator,
+    DeleteVersionAliasesOnModelOperator,
     ExportModelOperator,
+    GetModelOperator,
     ListModelsOperator,
+    ListModelVersionsOperator,
+    SetDefaultVersionOnModelOperator,
     UploadModelOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
@@ -161,6 +165,57 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    model_id_v1 = create_custom_training_job.output["model_id"]
+
+    create_custom_training_job_v2 = CreateCustomTrainingJobOperator(
+        task_id="custom_task_v2",
+        staging_bucket=f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}",
+        display_name=TRAIN_DISPLAY_NAME,
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=1,
+        model_display_name=MODEL_DISPLAY_NAME,
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    model_id_v2 = create_custom_training_job_v2.output["model_id"]
+
+    # [START how_to_cloud_vertex_ai_get_model_operator]
+    get_model = GetModelOperator(
+        task_id="get_model", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
+    )
+    # [END how_to_cloud_vertex_ai_get_model_operator]
+
+    # [START how_to_cloud_vertex_ai_list_model_versions_operator]
+    list_model_versions = ListModelVersionsOperator(
+        task_id="list_model_versions", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
+    )
+    # [END how_to_cloud_vertex_ai_list_model_versions_operator]
+
+    # [START how_to_cloud_vertex_ai_set_version_as_default_operator]
+    set_default_version = SetDefaultVersionOnModelOperator(
+        task_id="set_default_version",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_set_version_as_default_operator]
+
+    # [START how_to_cloud_vertex_ai_add_version_aliases_operator]
+    add_version_alias = AddVersionAliasesOnModelOperator(
+        task_id="add_version_alias",
+        project_id=PROJECT_ID,
+        region=REGION,
+        version_aliases=["new-version", "beta"],
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_add_version_aliases_operator]
 
     # [START how_to_cloud_vertex_ai_upload_model_operator]
     upload_model = UploadModelOperator(
@@ -199,6 +254,26 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_list_models_operator]
 
+    # [START how_to_cloud_vertex_ai_delete_version_aliases_operator]
+    delete_version_alias = DeleteVersionAliasesOnModelOperator(
+        task_id="delete_version_alias",
+        project_id=PROJECT_ID,
+        region=REGION,
+        version_aliases=["new-version"],
+        model_id=model_id_v2,
+    )
+    # [END how_to_cloud_vertex_ai_delete_version_aliases_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_version_operator]
+    delete_model_version = DeleteModelVersionOperator(
+        task_id="delete_model_version",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=model_id_v1,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END how_to_cloud_vertex_ai_delete_version_operator]
+
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_task', key='training_id') }}",
@@ -229,12 +304,19 @@ with DAG(
         >> download_training_script_file
         >> create_tabular_dataset
         >> create_custom_training_job
+        >> create_custom_training_job_v2
         # TEST BODY
+        >> get_model
+        >> list_model_versions
+        >> set_default_version
+        >> add_version_alias
         >> upload_model
         >> export_model
         >> delete_model
         >> list_models
         # TEST TEARDOWN
+        >> delete_version_alias
+        >> delete_model_version
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket

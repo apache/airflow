@@ -56,12 +56,6 @@ Follow the guidelines when writing unit tests:
   overrides ``recwarn`` fixture behaviour.
 
 
-.. note::
-
-  We are in the process of converting all unit tests to standard "asserts" and pytest fixtures
-  so if you find some tests that are still using classic setUp/tearDown approach or unittest asserts, feel
-  free to convert them to pytest.
-
 Airflow configuration for unit tests
 ------------------------------------
 
@@ -72,56 +66,647 @@ fixture. This in turn makes Airflow load test configuration from the file
 defaults from ``airflow/config_templates/config.yml``. If you want to add some test-only configuration,
 as default for all tests you should add the value to this file.
 
-You can also of course override the values in individual test by patching environment variables following
+You can also - of course - override the values in individual test by patching environment variables following
 the usual ``AIRFLOW__SECTION__KEY`` pattern or ``conf_vars`` context manager.
-
-.. note:: Previous way of setting the test configuration
-
-  The test configuration for Airflow before July 2023 was automatically generated in a file named
-  ``AIRFLOW_HOME/unittest.cfg``. The template for it was stored in "config_templates" next to the yaml file.
-  However writing the file was only done for the first time you run airflow and you had to manually
-  maintain the file. It was pretty arcane knowledge, and this generated file in {AIRFLOW_HOME}
-  has been overwritten in the Breeze environment with another CI-specific file. Using ``unit_tests.cfg``
-  as a single source of the configuration for tests - coming from Airflow sources
-  rather than from {AIRFLOW_HOME} is much more convenient and it is automatically used by pytest.
-
-  The unittest.cfg file generated in {AIRFLOW_HOME} will no longer be used and can be removed.
-
 
 Airflow test types
 ------------------
 
-Airflow tests in the CI environment are split into several test types:
+Airflow tests in the CI environment are split into several test types. You can narrow down which
+test types you want to use in various ``breeze testing`` sub-commands in three ways:
 
-* Always - those are tests that should be always executed (always folder)
-* Core - for the core Airflow functionality (core folder)
-* API - Tests for the Airflow API (api and api_connexion folders)
-* CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www folder)
-* Providers - Tests for all Providers of Airflow (providers folder)
-* Other - all other tests (all other folders that are not part of any of the above)
+* via specifying the ``--test-type`` when you run single test type in ``breeze testing tests`` command
+* via specifying space separating list of test types via ``--paralleltest-types`` or
+  ``--exclude-parallel-test-types`` options when you run tests in parallel (in several testing commands)
+
+Those test types are defined:
+
+* ``Always`` - those are tests that should be always executed (always sub-folder)
+* ``API`` - Tests for the Airflow API (api, api_connexion, api_experimental and api_internal sub-folders)
+* ``CLI`` - Tests for the Airflow CLI (cli folder)
+* ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
+* ``Operators`` - tests for the operators (operators folder with exception of Virtualenv Operator tests and
+  External Python Operator tests that have their own test type). They are skipped by the
+``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
+* ``WWW`` - Tests for the Airflow webserver (www folder)
+* ``Providers`` - Tests for all Providers of Airflow (providers folder)
+* ``PlainAsserts`` - tests that require disabling ``assert-rewrite`` feature of Pytest (usually because
+  a buggy/complex implementation of an imported library) (``plain_asserts`` marker)
+* ``Other`` - all other tests remaining after the above tests are selected
+
+There are also Virtualenv/ExternalPython operator test types that are excluded from ``Operators`` test type
+and run as separate test types. Those are :
+
+* ``PythonVenv`` - tests for PythonVirtualenvOperator - selected directly as TestPythonVirtualenvOperator
+* ``BranchPythonVenv`` - tests for BranchPythonVirtualenvOperator - selected directly as TestBranchPythonVirtualenvOperator
+* ``ExternalPython`` - tests for ExternalPythonOperator - selected directly as TestExternalPythonOperator
+* ``BranchExternalPython`` - tests for BranchExternalPythonOperator - selected directly as TestBranchExternalPythonOperator
+
+We have also tests that run "all" tests (so they do not look at the folder, but at the ``pytest`` markers
+the tests are marked with to run with some filters applied.
+
+* ``All-Postgres`` - tests that require Postgres database. They are only run when backend is Postgres (``backend("postgres")`` marker)
+* ``All-MySQL`` - tests that require MySQL database. They are only run when backend is MySQL (``backend("mysql")`` marker)
+* ``All-Quarantined`` - tests that are flaky and need to be fixed (``quarantined`` marker)
+* ``All`` - all tests are run (this is the default)
+
+
+We also have ``Integration`` tests that are running Integration tests with external software that is run
+via ``--integration`` flag in ``breeze`` environment - via ``breeze testing integration-tests``.
+
+* ``Integration`` - tests that require external integration images running in docker-compose
 
 This is done for three reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
-2. in order to allow parallel execution of the tests on Self-Hosted runners
+2. in order to allow efficient parallel test execution of the tests on Self-Hosted runners
 
 For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
-test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
-60 minutes to ~15 minutes.
+test in parallel, but we cannot use pytest xdist plugin for that - we need to split the tests into test
+types and run each test type with their own instance of database and separate container where the tests
+in each type are run with exclusive access to their database and each test within test type runs sequentially.
+By the nature of those tests - they rely on shared databases - and they update/reset/cleanup data in the
+databases while they are executing.
 
-.. note::
 
-  We need to split tests manually into separate suites rather than utilise
-  ``pytest-xdist`` or ``pytest-parallel`` which could be a simpler and much more "native" parallelization
-  mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
-  can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
-  databases while they are executing. They are also exercising features of the Database such as locking which
-  further increases cross-dependency between tests. Until we make all our tests truly unit tests (and not
-  touching the database or until we isolate all such tests to a separate test type, we cannot really rely on
-  frameworks that run tests in parallel. In our solution each of the test types is run in parallel with its
-  own database (!) so when we have 8 test types running in parallel, there are in fact 8 databases run
-  behind the scenes to support them and each of the test types executes its own tests sequentially.
+DB and non-DB tests
+-------------------
+
+There are two kinds of unit tests in Airflow - DB and non-DB tests.
+
+Some of the tests of Airflow (around 7000 of them on October 2023)
+require a database to connect to in order to run. Those tests store and read data from Airflow DB using
+Airflow's core code and it's crucial to run the tests against all real databases that Airflow supports in order
+to check if the SQLAlchemy queries are correct and if the database schema is correct.
+
+Those tests should be marked with ``@pytest.mark.db`` decorator on one of the levels:
+
+* test method can be marked with ``@pytest.mark.db`` decorator
+* test class can be marked with ``@pytest.mark.db`` decorator
+* test module can be marked with ``pytestmark = pytest.mark.db`` at the top level of the module
+
+Airflow's CI runs different test kinds separately.
+
+For the DB tests, they are run against the multiple databases Airflow support, multiple versions of those
+and multiple Python versions it supports. In order to save time for testing not all combinations are
+tested but enough various combinations are tested to detect potential problems.
+
+As of October 2023, Airflow has ~9000 Non-DB tests and around 7000 DB tests.
+
+Airflow non-DB tests
+--------------------
+
+For the Non-DB tests, they are run once for each tested Python version with ``none`` database backend (which
+causes any database access to fail. Those tests are run with ``pytest-xdist`` plugin in parallel which
+means that we can efficiently utilised multi-processor machines (including ``self-hosted`` runners with
+8 CPUS we have to run the tests with maximum parallelism).
+
+It's usually straightforward to run those tests in local virtualenv because they do not require any
+setup or running database. They also run much faster than DB tests. You can run them with ``pytest`` command
+or with ``breeze`` that has all the dependencies needed to run all tests automatically installed. Of course
+you can also select just specific test or folder or module for the Pytest to collect/run tests from there,
+the example below shows how to run all tests, parallelising them with ``pytest-xdist``
+(by specifying ``tests`` folder):
+
+.. code-block:: bash
+
+    pytest tests --skip-db-tests -n auto
+
+
+The ``--skip-db-tests`` flag will only run tests that are not marked as DB tests.
+
+
+You can also run ``breeze`` command to run all the tests (they will run in a separate container,
+the selected python version and without access to any database). Adding ``--use-xdist`` flag will run all
+tests in parallel using ``pytest-xdist`` plugin.
+
+We have a dedicated, opinionated ``breeze testing non-db-tests`` command as well that runs non-DB tests
+(it is also used in CI to run the non-DB tests, where you do not have to specify extra flags for
+parallel running and you can run all the Non-DB tests
+(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+
+.. code-block:: bash
+
+    breeze testing non-db-tests
+
+You can pass ``--parallel-test-type`` list of test types to execute or ``--exclude--parallel-test-types``
+to exclude them from the default set:.
+
+.. code-block:: bash
+
+    breeze testing non-db-tests --parallel-test-types "Providers API CLI"
+
+
+.. code-block:: bash
+
+    breeze testing non-db-tests --exclude-parallel-test-types "Providers API CLI"
+
+You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
+
+.. code-block:: bash
+
+    breeze testing tests --skip-db-tests --backend none --use-xdist
+
+Also you can enter interactive shell with ``breeze`` and run tests from there if you want to iterate
+with the tests. Source files in ``breeze`` are mounted as volumes so you can modify them locally and
+rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-xdist`` plugin):
+
+.. code-block:: bash
+
+    breeze shell --backend none --python 3.8
+    > pytest tests --skip-db-tests -n auto
+
+
+Airflow DB tests
+----------------
+
+Airflow DB tests require database to run. It can be any of the supported Airflow Databases and they can
+be run either using local virtualenv or Breeze
+
+
+
+By default, the DB tests will use sqlite and the "airflow.db" database created and populated in the
+``${AIRFLOW_HOME}`` folder. You do not need to do anything to get the database created and initialized,
+but if you need to clean and restart the db, you can run tests with ``-with-db-init`` flag - then the
+database will be re-initialized. You can also set ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment
+variable to point to supported database (Postgres, MySQL, etc.) and the tests will use that database. You
+might need to run ``airflow db reset`` to initialize the database in that case.
+
+The "non-DB" tests are perfectly fine to run when you have database around but if you want to just run
+DB tests (as happens in our CI for the ``Database`` runs) you can use ``--run-db-tests-only`` flag to filter
+out non-DB tests (and obviously you can specify not only on the whole ``tests`` directory but on any
+folders/files/tests selection, ``pytest`` supports).
+
+.. code-block:: bash
+
+    pytest tests/ --run-db-tests-only
+
+You can also run DB tests with ``breeze`` dockerized environment. You can choose backend to use with
+``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
+You can also select backend version and Python version to use. You can specify the ``test-type`` to run -
+breeze will list the test types you can run with ``--help`` and provide auto-complete for them. Example
+below runs the ``Core`` tests with ``postgres`` backend and ``3.8`` Python version:
+
+We have a dedicated, opinionated ``breeze testing db-tests`` command as well that runs DB tests
+(it is also used in CI to run the DB tests, where you do not have to specify extra flags for
+parallel running and you can run all the DB tests
+(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+
+.. code-block:: bash
+
+    breeze testing non-db-tests --backent postgres
+
+You can pass ``--parallel-test-type`` list of test types to execute or ``--exclude--parallel-test-types``
+to exclude them from the default set:.
+
+.. code-block:: bash
+
+    breeze testing db-tests --parallel-test-types "Providers API CLI"
+
+
+.. code-block:: bash
+
+    breeze testing db-tests --exclude-parallel-test-types "Providers API CLI"
+
+You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
+
+.. code-block:: bash
+
+    breeze testing tests --run-db-tests-only --backend postgres --run-tests-in-parallel
+
+
+Also - if you want to iterate with the tests you can enter interactive shell and run the tests iteratively -
+either by package/module/test or by test type - whatever ``pytest`` supports.
+
+.. code-block:: bash
+
+    breeze shell --backend postgres --python 3.8
+    > pytest tests --run-db-tests-only
+
+As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
+support to split all the tests into test-types to run in separate containers and with separate databases
+and you can run the tests using ``--run-tests-in-parallel`` flag (which is automatically enabled when
+you use ``breeze testing db-tests`` command):
+
+.. code-block:: bash
+
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-tests-in-parallel
+
+
+Best practices for DB tests
+===========================
+
+Usually when you add new tests you add tests "similar" to the ones that are already there. In most cases,
+therefore you do not have to worry about the test type - it will be automatically selected for you by the
+fact that the Test Class that you add the tests or the whole module will be marked with ``db_test`` marker.
+
+You should strive to write "pure" non-db unit tests (i.e. DB tests) but sometimes it's just better to plug-in
+the existing framework of DagRuns, Dags, Connections and Variables to use the Database directly rather
+than having to mock the DB access for example. It's up to you to decide.
+
+However, if you choose to write DB tests you have to make sure you add the ``db_test`` marker - either to
+the test method, class (with decorator) or whole module (with pytestmark at the top level of the module).
+
+In most cases when you add tests to existing modules or classes, you follow similar tests so you do not
+have to do anything, but in some cases you need to decide if your test should be marked as DB test or
+whether it should be changed to not use the database at all.
+
+If your test accesses the database but is not marked properly the Non-DB test in CI will fail with this message:
+
+.. code ::
+
+    "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.
+    Either make sure your test does not use database or mark your test with `@pytest.mark.db_test`.
+
+Marking test as DB test
+-----------------------
+
+You can apply the marker on method/function/class level with ``@pytest.mark.db_test`` decorator or
+at the module level with ``pytestmark = pytest.mark.db_test`` at the top level of the module.
+
+It's up to the author to decide whether to mark the test, class, or module as "DB-test" - generally the
+less DB tests - the better and if we can clearly separate the parts that are DB from non-DB, we should,
+but also it's ok if few tests are marked as DB tests when they are not but they are part of the class
+or module that is "mostly-DB".
+
+Sometimes, when your class can be clearly split to DB and non-DB parts, it's better to split the class
+into two separate classes and mark only the DB class as DB test.
+
+Method level:
+
+.. code-block:: python
+
+   import pytest
+
+
+   @pytest.mark.db_test
+   def test_add_tagging(self, sentry, task_instance):
+       ...
+
+Class level:
+
+
+.. code-block:: python
+
+   import pytest
+
+
+   @pytest.mark.db_test
+   class TestDatabricksHookAsyncAadTokenSpOutside:
+       ...
+
+Module level (at the top of the module):
+
+.. code-block:: python
+
+   import pytest
+
+   from airflow.models.baseoperator import BaseOperator
+   from airflow.models.dag import DAG
+   from airflow.ti_deps.dep_context import DepContext
+   from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+
+   pytestmark = pytest.mark.db_test
+
+
+How to verify if DB test is correctly classified
+------------------------------------------------
+
+When you add if you want to see if your DB test is correctly classified, you can run the test or group
+of tests with ``--skip-db-tests`` flag.
+
+You can run the all (or subset of) test types if you want to make sure all ot the problems are fixed
+
+  .. code-block:: bash
+
+     breeze testing tests --skip-db-tests tests/your_test.py
+
+For the whole test suite you can run:
+
+  .. code-block:: bash
+
+     breeze testing non-db-tests
+
+For selected test types (example - the tests will run for Providers/API/CLI code only:
+
+  .. code-block:: bash
+
+     breeze testing non-db-tests --parallel-test-types "Providers API CLI"
+
+
+How to make your test not depend on DB
+--------------------------------------
+
+This is tricky and there is no single solution. Sometimes we can mock-out the methods that require
+DB access or objects that normally require database. Sometimes we can decide to test just sinle method
+of class rather than more complex set of steps. Generally speaking it's good to have as many "pure"
+unit tests that require no DB as possible comparing to DB tests. They are usually faster an more
+reliable as well.
+
+
+Special cases
+-------------
+
+There are some tricky test cases that require special handling. Here are some of them:
+
+
+Parameterized tests stability
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The parameterized tests require stable order of parameters if they are run via xdist - because the parameterized
+tests are distributed among multiple processes and handled separately. In some cases the parameterized tests
+have undefined / random order (or parameters are not hashable - for example set of enums). In such cases
+the xdist execution of the tests will fail and you will get an error mentioning "Known Limitations of xdist".
+You can see details about the limitation `here <https://pytest-xdist.readthedocs.io/en/latest/known-limitations.html>`_
+
+The error in this case will look similar to:
+
+  .. code-block::
+
+     Different tests were collected between gw0 and gw7. The difference is:
+
+
+The fix for that is to sort the parameters in ``parametrize``. For example instead of this:
+
+  .. code-block:: python
+
+     @pytest.mark.parametrize("status", ALL_STATES)
+     def test_method():
+         ...
+
+
+do that:
+
+
+  .. code-block:: python
+
+     @pytest.mark.parametrize("status", sorted(ALL_STATES))
+     def test_method():
+         ...
+
+Similarly if your parameters are defined as result of utcnow() or other dynamic method - you should
+avoid that, or assign unique IDs for those parametrized tests. Instead of this:
+
+  .. code-block:: python
+
+     @pytest.mark.parametrize(
+         "url, expected_dag_run_ids",
+         [
+             (
+                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+                 [],
+             ),
+             (
+                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+             ),
+         ],
+     )
+     def test_end_date_gte_lte(url, expected_dag_run_ids):
+         ...
+
+Do this:
+
+  .. code-block:: python
+
+     @pytest.mark.parametrize(
+         "url, expected_dag_run_ids",
+         [
+             pytest.param(
+                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+                 [],
+                 id="end_date_gte",
+             ),
+             pytest.param(
+                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+                 id="end_date_lte",
+             ),
+         ],
+     )
+     def test_end_date_gte_lte(url, expected_dag_run_ids):
+         ...
+
+
+
+Problems with Non-DB test collection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes, even if whole module is marked as ``@pytest.mark.db_test`` even parsing the file and collecting
+tests will fail when ``--skip-db-tests`` is used because some of the imports od objects created in the
+module will read the database.
+
+Usually what helps is to move such initialization code to inside the tests or pytest fixtures (and pass
+objects needed by tests as fixtures rather than importing them from the module). Similarly you might
+use DB - bound objects (like Connection) in your ``parametrize`` specification - this will also fail pytest
+collection. Move creation of such objects to inside the tests:
+
+Moving object creation from top-level to inside tests. This code will break collection of tests even if
+the test is marked as DB test:
+
+
+  .. code-block:: python
+
+     pytestmark = pytest.mark.db_test
+
+     TI = TaskInstance(
+         task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
+         run_id="fake_run",
+         state=State.RUNNING,
+     )
+
+
+     class TestCallbackRequest:
+         @pytest.mark.parametrize(
+             "input,request_class",
+             [
+                 (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
+                 (
+                     TaskCallbackRequest(
+                         full_filepath="filepath",
+                         simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
+                         processor_subdir="/test_dir",
+                         is_failure_callback=True,
+                     ),
+                     TaskCallbackRequest,
+                 ),
+                 (
+                     DagCallbackRequest(
+                         full_filepath="filepath",
+                         dag_id="fake_dag",
+                         run_id="fake_run",
+                         processor_subdir="/test_dir",
+                         is_failure_callback=False,
+                     ),
+                     DagCallbackRequest,
+                 ),
+                 (
+                     SlaCallbackRequest(
+                         full_filepath="filepath",
+                         dag_id="fake_dag",
+                         processor_subdir="/test_dir",
+                     ),
+                     SlaCallbackRequest,
+                 ),
+             ],
+         )
+         def test_from_json(self, input, request_class):
+             ...
+
+
+Instead - this will not break collection. The TaskInstance is not initialized when the module is parsed,
+it will only be initialized when the test gets executed because we moved initialization of it from
+top level / parametrize to inside the test:
+
+  .. code-block:: python
+
+    pytestmark = pytest.mark.db_test
+
+
+    class TestCallbackRequest:
+        @pytest.mark.parametrize(
+            "input,request_class",
+            [
+                (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
+                (
+                    None,  # to be generated when test is run
+                    TaskCallbackRequest,
+                ),
+                (
+                    DagCallbackRequest(
+                        full_filepath="filepath",
+                        dag_id="fake_dag",
+                        run_id="fake_run",
+                        processor_subdir="/test_dir",
+                        is_failure_callback=False,
+                    ),
+                    DagCallbackRequest,
+                ),
+                (
+                    SlaCallbackRequest(
+                        full_filepath="filepath",
+                        dag_id="fake_dag",
+                        processor_subdir="/test_dir",
+                    ),
+                    SlaCallbackRequest,
+                ),
+            ],
+        )
+        def test_from_json(self, input, request_class):
+            if input is None:
+                ti = TaskInstance(
+                    task=BashOperator(
+                        task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                    ),
+                    run_id="fake_run",
+                    state=State.RUNNING,
+                )
+
+                input = TaskCallbackRequest(
+                    full_filepath="filepath",
+                    simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
+                    processor_subdir="/test_dir",
+                    is_failure_callback=True,
+                )
+
+
+Sometimes it is difficult to rewrite the tests, so you might add conditional handling and mock out some
+database-bound methods or objects to avoid hitting the database during test collection. The code below
+will hit the Database while parsing the tests, because this is what Variable.setdefault does when
+parametrize specification is being parsed - even if test is marked as DB test.
+
+
+  .. code-block:: python
+
+      from airflow.models.variable import Variable
+
+      pytestmark = pytest.mark.db_test
+
+      initial_db_init()
+
+
+      @pytest.mark.parametrize(
+          "env, expected",
+          [
+              pytest.param(
+                  {"plain_key": "plain_value"},
+                  "{'plain_key': 'plain_value'}",
+                  id="env-plain-key-val",
+              ),
+              pytest.param(
+                  {"plain_key": Variable.setdefault("plain_var", "banana")},
+                  "{'plain_key': 'banana'}",
+                  id="env-plain-key-plain-var",
+              ),
+              pytest.param(
+                  {"plain_key": Variable.setdefault("secret_var", "monkey")},
+                  "{'plain_key': '***'}",
+                  id="env-plain-key-sensitive-var",
+              ),
+              pytest.param(
+                  {"plain_key": "{{ var.value.plain_var }}"},
+                  "{'plain_key': '{{ var.value.plain_var }}'}",
+                  id="env-plain-key-plain-tpld-var",
+              ),
+          ],
+      )
+      def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+          ...
+
+
+You can make the code conditional and mock out the Variable to avoid hitting the database.
+
+
+  .. code-block:: python
+
+      from airflow.models.variable import Variable
+
+      pytestmark = pytest.mark.db_test
+
+
+      if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+          # Handle collection of the test by non-db case
+          Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+      else:
+          initial_db_init()
+
+
+      @pytest.mark.parametrize(
+          "env, expected",
+          [
+              pytest.param(
+                  {"plain_key": "plain_value"},
+                  "{'plain_key': 'plain_value'}",
+                  id="env-plain-key-val",
+              ),
+              pytest.param(
+                  {"plain_key": Variable.setdefault("plain_var", "banana")},
+                  "{'plain_key': 'banana'}",
+                  id="env-plain-key-plain-var",
+              ),
+              pytest.param(
+                  {"plain_key": Variable.setdefault("secret_var", "monkey")},
+                  "{'plain_key': '***'}",
+                  id="env-plain-key-sensitive-var",
+              ),
+              pytest.param(
+                  {"plain_key": "{{ var.value.plain_var }}"},
+                  "{'plain_key': '{{ var.value.plain_var }}'}",
+                  id="env-plain-key-plain-tpld-var",
+              ),
+          ],
+      )
+      def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+          ...
+
+
+
+Running Unit tests
+==================
 
 Running Unit Tests from PyCharm IDE
 -----------------------------------
@@ -158,7 +743,6 @@ this in two clicks.
 .. image:: images/pycharm/pycharm_create_tool.png
     :align: center
     :alt: Installing Python extension
-
 
 2. Add the tool to the context menu:
 
@@ -491,7 +1075,7 @@ This prepares airflow .whl package in the dist folder.
 
 .. code-block:: bash
 
-     breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
+     breeze --use-airflow-version wheel --use-packages-from-dist --mount-sources skip
 
 Airflow Docker Compose Tests
 ============================
@@ -1938,3 +2522,43 @@ On the screen you will see database queries for the given test.
 
 SQL query tracking does not work properly if your test runs subprocesses. Only queries from the main process
 are tracked.
+
+Code Coverage
+=============
+
+Airflow's CI process automatically uploads the code coverage report to codecov.io.
+
+Viewing the Coverage Report Online:
+-----------------------------------
+For the most recent coverage report of the main branch, visit: https://codecov.io/gh/apache/airflow.
+
+Generating Local Coverage Reports:
+----------------------------------
+If you wish to obtain coverage reports for specific areas of the codebase on your local machine, follow these steps:
+
+a. Initiate a breeze shell.
+
+b. Execute one of the commands below based on the desired coverage area:
+
+   - **Core:** ``python scripts/cov/core_coverage.py``
+   - **REST API:** ``python scripts/cov/restapi_coverage.py``
+   - **CLI:** ``python scripts/cov/cli_coverage.py``
+   - **Webserver:** ``python scripts/cov/www_coverage.py``
+
+c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
+
+ .. note::
+
+     In order to see the coverage report, you must start webserver first in breeze environment via `airflow webserver`.
+     Once you enter `breeze`, you can start `tmux`  (terminal multiplexer) and split the terminal (by pressing `ctrl-B "` for example)
+     to contiinue testing and run the webserver in one tetminal and run tests in the second one (you can switch between
+     the terminals with `ctrl-B <arrow>`).
+
+Modules Not Fully Covered:
+--------------------------
+Each coverage command provides a list of modules that aren't fully covered. If you wish to enhance coverage for a particular module:
+
+a. Work on the module to improve its coverage.
+
+b. Once coverage reaches 100%, you can safely remove the module from the list of modules that are not fully covered.
+   This list is inside each command's source code.

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -165,7 +165,7 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
                 )
                 if task["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
 
         return Task.to_dict(task)
 
@@ -534,7 +534,7 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
                 )
                 if lake["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
         DataplexLakeLink.persist(
             context=context,
             task_instance=self,
@@ -583,7 +583,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -833,7 +832,6 @@ class DataplexDeleteDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -925,7 +923,6 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region

@@ -111,7 +111,6 @@ with DAG(
     hdfs_dir = " /tmp/"
 
     for channel in to_channels:
-
         file_name = f"to_{channel}_{dt}.csv"
 
         load_to_hdfs = BashOperator(

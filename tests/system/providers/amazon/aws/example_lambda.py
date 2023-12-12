@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import zipfile
 from datetime import datetime
+from io import BytesIO
 
 import boto3
 
@@ -49,13 +49,13 @@ def test(*args):
 
 # Create a zip file containing one file "lambda_function.py" to deploy to the lambda function
 def create_zip(content: str):
-    zip_output = io.BytesIO()
-    with zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        info = zipfile.ZipInfo("lambda_function.py")
-        info.external_attr = 0o777 << 16
-        zip_file.writestr(info, content)
-    zip_output.seek(0)
-    return zip_output.read()
+    with BytesIO() as zip_output:
+        with zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            info = zipfile.ZipInfo("lambda_function.py")
+            info.external_attr = 0o777 << 16
+            zip_file.writestr(info, content)
+        zip_output.seek(0)
+        return zip_output.read()
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

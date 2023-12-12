@@ -401,17 +401,29 @@ class TestPodGenerator:
             pytest.param(None, "busybox", id="no_image_in_cfg"),
         ],
     )
-    def test_construct_pod(self, config_image, expected_image):
+    @pytest.mark.parametrize(
+        "pod_override_object_namespace, expected_namespace",
+        [
+            ("new_namespace", "new_namespace"),  # pod_override_object namespace should be used
+            (None, "test_namespace"),  # if it is not provided, we use default one
+        ],
+    )
+    def test_construct_pod(
+        self, config_image, expected_image, pod_override_object_namespace, expected_namespace
+    ):
         template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
         executor_config = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=pod_override_object_namespace,
+            ),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
                         name="", resources=k8s.V1ResourceRequirements(limits={"cpu": "1m", "memory": "1G"})
                     )
                 ]
-            )
+            ),
         )
 
         result = PodGenerator.construct_pod(
@@ -432,7 +444,7 @@ class TestPodGenerator:
         expected.metadata.labels["app"] = "myapp"
         expected.metadata.annotations = self.annotations
         expected.metadata.name = "pod_id"
-        expected.metadata.namespace = "test_namespace"
+        expected.metadata.namespace = expected_namespace
         expected.spec.containers[0].args = ["command"]
         expected.spec.containers[0].image = expected_image
         expected.spec.containers[0].resources = {"limits": {"cpu": "1m", "memory": "1G"}}

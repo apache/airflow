@@ -158,7 +158,6 @@ class LookerHook(BaseHook):
             JobStatus.CANCELLED.value,
             JobStatus.UNKNOWN.value,
         ):
-
             if timeout and start + timeout < time.monotonic():
                 self.stop_pdt_build(materialization_id=materialization_id)
                 raise AirflowException(

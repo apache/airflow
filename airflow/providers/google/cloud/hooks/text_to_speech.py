@@ -78,7 +78,6 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         :return: Google Cloud Text to Speech client object.
         """
         if not self._client:
-
             self._client = TextToSpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
         return self._client

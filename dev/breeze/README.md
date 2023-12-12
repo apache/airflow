@@ -41,9 +41,23 @@ that might often be needed if dependencies change during development.
 pipx install -e ./dev/breeze --force
 ```
 
+NOTE! If you see below warning - it means that you hit [known issue](https://github.com/pypa/pipx/issues/1092)
+with `packaging` version 23.2
+⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+to avoid having to create a new src/ directory.
+
+The workaround is to downgrade packaging to 23.1 and re-running the `pipx install` command, for example
+by running `pip install "packaging<23.2"`.
+
+```shell
+pip install "packaging<23.2"
+pipx install -e ./dev/breeze --force
+```
+
+
 You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/BREEZE.rst)
 
-This README file contains automatically generated hash of the `setup.py` and `setup.cfg` files that were
+This README file contains automatically generated hash of the `pyproject.toml` files that were
 available when the package was installed. Since this file becomes part of the installed package, it helps
 to detect automatically if any of the files have changed. If they did, the user will be warned to upgrade
 their installations.
@@ -52,6 +66,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 782a39916ea95eedd0cd81f76c9dbf3bbb5cbdc5c03271621a8dd3805324ee6868fbead2b95ac653d9efea0225db85de46b17c6f0e3b07923c7d18de666d236e
+Package config hash: c7d80ab49c6dc4bf2b54957663b0126ab9c8f48df28a34c0eb56340540cb1f52d063ef99ee5f9cacbd375b1a711278884f9ef9aab41e620fa70fffd81f7ece3c
 
 ---------------------------------------------------------------------------------------------------------

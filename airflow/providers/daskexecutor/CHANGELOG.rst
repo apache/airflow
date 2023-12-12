@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+* Mark daskexecutor provider as removed according to `consensus on the dev@airflow.apache.org <https://lists.apache.org/thread/fxv44cqqljrrhll3fdpdgc9h9fz5ghcy>`_
+
+
+1.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
 1.0.1
 .....
 

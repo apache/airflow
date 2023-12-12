@@ -101,7 +101,6 @@ class BatchWaitersHook(BatchClientHook):
     """
 
     def __init__(self, *args, waiter_config: dict | None = None, **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
 
         self._default_config: dict | None = None
