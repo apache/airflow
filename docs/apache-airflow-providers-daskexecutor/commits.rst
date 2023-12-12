@@ -35,7 +35,7 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.2.0
+1.1.1
 .....
 
 Latest change: 2023-11-30
