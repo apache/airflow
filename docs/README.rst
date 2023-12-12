@@ -41,14 +41,13 @@ For most Docs writing purposes, the `reStructured Text Primer <https://www.sphin
 
 A general docs workflow
 -----------------------
-When you make changes to the docs,
+When you make changes to the docs, it follows roughly the same process as creating and testing code changes. However, for docs, instead of unit tests and integration tests, you run pre-commit checks, spell checks, and visual inspection of your changes in a documentation build.
 
-1. **Decide to edit in GitHub UI or locally** -
-2. **Find the source files to edit** -
-3. **If editing locally, run spellcheck and the build to identify any blocking errors** -
-4. **Make your pull request** -
-5. **Fix any build errors or spelling mistakes** -
-6. **Send your PR for review** -
+1. **Decide to edit in GitHub UI or locally** - Depending on the size and type of docs update you want to make, it might be easier to work in the UI or to make your edits in a local fork.
+2. **Find the source files to edit** - While you can access most of the docs source files using the **Suggest a change on this page** button or through a search of the `/docs/` file directory, in some cases the source strings might be located in different provider docs or in the source code itself.
+3. **If editing locally, run spellcheck and the build to identify any blocking errors** - Docs require build, spellcheck, and precommit CI/CD tests to pass before they can merge. This means that if you have a pull request with docs changes, a docs build error can prevent your code merge. Checking the build and spelling locally first can help speed up reviews. If you've made formatting changes, checking a local build of your docs allows you to make sure you correctly formatted elements like tables, text styling, and line breaks.
+4. **Make your pull request** - When you make a PR, reviewers are automatically assigned and pre-commit CI/CD tests run.
+5. **Fix any build errors or spelling mistakes** - Your PR can't be merged if there are any spelling or build errors. Check to see which builds are failing and click **Show details**. The output of the tests share the errors, problems, and resolutions. Common Docs failures are from incorrect formatting and whitespace.
 
 Editing in GitHub or locally
 ----------------------------
