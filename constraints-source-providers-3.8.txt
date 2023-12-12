@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-12-11T06:56:17Z
+# This constraints file was automatically generated on 2023-12-12T17:18:45Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -9,7 +9,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 Authlib==1.2.1
-Babel==2.13.1
+Babel==2.14.0
 ConfigUpdater==3.2
 Deprecated==1.2.14
 Flask-AppBuilder==4.3.10
@@ -93,7 +93,7 @@ azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
 azure-identity==1.15.0
 azure-keyvault-secrets==4.7.0
-azure-kusto-data==4.2.0
+azure-kusto-data==4.3.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
@@ -118,7 +118,7 @@ bcrypt==4.1.1
 beautifulsoup4==4.12.2
 billiard==4.2.0
 bitarray==2.8.5
-black==23.11.0
+black==24.1a1
 blinker==1.7.0
 boto3==1.33.1
 botocore==1.33.1
@@ -130,7 +130,7 @@ celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.4
+cfn-lint==0.83.5
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -157,14 +157,14 @@ cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.3
 datadog==0.47.0
-db-dtypes==1.1.1
+db-dtypes==1.2.0
 debugpy==1.8.0
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.14.0
 deprecation==2.1.0
 dill==0.3.1.1
-distlib==0.3.7
+distlib==0.3.8
 dnspython==2.4.2
 docker==7.0.0
 docopt==0.6.2
@@ -210,7 +210,7 @@ google-cloud-automl==2.12.0
 google-cloud-batch==0.17.6
 google-cloud-bigquery-datatransfer==3.13.0
 google-cloud-bigquery-storage==2.23.0
-google-cloud-bigquery==3.13.0
+google-cloud-bigquery==3.14.0
 google-cloud-bigtable==2.21.0
 google-cloud-build==3.22.0
 google-cloud-compute==1.15.0
@@ -225,12 +225,12 @@ google-cloud-dataproc==5.8.0
 google-cloud-dlp==3.14.0
 google-cloud-kms==2.20.0
 google-cloud-language==2.12.0
-google-cloud-logging==3.8.0
+google-cloud-logging==3.9.0
 google-cloud-memcache==1.8.0
 google-cloud-monitoring==2.17.0
 google-cloud-orchestration-airflow==1.10.0
 google-cloud-os-login==2.12.0
-google-cloud-pubsub==2.18.4
+google-cloud-pubsub==2.19.0
 google-cloud-redis==2.14.0
 google-cloud-resource-manager==1.11.0
 google-cloud-run==0.10.1
@@ -374,7 +374,7 @@ ordered-set==4.1.0
 orjson==3.9.10
 oss2==2.18.3
 packaging==23.2
-pandas-gbq==0.19.2
+pandas-gbq==0.20.0
 pandas-stubs==2.0.3.230814
 pandas==2.0.3
 papermill==2.5.0
@@ -404,7 +404,7 @@ pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus-client==0.19.0
-prompt-toolkit==3.0.41
+prompt-toolkit==3.0.42
 proto-plus==1.23.0
 protobuf==4.25.1
 psutil==5.9.6
@@ -419,7 +419,7 @@ pyarrow-hotfix==0.6
 pyarrow==11.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
-pycountry==23.12.7
+pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.19.0
 pydantic==2.5.2
@@ -497,7 +497,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==1.38.0
+sentry-sdk==1.39.0
 setproctitle==1.3.3
 shapely==2.0.2
 simple-salesforce==1.12.5
@@ -529,7 +529,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.11
-sqlalchemy-bigquery==1.8.0
+sqlalchemy-bigquery==1.9.0
 sqlalchemy-drill==1.1.4
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
@@ -599,7 +599,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.246.0
+yandexcloud==0.247.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.42
