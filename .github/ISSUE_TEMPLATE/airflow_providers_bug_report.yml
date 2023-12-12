@@ -51,7 +51,6 @@ body:
         - cohere
         - common-io
         - common-sql
-        - daskexecutor
         - databricks
         - datadog
         - dbt-cloud
@@ -72,7 +71,6 @@ body:
         - influxdb
         - jdbc
         - jenkins
-        - apache-kafka
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp
@@ -81,9 +79,9 @@ body:
         - mysql
         - neo4j
         - odbc
+        - openai
         - openfaas
         - openlineage
-        - openai
         - opensearch
         - opsgenie
         - oracle
