@@ -16,12 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.models.log import Log
 from airflow.utils.session import create_session
+from tests.test_utils.db import clear_db_dags
 
 
-def test_logging_pause_dag(admin_client, create_dummy_dag):
-    dag, _ = create_dummy_dag()
+@pytest.fixture(autouse=True)
+def dags(create_dummy_dag):
+    paused_dag, _ = create_dummy_dag(dag_id="paused_dag", is_paused_upon_creation=True)
+    dag, _ = create_dummy_dag(dag_id="unpaused_dag")
+
+    yield dag, paused_dag
+
+    clear_db_dags()
+
+
+def test_logging_pause_dag(admin_client, dags):
+    dag, _ = dags
     # is_paused=false mean pause the dag
     admin_client.post(f"/paused?is_paused=false&dag_id={dag.dag_id}", follow_redirects=True)
     with create_session() as session:
@@ -29,10 +42,10 @@ def test_logging_pause_dag(admin_client, create_dummy_dag):
         assert "('is_paused', True)" in dag_query.first().extra
 
 
-def test_logging_unpuase_dag(admin_client, create_dummy_dag):
-    dag, _ = create_dummy_dag(is_paused_upon_creation=True)
+def test_logging_unpuase_dag(admin_client, dags):
+    _, paused_dag = dags
     # is_paused=true mean unpause the dag
-    admin_client.post(f"/paused?is_paused=true&dag_id={dag.dag_id}", follow_redirects=True)
+    admin_client.post(f"/paused?is_paused=true&dag_id={paused_dag.dag_id}", follow_redirects=True)
     with create_session() as session:
-        dag_query = session.query(Log).filter(Log.dag_id == dag.dag_id)
+        dag_query = session.query(Log).filter(Log.dag_id == paused_dag.dag_id)
         assert "('is_paused', False)" in dag_query.first().extra
