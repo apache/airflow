@@ -45,11 +45,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.13.0
 .......
 
-Latest change: 2023-12-07
+Latest change: 2023-12-12
 
 =================================================================================================  ===========  ============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================================
+`47a9c8a4a4 <https://github.com/apache/airflow/commit/47a9c8a4a4ecc4da34bd210d56331e97f9fe8e7e>`_  2023-12-12   ``Added Datascan Profiling (#35696)``
+`3dddfb4a4a <https://github.com/apache/airflow/commit/3dddfb4a4ae112544fd02e09a5633961fa725a36>`_  2023-12-11   ``Add overrides to template fields of Google Cloud Run Jobs Execute Operator (#36133)``
+`fcd993b852 <https://github.com/apache/airflow/commit/fcd993b852b91b6227e7a4b316c8c912797ac4a9>`_  2023-12-11   ``Upgrade to latest pre-commit plugins (#36163)``
+`343bac956b <https://github.com/apache/airflow/commit/343bac956b48aac80a7daaf0715e04d2cc37b373>`_  2023-12-11   ``Review and mark found potential SSH security issues by bandit (#36162)``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+`8d0c5d9008 <https://github.com/apache/airflow/commit/8d0c5d900875ce3b9dda1a86f1de534759e9d7f6>`_  2023-12-09   ``Change retry type for Google Dataflow Client to async one (#36141)``
+`aba58adb83 <https://github.com/apache/airflow/commit/aba58adb83435e96e66027de5163756301a6ddf5>`_  2023-12-08   ``Allow storage options to be passed (#35820)``
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `ca20f07a16 <https://github.com/apache/airflow/commit/ca20f07a16934d93792773d788b64652009065ce>`_  2023-12-06   ``GCP Secrets Backend Impersonation (#36072)``
 `d0f4512ecb <https://github.com/apache/airflow/commit/d0f4512ecb9c0683a60be7b0de8945948444df8e>`_  2023-12-04   ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
