@@ -45,6 +45,7 @@ kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-worker
   labels:
+    kubeVersion: {{ include "kubernetesVersion" . }}
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
@@ -257,7 +258,7 @@ spec:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
-            {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
+            {{- if and .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
             - name: kerberos-exit
               mountPath: /opt/kerberos-exit
             {{- end }}
@@ -350,7 +351,7 @@ spec:
           args: {{ include "airflowKerberosContainerArgs" . | nindent 12 }}
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
-            {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (semverCompare "<1.28" $kubeVersion) }}
+            {{- if and .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
             - name: kerberos-exit
               mountPath: /opt/kerberos-exit
             {{- end }}
@@ -396,7 +397,7 @@ spec:
         {{- if .Values.workers.extraVolumes }}
           {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 8 }}
         {{- end }}
-        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
+        {{- if and .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
         - name: kerberos-exit
           emptyDir: {}
         {{- end }}

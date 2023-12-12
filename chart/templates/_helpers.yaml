@@ -1004,7 +1004,7 @@ capabilities:
 
 {{- define "airflowKerberosContainerArgs" -}}
 {{- $kubectl_version := include "kubernetesVersion" . -}}
-{{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (semverCompare "<1.28" $kubectl_version) }}
+{{- if (semverCompare "<1.28" $kubectl_version) }}
 - airflow
 - kerberos
 - "&"

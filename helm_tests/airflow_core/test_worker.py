@@ -592,6 +592,73 @@ class TestWorker:
             assert initContainers[1]["name"] == "kerberos-init"
             assert initContainers[1]["args"] == ["kerberos", "-o"]
 
+    def test_airflow_kerberos_sidecar_additional_volume_and_volume_mounts(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kerberosSidecar": {"enabled": True},
+                    "persistence": {"fixPermissions": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        kerberos_sidecar = get_container_by_name(containers, "worker-kerberos")
+        assert kerberos_sidecar is not None
+
+        assert kerberos_sidecar["args"] == [
+            "airflow",
+            "kerberos",
+            "&",
+            "while [ ! -f /opt/kerberos-exit/EXIT ]; do if [ -f "
+            '/opt/kerberos-exit/EXIT ]; then echo "Exit lockfile found. '
+            'Exiting kerberos process." break else echo "Exit lockfile not '
+            'found. Sleeping for 1 second..." sleep 5 fi done',
+        ]
+
+        vm = get_volume_mount_by_name(kerberos_sidecar, "kerberos-exit")
+
+        assert vm is not None
+        assert vm["mountPath"] == "/opt/kerberos-exit"
+
+    def test_airflow_worker_has_shared_kerberos_volume_mount(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kerberosSidecar": {"enabled": True},
+                    "persistence": {"fixPermissions": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        worker = get_container_by_name(containers, "worker")
+        assert worker is not None
+
+        vm = get_volume_mount_by_name(worker, "kerberos-exit")
+
+        assert vm is not None
+        assert vm["mountPath"] == "/opt/kerberos-exit"
+
+    def test_kerberos_exit_volume(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kerberosSidecar": {"enabled": True},
+                    "persistence": {"fixPermissions": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+
+        v = get_volume_by_name(volumes, "kerberos-exit")
+        assert v is not None
+        assert v["emptyDir"] == {}
+
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
@@ -1083,3 +1150,24 @@ class TestWorkerServiceAccount:
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+def get_container_by_name(containers, name):
+    for c in containers:
+        if c["name"] == name:
+            return c
+    return None
+
+
+def get_volume_mount_by_name(container, name):
+    for vm in container["volumeMounts"]:
+        if vm["name"] == name:
+            return vm
+    return None
+
+
+def get_volume_by_name(volumes, name):
+    for v in volumes:
+        if v["name"] == name:
+            return v
+    return None
