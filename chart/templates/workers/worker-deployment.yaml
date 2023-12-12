@@ -45,7 +45,6 @@ kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-worker
   labels:
-    kubeVersion: {{ include "kubernetesVersion" . }}
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
