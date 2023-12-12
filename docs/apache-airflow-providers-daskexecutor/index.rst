@@ -56,13 +56,21 @@ Package apache-airflow-providers-daskexecutor
 `Dask <https://www.dask.org/>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
 
 This is a provider package for ``daskexecutor`` provider. All classes for this provider package
 are in ``airflow.providers.daskexecutor`` python package.
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
 
 Installation
 ------------
@@ -74,12 +82,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================================
 PIP package         Version required
 ==================  ==================================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``cloudpickle``     ``>=1.4.1``
 ``dask``            ``>=2.9.0,!=2022.10.1,!=2023.5.0``
 ``distributed``     ``>=2.11.1,!=2023.5.0``
