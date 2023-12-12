@@ -51,6 +51,7 @@ class WebHDFSHook(BaseHook):
     :param webhdfs_conn_id: The connection id for the webhdfs client to connect to.
     :param proxy_user: The user used to authenticate.
     """
+
     conn_type = "webhdfs"
     conn_name_attr = "webhdfs_conn_id"
     default_conn_name = "webhdfs_default"
