@@ -22,7 +22,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import boto3
@@ -242,7 +242,7 @@ def fetch_variable(
     :param key: The name of the Parameter to fetch a value for.
     :param default_value: The default value to use if no value can be found.
     :param test_name: The system test name.
-    :param optional: Whether the variable is optional. If True, does not raise `ValueError` if the variables
+    :param optional: Whether the variable is optional. If True, does not raise `ValueError` if variable
         does not exist
     :return: The value of the parameter.
     """
@@ -264,7 +264,7 @@ def set_env_id() -> str:
 
     :return: A valid System Test Environment ID.
     """
-    env_id: str = cast(str, fetch_variable(ENV_ID_ENVIRON_KEY, DEFAULT_ENV_ID))
+    env_id: str = str(fetch_variable(ENV_ID_ENVIRON_KEY, DEFAULT_ENV_ID))
     env_id = _validate_env_id(env_id)
 
     os.environ[ENV_ID_ENVIRON_KEY] = env_id
