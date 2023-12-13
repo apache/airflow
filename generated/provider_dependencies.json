@@ -454,7 +454,7 @@
       "google-cloud-monitoring>=2.14.1",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.15.0",
+      "google-cloud-pubsub>=2.19.0",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.9.0",
       "google-cloud-secret-manager>=2.16.0",
