@@ -53,7 +53,7 @@ See :ref:`security:mask-sensitive-values` for more details.
 Web Authentication
 ------------------
 
-The webserver authentication is handled by the auth manager. For more information about the webserver authentication, please refer to the auth manager documentation used by your environment.
+The webserver authentication is handled by the auth manager. For more information about webserver authentication, please refer to the auth manager documentation used by your environment.
 By default Airflow uses the FAB auth manager, if you did not specify any other auth manager, please look at :doc:`apache-airflow-providers-fab:auth-manager/webserver-authentication`.
 
 SSL
