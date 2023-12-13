@@ -89,18 +89,15 @@ class EventsTimetable(Timetable):
             if earliest is None or current_time > earliest:
                 earliest = pendulum.instance(current_time)
 
-        dates = iter(self.event_dates)
-        next_event = next(dates, None)
-        while next_event:
-            is_allowed = True
+        for next_event in self.event_dates:
             if earliest and next_event < earliest:
-                is_allowed = False
+                continue
             if last_automated_data_interval and next_event <= last_automated_data_interval.end:
-                is_allowed = False
-            if is_allowed:
-                break
-            next_event = next(dates, None)
-        if next_event is None:
+                continue
+            break
+        else:
+            # We need to return None if self.event_dates is empty or,
+            # if not empty, when no suitable event can be found.
             return None
 
         if restriction.latest is not None and next_event > restriction.latest:
