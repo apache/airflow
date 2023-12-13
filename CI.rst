@@ -38,26 +38,26 @@ of how Airflow CI works.
 GitHub Actions runs
 -------------------
 
-Our CI builds are highly optimized, leveraging the latest features provided 
+Our CI builds are highly optimized, leveraging the latest features provided
 by the GitHub Actions environment to reuse parts of the build process across
 different jobs.
 
-A significant portion of our CI runs utilize container images. Given that 
-Airflow has numerous dependencies, we use Docker containers to ensure tests 
-run in a well-configured and consistent environment. This approach is used 
-for most tests, documentation building, and some advanced static checks. 
-The environment comprises two types of images: CI images and PROD images. 
-CI images are used for most tests and checks, while PROD images are used for 
+A significant portion of our CI runs utilize container images. Given that
+Airflow has numerous dependencies, we use Docker containers to ensure tests
+run in a well-configured and consistent environment. This approach is used
+for most tests, documentation building, and some advanced static checks.
+The environment comprises two types of images: CI images and PROD images.
+CI images are used for most tests and checks, while PROD images are used for
 Kubernetes tests.
 
-To run the tests, we need to ensure that the images are built using the 
-latest sources and that the build process is efficient. A full rebuild of 
-such an image from scratch might take approximately 15 minutes. Therefore, 
-we've implemented optimization techniques that efficiently use the cache 
-from the GitHub Docker registry. In most cases, this reduces the time 
-needed to rebuild the image to about 4 minutes. However, when 
-dependencies change, it can take around 6-7 minutes, and if the base 
-image of Python releases a new patch-level, it can take approximately 
+To run the tests, we need to ensure that the images are built using the
+latest sources and that the build process is efficient. A full rebuild of
+such an image from scratch might take approximately 15 minutes. Therefore,
+we've implemented optimization techniques that efficiently use the cache
+from the GitHub Docker registry. In most cases, this reduces the time
+needed to rebuild the image to about 4 minutes. However, when
+dependencies change, it can take around 6-7 minutes, and if the base
+image of Python releases a new patch-level, it can take approximately
 12 minutes.
 
 Container Registry used as cache
@@ -199,33 +199,33 @@ When you are running the CI jobs in GitHub Actions, GITHUB_TOKEN is set automati
 CI run types
 ============
 
-The Apache Airflow project utilizes several types of Continuous Integration (CI) 
-jobs, each with a distinct purpose and context. These jobs are executed by the 
+The Apache Airflow project utilizes several types of Continuous Integration (CI)
+jobs, each with a distinct purpose and context. These jobs are executed by the
 `ci.yaml` workflow.
 
-In addition to the standard "PR" runs, we also execute "Canary" runs. 
-These runs are designed to detect potential issues that could affect 
-regular PRs early on, without causing all PRs to fail when such problems 
-arise. This strategy ensures a more stable environment for contributors 
-submitting their PRs. At the same time, it allows maintainers to proactively 
+In addition to the standard "PR" runs, we also execute "Canary" runs.
+These runs are designed to detect potential issues that could affect
+regular PRs early on, without causing all PRs to fail when such problems
+arise. This strategy ensures a more stable environment for contributors
+submitting their PRs. At the same time, it allows maintainers to proactively
 address issues highlighted by the "Canary" builds.
 
 Pull request run
 ----------------
 
-These runs are triggered by pull requests from contributors' forks. The majority of 
-Apache Airflow builds fall into this category. They are executed in the context of 
-the contributor's "Fork", not the main Airflow Code Repository, meaning they only have 
-"read" access to all GitHub resources, such as the container registry and code repository. 
-This is necessary because the code in these PRs, including the CI job definition, 
+These runs are triggered by pull requests from contributors' forks. The majority of
+Apache Airflow builds fall into this category. They are executed in the context of
+the contributor's "Fork", not the main Airflow Code Repository, meaning they only have
+"read" access to all GitHub resources, such as the container registry and code repository.
+This is necessary because the code in these PRs, including the CI job definition,
 might be modified by individuals who are not committers to the Apache Airflow Code Repository.
 
-The primary purpose of these jobs is to verify if the PR builds cleanly, if the tests 
-run correctly, and if the PR is ready for review and merge. These runs utilize cached 
-images from the Private GitHub registry, including CI, Production Images, and base 
-Python images. Furthermore, for these builds, we only execute Python tests if 
+The primary purpose of these jobs is to verify if the PR builds cleanly, if the tests
+run correctly, and if the PR is ready for review and merge. These runs utilize cached
+images from the Private GitHub registry, including CI, Production Images, and base
+Python images. Furthermore, for these builds, we only execute Python tests if
 significant files have changed. For instance, if the PR involves a "no-code" change,
-no tests will be executed..
+no tests will be executed.
 
 Regular PR builds run in a "stable" environment:
 
@@ -243,31 +243,31 @@ and has WRITE access to the GitHub Container Registry.
 Canary run
 ----------
 
-This workflow is triggered when a pull request is merged into the "main" branch or pushed to any of 
-the "v2-*-test" branches. The "Canary" run aims to upgrade dependencies to their latest versions 
-and promptly pushes a preview of the CI/PROD image cache to the GitHub Registry. This allows pull 
-requests to quickly utilize the new cache, which is particularly beneficial when the Dockerfile or 
-installation scripts have been modified. Even if some tests fail, this cache will already include the 
-latest Dockerfile and scripts.Upon successful execution, the run updates the constraint files in the 
-"constraints-main" branch with the latest constraints and pushes both the cache and the latest CI/PROD 
+This workflow is triggered when a pull request is merged into the "main" branch or pushed to any of
+the "v2-*-test" branches. The "Canary" run aims to upgrade dependencies to their latest versions
+and promptly pushes a preview of the CI/PROD image cache to the GitHub Registry. This allows pull
+requests to quickly utilize the new cache, which is particularly beneficial when the Dockerfile or
+installation scripts have been modified. Even if some tests fail, this cache will already include the
+latest Dockerfile and scripts.Upon successful execution, the run updates the constraint files in the
+"constraints-main" branch with the latest constraints and pushes both the cache and the latest CI/PROD
 images to the GitHub Registry.
 
-If the "Canary" build fails, it often indicates that a new version of our dependencies is incompatible 
-with the current tests or Airflow code. Alternatively, it could mean that a breaking change has been 
-merged into "main". Both scenarios require prompt attention from the maintainers. While a "broken main" 
-due to our code should be fixed quickly, "broken dependencies" may take longer to resolve. Until the tests 
-pass, the constraints will not be updated, meaning that regular PRs will continue using the older version 
+If the "Canary" build fails, it often indicates that a new version of our dependencies is incompatible
+with the current tests or Airflow code. Alternatively, it could mean that a breaking change has been
+merged into "main". Both scenarios require prompt attention from the maintainers. While a "broken main"
+due to our code should be fixed quickly, "broken dependencies" may take longer to resolve. Until the tests
+pass, the constraints will not be updated, meaning that regular PRs will continue using the older version
 of dependencies that passed one of the previous "Canary" runs.
 
 Scheduled runs
 --------------
 
-The "scheduled" workflow, which is designed to run regularly (typically overnight), 
-is triggered when a scheduled run occurs. This workflow is largely identical to the 
-"Canary" run, with one key difference: the image is always built from scratch, not 
-from a cache. This approach ensures that we can verify whether any "system" dependencies 
-in the Debian base image have changed, and confirm that the build process remains reproducible. 
-Since the process for a scheduled run mirrors that of a "Canary" run, no separate diagram is 
+The "scheduled" workflow, which is designed to run regularly (typically overnight),
+is triggered when a scheduled run occurs. This workflow is largely identical to the
+"Canary" run, with one key difference: the image is always built from scratch, not
+from a cache. This approach ensures that we can verify whether any "system" dependencies
+in the Debian base image have changed, and confirm that the build process remains reproducible.
+Since the process for a scheduled run mirrors that of a "Canary" run, no separate diagram is
 necessary to illustrate it.
 
 Workflows
@@ -325,7 +325,7 @@ Differences for main and release branches
 
 The type of tests executed varies depending on the version or branch under test. For the "main" development branch,
 we run all tests to maintain the quality of Airflow. However, when releasing patch-level updates on older
-branches, we only run a subset of these tests. This is because older branches are exclusively used for releasing 
+branches, we only run a subset of these tests. This is because older branches are exclusively used for releasing
 Airflow and its corresponding image, not for releasing providers or helm charts.
 
 This behaviour is controlled by ``default-branch`` output of the build-info job. Whenever we create a branch for old version
