@@ -1455,9 +1455,7 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(
-            project_id=TEST_GCP_PROJECT_ID, job_id=real_job_id, error_result=False
-        )
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
         ti = create_task_instance_of_operator(
             BigQueryInsertJobOperator,
