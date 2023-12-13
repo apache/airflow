@@ -46,7 +46,7 @@ users does not need the same user management as an environment used by thousand 
 This is why the whole user management (user authentication and user authorization) is packaged in one component
 called auth manager. So that it is easy to plug-and-play an auth manager that suits your specific needs.
 
-By default, Airflow comes with the :doc:`apache-airflow-providers-fab:auth-manager`.
+By default, Airflow comes with the :doc:`apache-airflow-providers-fab:auth-manager/index`.
 
 .. note::
     Switching to a different auth manager is a heavy operation and should be considered as such. It will
