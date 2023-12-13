@@ -55,6 +55,6 @@ def exponential_backoff_retry(
         try:
             callable_function()
         except Exception:
-            log.exception(f"Error calling {getattr(callable_function, '__name__', repr(callable_function))}")
+            log.exception("Error calling %r", callable_function.__name__)
             next_delay = min((exponent_base ** (attempts_since_last_successful + 1)), max_delay)
             log.info("Waiting for %s seconds before retrying.", next_delay)

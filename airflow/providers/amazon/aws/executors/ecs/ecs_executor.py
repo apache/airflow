@@ -333,9 +333,15 @@ class AwsEcsExecutor(BaseExecutor):
             _failure_reasons = []
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
-            except (ClientError, NoCredentialsError):
+            except NoCredentialsError:
                 self.pending_tasks.appendleft(ecs_task)
                 raise
+            except ClientError as e:
+                error_code = e.response["Error"]["Code"]
+                if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
+                    self.pending_tasks.appendleft(ecs_task)
+                    raise
+                _failure_reasons.append(str(e))
             except Exception as e:
                 # Failed to even get a response back from the Boto3 API or something else went
                 # wrong.  For any possible failure we want to add the exception reasons to the
