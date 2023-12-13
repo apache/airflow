@@ -18,7 +18,7 @@
 Auth manager
 ============
 
-Auth manager is the component in Airflow to handle user authentication and user authorization. They have a common
+Auth (for authentication/authorization) manager is the component in Airflow to handle user authentication and user authorization. They have a common
 API and are "pluggable", meaning you can swap auth managers based on your installation needs.
 
 Airflow can only have one auth manager configured at a time; this is set by the ``auth_manager`` option in the
@@ -36,7 +36,7 @@ If you want to check which auth manager is currently set, you can use the
     airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
 
-Why different auth managers?
+Why pluggable auth managers?
 ----------------------------
 
 Airflow is used by a lot of different users with a lot of different configurations. Some Airflow environment might be
@@ -54,8 +54,8 @@ By default, Airflow comes with the :doc:`apache-airflow-providers-fab:auth-manag
     they are not advised. Plus, all current users and permissions will have to be copied over from the previous auth
     manager to the next.
 
-Writing Your Own Executor
--------------------------
+Writing your own auth manager
+-----------------------------
 
 All Airflow auth managers implement a common interface so that they are pluggable and any auth manager has access
 to all abilities and integrations within Airflow. This interface is used across Airflow to perform all user
@@ -163,7 +163,7 @@ Auth managers may vend Rest API endpoints which will be included in the :doc:`/s
 Next Steps
 ^^^^^^^^^^
 
-Once you have created a new executor class implementing the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
+Once you have created a new auth manager class implementing the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
 
 .. code-block:: ini
 
