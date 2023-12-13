@@ -26,6 +26,7 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
 
+from airflow.io import _register_filesystems, get_fs
 from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
 from airflow.utils.module_loading import qualname
@@ -49,6 +50,10 @@ class FakeRemoteFileSystem(LocalFileSystem):
         path = stringify_path(path)
         i = path.find("://")
         return path[i + 3 :] if i > 0 else path
+
+
+def get_fs_no_storage_options(_: str):
+    return LocalFileSystem()
 
 
 class TestFs:
@@ -285,3 +290,19 @@ class TestFs:
         assert s["conn_id"] is None
         assert s["filesystem"] == qualname(LocalFileSystem)
         assert store == d
+
+    def test_backwards_compat(self):
+        _register_filesystems.cache_clear()
+        from airflow.io import _BUILTIN_SCHEME_TO_FS as SCHEMES
+
+        try:
+            SCHEMES["file"] = get_fs_no_storage_options  # type: ignore[call-arg]
+
+            assert get_fs("file")
+
+            with pytest.raises(AttributeError):
+                get_fs("file", storage_options={"foo": "bar"})
+
+        finally:
+            # Reset the cache to avoid side effects
+            _register_filesystems.cache_clear()
