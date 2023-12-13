@@ -78,7 +78,7 @@ Some reasons you may want to write a custom executor include:
 Authentication related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``is_logged_in``: Return whether the user user is signed-in.
+* ``is_logged_in``: Return whether the user is signed-in.
 * ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 * ``get_url_logout``: Return the URL the user is redirected to for signing out.
