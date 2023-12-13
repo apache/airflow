@@ -133,6 +133,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
+            return_serializable=True,
             session_configuration=None,
             sql_endpoint_name=None,
             http_headers=None,
@@ -276,6 +277,7 @@ def test_exec_write_file(
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
+            return_serializable=True,
             session_configuration=None,
             sql_endpoint_name=None,
             http_headers=None,
