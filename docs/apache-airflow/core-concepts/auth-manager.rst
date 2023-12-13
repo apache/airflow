@@ -61,7 +61,7 @@ All Airflow auth managers implement a common interface so that they are pluggabl
 to all abilities and integrations within Airflow. This interface is used across Airflow to perform all user
 authentication and user authorization related operation.
 
-The public interface is the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+The public interface is :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
 You can look through the code for the most detailed and up to date interface, but some important highlights are
 outlined below.
 
