@@ -1485,7 +1485,6 @@ class TestBigQueryInsertJobOperator:
         project_id passed to the BigQueryInsertJobOperator.
         """
         job_id = "123456"
-        hash_ = "hash"
 
         configuration = {
             "query": {
