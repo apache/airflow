@@ -39,7 +39,7 @@ user will have by default:
 
     AUTH_ROLE_PUBLIC = 'Admin'
 
-Be sure to checkout :doc:`/security/api` for securing the API.
+Be sure to checkout :doc:`apache-airflow:security/api` for securing the API.
 
 .. note::
 
