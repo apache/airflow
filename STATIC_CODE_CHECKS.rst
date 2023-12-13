@@ -150,6 +150,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |

@@ -67,7 +67,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--mount-sources",
                 "--github-repository",
-                "--debug",
             ],
         },
         {
@@ -96,7 +95,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--mount-sources",
                 "--github-repository",
-                "--debug",
             ],
         },
         {
@@ -132,13 +130,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Package flags",
             "options": [
-                "--package-format",
-                "--version-suffix-for-pypi",
                 "--clean-dist",
-                "--skip-tag-check",
-                "--skip-deleting-generated-files",
-                "--package-list-file",
                 "--github-repository",
+                "--include-removed-providers",
+                "--package-format",
+                "--package-list-file",
+                "--skip-deleting-generated-files",
+                "--skip-tag-check",
+                "--version-suffix-for-pypi",
             ],
         }
     ],
@@ -146,12 +145,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider documentation preparation flags",
             "options": [
-                "--github-repository",
-                "--skip-git-fetch",
                 "--base-branch",
+                "--github-repository",
+                "--include-removed-providers",
+                "--non-interactive",
                 "--only-min-version-update",
                 "--reapply-templates-only",
-                "--non-interactive",
+                "--skip-git-fetch",
             ],
         }
     ],
@@ -163,7 +163,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
-                "--debug",
                 "--github-repository",
             ],
         },
@@ -197,9 +196,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Publish Docs",
             "options": [
+                "--airflow-site-directory",
+                "--include-removed-providers",
                 "--override-versioned",
                 "--package-filter",
-                "--airflow-site-directory",
             ],
         },
         {
@@ -216,18 +216,21 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management add-back-references": [
         {
             "name": "Add Back References to Docs",
-            "options": ["--airflow-site-directory"],
+            "options": [
+                "--airflow-site-directory",
+                "--include-removed-providers",
+            ],
         },
     ],
     "breeze release-management generate-issue-content-providers": [
         {
             "name": "Generate issue content flags",
             "options": [
-                "--github-token",
-                "--suffix",
-                "--only-available-in-dist",
-                "--excluded-pr-list",
                 "--disable-progress",
+                "--excluded-pr-list",
+                "--github-token",
+                "--only-available-in-dist",
+                "--suffix",
             ],
         }
     ],

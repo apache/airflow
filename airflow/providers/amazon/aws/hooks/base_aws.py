@@ -812,8 +812,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return retry_decorator
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],

@@ -20,45 +20,14 @@
 from __future__ import annotations
 
 import re
-import shlex
-import subprocess
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 from typing import NamedTuple
 
-import rich_click as click
-from rich.console import Console
-
-console = Console(width=400, color_system="standard")
-
-click.rich_click.COLOR_SYSTEM = "standard"
+from in_container_utils import click, console, run_command
 
 AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[1]
 DIST_FOLDER = Path("/dist")
-
-
-@contextmanager
-def ci_group(group_name: str, github_actions: bool):
-    if github_actions:
-        console.print(f"::group::{group_name[:200]}[/]", markup=False)
-    console.print(group_name, markup=False)
-    try:
-        yield
-    finally:
-        if github_actions:
-            console.print("::endgroup::")
-
-
-def run_command(cmd, github_actions: bool, **kwargs) -> subprocess.CompletedProcess:
-    with ci_group(
-        f"Running command: {' '.join([shlex.quote(arg) for arg in cmd])}", github_actions=github_actions
-    ):
-        result = subprocess.run(cmd, **kwargs)
-    if result.returncode != 0 and github_actions:
-        console.print(f"[red]Command failed: {' '.join([shlex.quote(entry) for entry in cmd])}[/]")
-        console.print("[red]Please unfold the above group and to investigate the issue[/]")
-    return result
 
 
 def get_provider_name(package_name: str) -> str:
@@ -87,15 +56,18 @@ def find_airflow_package(extension: str) -> str | None:
 
 def find_provider_packages(extension: str, selected_providers: list[str]) -> list[str]:
     candidates = list(DIST_FOLDER.glob(f"apache_airflow_providers_*.{extension}"))
-    console.print(
-        f"\n[bright_blue]Found the following provider packages: "
-        f"{[candidate.as_posix() for candidate in candidates]}\n"
-    )
+    console.print("\n[bright_blue]Found the following provider packages: ")
+    for candidate in sorted(candidates):
+        console.print(f"  {candidate.as_posix()}")
+    console.print()
     if selected_providers:
         candidates = [
             candidate for candidate in candidates if get_provider_name(candidate.name) in selected_providers
         ]
-        console.print(f"[bright_blue]Selected provider packages: {candidates}\n")
+        console.print("[bright_blue]Selected provider packages:")
+        for candidate in sorted(candidates):
+            console.print(f"  {candidate.as_posix()}")
+        console.print()
     return [candidate.as_posix() for candidate in candidates]
 
 
@@ -232,7 +204,6 @@ def find_installation_spec(
     if use_airflow_version and (AIRFLOW_SOURCE_DIR / "airflow").exists():
         console.print(
             f"[red]The airflow source folder exists in {AIRFLOW_SOURCE_DIR}, but you are "
-            f"removing it and installing airflow from {use_airflow_version}."
             f"removing it and installing airflow from {use_airflow_version}."
         )
         console.print("[red]This is not supported. Please use --mount-sources=remove flag in breeze.")
@@ -501,7 +472,10 @@ def install_airflow_and_providers(
         run_command(install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages:
         install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
-        console.print(f"\n[bright_blue]Installing provider packages: {installation_spec.provider_packages}")
+        console.print("\n[bright_blue]Installing provider packages:")
+        for provider_package in sorted(installation_spec.provider_packages):
+            console.print(f"  {provider_package}")
+        console.print()
         for provider_package in installation_spec.provider_packages:
             install_providers_cmd.append(provider_package)
         if installation_spec.provider_constraints_location:

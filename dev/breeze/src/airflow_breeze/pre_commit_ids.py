@@ -29,6 +29,7 @@ PRE_COMMIT_LIST = [
     "check-aiobotocore-optional",
     "check-airflow-k8s-not-used",
     "check-airflow-provider-compatibility",
+    "check-airflow-providers-bug-report-template",
     "check-apache-license-rat",
     "check-base-operator-partial-arguments",
     "check-base-operator-usage",

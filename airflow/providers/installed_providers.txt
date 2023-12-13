@@ -5,6 +5,7 @@ common.io
 common.sql
 docker
 elasticsearch
+fab
 ftp
 google
 grpc

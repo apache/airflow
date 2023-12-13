@@ -403,8 +403,8 @@ class VaultHook(BaseHook):
             "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["extra"],
