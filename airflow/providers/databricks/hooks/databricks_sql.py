@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, ove
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
@@ -53,6 +54,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param return_serializable: Return a namedtuple "Row" object instead of a `databricks.sql.Row` object.
+        (default: False). In a future version of this provider, this will become True bu default.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -69,6 +72,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         catalog: str | None = None,
         schema: str | None = None,
         caller: str = "DatabricksSqlHook",
+        return_serializable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id, caller=caller)
@@ -81,7 +85,17 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.return_serializable = return_serializable
         self.additional_params = kwargs
+
+        if not self.return_serializable:
+            warnings.warn(
+                """Returning a raw `databricks.sql.Row` object is deprecated, and will be removed in a future
+                release of the databricks provider. Use `return_serializable=True` instead to receive a
+                serializable "Row" namedtuple.""",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
@@ -242,17 +256,17 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    @staticmethod
-    def _make_serializable(result):
+    def _make_serializable(self, result):
         """Transform the databricks Row objects into serializable namedtuple."""
-        columns: list[str] | None = None
-        if isinstance(result, list):
-            columns = result[0].__fields__
-            row_object = namedtuple("Row", columns)
-            return [row_object(*row) for row in result]
-        elif isinstance(result, Row):
-            columns = result.__fields__
-            return namedtuple("Row", columns)(*result)
+        if self.return_serializable:
+            columns: list[str] | None = None
+            if isinstance(result, list):
+                columns = result[0].__fields__
+                row_object = namedtuple("Row", columns)
+                return [row_object(*row) for row in result]
+            elif isinstance(result, Row):
+                columns = result.__fields__
+                return namedtuple("Row", columns)(*result)
         return result
 
     def bulk_dump(self, table, tmp_file):

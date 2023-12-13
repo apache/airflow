@@ -64,7 +64,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
+    "return_last, split_statements, sql, cursor_calls, return_serializable,"
     "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
     [
         pytest.param(
@@ -72,10 +72,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             False,
             "select * from test.test",
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [SerializableRow(1, 2), SerializableRow(11, 12)],
+            [Row(id=1, value=2), Row(id=11, value=12)],
             id="The return_last set and no split statements set on single query in string",
         ),
         pytest.param(
@@ -83,10 +84,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             False,
             "select * from test.test;",
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [SerializableRow(1, 2), SerializableRow(11, 12)],
+            [Row(id=1, value=2), Row(id=11, value=12)],
             id="The return_last not set and no split statements set on single query in string",
         ),
         pytest.param(
@@ -94,10 +96,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;",
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [SerializableRow(1, 2), SerializableRow(11, 12)],
+            [Row(id=1, value=2), Row(id=11, value=12)],
             id="The return_last set and split statements set on single query in string",
         ),
         pytest.param(
@@ -105,10 +108,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;",
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
+            [[Row(id=1, value=2), Row(id=11, value=12)]],
             id="The return_last not set and split statements set on single query in string",
         ),
         pytest.param(
@@ -116,10 +120,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
+            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
-            [SerializableRow(3, 4), SerializableRow(13, 14)],
+            [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set and split statements set on multiple queries in string",
         ),
         pytest.param(
@@ -127,12 +132,13 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
+            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                [SerializableRow(1, 2), SerializableRow(11, 12)],
-                [SerializableRow(3, 4), SerializableRow(13, 14)],
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
             ],
             id="The return_last not set and split statements set on multiple queries in string",
         ),
@@ -141,10 +147,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             ["select * from test.test;"],
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
+            [[Row(id=1, value=2), Row(id=11, value=12)]],
             id="The return_last set on single query in list",
         ),
         pytest.param(
@@ -152,10 +159,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             ["select * from test.test;"],
             ["select * from test.test"],
+            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
+            [[Row(id=1, value=2), Row(id=11, value=12)]],
             id="The return_last not set on single query in list",
         ),
         pytest.param(
@@ -163,10 +171,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
+            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
-            [SerializableRow(3, 4), SerializableRow(13, 14)],
+            [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set on multiple queries in list",
         ),
         pytest.param(
@@ -174,12 +183,13 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             True,
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
+            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                [SerializableRow(1, 2), SerializableRow(11, 12)],
-                [SerializableRow(3, 4), SerializableRow(13, 14)],
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
             ],
             id="The return_last not set on multiple queries not set",
         ),
@@ -188,6 +198,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             False,
             "select * from test.test",
             ["select * from test.test"],
+            True,
             [["id", "value"]],
             (Row(id=1, value=2),),
             [[("id",), ("value",)]],
@@ -197,11 +208,11 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
     ],
 )
 def test_query(
-    databricks_hook,
     return_last,
     split_statements,
     sql,
     cursor_calls,
+    return_serializable,
     cursor_descriptions,
     cursor_results,
     hook_descriptions,
@@ -238,6 +249,7 @@ def test_query(
             cursors.append(cur)
             connections.append(conn)
         mock_conn.side_effect = connections
+        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_serializable=return_serializable)
         results = databricks_hook.run(
             sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
         )
