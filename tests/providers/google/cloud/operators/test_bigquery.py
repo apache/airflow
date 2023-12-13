@@ -1486,7 +1486,6 @@ class TestBigQueryInsertJobOperator:
         """
         job_id = "123456"
         hash_ = "hash"
-        real_job_id = f"{job_id}_{hash_}"
 
         configuration = {
             "query": {
