@@ -30,7 +30,7 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, MutableMapping, NamedTuple, TypeVar, cast
 
 from packaging.utils import canonicalize_name
 
@@ -850,17 +850,33 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_filesystems(self) -> None:
         """Retrieve all filesystems defined in the providers."""
-        filesystems: list[tuple[str, list[str]]] = []
-        for provider_package, provider in self._provider_dict.items():
-            for fs_entry in provider.data.get("filesystems", []):
-                fs_uri_schemes = fs_entry.get("uri-schemes")
-                if not isinstance(fs_uri_schemes, list):
-                    continue
-                fs_module_name = fs_entry.get("python-module")
-                if not _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
-                    continue
-                filesystems.append((fs_module_name, fs_uri_schemes))
-        self._fs_dict = dict(sorted(filesystems))
+
+        def _iter_filesystems() -> Iterator[tuple[str, list[str]]]:
+            fs_uri_schemes: Any
+            for provider_package, provider in self._provider_dict.items():
+                for fs_entry in provider.data.get("filesystems", ()):
+                    # Compatibility: There's a brief period where "filesystems"
+                    # contains a simple list of strings (Python module paths)
+                    # and all filesystem details are defined in that module. The
+                    # information has been moved into YAML, but we still support
+                    # the old format since it is easy enough.
+                    if isinstance(fs_entry, str):
+                        fs_module_name = fs_entry
+                        fs_uri_schemes = _correctness_check(
+                            provider_package,
+                            f"{fs_module_name}.schemes",
+                            provider,
+                        )
+                    else:
+                        fs_module_name = fs_entry.get("python-module")
+                        fs_uri_schemes = fs_entry.get("uri-schemes")
+                    if not _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
+                        continue
+                    if not isinstance(fs_uri_schemes, list):
+                        continue
+                    yield fs_module_name, fs_uri_schemes
+
+        self._fs_dict = dict(sorted(_iter_filesystems()))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
