@@ -31,9 +31,18 @@ body:
         - "Other Airflow 2 version (please specify below)"
     validations:
       required: true
+  - type: input
+    attributes:
+      label: If "Other Airflow 2 version" selected, which one?
+      # yamllint disable rule:line-length
+      description: >
+        On what 2.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to
+        test with the latest release or on the main branch to verify your issue still exists, especially if
+        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
+      # yamllint enable rule:line-length
   - type: textarea
     attributes:
-      label: What happened
+      label: What happened?
       description: Describe what happened.
       placeholder: >
         Please provide the context in which the problem occurred and explain what happened
@@ -41,7 +50,7 @@ body:
       required: true
   - type: textarea
     attributes:
-      label: What you think should happen instead
+      label: What you think should happen instead?
       description: What do you think went wrong?
       placeholder: >
         Please explain why you think the behaviour is erroneous. It is extremely helpful if you copy&paste
@@ -102,7 +111,7 @@ body:
         software (docker-compose, helm, k8s, etc.), any customisation and configuration you added.
   - type: textarea
     attributes:
-      label: Anything else
+      label: Anything else?
       description: Anything else we need to know?
       placeholder: >
         How often does this problem occur? (Once? Every time? Only when certain conditions are met?)
