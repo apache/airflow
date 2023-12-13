@@ -60,7 +60,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
 
 
 # Serializable Row object similar to the one returned by the Hook
-SerializableRow = namedtuple("Row", ["id", "value"])
+SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
