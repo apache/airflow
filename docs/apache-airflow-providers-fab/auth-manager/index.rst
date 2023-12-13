@@ -18,4 +18,13 @@
 Fab auth manager
 ================
 
-To be written
+Fab auth manager is the auth manager that comes by default with Airflow. This auth manager defines the user authentication and user authorization by default in Airflow.
+The backend used to store all entities used by the Fab auth manager is the Airflow database: :doc:`/database-erd-ref`.
+
+Follow the below topics as well to understand other aspects of Fab auth manager:
+
+.. toctree::
+    :maxdepth: 1
+    :glob:
+
+    *
