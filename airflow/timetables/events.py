@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime as dt
 import itertools
 from typing import TYPE_CHECKING, Iterable
 
@@ -84,14 +83,14 @@ class EventsTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        earliest: dt.datetime | None = restriction.earliest
+        earliest = restriction.earliest
         if not restriction.catchup:
             current_time = timezone.utcnow()
             if earliest is None or current_time > earliest:
-                earliest = current_time
+                earliest = pendulum.instance(current_time)
 
         dates = iter(self.event_dates)
-        next_event = next(dates, None)  # type: ignore
+        next_event = next(dates, None)
         while next_event:
             is_allowed = True
             if earliest and next_event < earliest:
@@ -100,7 +99,7 @@ class EventsTimetable(Timetable):
                 is_allowed = False
             if is_allowed:
                 break
-            next_event = next(dates, None)  # type: ignore
+            next_event = next(dates, None)
         if next_event is None:
             return None
 
