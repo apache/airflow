@@ -310,6 +310,28 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return False
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def table_sequential_partition_exists(
+        self, dataset_id: str, table_id: str, partition_ids: list[str], project_id: str
+    ) -> bool:
+        """Check if the list of sequential partition is exist in Google BigQuery
+        :param project_id: The Google cloud project in which to look for the
+            table. The connection supplied to the hook must provide access to
+            the specified project.
+        :param dataset_id: The name of the dataset in which to look for the
+            table.
+        :param table_id: The name of the table to check the existence of.
+        :param partition_ids: The List of partition ids to check the existence of.
+        """
+        table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
+        try:
+            sequential_check = set(partition_ids).issubset(set(
+                self.get_client(project_id=project_id).list_partitions(table_reference))
+            )
+            return sequential_check
+        except NotFound:
+            return False
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(
         self,
         project_id: str | None = None,

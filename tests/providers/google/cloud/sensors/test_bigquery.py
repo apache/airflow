@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistencePartitionAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
+    BigQueryTableSequentialPartitionExistenceSensor,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -42,6 +43,7 @@ TEST_DATASET_ID = "test_dataset"
 TEST_TABLE_ID = "test_table"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_PARTITION_ID = "20200101"
+TEST_PARTITION_IDS = ["20200101", "20200102"]
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
@@ -268,6 +270,34 @@ class TestBigqueryTablePartitionExistenceSensor:
             task.execute_complete(context={}, event={"status": "success", "message": "test"})
         mock_log_info.assert_called_with(
             'Sensor checks existence of partition: "%s" in table: %s', TEST_PARTITION_ID, table_uri
+        )
+
+class TestBigqueryTableSequentialPartitionExistenceSensor:
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_passing_arguments_to_hook(self, mock_hook):
+        task = BigQueryTableSequentialPartitionExistenceSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_ids=TEST_PARTITION_IDS,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.table_sequential_partition_exists.return_value = True
+        results = task.poke(mock.MagicMock())
+
+        assert results is True
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.table_partition_exists.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_ids=TEST_PARTITION_IDS,
         )
 
 

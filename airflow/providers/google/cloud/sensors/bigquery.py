@@ -269,6 +269,127 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         raise AirflowException(message)
 
 
+class BigQueryTableSequentialPartitionExistenceSensor(BaseSensorOperator):
+    """
+    Checks for the existence of a list of partition id within a table in Google Bigquery.
+
+    :param project_id: The Google cloud project in which to look for the table.
+        The connection supplied to the hook must provide
+        access to the specified project.
+    :param dataset_id: The name of the dataset in which to look for the table.
+        storage bucket.
+    :param table_id: The name of the table to check the existence of.
+    :param partition_ids: The list of the partition id to check the existence of.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "partition_ids",
+        "impersonation_chain",
+    )
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        partition_ids: List[str],
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 5
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.partition_ids = partition_ids
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+        self.deferrable = deferrable
+
+    def poke(self, context: Context) -> bool:
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info(
+            'Sensor checks existence of sequential partitions: "%s" in table: %s',
+            ','.join(self.partition_ids), table_uri
+        )
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        return hook.table_sequential_partition_exists(
+            project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            partition_ids=self.partition_ids,
+        )
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the triggers if deferrable is True."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTablePartitionExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        partition_ids=self.partition_ids,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info(
+            'Sensor checks existence of sequential partitions: "%s" in table: %s',
+            ','.join(self.partition_ids), table_uri
+        )
+        if event:
+            if event["status"] == "success":
+                return event["message"]
+
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
+            raise AirflowException(event["message"])
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+
+
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
     Checks for the existence of a table in Google Big Query.
