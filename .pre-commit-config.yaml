@@ -340,6 +340,13 @@ repos:
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-providers-bug-report-template
+        name: Check airflow-bug-report provider list is sorted/unique
+        language: python
+        files: ^.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        require_serial: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_bug_report_template.py
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
         language: python

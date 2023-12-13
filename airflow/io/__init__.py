@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import (
     TYPE_CHECKING,
     Callable,
+    Mapping,
 )
 
 from fsspec.implementations.local import LocalFileSystem
@@ -49,7 +51,12 @@ _BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFile
 
 
 @cache
-def _register_filesystems() -> dict[str, Callable[[str | None, Properties], AbstractFileSystem]]:
+def _register_filesystems() -> (
+    Mapping[
+        str,
+        Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
+    ]
+):
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManager()
@@ -86,7 +93,13 @@ def get_fs(
         raise ValueError(f"No filesystem registered for scheme {scheme}") from None
 
     options = storage_options or {}
-    return fs(conn_id, options)
+    # MyPy does not recognize dynamic parameters inspection when we call the method, and we have to do
+    # it for compatibility reasons with already released providers, that's why we need to ignore
+    # mypy errors here
+    parameters = inspect.signature(fs).parameters
+    if len(parameters) == 1:
+        return fs(conn_id)  # type: ignore[call-arg]
+    return fs(conn_id, options)  # type: ignore[call-arg]
 
 
 def has_fs(scheme: str) -> bool:
