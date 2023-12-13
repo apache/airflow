@@ -93,11 +93,18 @@ def get_fs(
         raise ValueError(f"No filesystem registered for scheme {scheme}") from None
 
     options = storage_options or {}
+
     # MyPy does not recognize dynamic parameters inspection when we call the method, and we have to do
     # it for compatibility reasons with already released providers, that's why we need to ignore
     # mypy errors here
     parameters = inspect.signature(fs).parameters
     if len(parameters) == 1:
+        if options:
+            raise AttributeError(
+                f"Filesystem {scheme} does not support storage options, but options were passed."
+                f"This most likely means that you are using an old version of the provider that does not "
+                f"support storage options. Please upgrade the provider if possible."
+            )
         return fs(conn_id)  # type: ignore[call-arg]
     return fs(conn_id, options)  # type: ignore[call-arg]
 
