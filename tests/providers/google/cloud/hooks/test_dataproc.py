@@ -197,19 +197,26 @@ class TestDataprocHook:
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_diagnose_cluster(self, mock_client):
-        self.hook.diagnose_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+        self.hook.diagnose_cluster(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            cluster_name=CLUSTER_NAME,
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.diagnose_cluster.assert_called_once_with(
             request=dict(
                 project_id=GCP_PROJECT,
                 region=GCP_LOCATION,
                 cluster_name=CLUSTER_NAME,
+                tarball_gcs_dir=None,
+                jobs=None,
+                yarn_application_ids=None,
+                diagnosis_interval=None,
             ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_get_cluster(self, mock_client):
@@ -646,12 +653,15 @@ class TestDataprocAsyncHook:
                 project_id=GCP_PROJECT,
                 region=GCP_LOCATION,
                 cluster_name=CLUSTER_NAME,
+                tarball_gcs_dir=None,
+                jobs=None,
+                yarn_application_ids=None,
+                diagnosis_interval=None,
             ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
 
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
