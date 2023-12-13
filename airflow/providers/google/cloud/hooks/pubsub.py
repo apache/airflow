@@ -49,6 +49,7 @@ from airflow.version import version
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.pubsub_v1.types import (
         DeadLetterPolicy,
         Duration,
@@ -611,7 +612,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         project_id: str,
         ack_ids: list[str] | None = None,
         messages: list[ReceivedMessage] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
@@ -665,7 +666,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:
