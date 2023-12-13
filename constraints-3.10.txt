@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-13T17:13:17.339808
+# This constraints file was automatically generated on 2023-12-13T18:59:47.429220
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -247,7 +247,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.37
+cohere==4.38
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.0
