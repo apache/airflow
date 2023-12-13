@@ -99,7 +99,7 @@ def get_fs(
     # mypy errors here
     parameters = inspect.signature(fs).parameters
     if len(parameters) == 1:
-        if len(options) > 0:
+        if options:
             raise AttributeError(
                 f"Filesystem {scheme} does not support storage options, but options were passed."
                 f"This most likely means that you are using an old version of the provider that does not "
