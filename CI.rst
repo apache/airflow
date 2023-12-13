@@ -201,7 +201,7 @@ CI run types
 
 The Apache Airflow project utilizes several types of Continuous Integration (CI)
 jobs, each with a distinct purpose and context. These jobs are executed by the
-`ci.yaml` workflow.
+``ci.yaml`` workflow.
 
 In addition to the standard "PR" runs, we also execute "Canary" runs.
 These runs are designed to detect potential issues that could affect
