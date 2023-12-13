@@ -54,8 +54,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
-    :param return_serializable: Return a namedtuple "Row" object instead of a `databricks.sql.Row` object.
-        (default: False). In a future version of this provider, this will become True bu default.
+    :param return_serializable: Return a ``namedtuple`` "Row" object instead of a ``databricks.sql.Row``
+        object. (default: False). In a future version of the provider, this will become True by default.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
