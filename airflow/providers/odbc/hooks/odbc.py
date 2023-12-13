@@ -214,7 +214,7 @@ class OdbcHook(DbApiHook):
 
     @staticmethod
     def _make_serializable(result: list[pyodbc.Row] | pyodbc.Row | None) -> list[NamedTuple] | None:
-        """Transform the pyodbc.Row objects returned from an SQL command into JSON-serializable NamedTuple."""
+        """Transform the pyodbc.Row objects returned from an SQL command into serializable NamedTuple."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
         # instantiated Namedtuple, and will never do: https://github.com/python/mypy/issues/848
         columns: list[tuple[str, type]] | None = None

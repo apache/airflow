@@ -244,7 +244,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     @staticmethod
     def _make_serializable(result):
-        """Transform the databricks Row objects into JSON-serializable namedtuple."""
+        """Transform the databricks Row objects into serializable namedtuple."""
         columns: list[str] | None = None
         if isinstance(result, list):
             columns = result[0].__fields__
