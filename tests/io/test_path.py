@@ -295,12 +295,14 @@ class TestFs:
         _register_filesystems.cache_clear()
         from airflow.io import _BUILTIN_SCHEME_TO_FS as SCHEMES
 
-        SCHEMES["file"] = get_fs_no_storage_options  # type: ignore[call-arg]
+        try:
+            SCHEMES["file"] = get_fs_no_storage_options  # type: ignore[call-arg]
 
-        assert get_fs("file")
+            assert get_fs("file")
 
-        with pytest.raises(AttributeError):
-            get_fs("file", storage_options={"foo": "bar"})
+            with pytest.raises(AttributeError):
+                get_fs("file", storage_options={"foo": "bar"})
 
-        # Reset the cache to avoid side effects
-        _register_filesystems.cache_clear()
+        finally:
+            # Reset the cache to avoid side effects
+            _register_filesystems.cache_clear()
