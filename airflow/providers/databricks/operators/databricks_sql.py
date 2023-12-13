@@ -113,6 +113,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             "catalog": self.catalog,
             "schema": self.schema,
             "caller": "DatabricksSqlOperator",
+            "return_serializable": True,
             **self.client_parameters,
             **self.hook_params,
         }
