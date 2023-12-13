@@ -22,8 +22,9 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 suspended: false
-source-date-epoch: 1700827478
+source-date-epoch: 1701983396
 versions:
+  - 3.5.0
   - 3.4.0
   - 3.3.0
   - 3.2.2
@@ -43,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - dnspython>=1.13.0
   - pymongo>=3.6.0
 

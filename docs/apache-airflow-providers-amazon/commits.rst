@@ -35,14 +35,50 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.13.0
+......
+
+Latest change: 2023-12-07
+
+=================================================================================================  ===========  ============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================
+`7329e9eed9 <https://github.com/apache/airflow/commit/7329e9eed91cc34a03c275dfc9a0fd4c9a0bba6f>`_  2023-12-07   ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`ef5eebdb26 <https://github.com/apache/airflow/commit/ef5eebdb26ca9ddb49c529625660b72b6c9b55b4>`_  2023-12-06   ``Fix AWS system tests (#36091)``
+`acf91af6bf <https://github.com/apache/airflow/commit/acf91af6bff73ae82e9437b2dd8d966657d40377>`_  2023-12-05   ``Update 'boto3' and 'botocore' versions notes (#36073)``
+`04a781666b <https://github.com/apache/airflow/commit/04a781666be2955ed518780ea03bc13a1e3bd473>`_  2023-12-04   ``Fix handling of single quotes in 'RedshiftToS3Operator' (#35986)``
+`e0df7441fa <https://github.com/apache/airflow/commit/e0df7441fa607645d0a379c2066ca4ab16f5cb95>`_  2023-12-04   ``Fix a bug in get_iam_token for Redshift Serverless (#36001)``
+`fd03dc2933 <https://github.com/apache/airflow/commit/fd03dc29336e1331d20de0113993dd5a35353ee0>`_  2023-12-01   ``Fix reraise outside of try block in 'AthenaHook.get_output_location' (#36008)``
+`decc6d9414 <https://github.com/apache/airflow/commit/decc6d94141569268585b044e49be224f5718408>`_  2023-12-01   ``Improve typing hints for only_client_type decorator (#35997)``
+`b1e547ef53 <https://github.com/apache/airflow/commit/b1e547ef5361202d6d35acdf67e6a8042fa8bb62>`_  2023-12-01   ``Refactor some methods in EmrContainerHook (#35999)``
+`9f212d4276 <https://github.com/apache/airflow/commit/9f212d427606b2349b2d8739480dc4dfab31b9b1>`_  2023-12-01   ``Refacto get_output_location in AthenaHook (#35996)``
+`cf052dc64f <https://github.com/apache/airflow/commit/cf052dc64f00e851427a41a34ffe576fd39be51b>`_  2023-12-01   ``Add feature to build "chicken-egg" packages from sources (#35890)``
+`eed6427b66 <https://github.com/apache/airflow/commit/eed6427b66e5af51d7e6ff4afb5f7115b2754cf3>`_  2023-12-01   ``Avoid creating the hook in the EmrServerlessCancelJobsTrigger init (#35992)``
+`8346fd58e8 <https://github.com/apache/airflow/commit/8346fd58e8290ba9c002a31659443601e941228e>`_  2023-12-01   ``Fix a bug with accessing hooks in EKS trigger (#35989)``
+`a9132f3891 <https://github.com/apache/airflow/commit/a9132f389163ec6adcf6187def521e04a25685da>`_  2023-12-01   ``Move RDS hook to a cached property in RDS trigger (#35990)``
+`4a9824de8e <https://github.com/apache/airflow/commit/4a9824de8e063ee78a18583de24cd59718adc7f7>`_  2023-11-30   ``Replace default empty dict value by None in AzureBlobStorageToS3Operator (#35977)``
+`ddb4370dc6 <https://github.com/apache/airflow/commit/ddb4370dc6e3c551b7894c2b4e8188103f8a5715>`_  2023-11-30   ``Update 'set_context' signature to match superclass one and stop setting the instance attribute (#35975)``
+`7e1f67b4b8 <https://github.com/apache/airflow/commit/7e1f67b4b89e50b51d21f38b35a809583eea991e>`_  2023-11-30   ``Fix a bug in method name used in 'GlacierToGCSOperator' (#35978)``
+`df36e7381a <https://github.com/apache/airflow/commit/df36e7381ac50202568b339803fd8b78c6ed205e>`_  2023-11-30   ``Use S3 hook instead of AwsGenericHook in AWS S3 FS (#35973)``
+`985d0589af <https://github.com/apache/airflow/commit/985d0589affe5ad6d6f57a5d85009bdae0d4b637>`_  2023-11-29   ``AWS auth manager: implement all 'is_authorized_*' methods (but 'is_authorized_dag') (#35928)``
+`ab835c20b2 <https://github.com/apache/airflow/commit/ab835c20b2e9bce8311d906d223ecca5e0f85627>`_  2023-11-29   ``Fix EC2Hook get_instance for client_type api (#35960)``
+`9ab343714a <https://github.com/apache/airflow/commit/9ab343714ac80128830e2012b54530f381646329>`_  2023-11-29   ``Remove setting a non-existing object param and use local var instead in S3Hook (#35950)``
+`f6962a929b <https://github.com/apache/airflow/commit/f6962a929b839215613d1b6f99f43511759c1e5b>`_  2023-11-28   ``Support IAM authentication for Redshift serverless (#35897)``
+`3b3ebafdce <https://github.com/apache/airflow/commit/3b3ebafdce440952d2406955de290092ca0e361d>`_  2023-11-27   ``Implement 'is_authorized_variable' in AWS auth manager (#35804)``
+`0f5db49ec4 <https://github.com/apache/airflow/commit/0f5db49ec41b12d68c51f4409aa45edf4aba6a94>`_  2023-11-27   ``Stop getting message from event after migrating 'EmrContainerTrigger' to 'AwsBaseWaiterTrigger' (#35892)``
+`9059f72668 <https://github.com/apache/airflow/commit/9059f72668fb85253b8b4e3e9fb5350d621b639d>`_  2023-11-25   ``Enhance 'attribute_value' in 'DynamoDBValueSensor' to accept list (#35831)``
+=================================================================================================  ===========  ============================================================================================================
+
 8.12.0
 ......
 
-Latest change: 2023-11-23
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `ca1202fd31 <https://github.com/apache/airflow/commit/ca1202fd31f0ea8c25833cf11a5f7aa97c1db87b>`_  2023-11-23   ``Add 'EC2HibernateInstanceOperator' and 'EC2RebootInstanceOperator' (#35790)``
 `ef2ad070c2 <https://github.com/apache/airflow/commit/ef2ad070c2ecbcb4271f8fb4571fed73e7c8c039>`_  2023-11-23   ``Add OpenLineage support to 'S3FileTransformOperator' (#35819)``
 `a794e0d020 <https://github.com/apache/airflow/commit/a794e0d020f70aca4a0d81b953402a92a430635e>`_  2023-11-23   ``Fix Batch operator's retry_strategy (#35808)``

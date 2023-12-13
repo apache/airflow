@@ -21,6 +21,7 @@ from copy import copy
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
 
 from databricks import sql  # type: ignore[attr-defined]
+from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
@@ -242,9 +243,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     @staticmethod
     def _make_serializable(result):
-        """Transform the databricks Row objects into a JSON-serializable list of rows."""
-        if result is not None:
+        """Transform the databricks Row objects into JSON-serializable lists."""
+        if isinstance(result, list):
             return [list(row) for row in result]
+        elif isinstance(result, Row):
+            return list(result)
         return result
 
     def bulk_dump(self, table, tmp_file):

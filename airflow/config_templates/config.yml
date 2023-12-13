@@ -76,7 +76,7 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
+      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -313,17 +313,6 @@ core:
       description: |
         The weighting method used for the effective total priority weight of the task
       version_added: 2.2.0
-      version_deprecated: 2.8.0
-      deprecation_reason: |
-        This option is deprecated and will be removed in Airflow 3.0.
-        Please use ``default_task_priority_weight_strategy`` instead.
-      type: string
-      example: ~
-      default: ~
-    default_task_priority_weight_strategy:
-      description: |
-        The strategy used for the effective total priority weight of the task
-      version_added: 2.8.0
       type: string
       example: ~
       default: "downstream"

@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.4.0
+.....
+
+Latest change: 2023-12-07
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`3f354c0c92 <https://github.com/apache/airflow/commit/3f354c0c92870e4e72ad536abd1c9cf49462b206>`_  2023-12-03   ``Do not catch too broad exception in 'WasbHook.delete_container' (#36034)``
+`8f2cf41538 <https://github.com/apache/airflow/commit/8f2cf41538d7685e0080a3005b7f68e1115c26bc>`_  2023-12-01   ``Fix reraise outside of try block in 'AzureSynapsePipelineRunLink.get_fields_from_url' (#36009)``
+`cf052dc64f <https://github.com/apache/airflow/commit/cf052dc64f00e851427a41a34ffe576fd39be51b>`_  2023-12-01   ``Add feature to build "chicken-egg" packages from sources (#35890)``
+=================================================================================================  ===========  ==================================================================================================
+
 8.3.0
 .....
 
-Latest change: 2023-11-21
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `2a06e278d2 <https://github.com/apache/airflow/commit/2a06e278d290e36e861bd3c40fdc9318e620aa16>`_  2023-11-21   ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
 `d8075cd04c <https://github.com/apache/airflow/commit/d8075cd04c9b1671dcbabe93c30163d0737d8098>`_  2023-11-20   ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``

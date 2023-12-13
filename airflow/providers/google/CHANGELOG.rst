@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+10.13.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``GCP Secrets Backend Impersonation (#36072)``
+* ``Add OpenLineage support to GcsOperators - Delete, Transform and TimeSpanTransform (#35838)``
+* ``Add support for service account impersonation with computeEngineSSHHook (google provider) and IAP tunnel (#35136)``
+* ``Add Datascan Profiling (#35696)``
+* ``Add overrides to template fields of Google Cloud Run Jobs Execute Operator (#36133)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
+* ``Fix CloudRunExecuteJobOperator not able to retrieve the Cloud Run job status in deferrable mode (#36012)``
+* ``Fix gcs listing - ensure blobs are loaded (#34919)``
+* ``allow multiple elements in impersonation chain (#35694)``
+* ``Change retry type for Google Dataflow Client to async one (#36141)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Deprecate 'CloudComposerEnvironmentSensor' in favor of 'CloudComposerCreateEnvironmentOperator' with defer mode (#35775)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``Allow storage options to be passed (#35820)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+   * ``Upgrade to latest pre-commit plugins (#36163)``
+   * ``Review and mark found potential SSH security issues by bandit (#36162)``
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+
 10.12.0
 .......
 

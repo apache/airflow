@@ -61,8 +61,8 @@ class SFTPHook(SSHHook):
     conn_type = "sftp"
     hook_name = "SFTP"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["schema"],
             "relabeling": {

@@ -536,6 +536,7 @@ jobs:
           name: constraints
           path: ./files/constraints-*/constraints-*.txt
           retention-days: 7
+          if-no-files-found: error
 
 
   static-checks:
@@ -762,24 +763,101 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: "Generate source constraints from CI image"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
       - name: "Install and verify all provider packages and airflow via wheel files"
         run: >
-          breeze release-management verify-provider-packages --use-packages-from-dist
-          --package-format wheel --use-airflow-version wheel
+          breeze release-management verify-provider-packages
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
         env:
-          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Install affected provider packages and airflow via wheel files"
         run: >
           breeze release-management install-provider-packages
-          --package-format wheel --use-airflow-version wheel --run-in-parallel
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
-          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
         run: >
           breeze release-management prepare-provider-packages --skip-tag-check
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+
+  prepare-install-provider-packages-sdist:
+    timeout-minutes: 80
+    name: "Provider packages sdist (install)"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.canary-run == 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: sdist"
+        run: >
+          breeze release-management prepare-provider-packages
+          --version-suffix-for-pypi dev0 --package-format sdist
+          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+      - name: "Prepare airflow package: sdist"
+        run: >
+          breeze release-management prepare-airflow-package
+          --version-suffix-for-pypi dev0 --package-format sdist
+      - name: "Verify sdist packages with twine"
+        run: pipx install twine --force && twine check dist/*.tar.gz
+      - name: "Generate source constraints from CI image"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
+      - name: "Install all provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
+        if: needs.build-info.outputs.affected-providers-list-as-string == ''
+      - name: "Install affected provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
+        if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
   providers-compatibility-checks:
     timeout-minutes: 80
@@ -835,61 +913,25 @@ jobs:
           Install and verify all provider packages and airflow on
           Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
         run: >
-          breeze release-management verify-provider-packages --use-packages-from-dist
+          breeze release-management verify-provider-packages
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --providers-skip-constraints
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
       - name: >
           Install affected provider packages and airflow on
           Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
         run: >
-          breeze release-management install-provider-packages --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
-
-  prepare-install-provider-packages-sdist:
-    timeout-minutes: 80
-    name: "Provider packages sdist (install)"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      USE_AIRFLOW_VERSION: "sdist"
-    if: >
-      needs.build-info.outputs.canary-run == 'true' &&
-      needs.build-info.outputs.skip-provider-tests != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: sdist"
-        run: >
-          breeze release-management prepare-provider-packages
-          --version-suffix-for-pypi dev0 --package-format sdist
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Prepare airflow package: sdist"
-        run: >
-          breeze release-management prepare-airflow-package
-          --version-suffix-for-pypi dev0 --package-format sdist
-      - name: "Verify sdist packages with twine"
-        run: pipx install twine --force && twine check dist/*.tar.gz
-      - name: "Install all provider packages and airflow via sdist files"
-        run: >
           breeze release-management install-provider-packages
-          --package-format sdist --use-airflow-version sdist --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow via sdist files"
-        run: >
-          breeze release-management install-provider-packages
-          --package-format sdist --use-airflow-version sdist --run-in-parallel
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --providers-skip-constraints
+          --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
-
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -1589,7 +1631,7 @@ jobs:
   build-prod-images:
     timeout-minutes: 80
     name: >
-      ${{needs.build-info.outputs.build-job-description}} PROD images
+      ${{needs.build-info.outputs.build-job-description}} PROD images (main)
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
@@ -1605,20 +1647,28 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
           chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
@@ -1631,7 +1681,7 @@ jobs:
   build-prod-images-bullseye:
     timeout-minutes: 80
     name: >
-      Build Bullseye PROD images
+      Build Bullseye PROD images (main)
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
@@ -1648,17 +1698,135 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: >
           Build Bullseye PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          DEBIAN_VERSION: "bullseye"
+          # Do not override the "bookworm" image - just push a new bullseye image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
+
+  build-prod-images-release-branch:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.build-job-description}} PROD images (v2_*_test)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, generate-constraints]
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: >
+          Build PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+
+  build-prod-images-bullseye-release-branch:
+    timeout-minutes: 80
+    name: >
+      Build Bullseye PROD images (v2_*_test)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, generate-constraints]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: >
+          Build Bullseye PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
           chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
@@ -1676,7 +1844,7 @@ jobs:
     timeout-minutes: 80
     name: "Wait for PROD images"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images, build-prod-images]
+    needs: [build-info, wait-for-ci-images, build-prod-images, build-prod-images-release-branch]
     if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1698,7 +1866,7 @@ jobs:
         if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-images above.
+        # or from build-prod-images (or build-prod-images-release-branch) above.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available.
         run: breeze prod-image pull --wait-for-image --run-in-parallel
@@ -1852,7 +2020,7 @@ jobs:
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: true
           fetch-depth: 0
-      - name: "Download constraints from the constraints preview"
+      - name: "Download constraints from the constraints generated by build CI image"
         uses: actions/download-artifact@v3
         with:
           name: constraints

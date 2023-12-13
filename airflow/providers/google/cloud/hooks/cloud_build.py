@@ -33,6 +33,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 # Time to sleep between active checks of the operation results
@@ -645,7 +646,7 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         location: str = "global",

@@ -24,9 +24,10 @@ description: |
     `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 suspended: false
-source-date-epoch: 1700827481
+source-date-epoch: 1701983400
 
 versions:
+  - 1.1.0
   - 1.0.1
   - 1.0.0
 
@@ -38,8 +39,8 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
-  - openai[datalib]>=0.28.1,<1.0
+  - apache-airflow>=2.6.0
+  - openai[datalib]>=1.0
 
 hooks:
   - integration-name: OpenAI
