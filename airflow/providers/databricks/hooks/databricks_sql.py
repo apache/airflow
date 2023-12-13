@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import namedtuple
 from contextlib import closing
 from copy import copy
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
@@ -243,11 +244,15 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     @staticmethod
     def _make_serializable(result):
-        """Transform the databricks Row objects into JSON-serializable lists."""
+        """Transform the databricks Row objects into JSON-serializable namedtuple."""
+        columns: list[str] | None = None
         if isinstance(result, list):
-            return [list(row) for row in result]
+            columns = result[0].__fields__
+            row_object = namedtuple("Row", columns)
+            return [row_object(*row) for row in result]
         elif isinstance(result, Row):
-            return list(result)
+            columns = result.__fields__
+            return namedtuple("Row", columns)(*result)
         return result
 
     def bulk_dump(self, table, tmp_file):

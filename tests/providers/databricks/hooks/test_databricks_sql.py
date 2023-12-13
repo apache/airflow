@@ -18,6 +18,7 @@
 #
 from __future__ import annotations
 
+from collections import namedtuple
 from unittest import mock
 from unittest.mock import patch
 
@@ -58,6 +59,10 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
 
 
+# Serializable Row object similar to the one returned by the Hook
+SerializableRow = namedtuple("Row", ["id", "value"])
+
+
 @pytest.mark.parametrize(
     "return_last, split_statements, sql, cursor_calls,"
     "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
@@ -70,7 +75,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[1, 2], [11, 12]],
+            [SerializableRow(1, 2), SerializableRow(11, 12)],
             id="The return_last set and no split statements set on single query in string",
         ),
         pytest.param(
@@ -81,7 +86,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[1, 2], [11, 12]],
+            [SerializableRow(1, 2), SerializableRow(11, 12)],
             id="The return_last not set and no split statements set on single query in string",
         ),
         pytest.param(
@@ -92,7 +97,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[1, 2], [11, 12]],
+            [SerializableRow(1, 2), SerializableRow(11, 12)],
             id="The return_last set and split statements set on single query in string",
         ),
         pytest.param(
@@ -103,7 +108,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[[1, 2], [11, 12]]],
+            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
             id="The return_last not set and split statements set on single query in string",
         ),
         pytest.param(
@@ -114,7 +119,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
-            [[3, 4], [13, 14]],
+            [SerializableRow(3, 4), SerializableRow(13, 14)],
             id="The return_last set and split statements set on multiple queries in string",
         ),
         pytest.param(
@@ -125,7 +130,10 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
-            [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
+            [
+                [SerializableRow(1, 2), SerializableRow(11, 12)],
+                [SerializableRow(3, 4), SerializableRow(13, 14)],
+            ],
             id="The return_last not set and split statements set on multiple queries in string",
         ),
         pytest.param(
@@ -136,7 +144,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[[1, 2], [11, 12]]],
+            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
             id="The return_last set on single query in list",
         ),
         pytest.param(
@@ -147,7 +155,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
-            [[[1, 2], [11, 12]]],
+            [[SerializableRow(1, 2), SerializableRow(11, 12)]],
             id="The return_last not set on single query in list",
         ),
         pytest.param(
@@ -158,7 +166,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
-            [[3, 4], [13, 14]],
+            [SerializableRow(3, 4), SerializableRow(13, 14)],
             id="The return_last set on multiple queries in list",
         ),
         pytest.param(
@@ -169,7 +177,10 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
-            [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
+            [
+                [SerializableRow(1, 2), SerializableRow(11, 12)],
+                [SerializableRow(3, 4), SerializableRow(13, 14)],
+            ],
             id="The return_last not set on multiple queries not set",
         ),
         pytest.param(
@@ -180,7 +191,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [["id", "value"]],
             (Row(id=1, value=2),),
             [[("id",), ("value",)]],
-            [1, 2],
+            SerializableRow(1, 2),
             id="The return_last set and no split statements set on single query in string",
         ),
     ],
