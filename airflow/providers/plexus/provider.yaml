@@ -21,9 +21,11 @@ name: Plexus
 description: |
     `Plexus <https://plexus.corescientific.com/>`__
 
-suspended: false
-source-date-epoch: 1700827488
+removed: true
+suspended: true
+source-date-epoch: 1701983408
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1

@@ -40,7 +40,6 @@ body:
         - apache-pig
         - apache-pinot
         - apache-spark
-        - apache-sqoop
         - apprise
         - arangodb
         - asana
@@ -88,7 +87,6 @@ body:
         - papermill
         - pgvector
         - pinecone
-        - plexus
         - postgres
         - presto
         - redis

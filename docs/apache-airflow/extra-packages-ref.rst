@@ -144,8 +144,6 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.spark        | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.sqoop        | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks            |
-+---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.webhdfs      | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 
@@ -203,8 +201,6 @@ These are extras that add dependencies needed for integration with external serv
 | pgvector            | ``pip install 'apache-airflow[pgvector]'``          | pgvector operators and hook                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pinecone            | ``pip install 'apache-airflow[pinecone]'``          | Pinecone Operators and Hooks                        |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | salesforce          | ``pip install 'apache-airflow[salesforce]'``        | Salesforce hook                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
