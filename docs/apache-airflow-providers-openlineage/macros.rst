@@ -29,7 +29,7 @@ Lineage run id
         PythonOperator(
             task_id="render_template",
             python_callable=my_task_function,
-            op_args=["{{ lineage_run_id(task, task_instance) }}"],  # lineage_run_id macro invoked
+            op_args=["{{ macros.OpenLineageProviderPlugin.lineage_run_id(task, task_instance) }}"],  # lineage_run_id macro invoked
             provide_context=False,
             dag=dag,
         )
@@ -41,7 +41,7 @@ Lineage parent id
         PythonOperator(
             task_id="render_template",
             python_callable=my_task_function,
-            op_args=["{{ lineage_parent_id(run_id, task_instance) }}"],  # macro invoked
+            op_args=["{{ macros.OpenLineageProviderPlugin.lineage_parent_id(run_id, task_instance) }}"],  # macro invoked
             provide_context=False,
             dag=dag,
         )
