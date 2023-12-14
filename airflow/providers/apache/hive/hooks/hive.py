@@ -80,7 +80,7 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
-    :param proxy_user: Proxy user for connecting.
+    :param proxy_user: Run HQL code as this user.
     """
 
     conn_name_attr = "hive_cli_conn_id"

@@ -62,6 +62,7 @@ class HiveOperator(BaseOperator):
         This can make monitoring easier.
     :param hive_cli_params: parameters passed to hive CLO
     :param auth: optional authentication option passed for the Hive connection
+    :param proxy_user: Run HQL code as this user.
     """
 
     template_fields: Sequence[str] = (
