@@ -131,9 +131,19 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        update_perms=conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ),
+        auth_rate_limited=conf.getboolean(
+            "fab",
+            "AUTH_RATE_LIMITED",
+            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        ),
+        auth_rate_limit=conf.get(
+            "fab",
+            "AUTH_RATE_LIMIT",
+            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        ),
     ):
         """
         App-builder constructor.
@@ -659,7 +669,4 @@ def init_appbuilder(app: Flask) -> AirflowAppBuilder:
         app=app,
         session=settings.Session,
         base_template="airflow/main.html",
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
     )

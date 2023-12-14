@@ -602,7 +602,7 @@ def frozen_sleep(monkeypatch):
 def app():
     from tests.test_utils.config import conf_vars
 
-    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+    with conf_vars({("fab", "auth_rate_limited"): "False"}):
         from airflow.www import app
 
         yield app.create_app(testing=True)
