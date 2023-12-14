@@ -54,8 +54,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
-    :param return_serializable: Return a ``namedtuple`` "Row" object instead of a ``databricks.sql.Row``
-        object. (default: False). In a future version of the provider, this will become True by default.
+    :param return_serializable: Return a serializable``namedtuple`` object instead of a ``databricks.sql.Row``
+        object. Default to False. In a future release of the provider, this will become True by default.
+        This parameter ensures backward-compatibility during the transition phase, and will be removed too
+        in a future release.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -90,9 +92,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         if not self.return_serializable:
             warnings.warn(
-                """Returning a raw `databricks.sql.Row` object is deprecated, and will be removed in a future
-                release of the databricks provider. Use `return_serializable=True` instead to receive a
-                serializable "Row" namedtuple.""",
+                """Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
+                returned instead in a future release of the databricks provider. Set
+                `return_serializable=True` to enable this behavior.""",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
