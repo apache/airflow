@@ -111,18 +111,6 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
-@pytest.mark.parametrize(
-    "decorator_name, is_authorized_method_name, items",
-    [
-        (
-            "has_access_connection",
-            "batch_is_authorized_connection",
-            [Connection("conn_1"), Connection("conn_2")],
-        ),
-        ("has_access_pool", "batch_is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
-        ("has_access_variable", "batch_is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
-    ],
-)
 class TestHasAccessWithDetails:
     def setup_method(self):
         mock_call.reset_mock()
@@ -132,9 +120,42 @@ class TestHasAccessWithDetails:
         return True
 
     @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_with_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items
-    ):
+    def test_has_access_to_connection_with_details_when_authorized(self, mock_get_auth_manager):
+        decorator_name = "has_access_connection"
+        is_authorized_method_name = "batch_is_authorized_connection"
+        items = [Connection("conn_1"), Connection("conn_2")]
+        auth_manager = Mock()
+        is_authorized_method = Mock()
+        is_authorized_method.return_value = True
+        setattr(auth_manager, is_authorized_method_name, is_authorized_method)
+        mock_get_auth_manager.return_value = auth_manager
+
+        result = getattr(auth, decorator_name)("GET")(self.method_test)(None, items)
+
+        mock_call.assert_called_once()
+        assert result is True
+
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_to_pool_with_details_when_authorized(self, mock_get_auth_manager):
+        decorator_name = "has_access_pool"
+        is_authorized_method_name = "batch_is_authorized_pool"
+        items = [Pool(pool="pool_1"), Pool(pool="pool_2")]
+        auth_manager = Mock()
+        is_authorized_method = Mock()
+        is_authorized_method.return_value = True
+        setattr(auth_manager, is_authorized_method_name, is_authorized_method)
+        mock_get_auth_manager.return_value = auth_manager
+
+        result = getattr(auth, decorator_name)("GET")(self.method_test)(None, items)
+
+        mock_call.assert_called_once()
+        assert result is True
+
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_to_vairable_with_details_when_authorized(self, mock_get_auth_manager):
+        decorator_name = "has_access_variable"
+        is_authorized_method_name = "batch_is_authorized_variable"
+        items = [Variable("var_1"), Variable("var_2")]
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = True
@@ -148,9 +169,46 @@ class TestHasAccessWithDetails:
 
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_with_details_when_unauthorized(
-        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items
-    ):
+    def test_has_access_to_connection_with_details_when_unauthorized(self, mock_get_auth_manager, app):
+        decorator_name = "has_access_connection"
+        is_authorized_method_name = "batch_is_authorized_connection"
+        items = [Connection("conn_1"), Connection("conn_2")]
+        auth_manager = Mock()
+        is_authorized_method = Mock()
+        is_authorized_method.return_value = False
+        setattr(auth_manager, is_authorized_method_name, is_authorized_method)
+        mock_get_auth_manager.return_value = auth_manager
+
+        with app.test_request_context():
+            result = getattr(auth, decorator_name)("GET")(self.method_test)(None, items)
+
+        mock_call.assert_not_called()
+        assert result.status_code == 302
+
+    @pytest.mark.db_test
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_to_pool_with_details_when_unauthorized(self, mock_get_auth_manager, app):
+        decorator_name = "has_access_pool"
+        is_authorized_method_name = "batch_is_authorized_pool"
+        items = [Pool(pool="pool_1"), Pool(pool="pool_2")]
+        auth_manager = Mock()
+        is_authorized_method = Mock()
+        is_authorized_method.return_value = False
+        setattr(auth_manager, is_authorized_method_name, is_authorized_method)
+        mock_get_auth_manager.return_value = auth_manager
+
+        with app.test_request_context():
+            result = getattr(auth, decorator_name)("GET")(self.method_test)(None, items)
+
+        mock_call.assert_not_called()
+        assert result.status_code == 302
+
+    @pytest.mark.db_test
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_to_variable_with_details_when_unauthorized(self, mock_get_auth_manager, app):
+        decorator_name = "has_access_variable"
+        is_authorized_method_name = "batch_is_authorized_variable"
+        items = [Variable("var_1"), Variable("var_2")]
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = False
