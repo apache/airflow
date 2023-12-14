@@ -30,8 +30,26 @@ Changelog
 1.1.1
 .....
 
-* Mark daskexecutor provider as removed according to `consensus on the dev@airflow.apache.org <https://lists.apache.org/thread/fxv44cqqljrrhll3fdpdgc9h9fz5ghcy>`_
+.. note::
+  Mark daskexecutor provider as removed according to `consensus on the dev@airflow.apache.org <https://lists.apache.org/thread/fxv44cqqljrrhll3fdpdgc9h9fz5ghcy>`_
 
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Mark daskexecutor provider as removed (#35965)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 
 1.1.0
 .....

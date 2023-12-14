@@ -235,7 +235,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
-   For managed Postgres such as Redshift, Azure Postgresql, CloudSQL, Amazon RDS, you should use
+   For managed Postgres such as Azure Postgresql, CloudSQL, Amazon RDS, you should use
    ``keepalives_idle`` in the connection parameters and set it to less than the idle time because those
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.

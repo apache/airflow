@@ -709,18 +709,18 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
 apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
-apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
-apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
+apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.webhdfs, apprise,
+arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
 deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
 druid, elasticsearch, exasol, fab, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
 google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
 ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
 mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty,
-pandas, papermill, password, pgvector, pinecone, pinot, plexus, postgres, presto, rabbitmq, redis,
-s3, s3fs, salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp,
-snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
-weaviate, webhdfs, winrm, yandex, zendesk
+pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs,
+salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
+spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, weaviate,
+webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages

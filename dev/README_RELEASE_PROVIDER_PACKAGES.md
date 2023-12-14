@@ -161,8 +161,15 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze release-management prepare-provider-documentation  --include-removed-providers [packages]
+breeze release-management prepare-provider-documentation  --include-removed-providers
 ```
+
+In case you prepare provider documentation for just a few selected providers, you can run:
+
+```shell script
+breeze release-management prepare-provider-documentation [packages]
+```
+
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
@@ -183,7 +190,13 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation  --include-removed-providers --answer yes [packages]
+breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+```
+
+In case you prepare provider documentation for just a few selected providers, you can run:
+
+```shell script
+breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
 NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
@@ -320,7 +333,7 @@ breeze release-management prepare-provider-packages  --include-removed-providers
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --include-removed-providers \
+breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
@@ -403,7 +416,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build apache-airflow-providers all-providers
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -442,8 +455,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs apache-airflow-providers --include-removed-providers \
-    --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers all-providers --include-removed-providers \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -460,7 +472,7 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs  --include-removed-providers amazon apache.beam google ....
+breeze release-management publish-docs amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
 
@@ -660,8 +672,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-packages --include-removed-providers \
---package-format both --include-removed-providers
+breeze release-management prepare-provider-packages --include-removed-providers --package-format both
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
