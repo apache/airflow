@@ -405,48 +405,26 @@ class PodManager(LoggingMixin):
             Returns the last timestamp observed in logs.
             """
             last_captured_timestamp = None
+            since_seconds = None
+            if since_time:
+                since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=(
-                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
-                    ),
+                    since_seconds=since_seconds,
                     follow=follow,
                     post_termination_timeout=post_termination_timeout,
                 )
-                message_to_log = None
-                message_timestamp = None
-                progress_callback_lines = []
-                try:
-                    for raw_line in logs:
-                        line = raw_line.decode("utf-8", errors="backslashreplace")
-                        line_timestamp, message = self.parse_log_line(line)
-                        if line_timestamp:  # detect new log line
-                            if message_to_log is None:  # first line in the log
-                                message_to_log = message
-                                message_timestamp = line_timestamp
-                                progress_callback_lines.append(line)
-                            else:  # previous log line is complete
-                                if self._progress_callback:
-                                    for line in progress_callback_lines:
-                                        self._progress_callback(line)
-                                self.log.info("[%s] %s", container_name, message_to_log)
-                                last_captured_timestamp = message_timestamp
-                                message_to_log = message
-                                message_timestamp = line_timestamp
-                                progress_callback_lines = [line]
-                        else:  # continuation of the previous log line
-                            message_to_log = f"{message_to_log}\n{message}"
-                            progress_callback_lines.append(line)
-                finally:
-                    # log the last line and update the last_captured_timestamp
+                for raw_line in logs:
+                    line = raw_line.decode("utf-8", errors="backslashreplace")
                     if self._progress_callback:
-                        for line in progress_callback_lines:
-                            self._progress_callback(line)
-                    self.log.info("[%s] %s", container_name, message_to_log)
-                    last_captured_timestamp = message_timestamp
+                        self._progress_callback(line)
+                    line_timestamp, message = self.parse_log_line(line)
+                    if line_timestamp is not None:
+                        last_captured_timestamp = line_timestamp
+                    self.log.info("[%s] %s", container_name, message)
             except BaseHTTPError:
                 self.log.exception(
                     "Reading of logs interrupted for container %r; will retry.",
@@ -581,14 +559,14 @@ class PodManager(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        timestamp, sep, message = line.strip().partition(" ")
+        timestamp_str, sep, message = line.strip().partition(" ")
         if not sep:
             return None, line
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            timestamp = cast(DateTime, pendulum.parse(timestamp_str))
         except ParserError:
             return None, line
-        return last_log_time, message
+        return timestamp, message
 
     def container_is_running(self, pod: V1Pod, container_name: str) -> bool:
         """Read pod and checks if container is running."""
