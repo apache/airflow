@@ -96,6 +96,7 @@ class HiveCliHook(BaseHook):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
@@ -105,7 +106,6 @@ class HiveCliHook(BaseHook):
         self.conn = conn
         self.run_as = run_as
         self.sub_process: Any = None
-
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
@@ -116,6 +116,7 @@ class HiveCliHook(BaseHook):
         self.mapred_queue = mapred_queue or conf.get("hive", "default_hive_mapred_queue")
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.proxy_user = proxy_user
 
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
@@ -126,6 +127,8 @@ class HiveCliHook(BaseHook):
             return f"hive.server2.proxy.user={conn.login}"
         if proxy_user_value == "owner" and self.run_as:
             return f"hive.server2.proxy.user={self.run_as}"
+        if proxy_user_value == "param" and self.proxy_user:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         if proxy_user_value != "":  # There is a custom proxy user
             return f"hive.server2.proxy.user={proxy_user_value}"
         return proxy_user_value  # The default proxy user (undefined)
