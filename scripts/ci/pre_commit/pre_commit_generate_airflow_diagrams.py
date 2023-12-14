@@ -38,6 +38,7 @@ PYTHON_MULTIPROCESS_LOGO = AIRFLOW_SOURCES_ROOT / "images" / "diagrams" / "pytho
 BASIC_ARCHITECTURE_IMAGE_NAME = "diagram_basic_airflow_architecture"
 DAG_PROCESSOR_AIRFLOW_ARCHITECTURE_IMAGE_NAME = "diagram_dag_processor_airflow_architecture"
 AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME = "diagram_auth_manager_airflow_architecture"
+FAB_AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME = "diagram_fab_auth_manager_airflow_architecture"
 DIAGRAM_HASH_FILE_NAME = "diagram_hash.txt"
 
 
@@ -157,11 +158,56 @@ def generate_auth_manager_airflow_diagram():
 
         (
             webserver
-            >> Edge(color="black", style="solid", reverse=True, label="2. Is user authorized?")
+            >> Edge(color="black", style="solid", reverse=True, label="Is user authorized?")
             >> auth_manager
         )
 
-        auth_manager >> Edge(color="black", style="dotted", reverse=False) >> auth_manager_interface
+        (
+            auth_manager
+            >> Edge(color="black", style="dotted", reverse=False, label="Inherit")
+            >> auth_manager_interface
+        )
+
+    console.print(f"[green]Generating architecture image {auth_manager_architecture_image_file}")
+
+
+def generate_fab_auth_manager_airflow_diagram():
+    auth_manager_architecture_image_file = (
+        DOCS_IMAGES_DIR / FAB_AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME
+    ).with_suffix(".png")
+    console.print(f"[bright_blue]Generating architecture image {auth_manager_architecture_image_file}")
+    with Diagram(
+        name="",
+        show=False,
+        direction="LR",
+        curvestyle="ortho",
+        filename=FAB_AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME,
+    ):
+        user = User("User")
+        with Cluster("Airflow environment"):
+            webserver = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+
+            with Cluster("FAB provider"):
+                fab_auth_manager = Custom("FAB auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            with Cluster("Core Airflow"):
+                auth_manager_interface = Custom(
+                    "Auth manager\ninterface", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
+
+            db = PostgreSQL("Metadata DB")
+
+        user >> Edge(color="black", style="solid", reverse=True, label="Access to the console") >> webserver
+        (
+            webserver
+            >> Edge(color="black", style="solid", reverse=True, label="Is user authorized?")
+            >> fab_auth_manager
+        )
+        (fab_auth_manager >> Edge(color="black", style="solid", reverse=True) >> db)
+        (
+            fab_auth_manager
+            >> Edge(color="black", style="dotted", reverse=False, label="Inherit")
+            >> auth_manager_interface
+        )
 
     console.print(f"[green]Generating architecture image {auth_manager_architecture_image_file}")
 
@@ -176,6 +222,7 @@ def main():
         generate_basic_airflow_diagram()
         generate_dag_processor_airflow_diagram()
         generate_auth_manager_airflow_diagram()
+        generate_fab_auth_manager_airflow_diagram()
         hash_file.write_text(str(my_file_hash) + "\n")
     else:
         console.print("[bright_blue]No changes to generation script. Not regenerating the images.")
