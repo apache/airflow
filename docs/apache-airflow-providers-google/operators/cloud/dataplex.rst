@@ -321,3 +321,99 @@ To delete a asset you can use:
     :dedent: 4
     :start-after: [START howto_dataplex_delete_asset_operator]
     :end-before: [END howto_dataplex_delete_asset_operator]
+
+Create or update a Data Profile scan
+------------------------------------
+
+Before you create a Dataplex Data Profile scan you need to define its body.
+For more information about the available fields to pass when creating a Data Profile scan, visit `Dataplex create data profile API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
+
+A simple Data Profile scan configuration can look as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_data_profile_configuration]
+    :end-before: [END howto_dataplex_data_profile_configuration]
+
+With this configuration we can create or update the Data Profile scan:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataProfileScanOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_create_data_profile_operator]
+    :end-before: [END howto_dataplex_create_data_profile_operator]
+
+Get a Data Profile scan
+-----------------------
+
+To get a Data Profile scan you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_get_data_profile_operator]
+    :end-before: [END howto_dataplex_get_data_profile_operator]
+
+
+
+Delete a Data Profile scan
+--------------------------
+
+To delete a Data Profile scan you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataProfileScanOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_delete_data_profile_operator]
+    :end-before: [END howto_dataplex_delete_data_profile_operator]
+
+Run a Data Profile scan
+-----------------------
+
+You can run Dataplex Data Profile scan in asynchronous modes to later check its status using sensor:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataProfileScanOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_run_data_profile_operator]
+    :end-before: [END howto_dataplex_run_data_profile_operator]
+
+To check that running Dataplex Data Profile scan succeeded you can use:
+
+:class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexDataProfileJobStatusSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_data_scan_job_state_sensor]
+    :end-before: [END howto_dataplex_data_scan_job_state_sensor]
+
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_run_data_profile_def_operator]
+    :end-before: [END howto_dataplex_run_data_profile_def_operator]
+
+Get a Data Profile scan job
+---------------------------
+
+To get a Data Profile scan job you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanResultOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_get_data_profile_job_operator]
+    :end-before: [END howto_dataplex_get_data_profile_job_operator]

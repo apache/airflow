@@ -24,6 +24,7 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -81,9 +82,13 @@ ALLOWED_EXECUTORS = [
     "CeleryKubernetesExecutor",
     "SequentialExecutor",
 ]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
@@ -194,7 +199,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine
     # Some additional conversion for various platforms...
-    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
 
 
@@ -423,7 +428,6 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
-    "daskexecutor",
     "docker",
     "elasticsearch",
     "ftp",
@@ -448,6 +452,36 @@ DEFAULT_EXTRAS = [
     "statsd",
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]
+
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "common.io",
+        "fab",
+    ]
+)
+
+
+def _exclusion(providers: Iterable[str]) -> str:
+    return " ".join([f"apache_airflow_providers_{provider.replace('.', '_')}*" for provider in providers])
+
+
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab"]),
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "fab"]),
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.7.1",
+        "remove-providers": _exclusion(["common.io", "fab"]),
+    },
 ]
 
 

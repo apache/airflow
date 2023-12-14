@@ -288,7 +288,7 @@ class KubernetesPodOperator(BaseOperator):
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
         volumes: list[k8s.V1Volume] | None = None,
-        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,

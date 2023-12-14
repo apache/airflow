@@ -33,8 +33,6 @@ from typing import Mapping, Union
 
 from rich.markup import escape
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import (
@@ -367,11 +365,6 @@ def commit_sha():
         return "COMMIT_SHA_NOT_FOUND"
 
 
-def filter_out_none(**kwargs) -> dict:
-    """Filters out all None values from parameters passed."""
-    return {key: val for key, val in kwargs.items() if val is not None}
-
-
 def check_if_image_exists(image: str) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],
@@ -380,28 +373,6 @@ def check_if_image_exists(image: str) -> bool:
         check=False,
     )
     return cmd_result.returncode == 0
-
-
-def get_ci_image_for_pre_commits() -> str:
-    github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    python_version = "3.8"
-    airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
-    skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
-    if skip_image_pre_commits[0].lower() == "t":
-        get_console().print(
-            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
-        )
-        sys.exit(0)
-    if not check_if_image_exists(
-        image=airflow_image,
-    ):
-        get_console().print(f"[red]The image {airflow_image} is not available.[/]\n")
-        get_console().print(
-            f"\n[yellow]Please run this to fix it:[/]\n\n"
-            f"breeze ci-image build --python {python_version}\n\n"
-        )
-        sys.exit(1)
-    return airflow_image
 
 
 def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunCommandResult:

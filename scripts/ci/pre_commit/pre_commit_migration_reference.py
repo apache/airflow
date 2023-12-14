@@ -17,50 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit, run_command_via_breeze_shell
+
+initialize_breeze_precommit(__name__, __file__)
+
+cmd_result = run_command_via_breeze_shell(
+    ["python3", "/opt/airflow/scripts/in_container/run_migration_reference.py"],
+    backend="sqlite",
+)
+if cmd_result.returncode != 0:
+    console.print(
+        "[warning]\nIf you see strange stacktraces above, "
+        "run `breeze ci-image build --python 3.8` and try again."
     )
-
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
-os.environ["SKIP_GROUP_OUTPUT"] = "true"
-
-if __name__ == "__main__":
-    sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_SELECTED
-    from airflow_breeze.params.shell_params import ShellParams
-    from airflow_breeze.utils.console import get_console
-    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
-
-    shell_params = ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, db_reset=True, backend="none")
-    airflow_image = get_ci_image_for_pre_commits()
-    cmd_result = run_command(
-        [
-            "docker",
-            "run",
-            "-t",
-            *get_extra_docker_flags(mount_sources=MOUNT_SELECTED),
-            "-e",
-            "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "--pull",
-            "never",
-            airflow_image,
-            "-c",
-            "python3 /opt/airflow/scripts/in_container/run_migration_reference.py",
-        ],
-        check=False,
-        env=shell_params.env_variables_for_docker_commands,
-    )
-    if cmd_result.returncode != 0:
-        get_console().print(
-            "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.8` and try again."
-        )
-    sys.exit(cmd_result.returncode)
+sys.exit(cmd_result.returncode)

@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
-    DASK_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
@@ -64,7 +63,6 @@ class ExecutorLoader:
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
         CELERY_KUBERNETES_EXECUTOR: "airflow.providers.celery."
         "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
-        DASK_EXECUTOR: "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
@@ -218,5 +216,4 @@ class ExecutorLoader:
 UNPICKLEABLE_EXECUTORS = (
     LOCAL_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
-    DASK_EXECUTOR,
 )

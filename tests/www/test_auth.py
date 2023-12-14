@@ -45,7 +45,6 @@ class TestHasAccessDecorator:
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",
     [
-        ("has_access_cluster_activity", "is_authorized_cluster_activity"),
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_dataset", "is_authorized_dataset"),
         ("has_access_view", "is_authorized_view"),
@@ -257,7 +256,7 @@ class TestHasAccessDagDecorator:
                 permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
             ) as user:
                 with patch(
-                    "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager.get_user"
+                    "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.get_user"
                 ) as mock_get_user:
                     mock_get_user.return_value = user
 

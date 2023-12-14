@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import json
 import os
 import warnings
 from collections import defaultdict
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+    from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -96,37 +96,6 @@ class TISchedulingDecision(NamedTuple):
     changed_tis: bool
     unfinished_tis: list[TI]
     finished_tis: list[TI]
-
-
-class ConfDict(dict):
-    """Custom dictionary for storing only JSON serializable values."""
-
-    def __init__(self, val=None):
-        super().__init__(self.is_jsonable(val))
-
-    def __setitem__(self, key, value):
-        self.is_jsonable({key: value})
-        super().__setitem__(key, value)
-
-    @staticmethod
-    def is_jsonable(conf: dict) -> dict | None:
-        """Prevent setting non-json attributes."""
-        try:
-            json.dumps(conf)
-        except TypeError:
-            raise AirflowException("Cannot assign non JSON Serializable value")
-        if isinstance(conf, dict):
-            return conf
-        else:
-            raise AirflowException(f"Object of type {type(conf)} must be a dict")
-
-    @staticmethod
-    def dump_check(conf: str) -> str:
-        val = json.loads(conf)
-        if isinstance(val, dict):
-            return conf
-        else:
-            raise TypeError(f"Object of type {type(val)} must be a dict")
 
 
 def _creator_note(val):
@@ -159,7 +128,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
-    _conf = Column("conf", PickleType)
+    conf = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -261,12 +230,7 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-
-        if isinstance(conf, str):
-            self._conf = ConfDict.dump_check(conf)
-        else:
-            self._conf = ConfDict(conf or {})
-
+        self.conf = conf or {}
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
@@ -295,16 +259,6 @@ class DagRun(Base, LoggingMixin):
                 f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
             )
         return run_id
-
-    def get_conf(self):
-        return self._conf
-
-    def set_conf(self, value):
-        self._conf = ConfDict(value)
-
-    @declared_attr
-    def conf(self):
-        return synonym("_conf", descriptor=property(self.get_conf, self.set_conf))
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -1116,7 +1070,7 @@ class DagRun(Base, LoggingMixin):
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
-                or task.start_date <= self.execution_date
+                or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
 
@@ -1507,14 +1461,23 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
-        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate | LogTemplatePydantic:
+        return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _get_log_template(
+        log_template_id: int | None, session: Session = NEW_SESSION
+    ) -> LogTemplate | LogTemplatePydantic:
+        template: LogTemplate | None
+        if log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
         else:
-            template = session.get(LogTemplate, self.log_template_id)
+            template = session.get(LogTemplate, log_template_id)
         if template is None:
             raise AirflowException(
-                f"No log_template entry found for ID {self.log_template_id!r}. "
+                f"No log_template entry found for ID {log_template_id!r}. "
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template

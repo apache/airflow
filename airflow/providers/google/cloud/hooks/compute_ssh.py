@@ -96,8 +96,8 @@ class ComputeEngineSSHHook(SSHHook):
     conn_type = "gcpssh"
     hook_name = "Google Cloud SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -295,7 +295,7 @@ class ComputeEngineSSHHook(SSHHook):
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
                 # Default is RejectPolicy
                 # No known host checking since we are not storing privatekey
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
                 client.connect(
                     hostname=hostname,
                     username=user,

@@ -313,7 +313,7 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
 
 @run_check("Checking completeness of list of {sensors, hooks, operators, triggers}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
-    yaml_files: dict[str, dict]
+    yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_modules = 0
@@ -354,7 +354,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
 
 @run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
-    yaml_files: dict[str, dict]
+    yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0

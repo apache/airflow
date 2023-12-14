@@ -37,8 +37,8 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
     BREEZE_SOURCES_ROOT,
-    DIST_DIR,
     DOCS_ROOT,
+    GENERATED_PROVIDER_PACKAGES_DIR,
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
@@ -48,7 +48,7 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.5.0"
+MIN_AIRFLOW_VERSION = "2.6.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -56,10 +56,6 @@ LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 # TODO: use single source of truth for those
 # for now we need to keep them in sync with the ones in setup.py
 PREINSTALLED_PROVIDERS = [
-    #   Until we cut off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
-    #   Keep common.io commented out in order ot be able to generate PyPI constraints because
-    #   The version from PyPI has requirement of apache-airflow>=2.8.0
-    #   "common.io",
     "common.sql",
     "ftp",
     "http",
@@ -136,16 +132,22 @@ PROVIDER_METADATA: dict[str, dict[str, Any]] = {}
 
 
 def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
-    import jsonschema
     import yaml
 
     schema = _load_schema()
     with open(provider_yaml_path) as yaml_file:
         provider = yaml.safe_load(yaml_file)
     try:
-        jsonschema.validate(provider, schema=schema)
-    except jsonschema.ValidationError:
-        raise Exception(f"Unable to parse: {provider_yaml_path}.")
+        import jsonschema
+
+        try:
+            jsonschema.validate(provider, schema=schema)
+        except jsonschema.ValidationError:
+            raise Exception(f"Unable to parse: {provider_yaml_path}.")
+    except ImportError:
+        # we only validate the schema if jsonschema is available. This is needed for autocomplete
+        # to not fail with import error if jsonschema is not installed
+        pass
     PROVIDER_METADATA[get_short_package_name(provider["package-name"])] = provider
 
 
@@ -233,12 +235,17 @@ def get_provider_requirements(provider_id: str) -> list[str]:
 
 @lru_cache
 def get_available_packages(
-    include_non_provider_doc_packages: bool = False, include_all_providers: bool = False
+    include_non_provider_doc_packages: bool = False,
+    include_all_providers: bool = False,
+    include_suspended: bool = False,
+    include_removed: bool = False,
 ) -> list[str]:
     """
     Return provider ids for all packages that are available currently (not suspended).
 
     :rtype: object
+    :param include_suspended: whether the suspended packages should be included
+    :param include_removed: whether the removed packages should be included
     :param include_non_provider_doc_packages: whether the non-provider doc packages should be included
            (packages like apache-airflow, helm-chart, docker-stack)
     :param include_all_providers: whether "all-providers" should be included ni the list.
@@ -251,14 +258,20 @@ def get_available_packages(
     if include_all_providers:
         available_packages.append("all-providers")
     available_packages.extend(provider_ids)
-    return available_packages
+    if include_suspended:
+        available_packages.extend(get_suspended_provider_ids())
+    if include_removed:
+        available_packages.extend(get_removed_provider_ids())
+    return sorted(set(available_packages))
 
 
-def expand_all_provider_packages(short_doc_packages: tuple[str, ...]) -> tuple[str, ...]:
+def expand_all_provider_packages(
+    short_doc_packages: tuple[str, ...], include_removed: bool = False
+) -> tuple[str, ...]:
     """In case there are "all-providers" in the list, expand the list with all providers."""
     if "all-providers" in short_doc_packages:
         packages = [package for package in short_doc_packages if package != "all-providers"]
-        packages.extend(get_available_packages())
+        packages.extend(get_available_packages(include_removed=include_removed))
         short_doc_packages = tuple(set(packages))
     return short_doc_packages
 
@@ -351,7 +364,7 @@ def get_documentation_package_path(provider_id: str) -> Path:
 
 
 def get_target_root_for_copied_provider_sources(provider_id: str) -> Path:
-    return (DIST_DIR / "provider_packages").joinpath(*provider_id.split("."))
+    return GENERATED_PROVIDER_PACKAGES_DIR.joinpath(*provider_id.split("."))
 
 
 def get_pip_package_name(provider_id: str) -> str:

@@ -69,6 +69,13 @@ class SparkSubmitOperator(BaseOperator):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+                         (will overwrite any spark_binary defined in the connection's extra JSON)
+    :param properties_file: Path to a file from which to load extra properties. If not
+                              specified, this will look for conf/spark-defaults.conf.
+    :param queue: The name of the YARN queue to which the application is submitted.
+                        (will overwrite any yarn queue defined in the connection's extra JSON)
+    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as a client.
+                        (will overwrite any deployment mode defined in the connection's extra JSON)
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
                            on keytab for Kerberos login
     """
@@ -88,6 +95,7 @@ class SparkSubmitOperator(BaseOperator):
         "_name",
         "_application_args",
         "_env_vars",
+        "_properties_file",
     )
     ui_color = WEB_COLORS["LIGHTORANGE"]
 
@@ -120,6 +128,9 @@ class SparkSubmitOperator(BaseOperator):
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
         spark_binary: str | None = None,
+        properties_file: str | None = None,
+        queue: str | None = None,
+        deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -149,6 +160,9 @@ class SparkSubmitOperator(BaseOperator):
         self._env_vars = env_vars
         self._verbose = verbose
         self._spark_binary = spark_binary
+        self._properties_file = properties_file
+        self._queue = queue
+        self._deploy_mode = deploy_mode
         self._hook: SparkSubmitHook | None = None
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
@@ -191,5 +205,8 @@ class SparkSubmitOperator(BaseOperator):
             env_vars=self._env_vars,
             verbose=self._verbose,
             spark_binary=self._spark_binary,
+            properties_file=self._properties_file,
+            queue=self._queue,
+            deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
         )

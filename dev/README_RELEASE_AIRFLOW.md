@@ -258,6 +258,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -977,6 +980,8 @@ This includes:
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- For the first MINOR (X.Y.0) release - remove all providers from ``CHICKEN_EGG_PROVIDERS`` list
+  in ``src/airflow_breeze/global_constants.py`` that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 ## Update default Airflow version in the helm chart
 

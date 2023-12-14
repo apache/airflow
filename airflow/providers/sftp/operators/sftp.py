@@ -141,8 +141,8 @@ class SFTPOperator(BaseOperator):
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
-                    "Parameter `ssh_hook` is deprecated"
-                    "Please use `sftp_hook` instead."
+                    "Parameter `ssh_hook` is deprecated. "
+                    "Please use `sftp_hook` instead. "
                     "The old parameter `ssh_hook` will be removed in a future version.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,

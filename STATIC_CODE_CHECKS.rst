@@ -150,6 +150,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
@@ -187,6 +189,8 @@ require Breeze Docker image to be built locally.
 | check-extra-packages-references                           | Checks setup extra packages                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -269,6 +273,8 @@ require Breeze Docker image to be built locally.
 | fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-airflow-diagrams                                 | Generate airflow diagrams                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

@@ -32,7 +32,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from connexion import FlaskApi
+    from flask import Blueprint
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -79,7 +79,7 @@ class BaseAuthManager(LoggingMixin):
         """
         return []
 
-    def get_api_endpoints(self) -> None | FlaskApi:
+    def get_api_endpoints(self) -> None | Blueprint:
         """Return API endpoint(s) definition for the auth manager."""
         return None
 
@@ -131,20 +131,6 @@ class BaseAuthManager(LoggingMixin):
 
         :param method: the method to perform
         :param details: optional details about the configuration
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
-        """
-
-    @abstractmethod
-    def is_authorized_cluster_activity(
-        self,
-        *,
-        method: ResourceMethod,
-        user: BaseUser | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on the cluster activity.
-
-        :param method: the method to perform
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 

@@ -41,3 +41,6 @@ class TestAwsAuthManagerUser:
     def test_get_name_with_user_id(self, user):
         user.user_id = "user_id"
         assert user.get_name() == "user_id"
+
+    def test_get_groups(self, user):
+        assert user.get_groups() == []

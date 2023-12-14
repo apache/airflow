@@ -32,6 +32,7 @@ import traceback
 import warnings
 import weakref
 from collections import deque
+from contextlib import ExitStack
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -547,6 +548,13 @@ class DAG(LoggingMixin):
 
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule]
+
+        has_scheduling_args = any(a is not NOTSET and bool(a) for a in scheduling_args)
+        has_empty_start_date = not ("start_date" in self.default_args or self.start_date)
+
+        if has_scheduling_args and has_empty_start_date:
+            raise ValueError("DAG is missing the start_date parameter")
+
         if not at_most_one(*scheduling_args):
             raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
         if schedule_interval is not NOTSET:
@@ -840,15 +848,34 @@ class DAG(LoggingMixin):
         return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
+        """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
+
+        Detection is done by "peeking" the next two cron trigger time; if the
+        two times have the same minute and hour value, the schedule is fixed,
+        and we *don't* need to perform the DST fix.
+
+        This assumes DST happens on whole minute changes (e.g. 12:59 -> 12:00).
+
+        Do not try to understand what this actually means. It is old logic that
+        should not be used anywhere.
+        """
         warnings.warn(
             "`DAG.is_fixed_time_schedule()` is deprecated.",
             category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        try:
-            return not self.timetable._should_fix_dst
-        except AttributeError:
+
+        from airflow.timetables._cron import CronMixin
+
+        if not isinstance(self.timetable, CronMixin):
             return True
+
+        from croniter import croniter
+
+        cron = croniter(self.timetable._expression)
+        next_a = cron.get_next(datetime.datetime)
+        next_b = cron.get_next(datetime.datetime)
+        return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
     def following_schedule(self, dttm):
         """
@@ -2617,10 +2644,8 @@ class DAG(LoggingMixin):
 
         from airflow.utils.task_group import TaskGroupContext
 
-        if not self.start_date and not task.start_date:
-            raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
-        elif not task.start_date:
+        if not task.start_date:
             task.start_date = self.start_date
         # otherwise, the task will start on the later of its own start date and
         # the DAG's start date
@@ -2797,63 +2822,63 @@ class DAG(LoggingMixin):
                 self.log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
                 ti.log.addHandler(handler)
 
+        exit_stack = ExitStack()
         if conn_file_path or variable_file_path:
             local_secrets = LocalFilesystemBackend(
                 variables_file_path=variable_file_path, connections_file_path=conn_file_path
             )
             secrets_backend_list.insert(0, local_secrets)
+            exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
-        execution_date = execution_date or timezone.utcnow()
-        self.validate()
-        self.log.debug("Clearing existing task instances for execution date %s", execution_date)
-        self.clear(
-            start_date=execution_date,
-            end_date=execution_date,
-            dag_run_state=False,  # type: ignore
-            session=session,
-        )
-        self.log.debug("Getting dagrun for dag %s", self.dag_id)
-        logical_date = timezone.coerce_datetime(execution_date)
-        data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
-        dr: DagRun = _get_or_create_dagrun(
-            dag=self,
-            start_date=execution_date,
-            execution_date=execution_date,
-            run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
-            session=session,
-            conf=run_conf,
-            data_interval=data_interval,
-        )
+        with exit_stack:
+            execution_date = execution_date or timezone.utcnow()
+            self.validate()
+            self.log.debug("Clearing existing task instances for execution date %s", execution_date)
+            self.clear(
+                start_date=execution_date,
+                end_date=execution_date,
+                dag_run_state=False,  # type: ignore
+                session=session,
+            )
+            self.log.debug("Getting dagrun for dag %s", self.dag_id)
+            logical_date = timezone.coerce_datetime(execution_date)
+            data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            dr: DagRun = _get_or_create_dagrun(
+                dag=self,
+                start_date=execution_date,
+                execution_date=execution_date,
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+                session=session,
+                conf=run_conf,
+                data_interval=data_interval,
+            )
 
-        tasks = self.task_dict
-        self.log.debug("starting dagrun")
-        # Instead of starting a scheduler, we run the minimal loop possible to check
-        # for task readiness and dependency management. This is notably faster
-        # than creating a BackfillJob and allows us to surface logs to the user
-        while dr.state == DagRunState.RUNNING:
-            session.expire_all()
-            schedulable_tis, _ = dr.update_state(session=session)
-            for s in schedulable_tis:
-                s.state = TaskInstanceState.SCHEDULED
-            session.commit()
-            # triggerer may mark tasks scheduled so we read from DB
-            all_tis = set(dr.get_task_instances(session=session))
-            scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-            ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
-            if not scheduled_tis and ids_unrunnable:
-                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
-                time.sleep(1)
-            triggerer_running = _triggerer_is_healthy()
-            for ti in scheduled_tis:
-                try:
-                    add_logger_if_needed(ti)
-                    ti.task = tasks[ti.task_id]
-                    _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
-                except Exception:
-                    self.log.exception("Task failed; ti=%s", ti)
-        if conn_file_path or variable_file_path:
-            # Remove the local variables we have added to the secrets_backend_list
-            secrets_backend_list.pop(0)
+            tasks = self.task_dict
+            self.log.debug("starting dagrun")
+            # Instead of starting a scheduler, we run the minimal loop possible to check
+            # for task readiness and dependency management. This is notably faster
+            # than creating a BackfillJob and allows us to surface logs to the user
+            while dr.state == DagRunState.RUNNING:
+                session.expire_all()
+                schedulable_tis, _ = dr.update_state(session=session)
+                for s in schedulable_tis:
+                    s.state = TaskInstanceState.SCHEDULED
+                session.commit()
+                # triggerer may mark tasks scheduled so we read from DB
+                all_tis = set(dr.get_task_instances(session=session))
+                scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
+                ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
+                if not scheduled_tis and ids_unrunnable:
+                    self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
+                    time.sleep(1)
+                triggerer_running = _triggerer_is_healthy()
+                for ti in scheduled_tis:
+                    try:
+                        add_logger_if_needed(ti)
+                        ti.task = tasks[ti.task_id]
+                        _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
+                    except Exception:
+                        self.log.exception("Task failed; ti=%s", ti)
         return dr
 
     @provide_session
