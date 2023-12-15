@@ -202,10 +202,16 @@ class OdbcHook(DbApiHook):
 
     @property
     def placeholder(self):
-        placeholder = self.connection.extra_dejson.get("placeholder") or self._placeholder
+        placeholder = self.connection.extra_dejson.get("placeholder")
         if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
             return placeholder
         else:
+            self.log.warning(
+                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_ODBC_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                placeholder,
+                self._placeholder,
+            )
             return self._placeholder
 
     def get_uri(self) -> str:
