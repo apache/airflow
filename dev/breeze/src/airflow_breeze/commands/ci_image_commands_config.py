@@ -43,22 +43,23 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Building images in parallel",
             "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-                "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+                "--parallelism",
+                "--python-versions",
+                "--run-in-parallel",
+                "--skip-cleanup",
             ],
         },
         {
             "name": "Advanced build options (for power users)",
             "options": [
-                "--debian-version",
-                "--python-image",
-                "--commit-sha",
                 "--additional-pip-install-flags",
+                "--commit-sha",
+                "--debian-version",
+                "--install-mysql-client-type",
                 "--install-providers-from-sources",
+                "--python-image",
             ],
         },
         {
