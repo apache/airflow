@@ -24,6 +24,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     ALLOWED_PLATFORMS,
     DOCKER_DEFAULT_PLATFORM,
 )
@@ -137,6 +138,13 @@ option_image_tag_for_verifying = click.option(
     show_default=True,
     default="latest",
     envvar="IMAGE_TAG",
+)
+option_install_mysql_client_type = click.option(
+    "--install-mysql-client-type",
+    help="Which client to choose when installing.",
+    type=BetterChoice(ALLOWED_INSTALL_MYSQL_CLIENT_TYPES),
+    default=ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0],
+    envvar="INSTALL_MYSQL_CLIENT_TYPE",
 )
 option_install_providers_from_sources = click.option(
     "--install-providers-from-sources",
