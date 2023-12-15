@@ -645,6 +645,25 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_adopted(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
+            executor._change_state(key, TaskInstanceState.ADOPTED, "pod_name", "default")
+            assert len(executor.event_buffer) == 0
+            assert len(executor.running) == 0
+            mock_delete_pod.assert_not_called()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "multi_namespace_mode_namespace_list, watchers_keys",
         [
@@ -1431,12 +1450,31 @@ class TestKubernetesJobWatcher:
         self._run()
         self.watcher.watcher_queue.put.assert_not_called()
 
-    def test_process_status_succeeded_type_delete(self):
-        self.pod.status.phase = "Succeeded"
+    @pytest.mark.parametrize(
+        "ti_state",
+        [
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.UP_FOR_RETRY,
+        ],
+    )
+    def test_process_status_pod_adopted(self, ti_state):
+        self.pod.status.phase = ti_state
         self.events.append({"type": "DELETED", "object": self.pod})
+        self.pod.metadata.deletion_timestamp = None
 
         self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
+        self.watcher.watcher_queue.put.assert_called_once_with(
+            (
+                self.pod.metadata.name,
+                self.watcher.namespace,
+                TaskInstanceState.ADOPTED,
+                self.core_annotations,
+                self.pod.metadata.resource_version,
+            )
+        )
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"

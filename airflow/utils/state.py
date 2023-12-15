@@ -46,6 +46,9 @@ class TaskInstanceState(str, Enum):
     REMOVED = "removed"  # Task vanished from DAG before it ran
     SCHEDULED = "scheduled"  # Task should run and will be handed to executor soon
 
+    # Set by executor
+    ADOPTED = "adopted"
+
     # Set by the task instance itself
     QUEUED = "queued"  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing

@@ -471,6 +471,15 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
+        if state == TaskInstanceState.ADOPTED:
+            # When the task pod is adopted by another scheduler,
+            # then remove the task from the current scheduler running queue.
+            try:
+                self.running.remove(key)
+            except KeyError:
+                self.log.debug("TI key not in running: %s", key)
+            return
+
         if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None
             return
