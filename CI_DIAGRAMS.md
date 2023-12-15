@@ -61,8 +61,6 @@ sequenceDiagram
     and
         Note over Tests: React WWW tests
     and
-        Note over Tests: Test examples<br>PROD image building
-    and
         Note over Tests: Test git clone on Windows
     and
         opt
@@ -152,6 +150,11 @@ sequenceDiagram
         end
     end
     par
+        opt
+            GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+            Note over Tests: Test examples<br>PROD image building
+        end
+    and
         opt
             GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
             Note over Tests: Run Kubernetes <br>tests
@@ -344,8 +347,6 @@ sequenceDiagram
     and
         Note over Tests: React WWW tests
     and
-        Note over Tests: Test examples<br>PROD image building
-    and
         Note over Tests: Test git clone on Windows
     end
     Note over Tests: Skip waiting for CI images
@@ -400,6 +401,9 @@ sequenceDiagram
         Artifacts ->> Tests: Download source,pypi,no-providers constraints
         Note over Tests: Display constraints diff
         Tests ->> Airflow Repo: Push constraints if changed to 'constraints-BRANCH'
+    and
+        GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+        Note over Tests: Test examples<br>PROD image building
     and
         GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
         Note over Tests: Run Kubernetes <br>tests

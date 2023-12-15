@@ -45,6 +45,7 @@ from airflow_breeze.commands.common_image_options import (
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
+    option_install_mysql_client_type,
     option_install_providers_from_sources,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -300,6 +301,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
+@option_install_mysql_client_type
 @option_image_tag_for_building
 @option_include_success_outputs
 @option_install_providers_from_sources
@@ -342,6 +344,7 @@ def build(
     github_token: str | None,
     image_tag: str,
     include_success_outputs,
+    install_mysql_client_type: str,
     install_providers_from_sources: bool,
     parallelism: int,
     platform: str | None,
@@ -413,6 +416,7 @@ def build(
         github_repository=github_repository,
         github_token=github_token,
         image_tag=image_tag,
+        install_mysql_client_type=install_mysql_client_type,
         install_providers_from_sources=install_providers_from_sources,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
