@@ -214,45 +214,18 @@ EOF
 # The content below is automatically copied from scripts/docker/install_mysql.sh
 COPY <<"EOF" /install_mysql.sh
 #!/usr/bin/env bash
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
 set -euo pipefail
+
+common::get_colors
 declare -a packages
 
-MYSQL_LTS_VERSION="8.0"
-MARIADB_LTS_VERSION="10.11"
-readonly MYSQL_LTS_VERSION
-readonly MARIADB_LTS_VERSION
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_YELLOW=$'\e[1;33m'
-readonly COLOR_YELLOW
-COLOR_RED=$'\e[1;31m'
-readonly COLOR_RED
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
+readonly MYSQL_LTS_VERSION="8.0"
+readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
-
-export_key() {
-    local key="${1}"
-    local name="${2:-mysql}"
-
-    echo "${COLOR_BLUE}Verify and export GPG public key ${key}${COLOR_RESET}"
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
-                               keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
-    do
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
-}
 
 install_mysql_client() {
     if [[ "${1}" == "dev" ]]; then
@@ -271,7 +244,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    export_key "B7B3B788A8D3785C" "mysql"
+    common::import_trusted_gpg "B7B3B788A8D3785C" "mysql"
 
     echo
     echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -313,7 +286,7 @@ install_mariadb_client() {
         exit 1
     fi
 
-    export_key "0xF1656F24C74CD1D8" "mariadb"
+    common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
     echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -355,16 +328,16 @@ EOF
 # The content below is automatically copied from scripts/docker/install_mssql.sh
 COPY <<"EOF" /install_mssql.sh
 #!/usr/bin/env bash
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
 set -euo pipefail
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
+common::get_colors
+declare -a packages
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
 
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
 
 function install_mssql_client() {
     # Install MsSQL client from Microsoft repositories
@@ -374,21 +347,19 @@ function install_mssql_client() {
         echo
         return
     fi
+    packages=("msodbcsql18")
+
+    common::import_trusted_gpg "EB3E94ADBE1229CF" "microsoft"
+
     echo
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
-    local distro
-    local version
-    distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-    version=$(lsb_release -rs)
-    local driver=msodbcsql18
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-    curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
-    curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
+
+    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mssql-release.list
     apt-get update -yqq
     apt-get upgrade -yqq
-    ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends "${driver}"
+    ACCEPT_EULA=Y apt-get -yqq install --no-install-recommends "${packages[@]}"
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -400,13 +371,11 @@ EOF
 # The content below is automatically copied from scripts/docker/install_postgres.sh
 COPY <<"EOF" /install_postgres.sh
 #!/usr/bin/env bash
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 set -euo pipefail
-declare -a packages
 
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
+common::get_colors
+declare -a packages
 
 : "${INSTALL_POSTGRES_CLIENT:?Should be true or false}"
 
@@ -426,8 +395,10 @@ install_postgres_client() {
         exit 1
     fi
 
-    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-    echo "deb https://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+    common::import_trusted_gpg "7FCC7D46ACCC4CF8" "postgres"
+
+    echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > \
+        /etc/apt/sources.list.d/pgdg.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
@@ -570,6 +541,36 @@ function common::install_pip_version() {
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
+}
+
+function common::import_trusted_gpg() {
+    common::get_colors
+
+    local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
+    local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
+    # Please note that not all servers could be used for retrieve keys
+    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
+    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
+    #  keyring.debian.org: Only accept keys in Debian keyring.
+    #  pgp.mit.edu: High response time.
+    local keyservers=(
+        "hkps://keyserver.ubuntu.com"
+        "hkps://pgp.surf.nl"
+    )
+
+    GNUPGHOME="$(mktemp -d)"
+    export GNUPGHOME
+    set +e
+    for keyserver in $(shuf -e "${keyservers[@]}"); do
+        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
+        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
+        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
+    done
+    set -e
+    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
+    gpgconf --kill all
+    rm -rf "${GNUPGHOME}"
+    unset GNUPGHOME
 }
 EOF
 

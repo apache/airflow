@@ -16,47 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck shell=bash
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
 set -euo pipefail
+
+common::get_colors
 declare -a packages
 
 # https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
-MYSQL_LTS_VERSION="8.0"
+readonly MYSQL_LTS_VERSION="8.0"
 # https://mariadb.org/about/#maintenance-policy
-MARIADB_LTS_VERSION="10.11"
-readonly MYSQL_LTS_VERSION
-readonly MARIADB_LTS_VERSION
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_YELLOW=$'\e[1;33m'
-readonly COLOR_YELLOW
-COLOR_RED=$'\e[1;31m'
-readonly COLOR_RED
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
+readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
-
-export_key() {
-    local key="${1}"
-    local name="${2:-mysql}"
-
-    echo "${COLOR_BLUE}Verify and export GPG public key ${key}${COLOR_RESET}"
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
-                               keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
-    do
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
-}
 
 install_mysql_client() {
     if [[ "${1}" == "dev" ]]; then
@@ -75,7 +49,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    export_key "B7B3B788A8D3785C" "mysql"
+    common::import_trusted_gpg "B7B3B788A8D3785C" "mysql"
 
     echo
     echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -117,7 +91,7 @@ install_mariadb_client() {
         exit 1
     fi
 
-    export_key "0xF1656F24C74CD1D8" "mariadb"
+    common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
     echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
