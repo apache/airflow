@@ -22,8 +22,10 @@ from urllib.parse import quote_plus
 
 import pyodbc
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook, DEFAULT_PLACEHOLDER_VALUES
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
+
+DEFAULT_ODBC_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 class OdbcHook(DbApiHook):
@@ -201,7 +203,7 @@ class OdbcHook(DbApiHook):
     @property
     def placeholder(self):
         placeholder = self.connection.extra_dejson.get("placeholder") or self._placeholder
-        if placeholder in DEFAULT_PLACEHOLDER_VALUES:
+        if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
             return placeholder
         else:
             return self._placeholder

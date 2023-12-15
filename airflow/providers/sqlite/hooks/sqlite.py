@@ -33,7 +33,7 @@ class SqliteHook(DbApiHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._placeholder:str="?"
+        self._placeholder: str = "?"
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object."""

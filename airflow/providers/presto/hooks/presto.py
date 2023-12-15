@@ -87,8 +87,7 @@ class PrestoHook(DbApiHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._placeholder:str="?"
-
+        self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
         """Returns a connection object."""
