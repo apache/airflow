@@ -29,11 +29,14 @@ in_container_set_colors
 in_container_basic_check
 in_container_script_start
 
+echo "Starting the airflow triggerer"
+airflow db init
+airflow triggerer --daemon
 # any argument received is overriding the default nose execution arguments:
 PYTEST_ARGS=( "$@" )
 
 echo
-echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
+echo "Starting the system tests with those pytest arguments: ${PYTEST_ARGS[*]}"
 echo
 set +e
 
