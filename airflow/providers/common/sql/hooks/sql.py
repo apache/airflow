@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+DEFAULT_PLACEHOLDER_VALUES = frozenset({"%s","?"})
+
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
     """
@@ -143,8 +145,7 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
-    # Override with the db-specific value used for placeholders
-    _placeholder: str = "%s"
+
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -163,6 +164,7 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
+        self._placeholder:str = "%s"
 
     @property
     def placeholder(self) -> str:

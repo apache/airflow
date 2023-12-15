@@ -22,7 +22,7 @@ from urllib.parse import quote_plus
 
 import pyodbc
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, DEFAULT_PLACEHOLDER_VALUES
 from airflow.utils.helpers import merge_dicts
 
 
@@ -200,7 +200,11 @@ class OdbcHook(DbApiHook):
 
     @property
     def placeholder(self):
-        return self.connection.extra_dejson.get("placeholder") or self._placeholder
+        placeholder = self.connection.extra_dejson.get("placeholder") or self._placeholder
+        if placeholder in DEFAULT_PLACEHOLDER_VALUES:
+            return placeholder
+        else:
+            return self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""
