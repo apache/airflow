@@ -325,9 +325,16 @@ install_mariadb_client() {
 }
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
-    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
-    fi
+    # Temporary set mariadb as the client also for x86 until the problem of
+    # badly signed mysql repo is solved (or we decide to switch to mariadb
+    # permanently).
+    #
+    # See:
+    #  https://github.com/apache/airflow/issues/36231
+    #  https://bugs.mysql.com/bug.php?id=113427
+    #  https://bugs.mysql.com/bug.php?id=113428
+    #
+    INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 
     if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
         install_mysql_client "${@}"
