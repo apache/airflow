@@ -33,6 +33,7 @@ console = Console(width=400, color_system="standard")
 LOCAL_DIR = Path(__file__).parent
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3]
 DOCS_IMAGES_DIR = AIRFLOW_SOURCES_ROOT / "docs" / "apache-airflow" / "img"
+FAB_PROVIDER_DOCS_IMAGES_DIR = AIRFLOW_SOURCES_ROOT / "docs" / "apache-airflow-providers-fab" / "img"
 PYTHON_MULTIPROCESS_LOGO = AIRFLOW_SOURCES_ROOT / "images" / "diagrams" / "python_multiprocess_logo.png"
 
 BASIC_ARCHITECTURE_IMAGE_NAME = "diagram_basic_airflow_architecture"
@@ -173,7 +174,7 @@ def generate_auth_manager_airflow_diagram():
 
 def generate_fab_auth_manager_airflow_diagram():
     auth_manager_architecture_image_file = (
-        DOCS_IMAGES_DIR / FAB_AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME
+        FAB_PROVIDER_DOCS_IMAGES_DIR / FAB_AUTH_MANAGER_AIRFLOW_ARCHITECTURE_IMAGE_NAME
     ).with_suffix(".png")
     console.print(f"[bright_blue]Generating architecture image {auth_manager_architecture_image_file}")
     with Diagram(
@@ -222,7 +223,9 @@ def main():
         generate_basic_airflow_diagram()
         generate_dag_processor_airflow_diagram()
         generate_auth_manager_airflow_diagram()
+        os.chdir(FAB_PROVIDER_DOCS_IMAGES_DIR)
         generate_fab_auth_manager_airflow_diagram()
+        os.chdir(DOCS_IMAGES_DIR)
         hash_file.write_text(str(my_file_hash) + "\n")
     else:
         console.print("[bright_blue]No changes to generation script. Not regenerating the images.")
