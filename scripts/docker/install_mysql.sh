@@ -36,7 +36,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 export_key() {
     local key="${1}"

@@ -232,7 +232,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 export_key() {
     local key="${1}"
@@ -1229,7 +1229,7 @@ COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 ARG INSTALL_MYSQL_CLIENT="true"
-ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_PIP_VERSION
@@ -1457,7 +1457,7 @@ ARG RUNTIME_APT_COMMAND="echo"
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
-ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 

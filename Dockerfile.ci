@@ -192,7 +192,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 export_key() {
     local key="${1}"
@@ -995,7 +995,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 ARG HOME=/root
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
-ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 
 ENV HOME=${HOME} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
