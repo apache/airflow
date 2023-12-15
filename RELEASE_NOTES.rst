@@ -44,7 +44,7 @@ New Features
 - Add XCom tab to Grid (#35719)
 - Add "literal" wrapper to disable field templating (#35017)
 - Add task context logging feature to allow forwarding messages to task logs (#32646, #32693, #35857)
-- Add Listener hooks for Datasets (#34418)
+- Add Listener hooks for Datasets (#34418, #36247)
 - Allow override of navbar text color (#35505)
 - Add lightweight serialization for deltalake tables (#35462)
 - Add support for serialization of iceberg tables (#35456)
@@ -165,6 +165,7 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
+- Change default MySQL client to MariaDB (#36243)
 - Mark daskexecutor provider as removed (#35965)
 - Bump FAB to ``4.3.10`` (#35991)
 - Mark daskexecutor provider as removed (#35965)
