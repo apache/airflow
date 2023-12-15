@@ -55,7 +55,7 @@ INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
 LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
+LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
