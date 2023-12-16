@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
@@ -46,7 +45,7 @@ class BuildCiParams(CommonBuildParams):
 
     @property
     def airflow_version(self):
-        return get_airflow_version()
+        return self._get_version_with_suffix()
 
     @property
     def image_type(self) -> str:
