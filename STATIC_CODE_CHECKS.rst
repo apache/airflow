@@ -471,7 +471,7 @@ Run the ``ruff`` check for the ``tests.core`` package with verbose output:
 
      breeze static-checks --type ruff --file tests/core/* --verbose
 
-Run the ``ruff`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+Run the ``ruff-format`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
 ``airflow/example_dags/example_python_operator.py``:
 
 .. code-block:: bash
