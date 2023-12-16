@@ -111,16 +111,31 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
+@pytest.fixture()
+def get_connection():
+    return [Connection("conn_1"), Connection("conn_2")]
+
+
+@pytest.fixture()
+def get_pool():
+    return [Pool(pool="pool_1"), Pool(pool="pool_2")]
+
+
+@pytest.fixture()
+def get_variable():
+    return [Variable("var_1"), Variable("var_2")]
+
+
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name, items",
     [
         (
             "has_access_connection",
             "batch_is_authorized_connection",
-            [Connection("conn_1"), Connection("conn_2")],
+            "get_connection",
         ),
-        ("has_access_pool", "batch_is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
-        ("has_access_variable", "batch_is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
+        ("has_access_pool", "batch_is_authorized_pool", "get_pool"),
+        ("has_access_variable", "batch_is_authorized_variable", "get_variable"),
     ],
 )
 class TestHasAccessWithDetails:
@@ -133,8 +148,9 @@ class TestHasAccessWithDetails:
 
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = True
@@ -149,8 +165,9 @@ class TestHasAccessWithDetails:
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
-        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = False

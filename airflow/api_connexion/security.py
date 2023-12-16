@@ -267,5 +267,5 @@ def requires_access_custom_view(
     return requires_access_decorator
 
 
-def get_readable_dags() -> list[str]:
-    return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+def get_readable_dags() -> set[str]:
+    return get_auth_manager().get_permitted_dag_ids(user=g.user)
