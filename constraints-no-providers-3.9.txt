@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-16T18:29:53.716720
+# This constraints file was automatically generated on 2023-12-16T21:36:38.567090
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -173,7 +173,7 @@ requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
 rich==13.7.0
-rpds-py==0.13.2
+rpds-py==0.14.1
 rsa==4.9
 s3fs==2023.12.2
 sentry-sdk==1.39.1
