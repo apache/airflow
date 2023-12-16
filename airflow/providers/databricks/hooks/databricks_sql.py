@@ -20,7 +20,8 @@ import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload, cast, Type, Tuple, \
+    Union
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
+# Common = Tuple[Any, ...]
 T = TypeVar("T")
 
 
@@ -184,7 +186,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]]:
         ...
 
     def run(
@@ -195,7 +197,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]] | None:
         """
         Run a command or a list of commands.
 
@@ -258,17 +260,21 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    def _make_common_data_structure(self, result: list[Row] | Row | None) -> list[tuple] | tuple | None:
+    def _make_common_data_structure(self, result: list[T] | T | None) -> list[T] | T | list[tuple] | tuple | None:
         """Transform the databricks Row objects into namedtuple."""
+        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
+        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
         if self.return_serializable:
-            columns: list[str] | None = None
-            if isinstance(result, list):
-                columns = result[0].__fields__
-                row_object = namedtuple("Row", columns)
-                return [row_object(*row) for row in result]
+            if isinstance(result, list) and all(isinstance(item, Row) for item in result):
+                rows: list[Row] = result
+                rows_fields = rows[0].__fields__
+                rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
+                return cast(list[tuple], [rows_object(*row) for row in rows])
             elif isinstance(result, Row):
-                columns = result.__fields__
-                return namedtuple("Row", columns)(*result)
+                row: Row = result
+                row_fields = row.__fields__
+                row_object = namedtuple("Row", row_fields)  # type: ignore[misc]
+                return cast(tuple, row_object(*row))
         return result
 
     def bulk_dump(self, table, tmp_file):

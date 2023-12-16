@@ -215,13 +215,13 @@ class OdbcHook(DbApiHook):
     def _make_common_data_structure(self, result: list[pyodbc.Row] | pyodbc.Row | None) -> list[NamedTuple] | NamedTuple | None:
         """Transform the pyodbc.Row objects returned from an SQL command into typed NamedTuples."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
-        # instantiated Namedtuple, and will never do: https://github.com/python/mypy/issues/848
-        columns: list[tuple[str, type]] | None = None
-        if isinstance(result, list):
-            columns = [col[:2] for col in result[0].cursor_description]
-            row_object = NamedTuple("Row", columns)  # type: ignore[misc]
+        # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        field_names: list[tuple[str, type]] | None = None
+        if isinstance(result, list) and all(isinstance(item, pyodbc.Row) for item in result):
+            field_names = [col[:2] for col in result[0].cursor_description]
+            row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
             return [row_object(*row) for row in result]
         elif isinstance(result, pyodbc.Row):
-            columns = [col[:2] for col in result.cursor_description]
-            return NamedTuple("Row", columns)(*result)  # type: ignore[misc, operator]
+            field_names = [col[:2] for col in result.cursor_description]
+            return NamedTuple("Row", field_names)(*result)  # type: ignore[misc, operator]
         return result

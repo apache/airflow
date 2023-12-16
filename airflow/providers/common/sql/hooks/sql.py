@@ -29,7 +29,7 @@ from typing import (
     Sequence,
     TypeVar,
     cast,
-    overload,
+    overload, Generic, Union,
 )
 from urllib.parse import urlparse
 
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
+Common = TypeVar("Common", bound=tuple)
 T = TypeVar("T")
 
 
@@ -122,10 +123,10 @@ class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
 
-    When subclassing, maintainers can override the `_make_serializable` method:
+    When subclassing, maintainers can override the `_make_common_data_structure` method:
     This method transforms the result of the handler method (typically `cursor.fetchall()`) into
-    serializable objects. Most of the time, the underlying SQL library already returns tuples from
-    its cursor, and the `_make_serializable` method can be ignored.
+    objects common across all Hooks derived from this class (tuples). Most of the time, the underlying SQL
+    library already returns tuples from its cursor, and the `_make_common_data_structure` method can be ignored.
 
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
@@ -305,7 +306,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]]:
         ...
 
     def run(
@@ -316,7 +317,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
