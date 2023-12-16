@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-16T07:17:37.261663
+# This constraints file was automatically generated on 2023-12-16T18:29:46.714656
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -70,7 +70,7 @@ amqp==5.2.0
 analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
-anyio==4.1.0
+anyio==4.2.0
 apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
