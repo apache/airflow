@@ -20,8 +20,16 @@ import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload, cast, Type, Tuple, \
-    Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
@@ -36,7 +44,6 @@ if TYPE_CHECKING:
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
-# Common = Tuple[Any, ...]
 T = TypeVar("T")
 
 
@@ -186,7 +193,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]]:
+    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None]:
         ...
 
     def run(
@@ -197,7 +204,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]] | None:
+    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None] | None:
         """
         Run a command or a list of commands.
 
@@ -260,7 +267,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    def _make_common_data_structure(self, result: list[T] | T | None) -> list[T] | T | list[tuple] | tuple | None:
+    def _make_common_data_structure(
+        self, result: list[T] | T | None
+    ) -> list[T] | T | list[tuple] | tuple | None:
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848

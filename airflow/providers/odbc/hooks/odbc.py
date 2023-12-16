@@ -17,13 +17,15 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypeVar, cast
 from urllib.parse import quote_plus
 
 import pyodbc
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
+
+T = TypeVar("T")
 
 
 class OdbcHook(DbApiHook):
@@ -212,16 +214,20 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    def _make_common_data_structure(self, result: list[pyodbc.Row] | pyodbc.Row | None) -> list[NamedTuple] | NamedTuple | None:
+    def _make_common_data_structure(
+        self, result: list[T] | T | None
+    ) -> list[T] | T | list[NamedTuple] | NamedTuple | None:
         """Transform the pyodbc.Row objects returned from an SQL command into typed NamedTuples."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
         # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
         field_names: list[tuple[str, type]] | None = None
         if isinstance(result, list) and all(isinstance(item, pyodbc.Row) for item in result):
-            field_names = [col[:2] for col in result[0].cursor_description]
+            rows: list[pyodbc.Row] = result
+            field_names = [col[:2] for col in rows[0].cursor_description]
             row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
-            return [row_object(*row) for row in result]
+            return cast(list[NamedTuple], [row_object(*row) for row in rows])
         elif isinstance(result, pyodbc.Row):
-            field_names = [col[:2] for col in result.cursor_description]
-            return NamedTuple("Row", field_names)(*result)  # type: ignore[misc, operator]
+            row: pyodbc.Row = result
+            field_names = [col[:2] for col in row.cursor_description]
+            return cast(NamedTuple, NamedTuple("Row", field_names)(*row))  # type: ignore[misc, operator]
         return result

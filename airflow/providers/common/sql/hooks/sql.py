@@ -29,7 +29,7 @@ from typing import (
     Sequence,
     TypeVar,
     cast,
-    overload, Generic, Union,
+    overload,
 )
 from urllib.parse import urlparse
 
@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
-Common = TypeVar("Common", bound=tuple)
 T = TypeVar("T")
 
 
@@ -306,7 +305,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]]:
+    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None]:
         ...
 
     def run(
@@ -317,7 +316,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | tuple | list[T] | list[tuple] | list[Union[T, tuple, list[T], list[tuple], None]] | None:
+    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
