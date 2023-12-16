@@ -321,4 +321,4 @@ are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath
     path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
     conn = duckdb.connect(database=":memory:")
     conn.register_filesystem(path.fs)
-    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}")
+    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}')")
