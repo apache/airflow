@@ -296,17 +296,11 @@ const MarkInstanceAs = ({
           </Flex>
         </MenuButton>
         <MenuList>
-          <MenuItem
-            onClick={markAsFailed}
-            isDisabled={!isMappedSummary && currentState === "failed"}
-          >
+          <MenuItem onClick={markAsFailed}>
             <SimpleStatus state="failed" mr={2} />
             failed
           </MenuItem>
-          <MenuItem
-            onClick={markAsSuccess}
-            isDisabled={!isMappedSummary && currentState === "success"}
-          >
+          <MenuItem onClick={markAsSuccess}>
             <SimpleStatus state="success" mr={2} />
             success
           </MenuItem>
