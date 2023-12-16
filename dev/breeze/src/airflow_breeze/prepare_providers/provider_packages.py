@@ -228,7 +228,7 @@ def move_built_packages_and_cleanup(
 
 
 def get_packages_list_to_act_on(
-    package_list_file: IO | None, provider_packages: tuple[str, ...]
+    package_list_file: IO | None, provider_packages: tuple[str, ...], include_removed: bool = False
 ) -> list[str]:
     if package_list_file and provider_packages:
         get_console().print(
@@ -244,4 +244,4 @@ def get_packages_list_to_act_on(
         ]
     elif provider_packages:
         return list(provider_packages)
-    return get_available_packages()
+    return get_available_packages(include_removed=include_removed)

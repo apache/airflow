@@ -174,7 +174,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.4
+    rev: v0.1.7
     hooks:
       # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
       # host CPU to it's fullest
@@ -250,7 +250,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.32.0
+    rev: v1.33.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -340,6 +340,13 @@ repos:
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-providers-bug-report-template
+        name: Check airflow-bug-report provider list is sorted/unique
+        language: python
+        files: ^.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        require_serial: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_bug_report_template.py
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
         language: python
@@ -517,7 +524,6 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/config_templates/|
@@ -532,6 +538,7 @@ repos:
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
+          ^airflow/providers/fab/auth_manager/security_manager/|
           ^airflow/providers/google/cloud/hooks/bigquery.py$|
           ^airflow/providers/google/cloud/operators/cloud_build.py$|
           ^airflow/providers/google/cloud/operators/dataproc.py$|
@@ -805,7 +812,7 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -1015,7 +1022,7 @@ repos:
         language: python
         language_version: python3
         types: [ python ]
-        additional_dependencies: ['bandit>=1.7.5']
+        additional_dependencies: ['bandit==1.7.6']
         require_serial: true
         files: ^airflow/.*
         exclude:

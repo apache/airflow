@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from jsonpath_ng import parse
+import jsonpath_ng
+import jsonpath_ng.ext
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from mypy_boto3_sqs import type_defs
@@ -28,9 +30,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+MessageFilteringType = Literal["literal", "jsonpath", "jsonpath-ext"]
+
+
 def process_response(
     response: type_defs.ReceiveMessageResultTypeDef,
-    message_filtering: Literal["literal", "jsonpath"] | None = None,
+    message_filtering: MessageFilteringType | None = None,
     message_filtering_match_values: Any = None,
     message_filtering_config: Any = None,
 ) -> list[type_defs.MessageTypeDef]:
@@ -58,14 +63,20 @@ def process_response(
 
 def filter_messages(
     messages: list[type_defs.MessageTypeDef],
-    message_filtering: Literal["literal", "jsonpath"],
+    message_filtering: MessageFilteringType,
     message_filtering_match_values: Any,
     message_filtering_config: Any,
 ) -> list[type_defs.MessageTypeDef]:
     if message_filtering == "literal":
         return filter_messages_literal(messages, message_filtering_match_values)
     if message_filtering == "jsonpath":
-        return filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config)
+        return filter_messages_jsonpath(
+            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.parse
+        )
+    if message_filtering == "jsonpath-ext":
+        return filter_messages_jsonpath(
+            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.ext.parse
+        )
     else:
         raise NotImplementedError("Override this method to define custom filters")
 
@@ -81,6 +92,7 @@ def filter_messages_jsonpath(
     messages: list[type_defs.MessageTypeDef],
     message_filtering_match_values: Any,
     message_filtering_config: Any,
+    parse,
 ) -> list[type_defs.MessageTypeDef]:
     jsonpath_expr = parse(message_filtering_config)
     filtered_messages = []

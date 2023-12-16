@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
+import pandas as pd
 import pytest
+import requests
+import weaviate
 from weaviate import ObjectAlreadyExistsException
 
 from airflow.models import Connection
@@ -36,7 +40,7 @@ def weaviate_hook():
     mock_conn = Mock()
 
     # Patch the WeaviateHook get_connection method to return the mock connection
-    with patch.object(WeaviateHook, "get_connection", return_value=mock_conn):
+    with mock.patch.object(WeaviateHook, "get_connection", return_value=mock_conn):
         hook = WeaviateHook(conn_id=TEST_CONN_ID)
     return hook
 
@@ -404,7 +408,15 @@ def test_create_schema(weaviate_hook):
     mock_client.schema.create.assert_called_once_with(test_schema_json)
 
 
-def test_batch_data(weaviate_hook):
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        ([{"name": "John"}, {"name": "Jane"}], 2),
+        (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
+    ],
+    ids=("data as list of dicts", "data as dataframe"),
+)
+def test_batch_data(data, expected_length, weaviate_hook):
     """
     Test the batch_data method of WeaviateHook.
     """
@@ -414,12 +426,247 @@ def test_batch_data(weaviate_hook):
 
     # Define test data
     test_class_name = "TestClass"
-    test_data = [{"name": "John"}, {"name": "Jane"}]
 
     # Test the batch_data method
-    weaviate_hook.batch_data(test_class_name, test_data)
+    weaviate_hook.batch_data(test_class_name, data)
 
     # Assert that the batch_data method was called with the correct arguments
     mock_client.batch.configure.assert_called_once()
     mock_batch_context = mock_client.batch.__enter__.return_value
-    assert mock_batch_context.add_data_object.call_count == len(test_data)
+    assert mock_batch_context.add_data_object.call_count == expected_length
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_batch_data_retry(get_conn, weaviate_hook):
+    """Test to ensure retrying working as expected"""
+    data = [{"name": "chandler"}, {"name": "joey"}, {"name": "ross"}]
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [None, error, None, error, None]
+    get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
+    weaviate_hook.batch_data("TestClass", data)
+    assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
+
+
+@pytest.mark.parametrize(
+    argnames=["get_schema_value", "existing", "expected_value"],
+    argvalues=[
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "ignore", [{"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "replace", [{"class": "B"}, {"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "fail", {}),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "invalid_option", {}),
+    ],
+    ids=["ignore", "replace", "fail", "invalid_option"],
+)
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_classes")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_scenarios(
+    get_schema, create_schema, delete_classes, get_schema_value, existing, expected_value, weaviate_hook
+):
+    schema_json = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    with ExitStack() as stack:
+        delete_classes.return_value = None
+        if existing in ["fail", "invalid_option"]:
+            stack.enter_context(pytest.raises(ValueError))
+        get_schema.return_value = get_schema_value
+        weaviate_hook.create_or_replace_classes(schema_json=schema_json, existing=existing)
+        create_schema.assert_called_once_with({"classes": expected_value})
+        if existing == "replace":
+            delete_classes.assert_called_once_with(class_names=["B"])
+
+
+@mock.patch("builtins.open")
+@mock.patch("json.load")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, weaviate_hook):
+    """Test if schema_json is path to a json file"""
+    get_schema.return_value = {"classes": [{"class": "A"}, {"class": "B"}]}
+    load.return_value = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    weaviate_hook.create_or_replace_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
+    create_schema.assert_called_once_with({"classes": [{"class": "C"}]})
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+def test_delete_classes(get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    get_client.return_value.schema.delete_class.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == ["class_a"]
+
+    get_client.return_value.schema.delete_class.side_effect = weaviate.UnexpectedStatusCodeException(
+        "something failed", requests.Response()
+    )
+    with pytest.raises(weaviate.UnexpectedStatusCodeException):
+        weaviate_hook.delete_classes("class_a", if_error="stop")
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+def test_http_errors_of_delete_classes(get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    resp = requests.Response()
+    resp.status_code = 429
+    get_client.return_value.schema.delete_class.side_effect = [
+        requests.exceptions.HTTPError(response=resp),
+        None,
+        requests.exceptions.ConnectionError,
+        None,
+    ]
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == []
+    assert get_client.return_value.schema.delete_class.call_count == 4
+
+
+@pytest.mark.parametrize(
+    argnames=["classes_to_test", "expected_result"],
+    argvalues=[
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "invalid_property",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        }
+                    ],
+                },
+            ],
+            False,
+        ),
+        (
+            [
+                {
+                    "class": "invalid_class",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            False,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                        {
+                            "name": "name",
+                            "description": "Name of the author",
+                            "dataType": ["text"],
+                            "extra_key": "some_value",
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+    ],
+    ids=(
+        "property_level_check",
+        "class_level_check",
+        "invalid_property",
+        "invalid_class",
+        "swapped_properties",
+    ),
+)
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_hook):
+    get_schema.return_value = {
+        "classes": [
+            {
+                "class": "Author",
+                "description": "Authors info",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                ],
+            },
+            {
+                "class": "Article",
+                "description": "An article written by an Author",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                ],
+            },
+        ]
+    }
+    assert weaviate_hook.check_subset_of_schema(classes_to_test) == expected_result

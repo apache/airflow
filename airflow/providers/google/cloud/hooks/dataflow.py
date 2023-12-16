@@ -55,7 +55,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def process_line_and_extract_dataflow_job_id_callback(
-    on_new_job_id_callback: Callable[[str], None] | None
+    on_new_job_id_callback: Callable[[str], None] | None,
 ) -> Callable[[str], None]:
     """Build callback that triggers the specified function.
 

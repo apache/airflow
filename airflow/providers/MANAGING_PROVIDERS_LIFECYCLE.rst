@@ -514,14 +514,15 @@ providers (and then remove all the code and documentation related to the provide
 
 The "removed: true" flag will cause the provider to be available for the following commands (note that such
 provider has to be explicitly added as selected to the package - such provider will not be included in
-the available list of providers):
+the available list of providers or when documentation is built unless --include-removed-providers
+flag is used):
 
 * ``breeze build-docs``
 * ``breeze release-management prepare-provider-documentation``
 * ``breeze release-management prepare-provider-packages``
 * ``breeze release-management publish-docs``
 
-For all those commands, release manager needs to specify such to-be-removed provider explicitly as extra
-command during the release process. Except the changelog that needs to be maintained manually, all other
-documentation (main page of the provider documentation, PyPI README), will be automatically updated
-to include removal notice.
+For all those commands, release manager needs to specify ``--include-removed-providers`` when all providers
+are built or must add the provider id explicitly during the release process.
+Except the changelog that needs to be maintained manually, all other documentation (main page of the provider
+documentation, PyPI README), will be automatically updated to include removal notice.

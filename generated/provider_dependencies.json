@@ -198,13 +198,6 @@
     ],
     "excluded-python-versions": []
   },
-  "apache.sqoop": {
-    "deps": [
-      "apache-airflow>=2.6.0"
-    ],
-    "cross-providers-deps": [],
-    "excluded-python-versions": []
-  },
   "apprise": {
     "deps": [
       "apache-airflow>=2.6.0",
@@ -381,6 +374,17 @@
     ],
     "excluded-python-versions": []
   },
+  "fab": {
+    "deps": [
+      "apache-airflow>=2.9.0",
+      "flask-appbuilder==4.3.10",
+      "flask-login>=0.6.2",
+      "flask>=2.2,<2.3",
+      "google-re2>=1.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "facebook": {
     "deps": [
       "apache-airflow>=2.6.0",
@@ -422,28 +426,28 @@
       "google-auth-httplib2>=0.0.1",
       "google-auth>=1.0.0",
       "google-cloud-aiplatform>=1.22.1",
-      "google-cloud-automl>=2.11.0",
+      "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
-      "google-cloud-bigquery-datatransfer>=3.11.0",
+      "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigtable>=2.17.0",
-      "google-cloud-build>=3.13.0",
+      "google-cloud-build>=3.22.0",
       "google-cloud-compute>=1.10.0",
       "google-cloud-container>=2.17.4",
       "google-cloud-datacatalog>=3.11.1",
-      "google-cloud-dataflow-client>=0.8.2",
+      "google-cloud-dataflow-client>=0.8.6",
       "google-cloud-dataform>=0.5.0",
-      "google-cloud-dataplex>=1.4.2",
+      "google-cloud-dataplex>=1.10.0",
       "google-cloud-dataproc-metastore>=1.12.0",
-      "google-cloud-dataproc>=5.5.0",
+      "google-cloud-dataproc>=5.8.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",
       "google-cloud-language>=2.9.0",
       "google-cloud-logging>=3.5.0",
       "google-cloud-memcache>=1.7.0",
-      "google-cloud-monitoring>=2.14.1",
-      "google-cloud-orchestration-airflow>=1.7.0",
+      "google-cloud-monitoring>=2.18.0",
+      "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.15.0",
+      "google-cloud-pubsub>=2.19.0",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.9.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -747,14 +751,6 @@
     "deps": [
       "apache-airflow>=2.6.0",
       "pinecone-client>=2.2.4"
-    ],
-    "cross-providers-deps": [],
-    "excluded-python-versions": []
-  },
-  "plexus": {
-    "deps": [
-      "apache-airflow>=2.6.0",
-      "arrow>=0.16.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []

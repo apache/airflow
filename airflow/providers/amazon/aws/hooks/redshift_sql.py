@@ -65,8 +65,8 @@ class RedshiftSQLHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict:
         """Get custom field behavior."""
         return {
             "hidden_fields": [],

@@ -19,11 +19,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from typing_extensions import Literal
-
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.utils.sqs import process_response
+from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -67,7 +65,7 @@ class SqsSensorTrigger(BaseTrigger):
         num_batches: int = 1,
         wait_time_seconds: int = 1,
         visibility_timeout: int | None = None,
-        message_filtering: Literal["literal", "jsonpath"] | None = None,
+        message_filtering: MessageFilteringType | None = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,

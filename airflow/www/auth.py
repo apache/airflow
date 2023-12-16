@@ -81,7 +81,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
 
     return _has_access_fab(permissions)
 
@@ -180,10 +180,6 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
     return redirect(get_auth_manager().get_url_login(next=request.url))
-
-
-def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
