@@ -476,7 +476,7 @@ Run the ``ruff-format`` check for the files ``airflow/example_dags/example_bash_
 
 .. code-block:: bash
 
-     breeze static-checks --type ruff --file airflow/example_dags/example_bash_operator.py \
+     breeze static-checks --type ruff-format --file airflow/example_dags/example_bash_operator.py \
          airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
