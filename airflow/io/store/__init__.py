@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.io import get_fs, has_fs
@@ -48,15 +49,17 @@ class ObjectStore:
     ):
         self.conn_id = conn_id
         self.protocol = protocol
-        self._fs = fs
+        if fs is not None:
+            self.fs = fs
         self.storage_options = storage_options
 
     def __str__(self):
         return f"{self.protocol}-{self.conn_id}" if self.conn_id else self.protocol
 
-    @property
+    @cached_property
     def fs(self) -> AbstractFileSystem:
-        return self._connect()
+        # if the fs is provided in init, the next statement will be ignored
+        return get_fs(self.protocol, self.conn_id)
 
     @property
     def fsid(self) -> str:
@@ -68,9 +71,8 @@ class ObjectStore:
 
         :return: deterministic the filesystem ID
         """
-        fs = self._connect()
         try:
-            return fs.fsid
+            return self.fs.fsid
         except NotImplementedError:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
@@ -78,7 +80,7 @@ class ObjectStore:
         return {
             "protocol": self.protocol,
             "conn_id": self.conn_id,
-            "filesystem": qualname(self._fs) if self._fs else None,
+            "filesystem": qualname(self.fs) if self.fs else None,
             "storage_options": self.storage_options,
         }
 
@@ -102,11 +104,6 @@ class ObjectStore:
             )
 
         return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
-
-    def _connect(self) -> AbstractFileSystem:
-        if self._fs is None:
-            self._fs = get_fs(self.protocol, self.conn_id)
-        return self._fs
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
