@@ -17,25 +17,38 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from flask import Response, current_app, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
+from airflow.api_connexion.security import get_readable_dags
 from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @security.requires_access_dag("GET", DagAccessEntity.CODE)
-def get_dag_source(*, file_token: str) -> Response:
+@provide_session
+def get_dag_source(*, file_token: str, session: Session = NEW_SESSION) -> Response:
     """Get source code using file token."""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
     try:
         path = auth_s.loads(file_token)
-        dag_source = DagCode.code(path)
+        dag_ids = session.query(DagModel.dag_id).filter(DagModel.fileloc == path).all()
+        readable_dags = get_readable_dags()
+        # Check if user has read access to all the DAGs defined in the file
+        if any(dag_id[0] not in readable_dags for dag_id in dag_ids):
+            raise PermissionDenied()
+        dag_source = DagCode.code(path, session=session)
     except (BadSignature, FileNotFoundError):
         raise NotFound("Dag source not found")
 
