@@ -471,6 +471,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 
      breeze static-checks --type ruff --file tests/core/* --verbose
 
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
+
 Run all checks for the currently staged files:
 
 .. code-block:: bash
