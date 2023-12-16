@@ -1,5 +1,6 @@
+
 #
-# This constraints file was automatically generated on 2023-12-14T15:28:40Z
+# This constraints file was automatically generated on 2023-12-16T04:31:02.308833
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -21,12 +22,13 @@
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
 #
 # pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \
-#     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
+#     --constraint \
+#    "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
 #
 # 2. Installing own dependencies that are potentially not matching the constraints (note constraints are not
 #    used, and apache-airflow==X.Y.Z is used to make sure there is no accidental airflow upgrade/downgrade.
 #
-# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]==2.9.0"
+# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 Authlib==1.2.1
 Babel==2.14.0
@@ -107,7 +109,6 @@ apache-airflow-providers-apache-livy==3.7.0
 apache-airflow-providers-apache-pig==4.3.0
 apache-airflow-providers-apache-pinot==4.3.0
 apache-airflow-providers-apache-spark==4.5.0
-apache-airflow-providers-apache-sqoop==4.2.0
 apache-airflow-providers-apprise==1.2.0
 apache-airflow-providers-arangodb==2.4.0
 apache-airflow-providers-asana==2.4.0
@@ -154,7 +155,6 @@ apache-airflow-providers-pagerduty==3.5.0
 apache-airflow-providers-papermill==3.6.0
 apache-airflow-providers-pgvector==1.1.0
 apache-airflow-providers-pinecone==1.1.0
-apache-airflow-providers-plexus==3.4.0
 apache-airflow-providers-postgres==5.9.0
 apache-airflow-providers-presto==5.3.0
 apache-airflow-providers-redis==3.5.0
@@ -181,7 +181,6 @@ apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
 argcomplete==3.2.1
-arrow==1.3.0
 asana==3.2.2
 asgiref==3.7.2
 asn1crypto==1.5.1
@@ -195,7 +194,7 @@ aws-sam-translator==1.82.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.29.5
+azure-core==1.29.6
 azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
 azure-identity==1.15.0
@@ -221,7 +220,7 @@ azure-synapse-spark==0.7.0
 backcall==0.2.0
 backoff==2.2.1
 backports.zoneinfo==0.2.1
-bcrypt==4.1.1
+bcrypt==4.1.2
 beautifulsoup4==4.12.2
 billiard==4.2.0
 bitarray==2.8.5
@@ -237,7 +236,7 @@ celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.5
+cfn-lint==0.83.6
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -250,7 +249,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.38
+cohere==4.39
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.0
@@ -295,7 +294,7 @@ fasteners==0.19
 fastjsonschema==2.19.0
 filelock==3.13.1
 flower==2.0.1
-frozenlist==1.4.0
+frozenlist==1.4.1
 fsspec==2023.12.2
 future==0.18.3
 gcloud-aio-auth==4.2.3
@@ -414,7 +413,7 @@ krb5==0.5.1
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
 kylinpy==2.8.4
-lazy-object-proxy==1.9.0
+lazy-object-proxy==1.10.0
 ldap3==2.9.1
 limits==3.7.0
 linkify-it-py==2.0.2
@@ -442,7 +441,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.0
+mypy-boto3-rds==1.34.2
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.0
 mypy-extensions==1.0.0
@@ -459,7 +458,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.3.9
+openai==1.4.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.6.2
@@ -467,15 +466,15 @@ openlineage-python==1.6.2
 openlineage_sql==1.6.2
 openpyxl==3.1.2
 opensearch-py==2.4.2
-opentelemetry-api==1.21.0
-opentelemetry-exporter-otlp-proto-common==1.21.0
-opentelemetry-exporter-otlp-proto-grpc==1.21.0
-opentelemetry-exporter-otlp-proto-http==1.21.0
-opentelemetry-exporter-otlp==1.21.0
-opentelemetry-exporter-prometheus==0.42b0
-opentelemetry-proto==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-semantic-conventions==0.42b0
+opentelemetry-api==1.22.0
+opentelemetry-exporter-otlp-proto-common==1.22.0
+opentelemetry-exporter-otlp-proto-grpc==1.22.0
+opentelemetry-exporter-otlp-proto-http==1.22.0
+opentelemetry-exporter-otlp==1.22.0
+opentelemetry-exporter-prometheus==0.43b0
+opentelemetry-proto==1.22.0
+opentelemetry-sdk==1.22.0
+opentelemetry-semantic-conventions==0.43b0
 opsgenie-sdk==2.1.5
 oracledb==1.4.2
 ordered-set==4.1.0
@@ -577,7 +576,7 @@ pyzmq==25.1.2
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
-redshift-connector==2.0.917
+redshift-connector==2.0.918
 referencing==0.32.0
 regex==2023.10.3
 requests-file==1.5.1
