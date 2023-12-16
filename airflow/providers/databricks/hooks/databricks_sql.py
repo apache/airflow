@@ -240,7 +240,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 with closing(conn.cursor()) as cur:
                     self._run_command(cur, sql_statement, parameters)
                     if handler is not None:
-                        result = self._make_serializable(handler(cur))
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
@@ -258,8 +258,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    def _make_serializable(self, result):
-        """Transform the databricks Row objects into serializable namedtuple."""
+    def _make_common_data_structure(self, result: list[Row] | Row | None) -> list[tuple] | tuple | None:
+        """Transform the databricks Row objects into namedtuple."""
         if self.return_serializable:
             columns: list[str] | None = None
             if isinstance(result, list):

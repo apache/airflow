@@ -392,7 +392,7 @@ class DbApiHook(BaseHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self._make_serializable(handler(cur))
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -412,17 +412,16 @@ class DbApiHook(BaseHook):
         else:
             return results
 
-    @staticmethod
-    def _make_serializable(result: Any) -> Any:
-        """Ensure the data returned from an SQL command is JSON-serializable.
+    def _make_common_data_structure(self, result: Any) -> Any:
+        """Ensure the data returned from an SQL command is standard.
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
-        transform the result of an SQL command (typically returned by cursor methods) into a
-        JSON-serializable format.
+        transform the result of an SQL command (typically returned by cursor methods) into a common
+        data structure (a tuple or list[tuple]) across all DBApiHook derived Hooks, as defined in the
+        ADR-0002 of the sql provider.
 
-        If this method is not overridden, the result data is returned as-is.
-        If the output of the cursor is already JSON-serializable, this method
-        should be ignored.
+        If this method is not overridden, the result data is returned as-is. If the output of the cursor
+        is already a common data structure, this method should be ignored.
         """
         return result
 
