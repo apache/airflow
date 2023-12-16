@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-15T14:53:19.480527
+# This constraints file was automatically generated on 2023-12-16T07:23:09.109414
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -247,7 +247,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.38
+cohere==4.39
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.0
@@ -411,7 +411,7 @@ krb5==0.5.1
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
 kylinpy==2.8.4
-lazy-object-proxy==1.9.0
+lazy-object-proxy==1.10.0
 ldap3==2.9.1
 limits==3.7.0
 linkify-it-py==2.0.2
@@ -439,7 +439,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.0
+mypy-boto3-rds==1.34.2
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.0
 mypy-extensions==1.0.0
@@ -464,15 +464,15 @@ openlineage-python==1.6.2
 openlineage_sql==1.6.2
 openpyxl==3.1.2
 opensearch-py==2.4.2
-opentelemetry-api==1.21.0
-opentelemetry-exporter-otlp-proto-common==1.21.0
-opentelemetry-exporter-otlp-proto-grpc==1.21.0
-opentelemetry-exporter-otlp-proto-http==1.21.0
-opentelemetry-exporter-otlp==1.21.0
-opentelemetry-exporter-prometheus==0.42b0
-opentelemetry-proto==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-semantic-conventions==0.42b0
+opentelemetry-api==1.22.0
+opentelemetry-exporter-otlp-proto-common==1.22.0
+opentelemetry-exporter-otlp-proto-grpc==1.22.0
+opentelemetry-exporter-otlp-proto-http==1.22.0
+opentelemetry-exporter-otlp==1.22.0
+opentelemetry-exporter-prometheus==0.43b0
+opentelemetry-proto==1.22.0
+opentelemetry-sdk==1.22.0
+opentelemetry-semantic-conventions==0.43b0
 opsgenie-sdk==2.1.5
 oracledb==1.4.2
 ordered-set==4.1.0
