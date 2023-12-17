@@ -94,6 +94,7 @@ class TestGoogleCloudStorageObjectSensor:
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
+            use_glob=False,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -107,6 +108,27 @@ class TestGoogleCloudStorageObjectSensor:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_should_pass_argument_to_hook_using_glob(self, mock_hook):
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            use_glob=True,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.list.return_value = [mock.MagicMock()]
+
+        result = task.poke(mock.MagicMock())
+
+        assert result is True
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, match_glob=TEST_OBJECT)
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
