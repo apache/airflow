@@ -1101,15 +1101,16 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 ./dev/provider_packages/tag_providers.sh
 ```
 
 ## Update providers metadata
 
-Make sure you create the following branch from the git tag (steps before) and not from main!
-
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout main
+git pull
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata
