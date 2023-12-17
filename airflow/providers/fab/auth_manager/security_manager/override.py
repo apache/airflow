@@ -278,6 +278,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ]
     # [END security_op_perms]
 
+    # [START security_admin_perms]
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
@@ -288,6 +289,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
     ]
+    # [END security_admin_perms]
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
