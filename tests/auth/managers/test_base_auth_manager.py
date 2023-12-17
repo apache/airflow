@@ -57,9 +57,6 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
-        raise NotImplementedError()
-
     def is_authorized_connection(
         self,
         *,

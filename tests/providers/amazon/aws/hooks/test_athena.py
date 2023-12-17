@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
 MOCK_DATA = {
@@ -196,6 +198,29 @@ class TestAthenaHook:
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
+
+    @pytest.mark.parametrize(
+        "query_execution_id", [pytest.param("", id="empty-string"), pytest.param(None, id="none")]
+    )
+    def test_hook_get_output_location_empty_execution_id(self, query_execution_id):
+        with pytest.raises(ValueError, match="Invalid Query execution id"):
+            self.athena.get_output_location(query_execution_id=query_execution_id)
+
+    @pytest.mark.parametrize("response", [pytest.param({}, id="empty-dict"), pytest.param(None, id="none")])
+    def test_hook_get_output_location_no_response(self, response):
+        with mock.patch.object(AthenaHook, "get_query_info", return_value=response) as m:
+            with pytest.raises(ValueError, match="Unable to get query information"):
+                self.athena.get_output_location(query_execution_id="PLACEHOLDER")
+            m.assert_called_once_with(query_execution_id="PLACEHOLDER", use_cache=True)
+
+    def test_hook_get_output_location_invalid_response(self, caplog):
+        with mock.patch.object(AthenaHook, "get_query_info") as m:
+            m.return_value = {"foo": "bar"}
+            caplog.clear()
+            caplog.set_level("ERROR")
+            with pytest.raises(KeyError):
+                self.athena.get_output_location(query_execution_id="PLACEHOLDER")
+            assert "Error retrieving OutputLocation" in caplog.text
 
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_get_query_info_caching(self, mock_conn):

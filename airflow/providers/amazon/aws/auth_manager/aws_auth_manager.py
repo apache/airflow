@@ -23,6 +23,8 @@ from flask import session, url_for
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
+from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_ENABLE_KEY,
     CONF_SECTION_NAME,
@@ -72,6 +74,10 @@ class AwsAuthManager(BaseAuthManager):
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
             )
 
+    @cached_property
+    def avp_facade(self):
+        return AwsAuthManagerAmazonVerifiedPermissionsFacade()
+
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None
 
@@ -85,10 +91,13 @@ class AwsAuthManager(BaseAuthManager):
         details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.is_logged_in()
-
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
-        return self.is_logged_in()
+        config_section = details.section if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.CONFIGURATION,
+            user=user or self.get_user(),
+            entity_id=config_section,
+        )
 
     def is_authorized_connection(
         self,
@@ -97,7 +106,13 @@ class AwsAuthManager(BaseAuthManager):
         details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.is_logged_in()
+        connection_id = details.conn_id if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.CONNECTION,
+            user=user or self.get_user(),
+            entity_id=connection_id,
+        )
 
     def is_authorized_dag(
         self,
@@ -112,17 +127,35 @@ class AwsAuthManager(BaseAuthManager):
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self.is_logged_in()
+        dataset_uri = details.uri if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.DATASET,
+            user=user or self.get_user(),
+            entity_id=dataset_uri,
+        )
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self.is_logged_in()
+        pool_name = details.name if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.POOL,
+            user=user or self.get_user(),
+            entity_id=pool_name,
+        )
 
     def is_authorized_variable(
         self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self.is_logged_in()
+        variable_key = details.key if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.VARIABLE,
+            user=user or self.get_user(),
+            entity_id=variable_key,
+        )
 
     def is_authorized_view(
         self,
@@ -130,7 +163,12 @@ class AwsAuthManager(BaseAuthManager):
         access_view: AccessView,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.is_logged_in()
+        return self.avp_facade.is_authorized(
+            method="GET",
+            entity_type=AvpEntities.VIEW,
+            user=user or self.get_user(),
+            entity_id=access_view.value,
+        )
 
     def get_url_login(self, **kwargs) -> str:
         return url_for("AwsAuthManagerAuthenticationViews.login")

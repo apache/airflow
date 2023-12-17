@@ -364,7 +364,7 @@ class Connection(Base, LoggingMixin):
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
-            warnings.warn(
+            log.error(
                 "Could not import %s when discovering %s %s",
                 hook.hook_class_name,
                 hook.hook_name,
@@ -478,10 +478,7 @@ class Connection(Base, LoggingMixin):
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
-    def to_dict(self) -> dict[str, Any]:
-        return {"conn_id": self.conn_id, "description": self.description, "uri": self.get_uri()}
-
-    def to_json_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
         """
         Convert Connection to json-serializable dictionary.
 
@@ -528,6 +525,6 @@ class Connection(Base, LoggingMixin):
 
     def as_json(self) -> str:
         """Convert Connection to JSON-string object."""
-        conn = self.to_json_dict(prune_empty=True, validate=False)
-        conn.pop("conn_id", None)
-        return json.dumps(conn)
+        conn_repr = self.to_dict(prune_empty=True, validate=False)
+        conn_repr.pop("conn_id", None)
+        return json.dumps(conn_repr)

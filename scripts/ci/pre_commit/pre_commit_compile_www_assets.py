@@ -17,16 +17,33 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import get_directory_hash
+# NOTE!. This script is executed from node environment created by pre-commit and this environment
+# Cannot have additional Python dependencies installed. We should not import any of the libraries
+# here that are not available in stdlib! You should not import common_precommit_utils.py here because
+# They are importing rich library which is not available in the node environment.
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"
+
+
+def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
+    files = sorted(directory.rglob("*"))
+    if skip_path_regexp:
+        matcher = re.compile(skip_path_regexp)
+        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
+    sha = hashlib.sha256()
+    for file in files:
+        if file.is_file() and not file.name.startswith("."):
+            sha.update(file.read_bytes())
+    return sha.hexdigest()
+
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(

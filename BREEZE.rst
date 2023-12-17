@@ -93,6 +93,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - 5. In some cases you might make sure that "Allow the default Docker socket to
   be used" in "Advanced" tab of "Docker Desktop" settings is checked
 
+
 .. raw:: html
 
    <div align="center">
@@ -1807,7 +1808,7 @@ check if there are any images that need regeneration.
   :alt: Breeze setup regenerate-command-images
 
 Breeze check-all-params-in-groups
-...................
+.................................
 
 When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
 for the command is present and that all parameters are assigned to the right group so they can be
@@ -1818,6 +1819,17 @@ nicely presented in ``--help`` output. You can check that via ``check-all-params
   :width: 100%
   :alt: Breeze setup check-all-params-in-group
 
+Breeze synchronize-local-mounts
+...............................
+
+When you add volumes mounted to docker, they need to be added in ``docker_command_utils.py`` - so that they
+are added by plain ``docker`` command, but they also need to be synchronized with ``local.yml``. This can be
+done via ``synchronize-local-mounts`` command.
+
+.. image:: ./images/breeze/output_setup_synchronize-local-mounts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_synchronize-local-mounts.svg
+  :width: 100%
+  :alt: Breeze setup synchronize-local-mounts
 
 CI tasks
 --------
@@ -2356,6 +2368,22 @@ These are all available flags of ``update-constraints`` command:
 You can read more details about what happens when you update constraints in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
+
+Cleaning up of old providers
+""""""""""""""""""""""""""""
+
+During the provider releases, we need to clean up the older provider versions in the SVN release folder.
+Earlier this was done using a script, but now it is being migrated to a breeze command to ease the life of
+release managers for providers. This can be achieved using ``breeze release-management clean-old-provider-artifacts``
+command.
+
+
+These are all available flags of ``clean-old-provider-artifacts`` command:
+
+.. image:: ./images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :width: 100%
+  :alt: Breeze Clean Old Provider Artifacts
 
 SBOM generation tasks
 ----------------------

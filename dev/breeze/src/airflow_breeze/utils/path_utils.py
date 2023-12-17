@@ -288,9 +288,11 @@ HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
 SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
 GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
 GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
 GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
@@ -354,11 +356,17 @@ def cleanup_python_generated_files():
     for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
         try:
             path.unlink()
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
         try:
             shutil.rmtree(path)
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     if permission_errors:

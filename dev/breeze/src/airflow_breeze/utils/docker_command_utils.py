@@ -26,9 +26,15 @@ from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.utils.host_info_utils import get_host_os
-from airflow_breeze.utils.image import find_available_ci_image
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, GENERATED_DOCKER_ENV_FILE
+from airflow_breeze.utils.cache import read_from_cache_file
+from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    cleanup_python_generated_files,
+    create_mypy_volume_if_needed,
+)
+from airflow_breeze.utils.shared_options import get_verbose
+from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 try:
     from packaging import version
@@ -39,13 +45,11 @@ except ImportError:
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_DEBIAN_VERSIONS,
-    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
-    MOUNT_ALL,
-    MOUNT_REMOVE,
-    MOUNT_SELECTED,
+    SEQUENTIAL_EXECUTOR,
 )
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
@@ -56,6 +60,7 @@ from airflow_breeze.utils.run_utils import (
 
 if TYPE_CHECKING:
     from airflow_breeze.params.common_build_params import CommonBuildParams
+    from airflow_breeze.params.shell_params import ShellParams
 
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
@@ -97,39 +102,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
 ]
-
-
-def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> list[str]:
-    """
-    Returns extra docker flags based on the type of mounting we want to do for sources.
-
-    :param mount_sources: type of mounting we want to have
-    :param env: environment variables to pass to docker
-    :param include_mypy_volume: includes mypy_volume
-    :return: extra flag as list of strings
-    """
-    extra_docker_flags = []
-    if mount_sources == MOUNT_ALL:
-        extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
-    elif mount_sources == MOUNT_SELECTED:
-        for src, dst in VOLUMES_FOR_SELECTED_MOUNTS:
-            if (AIRFLOW_SOURCES_ROOT / src).exists():
-                extra_docker_flags.extend(
-                    ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}"]
-                )
-        if include_mypy_volume:
-            extra_docker_flags.extend(
-                ["--mount", "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
-            )
-    elif mount_sources == MOUNT_REMOVE:
-        extra_docker_flags.extend(
-            ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
-        )
-    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'files'},dst=/files"])
-    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'dist'},dst=/dist"])
-    extra_docker_flags.extend(["--rm"])
-    extra_docker_flags.extend(["--env-file", GENERATED_DOCKER_ENV_FILE.as_posix()])
-    return extra_docker_flags
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -406,11 +378,16 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
             [
                 "buildx",
                 "build",
-                "--builder",
-                get_and_use_docker_context(image_params.builder),
                 "--push" if image_params.push else "--load",
             ]
         )
+        if not image_params.docker_host:
+            build_command_param.extend(
+                [
+                    "--builder",
+                    get_and_use_docker_context(image_params.builder),
+                ]
+            )
     else:
         build_command_param.append("build")
     return build_command_param
@@ -558,21 +535,26 @@ def fix_ownership_using_docker(quiet: bool = False):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
-    shell_params = find_available_ci_image(
-        github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    )
-    extra_docker_flags = get_extra_docker_flags(mount_sources=MOUNT_ALL)
     cmd = [
         "docker",
         "run",
+        "-v",
+        "./scripts/in_container:/opt/airflow/scripts/in_container",
+        "-e",
+        f"HOST_OS={get_host_os()}",
+        "-e",
+        f"HOST_USER_ID={get_host_user_id()}",
+        "-e",
+        f"HOST_GROUP_ID={get_host_group_id()}",
+        "-e",
+        f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+        "-e",
+        f"VERBOSE_COMMANDS={str(not quiet).lower()}",
         "-t",
-        *extra_docker_flags,
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(
-        cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands, capture_output=quiet
-    )
+    run_command(cmd, text=True, check=False, capture_output=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -658,3 +640,194 @@ def get_and_use_docker_context(context: str):
             f"[warning] Could no use the context {context}. Continuing with current context[/]"
         )
     return context
+
+
+def get_docker_build_env(image_params: CommonBuildParams) -> dict[str, str]:
+    env = os.environ.copy()
+    env["DOCKER_BUILDKIT"] = "1"
+    if image_params.docker_host:
+        env["DOCKER_HOST"] = image_params.docker_host
+    return env
+
+
+def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams):
+    down_command_to_execute = ["docker", "compose"]
+    if shell_params.project_name:
+        down_command_to_execute.extend(["--project-name", shell_params.project_name])
+    down_command_to_execute.extend(["down", "--remove-orphans"])
+    if not preserve_volumes:
+        down_command_to_execute.append("--volumes")
+    run_command(
+        down_command_to_execute,
+        text=True,
+        check=False,
+        capture_output=shell_params.quiet,
+        env=shell_params.env_variables_for_docker_commands,
+    )
+
+
+def execute_command_in_shell(
+    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
+) -> RunCommandResult:
+    """Executes command in shell.
+
+    When you want to execute a script/bash command inside the CI container and want to use `enter_shell`
+    for this purpose, the helper methods sets the following parameters of shell_params:
+
+    * backend - to force sqlite backend
+    * clean_sql_db=True - to clean the sqlite DB
+    * executor - to force SequentialExecutor
+    * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
+      allow to avoid clashes with other commands and opened breeze shell
+    * project_name - to avoid name clashes with default "breeze" project name used
+    * quiet=True - avoid displaying all "interactive" parts of Breeze: ASCIIART, CHEATSHEET, some diagnostics
+    * skip_environment_initialization - to avoid initializing interactive environment
+    * skip_image_upgrade_check - to avoid checking if the image is up to date
+
+    if command is passed as parameter, extra_args - to pass the command to execute in the shell
+
+    :param shell_params: shell parameters to use
+    :param project_name: Name of the project to use. This avoids name clashes with default 'breeze"
+        project name used - this way you will be able to run the command in parallel to regular
+        "breeze" shell opened in parallel
+    :param command:
+    """
+    shell_params.backend = "sqlite"
+    shell_params.executor = SEQUENTIAL_EXECUTOR
+    shell_params.forward_ports = False
+    shell_params.project_name = project_name
+    shell_params.quiet = True
+    shell_params.skip_environment_initialization = True
+    shell_params.skip_image_upgrade_check = True
+    if get_verbose():
+        get_console().print(f"[warning]Backend forced to: sqlite and {SEQUENTIAL_EXECUTOR}[/]")
+        get_console().print("[warning]Sqlite DB is cleaned[/]")
+        get_console().print(f"[warning]Executor forced to {SEQUENTIAL_EXECUTOR}[/]")
+        get_console().print("[warning]Disabled port forwarding[/]")
+        get_console().print(f"[warning]Project name set to: {project_name}[/]")
+        get_console().print("[warning]Forced quiet mode[/]")
+        get_console().print("[warning]Forced skipping environment initialization[/]")
+        get_console().print("[warning]Forced skipping upgrade check[/]")
+    if command:
+        shell_params.extra_args = (command,)
+        if get_verbose():
+            get_console().print(f"[info]Command to execute: '{command}'[/]")
+    return enter_shell(shell_params, output=output)
+
+
+def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
+    """
+    Executes entering shell using the parameters passed as kwargs:
+
+    * checks if docker version is good
+    * checks if docker-compose version is good
+    * updates kwargs with cached parameters
+    * displays ASCIIART and CHEATSHEET unless disabled
+    * build ShellParams from the updated kwargs
+    * shuts down existing project
+    * executes the command to drop the user to Breeze shell
+    """
+    perform_environment_checks(quiet=shell_params.quiet)
+    fix_ownership_using_docker(quiet=shell_params.quiet)
+    cleanup_python_generated_files()
+    if read_from_cache_file("suppress_asciiart") is None and not shell_params.quiet:
+        get_console().print(ASCIIART, style=ASCIIART_STYLE)
+    if read_from_cache_file("suppress_cheatsheet") is None and not shell_params.quiet:
+        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
+    if shell_params.use_airflow_version:
+        # in case you use specific version of Airflow, you want to bring airflow down automatically before
+        # using it. This prevents the problem that if you have newer DB, airflow will not know how
+        # to migrate to it and fail with "Can't locate revision identified by 'xxxx'".
+        get_console().print(
+            f"[warning]Bringing the project down as {shell_params.use_airflow_version} "
+            f"airflow version is used[/]"
+        )
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+
+    if shell_params.backend == "sqlite" and shell_params.executor != SEQUENTIAL_EXECUTOR:
+        get_console().print(
+            f"\n[warning]backend: sqlite is not "
+            f"compatible with executor: {shell_params.executor}. "
+            f"Changing the executor to {SEQUENTIAL_EXECUTOR}.\n"
+        )
+        shell_params.executor = SEQUENTIAL_EXECUTOR
+
+    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
+        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
+            get_console().print(
+                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
+            )
+            shell_params.airflow_extras += ",celery"
+        elif not shell_params.airflow_extras:
+            get_console().print(
+                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                "Setting airflow extras to 'celery'.\n"
+            )
+            shell_params.airflow_extras = "celery"
+    if shell_params.restart:
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+    if shell_params.include_mypy_volume:
+        create_mypy_volume_if_needed()
+    shell_params.print_badge_info()
+    cmd = ["docker", "compose"]
+    if shell_params.quiet:
+        cmd.extend(["--progress", "quiet"])
+    if shell_params.project_name:
+        cmd.extend(["--project-name", shell_params.project_name])
+    cmd.extend(["run", "--service-ports", "--rm"])
+    if shell_params.tty == "disabled":
+        cmd.append("--no-TTY")
+    elif shell_params.tty == "enabled":
+        cmd.append("--tty")
+    cmd.append("airflow")
+    cmd_added = shell_params.command_passed
+    if cmd_added is not None:
+        cmd.extend(["-c", cmd_added])
+    if "arm64" in DOCKER_DEFAULT_PLATFORM:
+        if shell_params.backend == "mysql":
+            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+        elif shell_params.backend == "mssql":
+            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
+            sys.exit(1)
+
+    if "openlineage" in shell_params.integration or "all" in shell_params.integration:
+        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+            get_console().print(
+                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                "as a backend with OpenLineage integration via Breeze[/]\n"
+            )
+            sys.exit(1)
+
+    command_result = run_command(
+        cmd,
+        text=True,
+        check=False,
+        env=shell_params.env_variables_for_docker_commands,
+        output=output,
+        output_outside_the_group=True,
+    )
+    if command_result.returncode == 0:
+        return command_result
+    else:
+        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+        if get_verbose():
+            get_console().print(command_result.stderr)
+        return command_result
+
+
+def is_docker_rootless() -> bool:
+    try:
+        response = run_command(
+            ["docker", "info", "-f", "{{println .SecurityOptions}}"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if response.returncode == 0 and "rootless" in response.stdout.strip():
+            get_console().print("[info]Docker is running in rootless mode.[/]\n")
+            return True
+    except FileNotFoundError:
+        # we ignore if docker is missing
+        pass
+    return False

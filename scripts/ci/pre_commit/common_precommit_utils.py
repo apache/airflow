@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import ast
-import hashlib
+import difflib
 import os
-import re
 import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 from rich.console import Console
@@ -68,18 +68,6 @@ def insert_documentation(file_path: Path, content: list[str], header: str, foote
             result.append(line)
     src = "".join(result)
     file_path.write_text(src)
-
-
-def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = sorted(directory.rglob("*"))
-    if skip_path_regexp:
-        matcher = re.compile(skip_path_regexp)
-        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
-    sha = hashlib.sha256()
-    for file in files:
-        if file.is_file() and not file.name.startswith("."):
-            sha.update(file.read_bytes())
-    return sha.hexdigest()
 
 
 def initialize_breeze_precommit(name: str, file: str):
@@ -162,3 +150,29 @@ def run_command_via_breeze_shell(
     down_command.extend(["down", "--remove-orphans"])
     subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result
+
+
+class ConsoleDiff(difflib.Differ):
+    def _dump(self, tag, x, lo, hi):
+        """Generate comparison results for a same-tagged range."""
+        for i in range(lo, hi):
+            if tag == "+":
+                yield f"[green]{tag} {x[i]}[/]"
+            elif tag == "-":
+                yield f"[red]{tag} {x[i]}[/]"
+            else:
+                yield f"{tag} {x[i]}"
+
+
+def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> bool:
+    sorted_list = sorted(set(the_list))
+    if the_list == sorted_list:
+        console.print(f"{message} is [green]ok[/]")
+        console.print(the_list)
+        console.print()
+        return True
+    console.print(f"{message} [red]NOK[/]")
+    console.print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
+    console.print()
+    errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
+    return False

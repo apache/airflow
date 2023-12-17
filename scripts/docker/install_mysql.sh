@@ -36,7 +36,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 export_key() {
     local key="${1}"
@@ -75,7 +75,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    export_key "467B942D3A79BD29" "mysql"
+    export_key "B7B3B788A8D3785C" "mysql"
 
     echo
     echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -87,6 +87,13 @@ install_mysql_client() {
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Remove mysql repository from sources.list.d as MySQL repos have a basic flaw that they put expiry
+    # date on their GPG signing keys and they sign their repo with those keys. This means that after a
+    # certain date, the GPG key becomes invalid and if you have the repository added in your sources.list
+    # then you will not be able to install anything from any other repository. This id unlike any other
+    # repository we have seen (for example Postgres, MariaDB, MsSQL - all have non-expiring signing keys)
+    rm /etc/apt/sources.list.d/mysql.list
 }
 
 install_mariadb_client() {
@@ -136,6 +143,9 @@ install_mariadb_client() {
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
         INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+        echo
+        echo "${COLOR_YELLOW}Client forced to mariadb for ARM${COLOR_RESET}"
+        echo
     fi
 
     if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then

@@ -76,6 +76,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
+        DagRun._get_log_template,
         SerializedDagModel.get_serialized_dag,
         TaskInstance._check_and_change_state_before_execution,
         TaskInstance.get_task_instance,
