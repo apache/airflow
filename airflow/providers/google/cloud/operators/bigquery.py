@@ -884,13 +884,13 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     **Example**::
 
         get_data = BigQueryGetDataOperator(
-            task_id='get_data_from_bq',
-            dataset_id='test_dataset',
-            table_id='Transaction_partitions',
-            project_id='internal-gcp-project',
+            task_id="get_data_from_bq",
+            dataset_id="test_dataset",
+            table_id="Transaction_partitions",
+            project_id="internal-gcp-project",
             max_results=100,
-            selected_fields='DATE',
-            gcp_conn_id='airflow-conn-id'
+            selected_fields="DATE",
+            gcp_conn_id="airflow-conn-id",
         )
 
     :param dataset_id: The dataset ID of the requested table. (templated)
@@ -1331,8 +1331,10 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
 
         **Example**::
 
-            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+            schema_fields = [
+                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+            ]
 
     :param gcs_schema_object: Full path to the JSON file containing
         schema (templated). For
@@ -1351,41 +1353,35 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
     **Example (with schema JSON in GCS)**::
 
         CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            gcs_schema_object='gs://schema-bucket/employee_schema.json',
-            gcp_conn_id='airflow-conn-id',
-            google_cloud_storage_conn_id='airflow-conn-id'
+            task_id="BigQueryCreateEmptyTableOperator_task",
+            dataset_id="ODS",
+            table_id="Employees",
+            project_id="internal-gcp-project",
+            gcs_schema_object="gs://schema-bucket/employee_schema.json",
+            gcp_conn_id="airflow-conn-id",
+            google_cloud_storage_conn_id="airflow-conn-id",
         )
 
     **Corresponding Schema file** (``employee_schema.json``)::
 
         [
-            {
-            "mode": "NULLABLE",
-            "name": "emp_name",
-            "type": "STRING"
-            },
-            {
-            "mode": "REQUIRED",
-            "name": "salary",
-            "type": "INTEGER"
-            }
+            {"mode": "NULLABLE", "name": "emp_name", "type": "STRING"},
+            {"mode": "REQUIRED", "name": "salary", "type": "INTEGER"},
         ]
 
     **Example (with schema in the DAG)**::
 
         CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
-            gcp_conn_id='airflow-conn-id-account',
-            google_cloud_storage_conn_id='airflow-conn-id'
+            task_id="BigQueryCreateEmptyTableOperator_task",
+            dataset_id="ODS",
+            table_id="Employees",
+            project_id="internal-gcp-project",
+            schema_fields=[
+                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+            ],
+            gcp_conn_id="airflow-conn-id-account",
+            google_cloud_storage_conn_id="airflow-conn-id",
         )
 
     :param view: [Optional] A dictionary containing definition for the view.
@@ -1582,8 +1578,10 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 
         **Example**::
 
-            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+            schema_fields = [
+                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+            ]
 
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :param table_resource: Table resource as described in documentation:
@@ -1878,12 +1876,13 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     **Example**::
 
         delete_temp_data = BigQueryDeleteDatasetOperator(
-            dataset_id='temp-dataset',
-            project_id='temp-project',
-            delete_contents=True, # Force the deletion of the dataset as well as its tables (if any).
-            gcp_conn_id='_my_gcp_conn_',
-            task_id='Deletetemp',
-            dag=dag)
+            dataset_id="temp-dataset",
+            project_id="temp-project",
+            delete_contents=True,  # Force the deletion of the dataset as well as its tables (if any).
+            gcp_conn_id="_my_gcp_conn_",
+            task_id="Deletetemp",
+            dag=dag,
+        )
     """
 
     template_fields: Sequence[str] = (
