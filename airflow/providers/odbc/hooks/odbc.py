@@ -17,7 +17,7 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, NamedTuple, TypeVar, cast
+from typing import Any, NamedTuple, TypeVar, cast, List
 from urllib.parse import quote_plus
 
 import pyodbc
@@ -225,7 +225,7 @@ class OdbcHook(DbApiHook):
             rows: list[pyodbc.Row] = result
             field_names = [col[:2] for col in rows[0].cursor_description]
             row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
-            return cast(list[NamedTuple], [row_object(*row) for row in rows])
+            return cast(List[NamedTuple], [row_object(*row) for row in rows])
         elif isinstance(result, pyodbc.Row):
             row: pyodbc.Row = result
             field_names = [col[:2] for col in row.cursor_description]
