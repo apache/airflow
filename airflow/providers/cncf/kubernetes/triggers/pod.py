@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import traceback
 import warnings
 from asyncio import CancelledError
 from enum import Enum
@@ -231,6 +232,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     "namespace": self.pod_namespace,
                     "status": "error",
                     "message": str(e),
+                    "stack_trace": traceback.format_exc(),
                 }
             )
 
