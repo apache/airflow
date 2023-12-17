@@ -32,22 +32,12 @@ from airflow.serialization.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
-    _get_patterns,
     _match,
     deserialize,
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 from tests.test_utils.config import conf_vars
-
-
-@pytest.fixture()
-def recalculate_patterns():
-    _get_patterns.cache_clear()
-    try:
-        yield
-    finally:
-        _get_patterns.cache_clear()
 
 
 class Z:
@@ -108,8 +98,6 @@ class C:
     def __call__(self):
         return None
 
-
-@pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
         i = 10
@@ -221,7 +209,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
-    @pytest.mark.usefixtures("recalculate_patterns")
+    
     def test_allow_list_for_imports(self):
         i = Z(10)
         e = serialize(i)
@@ -230,36 +218,52 @@ class TestSerDe:
 
         assert f"{qualname(Z)} was not found in allow list" in str(ex.value)
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "tests.*",
-        }
-    )
-    @pytest.mark.usefixtures("recalculate_patterns")
-    def test_allow_list_replace_simple_path(self):
-        assert _match("tests.airflow.deep")
-        assert _match("testsff") is False
-        assert _match("testsfault") is False       
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "tests.airflow*",
+            ("core", "allowed_deserialization_classes"): "tests.airflow.*",
         }
     )
-    @pytest.mark.usefixtures("recalculate_patterns")
-    def test_allow_list_replace_complex_path(self):
+    def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
-        assert _match("tests[.]airflow") is False
+        assert _match("tests.wrongpath") is False
     
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
         }
     )
-    @pytest.mark.usefixtures("recalculate_patterns")
-    def test_allow_list_replace_class(self):
+    def test_allow_list_match_class(self):
+        """ Test the match function when passing a full classname as
+        allowed_deserialization_classes
+        """
         assert _match("tests.airflow.deep")
-        assert _match("tests[.]airflow") is False
+        assert _match("tests.airflow.FALSE") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+        }
+    )
+    def test_allow_list_match_regexp(self):
+        """ Test the match function when passing a path as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.wrongpath") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+        }
+    )
+    def test_allow_list_match_class_regexp(self):
+        """ Test the match function when passing a full classname as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
         assert _match("tests.airflow.FALSE") is False
     
     def test_incompatible_version(self):
