@@ -44,7 +44,10 @@ try:
         KubernetesExecutor,
         PodReconciliationError,
     )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+        ADOPTED,
+        POD_EXECUTOR_DONE_KEY,
+    )
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
         KubernetesJobWatcher,
@@ -656,7 +659,7 @@ class TestKubernetesExecutor:
         try:
             key = ("dag_id", "task_id", "run_id", "try_number2")
             executor.running = {key}
-            executor._change_state(key, TaskInstanceState.ADOPTED, "pod_name", "default")
+            executor._change_state(key, ADOPTED, "pod_name", "default")
             assert len(executor.event_buffer) == 0
             assert len(executor.running) == 0
             mock_delete_pod.assert_not_called()
@@ -1470,7 +1473,7 @@ class TestKubernetesJobWatcher:
             (
                 self.pod.metadata.name,
                 self.watcher.namespace,
-                TaskInstanceState.ADOPTED,
+                ADOPTED,
                 self.core_annotations,
                 self.pod.metadata.resource_version,
             )

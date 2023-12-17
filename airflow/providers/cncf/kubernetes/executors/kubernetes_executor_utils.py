@@ -40,6 +40,7 @@ from airflow.utils.state import TaskInstanceState
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+        ADOPTED,
         ALL_NAMESPACES,
         POD_EXECUTOR_DONE_KEY,
     )
@@ -225,9 +226,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # So, there is no change in the pod state.
             # However, need to free the executor slot from the current scheduler.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put(
-                (pod_name, namespace, TaskInstanceState.ADOPTED, annotations, resource_version)
-            )
+            self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
