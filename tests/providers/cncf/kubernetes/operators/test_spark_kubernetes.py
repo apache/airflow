@@ -67,7 +67,7 @@ def test_execute_with_watch(mock_kubernetes_hook, mock_load_body_to_dict, mock_s
     mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
     mock_kubernetes_hook.return_value.create_custom_object.return_value = {
-        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+        "metadata": {"uid": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
     }
     mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
 
@@ -78,6 +78,14 @@ def test_execute_with_watch(mock_kubernetes_hook, mock_load_body_to_dict, mock_s
 
     op = SparkKubernetesOperator(task_id="task_id", application_file="application_file", watch=True)
     operator_output = op.execute({})
+
+    mock_kubernetes_hook.return_value.delete_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        namespace="default",
+        name="spark-app",
+    )
 
     mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
         group="sparkoperator.k8s.io",
@@ -92,7 +100,7 @@ def test_execute_with_watch(mock_kubernetes_hook, mock_load_body_to_dict, mock_s
         mock_kubernetes_hook.return_value.core_v1_client.list_namespaced_event,
         namespace="default",
         watch=True,
-        field_selector="involvedObject.kind=SparkApplication,involvedObject.name=spark-app",
+        field_selector="involvedObject.kind=SparkApplication,involvedObject.uid=spark-app",
     )
     mock_stream.assert_any_call(
         mock_kubernetes_hook.return_value.core_v1_client.read_namespaced_pod_log,
@@ -101,7 +109,7 @@ def test_execute_with_watch(mock_kubernetes_hook, mock_load_body_to_dict, mock_s
         timestamps=True,
     )
 
-    assert operator_output == {"metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
+    assert operator_output == {"metadata": {"uid": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.on_kill")
@@ -114,7 +122,7 @@ def test_raise_exception_when_job_fails(
     mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
     mock_kubernetes_hook.return_value.create_custom_object.return_value = {
-        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+        "metadata": {"uid": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
     }
     mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
 
@@ -137,7 +145,7 @@ def test_execute_without_watch(mock_kubernetes_hook, mock_load_body_to_dict):
     mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
     mock_kubernetes_hook.return_value.create_custom_object.return_value = {
-        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+        "metadata": {"uid": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
     }
     mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
 
@@ -151,7 +159,7 @@ def test_execute_without_watch(mock_kubernetes_hook, mock_load_body_to_dict):
         body={"metadata": {"name": "spark-app"}},
         namespace="default",
     )
-    assert operator_output == {"metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
+    assert operator_output == {"metadata": {"uid": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes._load_body_to_dict")

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
@@ -43,13 +42,14 @@ class SparkKubernetesOperator(BaseOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
-        path to a '.yaml' file, '.json' file, YAML string or python dictionary.
+        path to a '.yaml' file, '.json' file, YAML string or JSON string.
     :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
     :param api_group: kubernetes api group of sparkApplication
     :param api_version: kubernetes api version of sparkApplication
     :param watch: whether to watch the job status and logs or not
+    :param override_existing: whether to delete the spark-app with same name or not
     """
 
     template_fields: Sequence[str] = ("application_file", "namespace")
@@ -68,6 +68,7 @@ class SparkKubernetesOperator(BaseOperator):
         cluster_context: str | None = None,
         config_file: str | None = None,
         watch: bool = False,
+        override_existing: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -81,6 +82,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.watch = watch
+        self.override_existing = override_existing
 
     @cached_property
     def hook(self) -> KubernetesHook:
@@ -118,64 +120,47 @@ class SparkKubernetesOperator(BaseOperator):
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
 
-        response = None
-        is_job_created = False
+        if self.override_existing:
+            self.on_kill()
+
+        response = self.hook.create_custom_object(
+            group=self.api_group,
+            version=self.api_version,
+            plural=self.plural,
+            body=body,
+            namespace=namespace,
+        )
+
         if self.watch:
-            try:
-                namespace_event_stream = self._get_namespace_event_stream(
-                    namespace=namespace,
-                    query_kwargs={
-                        "field_selector": f"involvedObject.kind=SparkApplication,involvedObject.name={name}"
-                    },
-                )
-
-                response = self.hook.create_custom_object(
-                    group=self.api_group,
-                    version=self.api_version,
-                    plural=self.plural,
-                    body=body,
-                    namespace=namespace,
-                )
-                is_job_created = True
-                for event in namespace_event_stream:
-                    obj = event["object"]
-                    if event["object"].last_timestamp >= datetime.datetime.strptime(
-                        response["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%S%z"
-                    ):
-                        self.log.info(obj.message)
-                        if obj.reason == "SparkDriverRunning":
-                            pod_log_stream = Watch().stream(
-                                self.hook.core_v1_client.read_namespaced_pod_log,
-                                name=f"{name}-driver",
-                                namespace=namespace,
-                                timestamps=True,
-                            )
-                            for line in pod_log_stream:
-                                self.log.info(line)
-                        elif obj.reason in [
-                            "SparkApplicationSubmissionFailed",
-                            "SparkApplicationFailed",
-                            "SparkApplicationDeleted",
-                        ]:
-                            is_job_created = False
-                            raise AirflowException(obj.message)
-                        elif obj.reason == "SparkApplicationCompleted":
-                            break
-                        else:
-                            continue
-            except Exception:
-                if is_job_created:
-                    self.on_kill()
-                raise
-
-        else:
-            response = self.hook.create_custom_object(
-                group=self.api_group,
-                version=self.api_version,
-                plural=self.plural,
-                body=body,
+            namespace_event_stream = self._get_namespace_event_stream(
                 namespace=namespace,
+                query_kwargs={
+                    "field_selector": f"involvedObject.kind=SparkApplication,"
+                    f"involvedObject.uid={response['metadata']['uid']}"
+                },
             )
+            for event in namespace_event_stream:
+                obj = event["object"]
+                self.log.info(obj.message)
+                if obj.reason == "SparkDriverRunning":
+                    pod_log_stream = Watch().stream(
+                        self.hook.core_v1_client.read_namespaced_pod_log,
+                        name=f"{name}-driver",
+                        namespace=namespace,
+                        timestamps=True,
+                    )
+                    for line in pod_log_stream:
+                        self.log.info(line)
+                elif obj.reason in [
+                    "SparkApplicationSubmissionFailed",
+                    "SparkApplicationFailed",
+                    "SparkApplicationDeleted",
+                ]:
+                    raise AirflowException(obj.message)
+                elif obj.reason == "SparkApplicationCompleted":
+                    break
+                else:
+                    continue
 
         return response
 
@@ -186,10 +171,15 @@ class SparkKubernetesOperator(BaseOperator):
             body = self.application_file
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
-        self.hook.delete_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural=self.plural,
-            namespace=namespace,
-            name=name,
-        )
+
+        try:
+            self.hook.delete_custom_object(
+                group=self.api_group,
+                version=self.api_version,
+                plural=self.plural,
+                namespace=namespace,
+                name=name,
+            )
+            self.log.warning("Deleted SparkApplication with the same name")
+        except ApiException:
+            self.log.info("SparkApplication %s not found", name)
