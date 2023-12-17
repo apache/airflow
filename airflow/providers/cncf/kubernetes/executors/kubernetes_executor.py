@@ -475,8 +475,8 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_scheduler
 
         if state == ADOPTED:
-            # When the task pod is adopted by another scheduler,
-            # then remove the task from the current scheduler running queue.
+            # When the task pod is adopted by another executor,
+            # then remove the task from the current executor running queue.
             try:
                 self.running.remove(key)
             except KeyError:

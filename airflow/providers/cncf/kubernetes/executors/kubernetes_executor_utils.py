@@ -222,9 +222,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
-            # This will happen only when the task pods are adopted by another scheduler.
+            # This will happen only when the task pods are adopted by another executor.
             # So, there is no change in the pod state.
-            # However, need to free the executor slot from the current scheduler.
+            # However, need to free the executor slot from the current executor.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
         elif status == "Pending":
