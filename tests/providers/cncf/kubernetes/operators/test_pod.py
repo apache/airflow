@@ -28,9 +28,9 @@ from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, mode
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
-from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
+from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
