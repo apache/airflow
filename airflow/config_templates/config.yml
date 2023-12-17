@@ -252,7 +252,7 @@ core:
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp patterns. 
         This is a secondary option to ``allowed_deserialization_classes``.
-      version_added: 2.5.0
+      version_added: 2.7.3
       type: string
       default: ''
       example: ~
