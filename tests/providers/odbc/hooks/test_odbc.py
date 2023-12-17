@@ -305,7 +305,9 @@ class TestOdbcHook:
         """
         assert hasattr(pyodbc.Row, "cursor_description")
 
-    def test_query_return_serializable_result_with_fetchall(self, pyodbc_row_mock):
+    def test_query_return_serializable_result_with_fetchall(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
         """
         Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
         get converted into a list of tuples.
@@ -317,7 +319,9 @@ class TestOdbcHook:
             return pyodbc_result
 
         hook = self.get_hook()
-        result = hook.run("SQL", handler=mock_handler)
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
         assert hook_result == result
 
     def test_query_return_serializable_result_with_fetchone(
