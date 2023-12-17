@@ -120,7 +120,7 @@ ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.3.1"
+PIP_VERSION = "23.3.2"
 
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
