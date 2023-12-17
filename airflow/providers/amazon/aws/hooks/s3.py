@@ -148,6 +148,22 @@ def unify_bucket_name_and_key(func: T) -> T:
     return cast(T, wrapper)
 
 
+def validate_bucket_name(func: T) -> T:
+    """Check if bucket_name is provided and raise an exception if not."""
+    function_signature = signature(func)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> T:
+        bound_args = function_signature.bind(*args, **kwargs)
+
+        if "bucket_name" not in bound_args.arguments or not bound_args.arguments["bucket_name"]:
+            raise AirflowException("The required parameter 'bucket_name' is missing")
+
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(T, wrapper)
+
+
 class S3Hook(AwsBaseHook):
     """
     Interact with Amazon Simple Storage Service (S3).
@@ -280,6 +296,7 @@ class S3Hook(AwsBaseHook):
         return bucket, key
 
     @provide_bucket_name
+    @validate_bucket_name
     def check_for_bucket(self, bucket_name: str | None = None) -> bool:
         """
         Check if bucket_name exists.
@@ -310,6 +327,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
+    @validate_bucket_name
     def get_bucket(self, bucket_name: str | None = None) -> S3Bucket:
         """
         Return a :py:class:`S3.Bucket` object.
@@ -329,6 +347,7 @@ class S3Hook(AwsBaseHook):
         return s3_resource.Bucket(bucket_name or "")
 
     @provide_bucket_name
+    @validate_bucket_name
     def create_bucket(
         self, bucket_name: str | None = None, region_name: literals.BucketLocationConstraintType | None = None
     ) -> None:
@@ -358,6 +377,7 @@ class S3Hook(AwsBaseHook):
             )
 
     @provide_bucket_name
+    @validate_bucket_name
     def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
         """
         Check that a prefix exists in a bucket.
@@ -375,6 +395,7 @@ class S3Hook(AwsBaseHook):
         return prefix in plist
 
     @provide_bucket_name
+    @validate_bucket_name
     def list_prefixes(
         self,
         bucket_name: str | None = None,
@@ -418,6 +439,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name_async
     @unify_bucket_name_and_key
+    @validate_bucket_name
     async def get_head_object_async(
         self, client: AsyncS3Client, key: str, bucket_name: str | None = None
     ) -> dict[str, Any] | None:
@@ -480,6 +502,7 @@ class S3Hook(AwsBaseHook):
         return prefixes
 
     @provide_bucket_name_async
+    @validate_bucket_name
     async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
@@ -771,6 +794,7 @@ class S3Hook(AwsBaseHook):
         }
 
     @provide_bucket_name
+    @validate_bucket_name
     def list_keys(
         self,
         bucket_name: str | None = None,
@@ -859,6 +883,7 @@ class S3Hook(AwsBaseHook):
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     @provide_bucket_name
+    @validate_bucket_name
     def get_file_metadata(
         self,
         prefix: str,
@@ -895,6 +920,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def head_object(
         self, key: str, bucket_name: str | None = None
     ) -> type_defs.HeadObjectOutputTypeDef | None:
@@ -918,6 +944,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
         Check if a key exists in a bucket.
@@ -934,6 +961,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def get_key(self, key: str, bucket_name: str | None = None) -> S3ResourceObject:
         """
         Return a :py:class:`S3.Object`.
@@ -967,6 +995,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
         Read a key from S3.
@@ -983,6 +1012,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def select_key(
         self,
         key: str,
@@ -1031,6 +1061,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def check_for_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> bool:
@@ -1049,6 +1080,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def get_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> S3ResourceObject | None:
@@ -1069,6 +1101,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def load_file(
         self,
         filename: Path | str,
@@ -1120,6 +1153,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def load_string(
         self,
         string_data: str,
@@ -1171,6 +1205,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def load_bytes(
         self,
         bytes_data: bytes,
@@ -1204,6 +1239,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def load_file_obj(
         self,
         file_obj: BytesIO,
@@ -1314,6 +1350,7 @@ class S3Hook(AwsBaseHook):
         return response
 
     @provide_bucket_name
+    @validate_bucket_name
     def delete_bucket(self, bucket_name: str, force_delete: bool = False, max_retries: int = 5) -> None:
         """
         To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
@@ -1374,6 +1411,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    @validate_bucket_name
     def download_file(
         self,
         key: str,
@@ -1481,6 +1519,7 @@ class S3Hook(AwsBaseHook):
             return None
 
     @provide_bucket_name
+    @validate_bucket_name
     def get_bucket_tagging(self, bucket_name: str | None = None) -> list[type_defs.TagTypeDef]:
         """
         Get a List of tags from a bucket.
@@ -1501,6 +1540,7 @@ class S3Hook(AwsBaseHook):
             raise e
 
     @provide_bucket_name
+    @validate_bucket_name
     def put_bucket_tagging(
         self,
         tag_set: dict[str, str] | list[dict[str, str]] | None = None,
@@ -1544,6 +1584,7 @@ class S3Hook(AwsBaseHook):
             raise e
 
     @provide_bucket_name
+    @validate_bucket_name
     def delete_bucket_tagging(self, bucket_name: str | None = None) -> None:
         """
         Delete all tags from a bucket.

@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     S3Hook,
     provide_bucket_name,
     unify_bucket_name_and_key,
+    validate_bucket_name,
 )
 from airflow.utils.timezone import datetime
 
@@ -1299,8 +1300,8 @@ class TestAwsS3Hook:
         ("full_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        ("rel_key", "no_conn", "no_bucket", "unify", [None, "key.txt"]),
-        ("rel_key", "no_conn", "no_bucket", "provide", [None, "key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", "unify", AirflowException),
+        ("rel_key", "no_conn", "no_bucket", "provide", AirflowException),
         ("rel_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
         ("rel_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
         ("rel_key", "with_conn", "no_bucket", "unify", ["conn_bucket", "key.txt"]),
@@ -1342,6 +1343,7 @@ def test_unify_and_provide_bucket_name_combination(
         class MyHook(S3Hook):
             @unify_bucket_name_and_key
             @provide_bucket_name
+            @validate_bucket_name
             def do_something(self, bucket_name=None, key=None):
                 return bucket_name, key
 
@@ -1351,12 +1353,17 @@ def test_unify_and_provide_bucket_name_combination(
             class MyHook(S3Hook):
                 @provide_bucket_name
                 @unify_bucket_name_and_key
+                @validate_bucket_name
                 def do_something(self, bucket_name=None, key=None):
                     return bucket_name, key
 
         assert caplog.records[0].message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
     hook = MyHook()
-    assert list(hook.do_something(**kwargs)) == expected
+    if isinstance(expected, type):
+        with pytest.raises(expected):
+            hook.do_something(**kwargs)
+    else:
+        assert list(hook.do_something(**kwargs)) == expected
 
 
 @pytest.mark.parametrize(
@@ -1366,7 +1373,7 @@ def test_unify_and_provide_bucket_name_combination(
         ("full_key", "no_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "with_conn", "no_bucket", ["key_bucket", "key.txt"]),
         ("full_key", "with_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        ("rel_key", "no_conn", "no_bucket", [None, "key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", AirflowException),
         ("rel_key", "no_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
         ("rel_key", "with_conn", "no_bucket", ["conn_bucket", "key.txt"]),
         ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
@@ -1388,8 +1395,12 @@ def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_
     hook = S3Hook()
     m = MagicMock()
     hook.get_conn = m
-    hook.head_object(**kwargs)
-    assert list(m.mock_calls[1][2].values()) == expected
+    if isinstance(expected, type):
+        with pytest.raises(expected):
+            hook.head_object(**kwargs)
+    else:
+        hook.head_object(**kwargs)
+        assert list(m.mock_calls[1][2].values()) == expected
 
 
 def test_unify_and_provide_ordered_properly():
