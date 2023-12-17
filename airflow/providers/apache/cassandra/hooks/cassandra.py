@@ -47,11 +47,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
     ``ssl.wrap_socket()``. For example::
 
-        {
-            'ssl_options' : {
-                'ca_certs' : PATH_TO_CA_CERTS
-            }
-        }
+        {"ssl_options": {"ca_certs": PATH_TO_CA_CERTS}}
 
     Default load balancing policy is RoundRobinPolicy. To specify a different
     LB policy::

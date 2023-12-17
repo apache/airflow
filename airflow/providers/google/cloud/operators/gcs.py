@@ -188,11 +188,11 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         folder in ``data`` bucket. ::
 
             GCS_Files = GCSListOperator(
-                task_id='GCS_Files',
-                bucket='data',
-                prefix='sales/sales-2017/',
-                match_glob='**/*/.avro',
-                gcp_conn_id=google_cloud_conn_id
+                task_id="GCS_Files",
+                bucket="data",
+                prefix="sales/sales-2017/",
+                match_glob="**/*/.avro",
+                gcp_conn_id=google_cloud_conn_id,
             )
     """
 
