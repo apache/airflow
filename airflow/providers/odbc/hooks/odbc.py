@@ -17,7 +17,7 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, NamedTuple, TypeVar, cast, List
+from typing import Any, List, NamedTuple, TypeVar, cast
 from urllib.parse import quote_plus
 
 import pyodbc

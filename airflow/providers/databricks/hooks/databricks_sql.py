@@ -63,10 +63,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
-    :param return_serializable: Return a serializable ``namedtuple`` object instead of a
-        ``databricks.sql.Row`` object. Default to False. In a future release of the provider, this will
-        become True by default. This parameter ensures backward-compatibility during the transition phase,
-        and will be removed too in a future release.
+    :param return_tuple: Return a ``namedtuple`` object instead of a ``databricks.sql.Row`` object. Default
+        to False. In a future release of the provider, this will become True by default. This parameter
+        ensures backward-compatibility during the transition phase to common tuple objects for all hooks based
+        on DbApiHook. This flag will also be removed in a future release.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -83,7 +83,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         catalog: str | None = None,
         schema: str | None = None,
         caller: str = "DatabricksSqlHook",
-        return_serializable: bool = False,
+        return_tuple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id, caller=caller)
@@ -96,14 +96,14 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
-        self.return_serializable = return_serializable
+        self.return_tuple = return_tuple
         self.additional_params = kwargs
 
-        if not self.return_serializable:
+        if not self.return_tuple:
             warnings.warn(
                 """Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
-                returned instead in a future release of the databricks provider. Set
-                `return_serializable=True` to enable this behavior.""",
+                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
+                enable this behavior.""",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -273,7 +273,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
-        if self.return_serializable:
+        if self.return_tuple:
             if isinstance(result, list) and all(isinstance(item, Row) for item in result):
                 rows: list[Row] = result
                 rows_fields = rows[0].__fields__
