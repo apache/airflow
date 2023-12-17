@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-17T04:44:50.632786
+# This constraints file was automatically generated on 2023-12-17T15:58:13.185497
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -145,7 +145,7 @@ prison==0.2.1
 prometheus-client==0.19.0
 prompt-toolkit==3.0.43
 protobuf==4.25.1
-psutil==5.9.6
+psutil==5.9.7
 pure-sasl==0.6.2
 pyarrow-hotfix==0.6
 pyarrow==14.0.1
@@ -171,7 +171,7 @@ requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
 rich==13.7.0
-rpds-py==0.14.1
+rpds-py==0.14.2
 rsa==4.9
 s3fs==2023.12.2
 sentry-sdk==1.39.1
