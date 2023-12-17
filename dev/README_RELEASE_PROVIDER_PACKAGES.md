@@ -248,7 +248,7 @@ generates corresponding .asc and .sha512 files for each file to sign.
 * Cleanup dist folder:
 
 ```shell script
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
@@ -401,7 +401,7 @@ lists and should be updated every time a new version of provider packages is rel
 ```shell script
 git clone https://github.com/apache/airflow-site.git airflow-site
 cd airflow-site
-export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
 ```
 
 Note if this is not the first time you clone the repo make sure main branch is rebased:
@@ -961,14 +961,16 @@ We also need to archive older releases before copying the new ones
 ```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT="$(pwd)"
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
 
 # Go the folder where you have checked out the release repo from SVN
 # Make sure this is direct directory and a symbolic link
 # Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
 cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
 
-export ASF_DIST_PARENT="$(pwd)"
+export ASF_DIST_PARENT="$(pwd -P)"
+# make sure physical path is used, in case original directory is symbolically linked
+cd "${ASF_DIST_PARENT}"
 
 # or clone it if it's not done yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
@@ -985,7 +987,7 @@ svn rm ${SOURCE_DIR}/*<provider>*
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
-cd asf-dist/release/airflow
+cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
 mkdir -pv providers
 cd providers
 
@@ -1000,10 +1002,10 @@ do
 done
 
 # Check which old packages will be removed using dry run
-breeze release-management clean-old-provider-artifacts --directory . --dry-run
+breeze release-management clean-old-provider-artifacts --directory $(pwd -P) --dry-run
 
 # Remove those packages
-breeze release-management clean-old-provider-artifacts --directory .
+breeze release-management clean-old-provider-artifacts --directory $(pwd -P)
 
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
