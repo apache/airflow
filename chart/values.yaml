@@ -356,6 +356,38 @@ extraConfigMaps: {}
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
 
+# Extra CronJobs that will be managed by the chart
+extraCronJobs: {}
+# eg:
+# extraCronJobs:
+#   '{{ .Release.Name }}-clean-db':
+#     labels:
+#       my.cronjob.label: custom_cronjob_label
+#     annotations:
+#       my.cronjob.annotation: custom_cronjob_annotation
+#     spec:
+#       schedule: '30 3 1 * *'
+#       concurrencyPolicy: Allow
+#       jobTemplate:
+#         spec:
+#           backoffLimit: 1
+#           template:
+#             metadata:
+#               labels:
+#                 my.cronjob.label: custom_cronjob_label
+#               annotations:
+#                 my.cronjob.annotation: custom_cronjob_annotation
+#             spec:
+#               restartPolicy: Never
+#               serviceAccountName: CronJobCustomServiceAccount
+#               containers:
+#                 - name: custom-cronjob-container
+#                   image: apache/airflow
+#                   imagePullPolicy: IfNotPresent
+#                   securityContext: {}
+#                   command: ~
+#                   args: ["bash", "-c", "exec custom command"]
+
 # Extra env 'items' that will be added to the definition of airflow containers
 # a string is expected (can be templated).
 # TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
