@@ -78,7 +78,7 @@ You have two options for editing Airflow docs:
 | on a page.                           | Local Editor     | generate a preview before creating the PR.      |
 +--------------------------------------+------------------+-------------------------------------------------+
 
-Finding source conetnt to edit
+Finding source content to edit
 ------------------------------
 
 Sphinx has _roles_ and _directives_, where Markdown docs frameworks often do not have similar functionality. This means that Airflow uses directives
@@ -149,7 +149,7 @@ You need to have Python installed to run the command:
 
 
 Then, view your docs at ``localhost:8000``. If you use a virtual machine, like WSL2,
-you need to find the WSL2 machine IP address and replace "0.0.0.0" in your browswer with it. The address looks like
+you need to find the WSL2 machine IP address and replace "0.0.0.0" in your browser with it. The address looks like
 ``http://n.n.n.n:8000``, where n.n.n.n is the IP of the WSL2.
 
 .. _generating_short_form_names:
@@ -231,7 +231,7 @@ license or copy another ``__init__.py`` file that contains the necessary license
 Common Docs build errors
 ------------------------
 
-.rst sytax is sensitive to whitespace, linebreaks, and indents, and can affect build output. When you write content and either
+.rst syntax is sensitive to whitespace, linebreaks, and indents, and can affect build output. When you write content and either
 skip indentations, forget linebreaks, or leave trailing whitespace, it often produces docs build errors  that block your PR's mergeability.
 
 unexpected unindent
