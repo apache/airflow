@@ -99,7 +99,7 @@ class BaseAuthManager(LoggingMixin):
     def get_user(self) -> BaseUser | None:
         """Return the user associated to the user in session."""
 
-    def get_user_id(self) -> str:
+    def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
         user = self.get_user()
         if not user:
