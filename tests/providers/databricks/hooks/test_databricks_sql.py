@@ -64,7 +64,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls, return_serializable,"
+    "return_last, split_statements, sql, cursor_calls, return_tuple,"
     "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
     [
         pytest.param(
@@ -212,7 +212,7 @@ def test_query(
     split_statements,
     sql,
     cursor_calls,
-    return_serializable,
+    return_tuple,
     cursor_descriptions,
     cursor_results,
     hook_descriptions,
@@ -249,7 +249,7 @@ def test_query(
             cursors.append(cur)
             connections.append(conn)
         mock_conn.side_effect = connections
-        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_serializable=return_serializable)
+        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
         results = databricks_hook.run(
             sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
         )
