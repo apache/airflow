@@ -44,7 +44,7 @@ A general docs workflow
 When you make changes to the docs, it follows roughly the same process as creating and testing code changes. However, for docs, instead of unit tests and integration tests, you run pre-commit checks, spell checks, and visual inspection of your changes in a documentation build.
 
 1. **Decide to edit in GitHub UI or locally** - Depending on the size and type of docs update you want to make, it might be easier to work in the UI or to make your edits in a local fork.
-2. **Find the source files to edit** - While you can access most of the docs source files using the **Suggest a change on this page** button or by searching for a string in the `/docs/` file directory, in some cases, the source strings might be located in different provider docs or in the source code itself.
+2. **Find the source files to edit** - While you can access most of the docs source files using the **Suggest a change on this page** button or by searching for a string in the ``/docs/`` file directory, in some cases, the source strings might be located in different provider docs or in the source code itself.
 3. **If editing locally, run spellcheck and the build to identify any blocking errors** - Docs require build, spellcheck, and precommit CI/CD tests to pass before they can merge. This means that if you have a pull request with docs changes, a docs build error can prevent your code merge. Checking the build and spelling locally first can help speed up reviews. If you made formatting changes, checking a local build of your docs allows you to make sure you correctly formatted elements like tables, text styling, and line breaks.
 4. **Make your pull request** - When you make a PR, Github automatically assigns reviewers and runs CI/CD tests.
 5. **Fix any build errors or spelling mistakes** - Your PR can't be merged if there are any spelling or build errors. Check to see which builds are failing and click **Show details**. The output of the tests share the errors, location of the problems, and suggest resolutions. Common Docs failures occur due to incorrect formatting and whitespace.
@@ -69,7 +69,7 @@ You have two options for editing Airflow docs:
 | broken link.                         |                  | installation or build required.                 |
 +--------------------------------------+------------------+-------------------------------------------------+
 | My edits contain tables or           | Local Editor     | GitHub can provide Markdown previews, but might |
-| other formatting changes.            |                  | change `.rst` styling. Use a local build.       |
+| other formatting changes.            |                  | change ``.rst``` styling. Use a local build.    |
 +--------------------------------------+------------------+-------------------------------------------------+
 | I want to make a new page/           | Local Editor     | Will need a local build to check navigation and |
 | delete a page.                       |                  | link redirects.                                 |
@@ -245,7 +245,7 @@ If you do not add a blank line, it creates a build error.
     WARNING: Enumerated list ends without a blank line; unexpected unindent.
 
 While easy to resolve, there's `a Sphinx bug <https://github.com/sphinx-doc/sphinx/issues/11026>`__ in certain versions that causes the
-warning to report the wrong line in the file for your missing white space. If your PR has the `unexpected unindent` warning blocking your build,
+warning to report the wrong line in the file for your missing white space. If your PR has the ``unexpected unindent`` warning blocking your build,
 and the line in the file it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
 list, code block, or other whitespace-sensitive markup element.
 
@@ -256,4 +256,4 @@ If you need help, write to `#documentation <https://apache-airflow.slack.com/arc
 
 For more resources about working with Sphinx or reST markup syntax, see the `Sphinx documentation <https://www.sphinx-doc.org/en/master/usage/quickstart.html>`__.
 
-The `Write the Docs <https://www.writethedocs.org/slack/>_` community also includes a #Sphinx Slack channel for questions and additional support.
+The `Write the Docs <https://www.writethedocs.org/slack/>__` community also includes a #Sphinx Slack channel for questions and additional support.
