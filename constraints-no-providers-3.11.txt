@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-17T20:00:43.895887
+# This constraints file was automatically generated on 2023-12-18T07:00:58.046933
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -8,7 +8,7 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-Authlib==1.2.1
+Authlib==1.3.0
 Babel==2.14.0
 ConfigUpdater==3.2
 Deprecated==1.2.14

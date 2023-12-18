@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-17T20:07:12.641254
+# This constraints file was automatically generated on 2023-12-18T07:06:21.143702
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -30,7 +30,7 @@
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
-Authlib==1.2.1
+Authlib==1.3.0
 Babel==2.14.0
 ConfigUpdater==3.2
 Deprecated==1.2.14
