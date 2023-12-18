@@ -33,7 +33,7 @@ console = Console(color_system="standard", width=200)
 COMMON_SQL_PROVIDER_NAME: str = "apache-airflow-providers-common-sql"
 COMMON_SQL_PROVIDER_MIN_COMPATIBLE_VERSIONS: str = "1.8.1"
 COMMON_SQL_PROVIDER_LATEST_INCOMPATIBLE_VERSION: str = "1.8.0"
-MAKE_SERIALIZABLE_METHOD_NAME: str = "_make_serializable"
+MAKE_COMMON_METHOD_NAME: str = "_make_common_data_structure"
 
 
 def get_classes(file_path: str) -> Iterable[ast.ClassDef]:
@@ -54,9 +54,9 @@ def is_subclass_of_dbapihook(node: ast.ClassDef) -> bool:
 
 
 def has_make_serializable_method(node: ast.ClassDef) -> bool:
-    """Return True if the given class implements `_make_serializable` method."""
+    """Return True if the given class implements `_make_common_data_structure` method."""
     for body_element in node.body:
-        if isinstance(body_element, ast.FunctionDef) and (body_element.name == MAKE_SERIALIZABLE_METHOD_NAME):
+        if isinstance(body_element, ast.FunctionDef) and (body_element.name == MAKE_COMMON_METHOD_NAME):
             return True
     return False
 
@@ -109,11 +109,11 @@ def check_sql_providers_dependency():
                             f"\n[yellow]Provider {provider_metadata['name']} must have "
                             f"'{COMMON_SQL_PROVIDER_NAME}>={COMMON_SQL_PROVIDER_MIN_COMPATIBLE_VERSIONS}' as "
                             f"dependency, because `{clazz.name}` overrides the "
-                            f"`{MAKE_SERIALIZABLE_METHOD_NAME}` method."
+                            f"`{MAKE_COMMON_METHOD_NAME}` method."
                         )
     if error_count:
         console.print(
-            f"The `{MAKE_SERIALIZABLE_METHOD_NAME}` method was introduced in {COMMON_SQL_PROVIDER_NAME} "
+            f"The `{MAKE_COMMON_METHOD_NAME}` method was introduced in {COMMON_SQL_PROVIDER_NAME} "
             f"{COMMON_SQL_PROVIDER_MIN_COMPATIBLE_VERSIONS}. You cannot rely on an older version of this "
             "provider to override this method."
         )
