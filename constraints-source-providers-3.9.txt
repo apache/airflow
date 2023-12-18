@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-16T04:20:56.479121
+# This constraints file was automatically generated on 2023-12-18T22:26:39.830367
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -9,7 +9,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-Authlib==1.2.1
+Authlib==1.3.0
 Babel==2.14.0
 ConfigUpdater==3.2
 Deprecated==1.2.14
@@ -70,7 +70,7 @@ amqp==5.2.0
 analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
-anyio==4.1.0
+anyio==4.2.0
 apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
@@ -93,7 +93,7 @@ azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
 azure-identity==1.15.0
 azure-keyvault-secrets==4.7.0
-azure-kusto-data==4.3.0
+azure-kusto-data==4.3.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
@@ -115,7 +115,7 @@ backoff==2.2.1
 bcrypt==4.1.2
 beautifulsoup4==4.12.2
 billiard==4.2.0
-bitarray==2.8.5
+bitarray==2.9.0
 black==24.1a1
 blinker==1.7.0
 boto3==1.33.13
@@ -298,7 +298,7 @@ jsonschema-specifications==2023.11.2
 jsonschema==4.20.0
 junit-xml==1.9
 jupyter_client==8.6.0
-jupyter_core==5.5.0
+jupyter_core==5.5.1
 keyring==24.3.0
 kombu==5.3.4
 krb5==0.5.1
@@ -324,7 +324,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.1.0
-moto==4.2.11
+moto==4.2.12
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.26.0
@@ -350,7 +350,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.4.0
+openai==1.5.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.6.2
@@ -377,7 +377,7 @@ pandas-gbq==0.20.0
 pandas-stubs==2.0.2.230605
 pandas==2.1.4
 papermill==2.5.0
-paramiko==3.3.1
+paramiko==3.4.0
 parso==0.8.3
 pathable==0.4.3
 pathspec==0.12.1
@@ -404,12 +404,12 @@ prometheus-client==0.19.0
 prompt-toolkit==3.0.43
 proto-plus==1.23.0
 protobuf==4.25.1
-psutil==5.9.6
+psutil==5.9.7
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.4.2
+py-partiql-parser==0.5.0
 py4j==0.10.9.7
 pyOpenSSL==23.3.0
 pyarrow-hotfix==0.6
@@ -483,7 +483,7 @@ rfc3986==1.5.0
 rich-argparse==1.4.0
 rich-click==1.7.2
 rich==13.7.0
-rpds-py==0.13.2
+rpds-py==0.15.2
 rsa==4.9
 ruff==0.1.8
 s3fs==2023.12.2
