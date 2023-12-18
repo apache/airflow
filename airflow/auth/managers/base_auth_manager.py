@@ -105,7 +105,7 @@ class BaseAuthManager(LoggingMixin):
         if not user:
             self.log.error("Calling 'get_user_id()' but the user is not signed in.")
             raise AirflowException("The user must be signed in.")
-        return str(user.get_id())
+        return str(user.get_id()) if user.get_id() else None
 
     def init(self) -> None:
         """
