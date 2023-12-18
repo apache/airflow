@@ -117,6 +117,7 @@ apache-airflow-providers-celery==3.5.0
 apache-airflow-providers-cloudant==3.4.0
 apache-airflow-providers-cncf-kubernetes==7.11.0
 apache-airflow-providers-cohere==1.1.0
+apache-airflow-providers-common-io==1.1.0
 apache-airflow-providers-common-sql==1.9.0
 apache-airflow-providers-databricks==5.0.0
 apache-airflow-providers-datadog==3.5.0
