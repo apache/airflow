@@ -128,7 +128,7 @@ class HiveCliHook(BaseHook):
             return f"hive.server2.proxy.user={conn.login}"
         if proxy_user_value == "owner" and self.run_as:
             return f"hive.server2.proxy.user={self.run_as}"
-        if proxy_user_value == "param" and self.proxy_user:
+        if proxy_user_value == "as_param" and self.proxy_user:
             return f"hive.server2.proxy.user={self.proxy_user}"
         if proxy_user_value != "":  # There is a custom proxy user
             return f"hive.server2.proxy.user={proxy_user_value}"

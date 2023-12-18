@@ -885,7 +885,12 @@ class TestHiveCli:
             ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None, None),
             ({"proxy_user": "owner"}, "hive.server2.proxy.user=dummy_dag_owner", "dummy_dag_owner", None),
             ({"proxy_user": "login"}, "hive.server2.proxy.user=admin", None, None),
-            ({"proxy_user": "param"}, "hive.server2.proxy.user=param_proxy_user", None, "param_proxy_user"),
+            (
+                {"proxy_user": "as_param"},
+                "hive.server2.proxy.user=param_proxy_user",
+                None,
+                "param_proxy_user",
+            ),
         ],
     )
     def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, run_as, proxy_user):
