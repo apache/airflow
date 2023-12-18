@@ -1285,6 +1285,7 @@ class TestSyncGcsHook:
             any_order=True,
         )
         mock_copy.assert_not_called()
+
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
