@@ -797,6 +797,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     Example usage::
 
         from airflow.www.views import TaskInstanceModelView
+
         ti = session.Query(TaskInstance).filter(...).one()
         pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
         client.post("...", data={"action": "...", "rowid": pk})
@@ -1136,7 +1137,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 2,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1169,7 +1169,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 2,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1202,7 +1201,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 1,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1235,7 +1233,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 3,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1268,7 +1265,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 3,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1301,7 +1297,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 3,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
@@ -1334,7 +1329,6 @@ def test_task_instances(admin_client):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 2,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,

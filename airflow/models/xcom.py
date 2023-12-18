@@ -685,10 +685,8 @@ class BaseXCom(Base, LoggingMixin):
             except pickle.UnpicklingError:
                 return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
         else:
-            try:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                return pickle.loads(result.value)
+            # Since xcom_pickling is disabled, we should only try to deserialize with JSON
+            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:

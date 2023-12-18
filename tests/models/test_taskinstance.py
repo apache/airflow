@@ -3093,7 +3093,6 @@ class TestTaskInstance:
             "pool_slots": 25,
             "queue": "some_queue_id",
             "priority_weight": 123,
-            "priority_weight_strategy": "downstream",
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),

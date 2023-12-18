@@ -21,11 +21,9 @@ Test for an order of dependencies in setup.py
 """
 from __future__ import annotations
 
-import difflib
 import os
 import re
 import sys
-import textwrap
 from pathlib import Path
 
 from rich import print
@@ -34,30 +32,8 @@ errors: list[str] = []
 
 SOURCE_DIR_PATH = Path(__file__).parents[3].resolve()
 sys.path.insert(0, os.fspath(SOURCE_DIR_PATH))
-
-
-class ConsoleDiff(difflib.Differ):
-    def _dump(self, tag, x, lo, hi):
-        """Generate comparison results for a same-tagged range."""
-        for i in range(lo, hi):
-            if tag == "+":
-                yield f"[green]{tag} {x[i]}[/]"
-            elif tag == "-":
-                yield f"[red]{tag} {x[i]}[/]"
-            else:
-                yield f"{tag} {x[i]}"
-
-
-def _check_list_sorted(the_list: list[str], message: str) -> None:
-    sorted_list = sorted(the_list)
-    if the_list == sorted_list:
-        print(f"{message} is [green]ok[/]")
-        print(the_list)
-        print()
-        return
-    print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
-    print()
-    errors.append(f"ERROR in {message}. The elements are not sorted.")
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import check_list_sorted
 
 
 def check_main_dependent_group(setup_contents: str) -> None:
@@ -75,7 +51,7 @@ def check_main_dependent_group(setup_contents: str) -> None:
     main_dependent = pattern_sub_dependent.sub(",", main_dependent_group)
 
     src = main_dependent.strip(",").split(",")
-    _check_list_sorted(src, "Order of dependencies")
+    check_list_sorted(src, "Order of dependencies", errors)
 
     for group in src:
         check_sub_dependent_group(group)
@@ -87,7 +63,7 @@ def check_sub_dependent_group(group_name: str) -> None:
     `^dependent_group_name = [.*?]\n` in setup.py
     """
     print(f"[info]Checking dependency group {group_name}[/]")
-    _check_list_sorted(getattr(setup, group_name), f"Order of dependency group: {group_name}")
+    check_list_sorted(getattr(setup, group_name), f"Order of dependency group: {group_name}", errors)
 
 
 def check_alias_dependent_group(setup_context: str) -> None:
@@ -101,7 +77,7 @@ def check_alias_dependent_group(setup_context: str) -> None:
     for dependent in dependents:
         print(f"[info]Checking alias-dependent group {dependent}[/]")
         src = dependent.split(" + ")
-        _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
+        check_list_sorted(src, f"Order of alias dependencies group: {dependent}", errors)
 
 
 def check_variable_order(var_name: str) -> None:
@@ -110,9 +86,9 @@ def check_variable_order(var_name: str) -> None:
     var = getattr(setup, var_name)
 
     if isinstance(var, dict):
-        _check_list_sorted(list(var.keys()), f"Order of dependencies in: {var_name}")
+        check_list_sorted(list(var.keys()), f"Order of dependencies in: {var_name}", errors)
     else:
-        _check_list_sorted(var, f"Order of dependencies in: {var_name}")
+        check_list_sorted(var, f"Order of dependencies in: {var_name}", errors)
 
 
 def check_install_and_setup_requires() -> None:
@@ -132,7 +108,7 @@ def check_install_and_setup_requires() -> None:
         print(f"[info]Checking setup.cfg group {key}[/]")
         deps = config["options"][key]
         dists = [pattern_dependent_version.sub("", p) for p in deps]
-        _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")
+        check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}", errors)
 
 
 if __name__ == "__main__":

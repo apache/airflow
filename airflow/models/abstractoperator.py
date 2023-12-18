@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import inspect
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -71,14 +70,8 @@ DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
 )
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
-DEFAULT_WEIGHT_RULE: WeightRule | None = (
-    WeightRule(conf.get("core", "default_task_weight_rule", fallback=None))
-    if conf.get("core", "default_task_weight_rule", fallback=None)
-    else None
-)
-
-DEFAULT_PRIORITY_WEIGHT_STRATEGY: str = conf.get(
-    "core", "default_task_priority_weight_strategy", fallback=WeightRule.DOWNSTREAM
+DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
+    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
@@ -105,8 +98,7 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str | None
-    priority_weight_strategy: str
+    weight_rule: str
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -406,12 +398,6 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
-        warnings.warn(
-            "Accessing `priority_weight_total` from AbstractOperator instance is deprecated."
-            " Please use `priority_weight` from task instance instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         if self.weight_rule == WeightRule.ABSOLUTE:
             return self.priority_weight
         elif self.weight_rule == WeightRule.DOWNSTREAM:
@@ -693,7 +679,6 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-
             try:
                 if not value:
                     continue

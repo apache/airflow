@@ -582,12 +582,11 @@ class HiveMetastoreHook(BaseHook):
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
-        :param partition: Expression that matches the partitions to check for
-            (eg `a = 'b' AND c = 'd'`)
+        :param partition: Expression that matches the partitions to check for (e.g. `a = 'b' AND c = 'd'`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_partition("airflow", t, "ds='2015-01-01'")
         True
         """
         with self.metastore as client:
@@ -606,10 +605,10 @@ class HiveMetastoreHook(BaseHook):
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_named_partition('airflow', t, "ds=2015-01-01")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_named_partition("airflow", t, "ds=2015-01-01")
         True
-        >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
+        >>> hh.check_for_named_partition("airflow", t, "ds=xxx")
         False
         """
         with self.metastore as client:
@@ -619,7 +618,7 @@ class HiveMetastoreHook(BaseHook):
         """Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = hh.get_table(db='airflow', table_name='static_babynames')
+        >>> t = hh.get_table(db="airflow", table_name="static_babynames")
         >>> t.tableName
         'static_babynames'
         >>> [col.name for col in t.sd.cols]
@@ -649,8 +648,8 @@ class HiveMetastoreHook(BaseHook):
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> parts = hh.get_partitions(schema='airflow', table_name=t)
+        >>> t = "static_babynames_partitioned"
+        >>> parts = hh.get_partitions(schema="airflow", table_name=t)
         >>> len(parts)
         1
         >>> parts
@@ -765,9 +764,9 @@ class HiveMetastoreHook(BaseHook):
         Check if table exists.
 
         >>> hh = HiveMetastoreHook()
-        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        >>> hh.table_exists(db="airflow", table_name="static_babynames")
         True
-        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        >>> hh.table_exists(db="airflow", table_name="does_not_exist")
         False
         """
         try:

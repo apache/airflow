@@ -289,6 +289,95 @@ class TestSqsSensor:
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
     @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
+    def test_poke_message_filtering_jsonpath_ext(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": "a", "value": "b"},
+        ]
+        non_matching = [
+            {"id": 14, "key": "a"},
+            {"id": 14, "value": "b"},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        "MessageId": message["id"],
+                        "ReceiptHandle": 100 + message["id"],
+                        "Body": json.dumps(message),
+                    }
+                )
+            return {"Messages": messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {"Successful"}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = "jsonpath-ext"
+        self.sensor.message_filtering_config = "$.key + $.value"
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
+    def test_poke_message_filtering_jsonpath_ext_values(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": "a1", "value": "b1"},
+        ]
+        non_matching = [
+            {"id": 22, "key": "a2", "value": "b1"},
+            {"id": 33, "key": "a1", "value": "b2"},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        "MessageId": message["id"],
+                        "ReceiptHandle": 100 + message["id"],
+                        "Body": json.dumps(message),
+                    }
+                )
+            return {"Messages": messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {"Successful"}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = "jsonpath-ext"
+        self.sensor.message_filtering_config = "$.key + ' ' + $.value"
+        self.sensor.message_filtering_match_values = ["a1 b1"]
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl="https://test-queue", Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_do_not_delete_message_on_received(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body="hello")

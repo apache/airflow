@@ -312,3 +312,12 @@ class TestAzureSynapseRunPipelineOperator:
                 workspace_name=fields["workspace_name"],
             )
         )
+
+    def test_pipeline_operator_link_invalid_uri_pattern(self):
+        with pytest.raises(ValueError, match="Invalid workspace URL format"):
+            AzureSynapsePipelineRunLink().get_fields_from_url(workspace_url="https://example.org/")
+
+    def test_pipeline_operator_link_invalid_uri_workspace_segments(self):
+        workspace_url = "https://web.azuresynapse.net?workspace=%2Fsubscriptions%2Fspam-egg"
+        with pytest.raises(ValueError, match="Workspace expected at least 5 segments"):
+            AzureSynapsePipelineRunLink().get_fields_from_url(workspace_url=workspace_url)

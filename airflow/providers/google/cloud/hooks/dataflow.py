@@ -55,7 +55,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def process_line_and_extract_dataflow_job_id_callback(
-    on_new_job_id_callback: Callable[[str], None] | None
+    on_new_job_id_callback: Callable[[str], None] | None,
 ) -> Callable[[str], None]:
     """Build callback that triggers the specified function.
 
@@ -1202,6 +1202,24 @@ class DataflowHook(GoogleBaseHook):
             wait_until_finished=self.wait_until_finished,
         )
         job_controller.wait_for_done()
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def is_job_done(self, location: str, project_id: str, job_id: str) -> bool:
+        """
+        Check that Dataflow job is started(for streaming job) or finished(for batch job).
+
+        :param location: location the job is running
+        :param project_id: Google Cloud project ID in which to start a job
+        :param job_id: Dataflow job ID
+        """
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        job = job_controller.fetch_job_by_id(job_id)
+
+        return job_controller._check_dataflow_job_state(job)
 
 
 class AsyncDataflowHook(GoogleBaseAsyncHook):

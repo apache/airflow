@@ -140,7 +140,7 @@ class TestXCom:
             ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
-    def test_xcom_deserialize_with_pickle_to_json_switch(self, task_instance, session):
+    def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(self, task_instance, session):
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
             XCom.set(
                 key="xcom_test3",
@@ -151,14 +151,14 @@ class TestXCom:
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            ret_value = XCom.get_one(
-                key="xcom_test3",
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-        assert ret_value == {"key": "value"}
+            with pytest.raises(UnicodeDecodeError):
+                XCom.get_one(
+                    key="xcom_test3",
+                    dag_id=task_instance.dag_id,
+                    task_id=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                )
 
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self, task_instance, session):

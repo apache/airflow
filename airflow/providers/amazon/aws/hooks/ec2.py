@@ -19,16 +19,21 @@ from __future__ import annotations
 
 import functools
 import time
+from typing import Callable, TypeVar
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.typing_compat import ParamSpec
+
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
 
 
-def only_client_type(func):
+def only_client_type(func: Callable[PS, RT]) -> Callable[PS, RT]:
     @functools.wraps(func)
-    def checker(self, *args, **kwargs):
-        if self._api_type == "client_type":
-            return func(self, *args, **kwargs)
+    def checker(*args, **kwargs) -> RT:
+        if args[0]._api_type == "client_type":
+            return func(*args, **kwargs)
 
         ec2_doc_link = "https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html"
         raise AirflowException(

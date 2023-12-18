@@ -381,11 +381,12 @@ class DAG(LoggingMixin):
 
         **Example**: to avoid Jinja from removing a trailing newline from template strings ::
 
-            DAG(dag_id='my-dag',
+            DAG(
+                dag_id="my-dag",
                 jinja_environment_kwargs={
-                    'keep_trailing_newline': True,
+                    "keep_trailing_newline": True,
                     # some other jinja2 Environment options here
-                }
+                },
             )
 
         **See**: `Jinja Environment documentation
@@ -848,15 +849,34 @@ class DAG(LoggingMixin):
         return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
+        """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
+
+        Detection is done by "peeking" the next two cron trigger time; if the
+        two times have the same minute and hour value, the schedule is fixed,
+        and we *don't* need to perform the DST fix.
+
+        This assumes DST happens on whole minute changes (e.g. 12:59 -> 12:00).
+
+        Do not try to understand what this actually means. It is old logic that
+        should not be used anywhere.
+        """
         warnings.warn(
             "`DAG.is_fixed_time_schedule()` is deprecated.",
             category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        try:
-            return not self.timetable._should_fix_dst
-        except AttributeError:
+
+        from airflow.timetables._cron import CronMixin
+
+        if not isinstance(self.timetable, CronMixin):
             return True
+
+        from croniter import croniter
+
+        cron = croniter(self.timetable._expression)
+        next_a = cron.get_next(datetime.datetime)
+        next_b = cron.get_next(datetime.datetime)
+        return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
     def following_schedule(self, dttm):
         """

@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -232,7 +232,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 export_key() {
     local key="${1}"
@@ -271,7 +271,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    export_key "467B942D3A79BD29" "mysql"
+    export_key "B7B3B788A8D3785C" "mysql"
 
     echo
     echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -283,6 +283,13 @@ install_mysql_client() {
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Remove mysql repository from sources.list.d as MySQL repos have a basic flaw that they put expiry
+    # date on their GPG signing keys and they sign their repo with those keys. This means that after a
+    # certain date, the GPG key becomes invalid and if you have the repository added in your sources.list
+    # then you will not be able to install anything from any other repository. This id unlike any other
+    # repository we have seen (for example Postgres, MariaDB, MsSQL - all have non-expiring signing keys)
+    rm /etc/apt/sources.list.d/mysql.list
 }
 
 install_mariadb_client() {
@@ -327,6 +334,9 @@ install_mariadb_client() {
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
         INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+        echo
+        echo "${COLOR_YELLOW}Client forced to mariadb for ARM${COLOR_RESET}"
+        echo
     fi
 
     if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
@@ -627,6 +637,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
     fi
 
+    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider packages from docker-context files, we need to still
+        # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
+        # pre-release dockerhub image of airflow is built, but we want to install some providers from
+        # docker-context files
+        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+    fi
     # Find Apache Airflow packages in docker-context files
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \
@@ -1167,7 +1184,7 @@ while true; do
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f
 
-  find "${DIRECTORY}"/logs -type d -empty -delete
+  find "${DIRECTORY}"/logs -type d -empty -delete || true
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
@@ -1222,7 +1239,7 @@ COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 ARG INSTALL_MYSQL_CLIENT="true"
-ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_PIP_VERSION

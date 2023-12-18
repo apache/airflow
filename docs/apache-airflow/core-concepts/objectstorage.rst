@@ -74,20 +74,22 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
     from airflow.io.path import ObjectStoragePath
 
-    base = ObjectStoragePath("s3://my-bucket/", conn_id="aws_default")  # conn_id is optional
+    base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
+The username part of the URI is optional. It can alternatively be passed in as a separate keyword argument:
+
+.. code-block:: python
+
+    # Equivalent to the previous example.
+    base = ObjectStoragePath("s3://my-bucket/", conn_id="aws_default")
 
 Listing file-objects:
 
 .. code-block:: python
 
     @task
-    def list_files() -> list(ObjectStoragePath):
-        files = []
-        for f in base.iterdir():
-            if f.is_file():
-                files.append(f)
-
+    def list_files() -> list[ObjectStoragePath]:
+        files = [f for f in base.iterdir() if f.is_file()]
         return files
 
 
@@ -319,4 +321,4 @@ are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath
     path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
     conn = duckdb.connect(database=":memory:")
     conn.register_filesystem(path.fs)
-    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}")
+    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}');")
