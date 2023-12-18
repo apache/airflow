@@ -56,6 +56,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -104,6 +105,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test environment",
             "options": [
                 "--python",
+                "--forward-credentials",
             ],
         },
         {
@@ -154,6 +156,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -198,6 +201,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {

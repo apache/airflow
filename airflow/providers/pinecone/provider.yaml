@@ -24,9 +24,10 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 suspended: false
-source-date-epoch: 1700148081
+source-date-epoch: 1701983407
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -37,7 +38,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - pinecone-client>=2.2.4
 
 hooks:

@@ -104,7 +104,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
         slack = SlackAPIPostOperator(
             task_id="post_hello",
             dag=dag,
-            token="...",
             text="hello there!",
             channel="#random",
         )

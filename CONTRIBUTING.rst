@@ -216,6 +216,45 @@ There are certain expectations from the members of the security team:
   `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
   Foundation Security team.
 
+Periodic Security team rotation
+-------------------------------
+
+Handling security issues is something of a chore, it takes vigilance, requires quick reaction and responses
+and often requires to act outside of the regular "day" job. This means that not everyone can keep up with
+being part of the security team for long while being engaged and active. While we do not expect all the
+security team members to be active all the time, and - since we are volunteers, it's perfectly understandable
+that work, personal life, family and generally life might not help with being active. And this is not a
+considered as being failure, it's more stating the fact of life.
+
+Also prolonged time of being exposed to handling "other's" problems and discussing similar kinds of problem
+and responses might be tiring and might lead to burnout.
+
+However, for those who have never done that before, participation in the security team might be an interesting
+experience and a way to learn a lot about security and security issue handling. We have a lot of
+established processes and tools that make the work of the security team members easier, so this can be
+treated as a great learning experience for some community members. And knowing that this is not
+a "lifetime" assignment, but rather a temporary engagement might make it easier for people to decide to
+join the security team.
+
+That's why introduced rotation of the security team members.
+
+Periodically - every 3-4 months (depending on actual churn of the security issues that are reported to us),
+we re-evaluate the engagement and activity of the security team members, and we ask them if they want to
+continue being part of the security team, taking into account their engagement since the last team refinement.
+Generally speaking if the engagement during the last period was marginal, the person is considered as a
+candidate for removing from the team and it requires a deliberate confirmation of re-engagement to take
+the person off-the-list.
+
+At the same time we open up the possibility to other people in the community to join the team and make
+a "call for new security team members" where community members can volunteer to join the security team.
+Such volunteering should happen on the private@ list. The current members of the security team as well
+as PMC members can also nominate other community members to join the team and those new team members
+have to be well recognized and trusted by the community and accepted by the PMC.
+
+The proposal of team refinement is passed to the PMC as LAZY CONSENSUS (or VOTE if consensus cannot
+be reached). In case the consensus cannot be reached for the whole list, we can split it and ask for
+lazy consensus for each person separately.
+
 Contribution Workflow
 =====================
 
@@ -670,18 +709,18 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
 apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
-apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
-apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, cohere, common.io, common.sql, crypto, dask, daskexecutor, databricks,
-datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord,
-doc, doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github,
-github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc,
-jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp,
-microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch,
-opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pgvector, pinecone, pinot, plexus,
-postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, segment, sendgrid, sentry, sftp,
-singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino,
-vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.webhdfs, apprise,
+arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
+deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
+druid, elasticsearch, exasol, fab, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
+ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
+mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty,
+pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs,
+salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
+spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, weaviate,
+webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages

@@ -101,13 +101,13 @@ class GCSToGCSOperator(BaseOperator):
     ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
 
         copy_single_file = GCSToGCSOperator(
-            task_id='copy_single_file',
-            source_bucket='data',
-            source_objects=['sales/sales-2017/january.avro'],
-            destination_bucket='data_backup',
-            destination_object='copied_sales/2017/january-backup.avro',
+            task_id="copy_single_file",
+            source_bucket="data",
+            source_objects=["sales/sales-2017/january.avro"],
+            destination_bucket="data_backup",
+            destination_object="copied_sales/2017/january-backup.avro",
             exact_match=True,
-            gcp_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id,
         )
 
     The following Operator would copy all the Avro files from ``sales/sales-2017``
@@ -141,12 +141,12 @@ class GCSToGCSOperator(BaseOperator):
     process. ::
 
         move_files = GCSToGCSOperator(
-            task_id='move_files',
-            source_bucket='data',
-            source_object='sales/sales-2017/*.avro',
-            destination_bucket='data_backup',
+            task_id="move_files",
+            source_bucket="data",
+            source_object="sales/sales-2017/*.avro",
+            destination_bucket="data_backup",
             move_object=True,
-            gcp_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id,
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2019``
@@ -154,13 +154,13 @@ class GCSToGCSOperator(BaseOperator):
      ``data_backup`` bucket, deleting the original files in the process. ::
 
         move_files = GCSToGCSOperator(
-            task_id='move_files',
-            source_bucket='data',
-            source_objects=['sales/sales-2019/*.avro', 'sales/sales-2020'],
-            destination_bucket='data_backup',
-            delimiter='.avro',
+            task_id="move_files",
+            source_bucket="data",
+            source_objects=["sales/sales-2019/*.avro", "sales/sales-2020"],
+            destination_bucket="data_backup",
+            delimiter=".avro",
             move_object=True,
-            gcp_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id,
         )
 
     """
@@ -329,12 +329,12 @@ class GCSToGCSOperator(BaseOperator):
         the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
 
             copy_files = GCSToGCSOperator(
-                task_id='copy_files_without_wildcard',
-                source_bucket='data',
-                source_objects=['a/'],
-                destination_bucket='data_backup',
-                destination_object='b/',
-                gcp_conn_id=google_cloud_conn_id
+                task_id="copy_files_without_wildcard",
+                source_bucket="data",
+                source_objects=["a/"],
+                destination_bucket="data_backup",
+                destination_object="b/",
+                gcp_conn_id=google_cloud_conn_id,
             )
 
         Example 2:
@@ -345,13 +345,13 @@ class GCSToGCSOperator(BaseOperator):
         the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
 
             copy_files = GCSToGCSOperator(
-                task_id='copy_files_without_wildcard',
-                source_bucket='data',
-                source_objects=['a/'],
-                destination_bucket='data_backup',
-                destination_object='b/',
-                delimiter='.avro',
-                gcp_conn_id=google_cloud_conn_id
+                task_id="copy_files_without_wildcard",
+                source_bucket="data",
+                source_objects=["a/"],
+                destination_bucket="data_backup",
+                destination_object="b/",
+                delimiter=".avro",
+                gcp_conn_id=google_cloud_conn_id,
             )
 
         Example 3:
@@ -362,12 +362,12 @@ class GCSToGCSOperator(BaseOperator):
         the ``data_backup`` bucket (b/file_1.txt, b/file_2.csv, b/file_3.avro) ::
 
             copy_files = GCSToGCSOperator(
-                task_id='copy_files_without_wildcard',
-                source_bucket='data',
-                source_objects=['a/file_1.txt', 'a/file_2.csv', 'a/file_3.avro'],
-                destination_bucket='data_backup',
-                destination_object='b/',
-                gcp_conn_id=google_cloud_conn_id
+                task_id="copy_files_without_wildcard",
+                source_bucket="data",
+                source_objects=["a/file_1.txt", "a/file_2.csv", "a/file_3.avro"],
+                destination_bucket="data_backup",
+                destination_object="b/",
+                gcp_conn_id=google_cloud_conn_id,
             )
 
         Example 4:
@@ -378,12 +378,12 @@ class GCSToGCSOperator(BaseOperator):
         (b/foo.txt, b/foo.txt.abc, b/foo.txt/subfolder/file.txt) ::
 
             copy_files = GCSToGCSOperator(
-                task_id='copy_files_without_wildcard',
-                source_bucket='data',
-                source_object='a/foo.txt',
-                destination_bucket='data_backup',
-                destination_object='b/',
-                gcp_conn_id=google_cloud_conn_id
+                task_id="copy_files_without_wildcard",
+                source_bucket="data",
+                source_object="a/foo.txt",
+                destination_bucket="data_backup",
+                destination_object="b/",
+                gcp_conn_id=google_cloud_conn_id,
             )
         """
         objects = hook.list(

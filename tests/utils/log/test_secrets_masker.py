@@ -305,6 +305,24 @@ class TestSecretsMasker:
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
+    def test_redact_with_str_type(self, logger, caplog):
+        """
+        SecretsMasker's re2 replacer has issues handling a redactable item of type
+        `str` with required constructor args. This test ensures there is a shim in
+        place that avoids any issues.
+        See: https://github.com/apache/airflow/issues/19816#issuecomment-983311373
+        """
+
+        class StrLikeClassWithRequiredConstructorArg(str):
+            def __init__(self, required_arg):
+                pass
+
+        text = StrLikeClassWithRequiredConstructorArg("password")
+        logger.info("redacted: %s", text)
+
+        # we expect the object's __str__() output to be logged (no warnings due to a failed masking)
+        assert caplog.messages == ["redacted: ***"]
+
     @pytest.mark.parametrize(
         "state, expected",
         [

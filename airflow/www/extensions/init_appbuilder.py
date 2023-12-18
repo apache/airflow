@@ -214,7 +214,7 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(app, self)
+        auth_manager = init_auth_manager(self)
         self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()
@@ -411,32 +411,27 @@ class AirflowAppBuilder:
             # or not instantiated
             appbuilder.add_view(MyModelView, "My View")
             # Register a view, a submenu "Other View" from "Other" with a phone icon.
-            appbuilder.add_view(
-                MyOtherModelView,
-                "Other View",
-                icon='fa-phone',
-                category="Others"
-            )
+            appbuilder.add_view(MyOtherModelView, "Other View", icon="fa-phone", category="Others")
             # Register a view, with category icon and translation.
             appbuilder.add_view(
                 YetOtherModelView,
                 "Other View",
-                icon='fa-phone',
-                label=_('Other View'),
+                icon="fa-phone",
+                label=_("Other View"),
                 category="Others",
-                category_icon='fa-envelop',
-                category_label=_('Other View')
+                category_icon="fa-envelop",
+                category_label=_("Other View"),
             )
             # Register a view whose menu item will be conditionally displayed
             appbuilder.add_view(
                 YourFeatureView,
                 "Your Feature",
-                icon='fa-feature',
-                label=_('Your Feature'),
+                icon="fa-feature",
+                label=_("Your Feature"),
                 menu_cond=lambda: is_feature_enabled("your-feature"),
             )
             # Add a link
-            appbuilder.add_link("google", href="www.google.com", icon = "fa-google-plus")
+            appbuilder.add_link("google", href="www.google.com", icon="fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
         log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)

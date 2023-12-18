@@ -34,6 +34,7 @@ from datetime import datetime
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
+from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select, update
 
 from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
@@ -160,19 +161,31 @@ class KubernetesExecutor(BaseExecutor):
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
+        query_kwargs["header_params"] = {
+            "Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"
+        }
+        dynamic_client = DynamicClient(self.kube_client.api_client)
+        pod_resource = dynamic_client.resources.get(api_version="v1", kind="Pod")
         if self.kube_config.multi_namespace_mode:
             if self.kube_config.multi_namespace_mode_namespace_list:
-                pods = []
-                for namespace in self.kube_config.multi_namespace_mode_namespace_list:
-                    pods.extend(
-                        self.kube_client.list_namespaced_pod(namespace=namespace, **query_kwargs).items
-                    )
+                namespaces = self.kube_config.multi_namespace_mode_namespace_list
             else:
-                pods = self.kube_client.list_pod_for_all_namespaces(**query_kwargs).items
+                namespaces = [None]
         else:
-            pods = self.kube_client.list_namespaced_pod(
-                namespace=self.kube_config.kube_namespace, **query_kwargs
-            ).items
+            namespaces = [self.kube_config.kube_namespace]
+
+        pods = []
+        for namespace in namespaces:
+            # Dynamic Client list pods is throwing TypeError when there are no matching pods to return
+            # This bug was fixed in MR https://github.com/kubernetes-client/python/pull/2155
+            # TODO: Remove the try-except clause once we upgrade the K8 Python client version which
+            # includes the above MR
+            try:
+                pods.extend(
+                    dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items
+                )
+            except TypeError:
+                continue
 
         return pods
 
@@ -423,7 +436,7 @@ class KubernetesExecutor(BaseExecutor):
                     if e.status in (400, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
-                        self.change_state(key, TaskInstanceState.FAILED, e)
+                        self.fail(key, e)
                     else:
                         self.log.warning(
                             "ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s",
@@ -480,7 +493,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.models.taskinstance import TaskInstance
 
             state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
-            state = TaskInstanceState(state)
+            state = TaskInstanceState(state) if state else None
 
         self.event_buffer[key] = state, None
 

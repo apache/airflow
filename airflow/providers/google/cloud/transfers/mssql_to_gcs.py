@@ -42,15 +42,15 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         'mssql-export' GCS bucket (along with a schema file). ::
 
             export_customers = MSSQLToGCSOperator(
-                task_id='export_customers',
-                sql='SELECT * FROM dbo.Customers;',
-                bit_fields=['some_bit_field', 'another_bit_field'],
-                bucket='mssql-export',
-                filename='data/customers/export.json',
-                schema_filename='schemas/export.json',
-                mssql_conn_id='mssql_default',
-                gcp_conn_id='google_cloud_default',
-                dag=dag
+                task_id="export_customers",
+                sql="SELECT * FROM dbo.Customers;",
+                bit_fields=["some_bit_field", "another_bit_field"],
+                bucket="mssql-export",
+                filename="data/customers/export.json",
+                schema_filename="schemas/export.json",
+                mssql_conn_id="mssql_default",
+                gcp_conn_id="google_cloud_default",
+                dag=dag,
             )
 
     .. seealso::

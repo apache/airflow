@@ -3,9 +3,9 @@ celery
 cncf.kubernetes
 common.io
 common.sql
-daskexecutor
 docker
 elasticsearch
+fab
 ftp
 google
 grpc

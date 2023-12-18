@@ -592,7 +592,10 @@ class DagFileProcessor(LoggingMixin):
     @internal_api_call
     @provide_session
     def update_import_errors(
-        file_last_changed: dict[str, datetime], import_errors: dict[str, str], session: Session = NEW_SESSION
+        file_last_changed: dict[str, datetime],
+        import_errors: dict[str, str],
+        processor_subdir: str | None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         Update any import errors to be displayed in the UI.
@@ -627,7 +630,12 @@ class DagFileProcessor(LoggingMixin):
                 )
             else:
                 session.add(
-                    errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
+                    errors.ImportError(
+                        filename=filename,
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                        processor_subdir=processor_subdir,
+                    )
                 )
             (
                 session.query(DagModel)
@@ -835,6 +843,7 @@ class DagFileProcessor(LoggingMixin):
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
             if callback_requests:
@@ -860,6 +869,7 @@ class DagFileProcessor(LoggingMixin):
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
         except Exception:

@@ -25,7 +25,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
-from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -71,13 +70,19 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
-EXISTING_ROLES = FAB_EXISTING_ROLES
+EXISTING_ROLES = {
+    "Admin",
+    "Viewer",
+    "User",
+    "Op",
+    "Public",
+}
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.providers.fab.auth_manager.models import Action, Resource
 
 
 class AirflowSecurityManagerV2(LoggingMixin):
@@ -112,6 +117,10 @@ class AirflowSecurityManagerV2(LoggingMixin):
         limiter.init_app(self.appbuilder.get_app)
         return limiter
 
+    def register_views(self):
+        """Allow auth managers to register their own views. By default, do nothing."""
+        pass
+
     def has_access(
         self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
     ) -> bool:
@@ -133,15 +142,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             user = g.user
 
         is_authorized_method = self._get_auth_manager_is_authorized_method(resource_name)
-        if is_authorized_method:
-            return is_authorized_method(action_name, resource_pk, user)
-        else:
-            # This means the page the user is trying to access is specific to the auth manager used
-            # Example: the user list view in FabAuthManager
-            action_name = ACTION_CAN_READ if action_name == ACTION_CAN_ACCESS_MENU else action_name
-            return get_auth_manager().is_authorized_custom_view(
-                fab_action_name=action_name, fab_resource_name=resource_name, user=user
-            )
+        return is_authorized_method(action_name, resource_pk, user)
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Perform the required steps when initializing airflow for standalone mode.
@@ -167,18 +168,6 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 on_breach=limit.on_breach,
                 cost=limit.cost,
             )(baseview.blueprint)
-
-    def add_permissions_view(self, base_action_names, resource_name):
-        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
-
-    def add_permissions_menu(self, resource_name):
-        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
-
-    def get_action(self, name: str) -> Action:
-        raise NotImplementedError("Only available when FAB auth manager is used")
-
-    def get_resource(self, name: str) -> Resource:
-        raise NotImplementedError("Only available when FAB auth manager is used")
 
     @cached_property
     @provide_session
@@ -339,7 +328,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             ),
         }
 
-    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable | None:
+    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable:
         is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
         if is_authorized_method:
             return is_authorized_method
@@ -348,10 +337,34 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
-            return None
+            # This means the page the user is trying to access is specific to the auth manager used
+            # Example: the user list view in FabAuthManager
+            return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
+                fab_action_name=ACTION_CAN_READ if action == ACTION_CAN_ACCESS_MENU else action,
+                fab_resource_name=fab_resource_name,
+                user=user,
+            )
 
     def _is_authorized_category_menu(self, category: str) -> Callable:
         items = {item.name for item in self.appbuilder.menu.find(category).childs}
         return lambda action, resource_pk, user: any(
-            self._get_auth_manager_is_authorized_method(fab_resource_name=item) for item in items
+            self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
+            for item in items
         )
+
+    """
+    The following methods are specific to FAB auth manager. They still need to be "present" in the main
+    security manager class, but they do nothing.
+    """
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available if FAB auth manager is used")
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        pass
+
+    def add_permissions_menu(self, resource_name):
+        pass

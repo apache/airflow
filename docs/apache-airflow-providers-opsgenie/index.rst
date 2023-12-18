@@ -74,10 +74,10 @@
 Package apache-airflow-providers-opsgenie
 ------------------------------------------------------
 
-`Opsgenie <https://www.opsgenie.com/>`__
+`Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 
-Release: 5.2.0
+Release: 5.4.0
 
 Provider package
 ----------------
@@ -95,11 +95,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``opsgenie-sdk``    ``>=2.1.5``
 ==================  ==================

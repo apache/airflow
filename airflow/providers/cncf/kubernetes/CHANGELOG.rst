@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+7.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: KPO typing env_vars (#36048)``
+* ``Stop converting state to TaskInstanceState when it's None (#35891)``
+* ``Feature pass dictionary configuration in application_file in SparkKubernetesOperator (#35848)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Drive-by improvements to convert_env_vars (#36062)``
+   * ``Use fail instead of change_state(failed) in K8S executor (#35900)``
+
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add annotations field into  in KubernetesPodOperator (#35641)``
+* ``Add custom_resource_definition to KubernetesResourceBaseOperator (#35600)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert Remove PodLoggingStatus object #35422 (#35822)``
+* ``Fix K8S executor override config using pod_override_object (#35185)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+
+Misc
+~~~~
+
+* ``Remove inconsequential code bits in KPO logging (#35416)``
+* ``Remove non existing params from 'KubernetesResourceBaseOperator' docstring``
+* ``KubernetesExecutor observability Improvements (#35579)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add bandit to pre-commit to detect common security issues (#34247)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 7.9.0
 .....
 

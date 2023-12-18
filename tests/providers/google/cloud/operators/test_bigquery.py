@@ -1475,6 +1475,45 @@ class TestBigQueryInsertJobOperator:
             exc.value.trigger, BigQueryInsertJobTrigger
         ), "Trigger is not a BigQueryInsertJobTrigger"
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        """
+        Asserts that a deferred task of type BigQueryInsertJobTrigger will assume the project_id
+        of the hook that is used within the BigQueryInsertJobOperator when there is no
+        project_id passed to the BigQueryInsertJobOperator.
+        """
+        job_id = "123456"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        mock_hook.return_value.project_id = TEST_GCP_PROJECT_ID
+
+        ti = create_task_instance_of_operator(
+            BigQueryInsertJobOperator,
+            dag_id="dag_id",
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            deferrable=True,
+            project_id=None,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            ti.task.execute(MagicMock())
+
+        assert isinstance(
+            exc.value.trigger, BigQueryInsertJobTrigger
+        ), "Trigger is not a BigQueryInsertJobTrigger"
+
+        assert exc.value.trigger.project_id == TEST_GCP_PROJECT_ID
+
     def test_bigquery_insert_job_operator_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
         configuration = {

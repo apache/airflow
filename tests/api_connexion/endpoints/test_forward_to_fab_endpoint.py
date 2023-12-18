@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.fab.models import Role, User
+from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -130,7 +130,7 @@ class TestFABforwarding:
 class TestFABRoleForwarding(TestFABforwarding):
     @mock.patch("airflow.api_connexion.endpoints.forward_to_fab_endpoint.get_auth_manager")
     def test_raises_400_if_manager_is_not_fab(self, mock_get_auth_manager):
-        mock_get_auth_manager.return_value = BaseAuthManager(self.app, self.app.appbuilder)
+        mock_get_auth_manager.return_value = BaseAuthManager(self.app.appbuilder)
         response = self.client.get("api/v1/roles", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert (

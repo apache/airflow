@@ -81,9 +81,9 @@ class WasbHook(BaseHook):
     conn_type = "wasb"
     hook_name = "Azure Blob Storage"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -102,8 +102,8 @@ class WasbHook(BaseHook):
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
@@ -487,9 +487,9 @@ class WasbHook(BaseHook):
             self._get_container_client(container_name).delete_container()
             self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
-            self.log.info("Unable to delete container %s (not found)", container_name)
-        except:
-            self.log.info("Error deleting container: %s", container_name)
+            self.log.warning("Unable to delete container %s (not found)", container_name)
+        except Exception:
+            self.log.error("Error deleting container: %s", container_name)
             raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:

@@ -40,6 +40,7 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
+  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -258,6 +259,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -761,6 +765,20 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
+## Remove chicken-egg providers
+
+For the first MINOR (X.Y.0) release - remove all providers from ``CHICKEN_EGG_PROVIDERS`` list
+in ``src/airflow_breeze/global_constants.py`` that have >= ``X.Y.0`` in the corresponding provider.yaml file.
+
+In case the provider should also be installed in the image (it is part of ``airflow/providers/installed_providers.txt``)
+it should also be added at this moment to ``Dockerfile`` to the list of default extras in the lin with ``AIRFLOW_EXTRAS``:
+
+```Dockerfile
+ARG AIRFLOW_EXTRAS=".....,<provider>,...."
+```
+
+This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
+
 ## Manually prepare production Docker Image
 
 Building the image is triggered by running the
@@ -771,7 +789,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use v2-*-stable branch to run the workflow.
+Make sure you use ``v2-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 

@@ -135,7 +135,7 @@ This will build the image using command similar to:
 .. code-block:: bash
 
     pip install \
-      apache-airflow[async,amazon,celery,cncf.kubernetes,docker,daskexecutor,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
+      apache-airflow[async,amazon,celery,cncf.kubernetes,docker,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.8.txt"
 
 .. note::
@@ -462,7 +462,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
 |                                          |                                          | when installing dev deps                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``23.3.1``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``23.3.2``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

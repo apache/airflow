@@ -366,8 +366,8 @@ class PostgresHook(DbApiHook):
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": [],
             "relabeling": {

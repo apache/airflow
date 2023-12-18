@@ -22,8 +22,9 @@ description: |
   ``Common IO Provider``
 
 suspended: false
-source-date-epoch: 1700148058
+source-date-epoch: 1701983369
 versions:
+  - 1.1.0
   - 1.0.1
   - 1.0.0
 

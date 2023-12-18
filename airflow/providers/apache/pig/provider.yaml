@@ -22,8 +22,9 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1700148052
+source-date-epoch: 1701983358
 versions:
+  - 4.3.0
   - 4.2.0
   - 4.1.2
   - 4.1.1
@@ -39,7 +40,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
 
 integrations:
   - integration-name: Apache Pig

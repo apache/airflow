@@ -21,24 +21,23 @@ import typing
 
 import dateutil.relativedelta
 import pendulum
-import pendulum.tz
 import pytest
 import time_machine
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.timezone import utc
 
-TIMEZONE = pendulum.tz.timezone("UTC")
-START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
+START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
 PREV_DATA_INTERVAL_END = START_DATE + datetime.timedelta(days=1)
 PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 
-CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
+CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
 
-HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", timezone=TIMEZONE)
+HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", timezone=utc)
 
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
@@ -69,7 +68,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     next_start_time: pendulum.DateTime,
 ) -> None:
     """If ``catchup=False`` and start_date is a day before"""
-    timetable = CronTriggerTimetable("30 16 * * *", timezone=TIMEZONE)
+    timetable = CronTriggerTimetable("30 16 * * *", timezone=utc)
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
         restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
@@ -81,33 +80,33 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     "current_time, earliest, expected",
     [
         pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE),
+            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
             id="current_time_on_boundary",
         ),
         pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
+            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=utc),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
             id="current_time_not_on_boundary",
         ),
         pytest.param(
-            pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE),
+            pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="current_time_miss_one_interval_on_boundary",
         ),
         pytest.param(
-            pendulum.DateTime(2022, 7, 27, 1, 30, 0, tzinfo=TIMEZONE),
+            pendulum.DateTime(2022, 7, 27, 1, 30, 0, tzinfo=utc),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="current_time_miss_one_interval_not_on_boundary",
         ),
         pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
-            pendulum.DateTime(2199, 12, 31, 22, 30, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2199, 12, 31, 23, 0, 0, tzinfo=TIMEZONE)),
+            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=utc),
+            pendulum.DateTime(2199, 12, 31, 22, 30, 0, tzinfo=utc),
+            DagRunInfo.exact(pendulum.DateTime(2199, 12, 31, 23, 0, 0, tzinfo=utc)),
             id="future_start_date",
         ),
     ],
@@ -129,27 +128,27 @@ def test_hourly_cron_trigger_no_catchup_next_info(
     "last_automated_data_interval, earliest, expected",
     [
         pytest.param(
-            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
+            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="last_automated_on_boundary",
         ),
         pytest.param(
-            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE)),
+            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=utc)),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="last_automated_not_on_boundary",
         ),
         pytest.param(
             None,
-            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
+            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
             id="no_last_automated_with_earliest_on_boundary",
         ),
         pytest.param(
             None,
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=utc),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="no_last_automated_with_earliest_not_on_boundary",
         ),
         pytest.param(
@@ -176,20 +175,20 @@ def test_cron_trigger_next_info_with_interval():
     # Runs every Monday on 16:30, covering the day before the run.
     timetable = CronTriggerTimetable(
         "30 16 * * MON",
-        timezone=TIMEZONE,
+        timezone=utc,
         interval=datetime.timedelta(hours=16, minutes=30),
     )
 
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=DataInterval(
-            pendulum.DateTime(2022, 8, 1, tzinfo=TIMEZONE),
-            pendulum.DateTime(2022, 8, 1, 16, 30, tzinfo=TIMEZONE),
+            pendulum.DateTime(2022, 8, 1, tzinfo=utc),
+            pendulum.DateTime(2022, 8, 1, 16, 30, tzinfo=utc),
         ),
         restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
     )
     assert next_info == DagRunInfo.interval(
-        pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
-        pendulum.DateTime(2022, 8, 8, 16, 30, tzinfo=TIMEZONE),
+        pendulum.DateTime(2022, 8, 8, tzinfo=utc),
+        pendulum.DateTime(2022, 8, 8, 16, 30, tzinfo=utc),
     )
 
 
@@ -198,7 +197,7 @@ def test_validate_success() -> None:
 
 
 def test_validate_failure() -> None:
-    timetable = CronTriggerTimetable("0 0 1 13 0", timezone=TIMEZONE)
+    timetable = CronTriggerTimetable("0 0 1 13 0", timezone=utc)
 
     with pytest.raises(AirflowTimetableInvalid) as ctx:
         timetable.validate()
@@ -210,13 +209,13 @@ def test_validate_failure() -> None:
     [
         (HOURLY_CRON_TRIGGER_TIMETABLE, {"expression": "0 * * * *", "timezone": "UTC", "interval": 0}),
         (
-            CronTriggerTimetable("0 0 1 12 *", timezone=TIMEZONE, interval=datetime.timedelta(hours=2)),
+            CronTriggerTimetable("0 0 1 12 *", timezone=utc, interval=datetime.timedelta(hours=2)),
             {"expression": "0 0 1 12 *", "timezone": "UTC", "interval": 7200.0},
         ),
         (
             CronTriggerTimetable(
                 "0 0 1 12 0",
-                timezone=pendulum.tz.timezone("Asia/Taipei"),
+                timezone="Asia/Taipei",
                 interval=dateutil.relativedelta.relativedelta(weekday=dateutil.relativedelta.MO),
             ),
             {"expression": "0 0 1 12 0", "timezone": "Asia/Taipei", "interval": {"weekday": [0]}},

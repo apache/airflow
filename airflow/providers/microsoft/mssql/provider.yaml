@@ -19,11 +19,12 @@
 package-name: apache-airflow-providers-microsoft-mssql
 name: Microsoft SQL Server (MSSQL)
 description: |
-    `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
+    `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 suspended: false
-source-date-epoch: 1700148072
+source-date-epoch: 1701983393
 versions:
+  - 3.6.0
   - 3.5.0
   - 3.4.2
   - 3.4.1
@@ -46,13 +47,13 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - pymssql>=2.1.5
+  - pymssql>=2.1.8
 
 integrations:
   - integration-name: Microsoft SQL Server (MSSQL)
-    external-doc-url: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
+    external-doc-url: https://www.microsoft.com/sql-server/
     logo: /integration-logos/mssql/Microsoft-SQL-Server.png
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-mssql/operators.rst

@@ -40,6 +40,7 @@ INTERNAL_IP = "192.9.9.9"
 EXTERNAL_IP = "192.3.3.3"
 TEST_PUB_KEY = "root:NAME AYZ root"
 TEST_PUB_KEY2 = "root:NAME MNJ root"
+IMPERSONATION_CHAIN = "SERVICE_ACCOUNT"
 
 
 class TestComputeEngineHookWithPassedProjectId:
@@ -361,6 +362,41 @@ class TestComputeEngineHookWithPassedProjectId:
             f"gcloud compute start-iap-tunnel {TEST_INSTANCE_NAME} 22 "
             f"--listen-on-stdin --project={TEST_PROJECT_ID} "
             f"--zone={TEST_ZONE} --verbosity=warning"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    def test_get_conn_iap_tunnel_with_impersonation_chain(
+        self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
+    ):
+        del mock_os_login_hook
+        mock_paramiko.SSHException = Exception
+
+        mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
+
+        hook = ComputeEngineSSHHook(
+            instance_name=TEST_INSTANCE_NAME,
+            zone=TEST_ZONE,
+            use_oslogin=False,
+            use_iap_tunnel=True,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        result = hook.get_conn()
+        assert mock_ssh_client.return_value == result
+
+        mock_ssh_client.return_value.connect.assert_called_once_with(
+            hostname=mock.ANY,
+            look_for_keys=mock.ANY,
+            pkey=mock.ANY,
+            sock=mock_paramiko.ProxyCommand.return_value,
+            username=mock.ANY,
+        )
+        mock_paramiko.ProxyCommand.assert_called_once_with(
+            f"gcloud compute start-iap-tunnel {TEST_INSTANCE_NAME} 22 "
+            f"--listen-on-stdin --project={TEST_PROJECT_ID} "
+            f"--zone={TEST_ZONE} --verbosity=warning --impersonate-service-account={IMPERSONATION_CHAIN}"
         )
 
     @pytest.mark.parametrize(

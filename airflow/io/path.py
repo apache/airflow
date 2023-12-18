@@ -46,15 +46,16 @@ default = "file"
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
-        store = kwargs.pop("store", None)
-        conn_id = kwargs.pop("conn_id", None)
-        if store:
-            self._store = store
-        elif parsed_url and parsed_url.scheme:
+    def __init__(
+        self,
+        parsed_url: SplitResult | None,
+        conn_id: str | None = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
-            self._store = attach(default, conn_id)
+            self._store = attach("file", conn_id)
 
     @property
     def _fs(self) -> AbstractFileSystem:
@@ -89,15 +90,19 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+    def __new__(
+        cls: type[PT],
+        *args: str | os.PathLike,
+        scheme: str | None = None,
+        conn_id: str | None = None,
+        **kwargs: typing.Any,
+    ) -> PT:
         args_list = list(args)
 
-        try:
-            other = args_list.pop(0)
-        except IndexError:
-            other = "."
+        if args_list:
+            other = args_list.pop(0) or "."
         else:
-            other = other or "."
+            other = "."
 
         if isinstance(other, PurePath):
             _cls: typing.Any = type(other)
@@ -123,29 +128,33 @@ class ObjectStoragePath(CloudPath):
 
         url = stringify_path(other)
         parsed_url: SplitResult = urlsplit(url)
-        protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
 
-        # allow override of protocol
-        protocol = kwargs.get("scheme", protocol)
+        if scheme:  # allow override of protocol
+            parsed_url = parsed_url._replace(scheme=scheme)
 
-        for key in ["scheme", "url"]:
-            val = kwargs.pop(key, None)
-            if val:
-                parsed_url = parsed_url._replace(**{key: val})
+        if not parsed_url.path:  # ensure path has root
+            parsed_url = parsed_url._replace(path="/")
 
-        if not parsed_url.path:
-            parsed_url = parsed_url._replace(path="/")  # ensure path has root
-
-        if not protocol:
+        if not parsed_url.scheme and not split_protocol(url)[0]:
             args_list.insert(0, url)
         else:
             args_list.insert(0, parsed_url.path)
 
-        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
+        # This matches the parsing logic in urllib.parse; see:
+        # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75a/Lib/urllib/parse.py#L194-L203
+        userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
+        if have_info:
+            conn_id = conn_id or userinfo or None
+            parsed_url = parsed_url._replace(netloc=hostinfo)
+
+        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
-        return hash(self._bucket)
+        return hash(str(self))
+
+    def __eq__(self, other: typing.Any) -> bool:
+        return self.samestore(other) and str(self) == str(other)
 
     def samestore(self, other: typing.Any) -> bool:
         return isinstance(other, ObjectStoragePath) and self._accessor == other._accessor
@@ -254,11 +263,11 @@ class ObjectStoragePath(CloudPath):
         --------
         >>> read_block(0, 13)
         b'Alice, 100\\nBo'
-        >>> read_block(0, 13, delimiter=b'\\n')
+        >>> read_block(0, 13, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\n'
 
         Use ``length=None`` to read to the end of the file.
-        >>> read_block(0, None, delimiter=b'\\n')
+        >>> read_block(0, None, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\nCharlie, 300'
 
         See Also
@@ -382,10 +391,14 @@ class ObjectStoragePath(CloudPath):
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink()
 
-    def serialize(self) -> dict[str, str]:
+    def serialize(self) -> dict[str, typing.Any]:
+        _kwargs = self._kwargs.copy()
+        conn_id = _kwargs.pop("conn_id", None)
+
         return {
             "path": str(self),
-            **self._kwargs,
+            "conn_id": conn_id,
+            "kwargs": _kwargs,
         }
 
     @classmethod
@@ -393,5 +406,8 @@ class ObjectStoragePath(CloudPath):
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
 
+        _kwargs = data.pop("kwargs")
         path = data.pop("path")
-        return ObjectStoragePath(path, **data)
+        conn_id = data.pop("conn_id", None)
+
+        return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
