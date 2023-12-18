@@ -163,6 +163,19 @@ For example, your ``airflow_local_settings.py`` might follow this pattern:
         :start-after: [START example_list_of_cluster_policy_rules]
         :end-before: [END example_list_of_cluster_policy_rules]
 
+Connection policies
+~~~~~~~~~~~~~~~~~~~
+
+Connection policies can be used to validate or modify a connection id. For example, say you want to only allow DAGs with certain owners to access certain connections. For example, DAGs that have an owner ``"bi"`` set can only access connections in the HashiCorp Vault ``bi`` namespace. This can be achieved with a connection policy, for example:
+
+.. literalinclude:: /../../tests/cluster_policies/__init__.py
+        :language: python
+        :start-after: [START example_connection_policy]
+        :end-before: [END example_connection_policy]
+
+Given the task context we can fetch various details from the DAG, such as its owner. We can then prefix the connection id with that name.
+
+The connection policy is applied to the ``BaseHook.get_connection()`` method. This method is evaluated at runtime and thus the policy is also evaluated at runtime.
 
 Task instance mutation
 ~~~~~~~~~~~~~~~~~~~~~~

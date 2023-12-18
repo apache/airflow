@@ -173,6 +173,10 @@ def get_dagbag_import_timeout(dag_file_path: str):
     return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
 
+def connection_policy(conn_id: str) -> str:
+    return POLICY_PLUGIN_MANAGER.hook.connection_policy(conn_id=conn_id)
+
+
 def configure_policy_plugin_manager():
     global POLICY_PLUGIN_MANAGER
 

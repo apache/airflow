@@ -114,3 +114,28 @@ def task_instance_mutation_hook(task_instance: TaskInstance):
 
 
 # [END example_task_mutation_hook]
+
+
+# [START example_connection_policy]
+def connection_policy(conn_id: str) -> str:
+    """
+    This connection policy prefixes the connection id with "bi/" in case the owner is set to "bi", and raises
+    an AirflowClusterPolicyViolation in case an unknown owner is found.
+    """
+    dagowner_connid_prefixes = {"bi": "bi/"}
+
+    from airflow.operators.python import get_current_context
+
+    task_instance_context = get_current_context()
+    dag_owner = task_instance_context["dag"].owner
+
+    try:
+        return dagowner_connid_prefixes[dag_owner] + conn_id
+    except KeyError:
+        raise AirflowClusterPolicyViolation(
+            f"DAG owner '{dag_owner}' not found in list of owners to route a connection. "
+            "Consult your cluster admin."
+        )
+
+
+# [END example_connection_policy]

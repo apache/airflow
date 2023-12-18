@@ -22,6 +22,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any
 
+from airflow import settings
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -77,6 +78,8 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
+        conn_id = settings.connection_policy(conn_id=conn_id)
+
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)

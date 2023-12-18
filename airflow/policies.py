@@ -116,6 +116,17 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignor
     If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
     """
 
+@local_settings_hookspec
+def connection_policy(conn_id: str) -> str:
+    """
+    Alter and/or apply validation rules on the provided connection id.
+
+    When used in combination with the task context (``airflow.operators.python.get_current_context``), you can
+    apply logic, e.g. to check if the requested connection id was requested by a DAG with a certain owner.
+
+    To support connection id alterations at runtime (typically prefixes are added), a connection id must be
+    returned, even when not altering the connection id.
+    """
 
 class DefaultPolicy:
     """Default implementations of the policy functions.
