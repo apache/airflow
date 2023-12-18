@@ -116,8 +116,9 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignor
     If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
     """
 
+
 @local_settings_hookspec
-def connection_policy(conn_id: str) -> str:
+def connection_policy(conn_id: str) -> str:  # type: ignore[empty-body]
     """
     Alter and/or apply validation rules on the provided connection id.
 
@@ -127,6 +128,7 @@ def connection_policy(conn_id: str) -> str:
     To support connection id alterations at runtime (typically prefixes are added), a connection id must be
     returned, even when not altering the connection id.
     """
+
 
 class DefaultPolicy:
     """Default implementations of the policy functions.
