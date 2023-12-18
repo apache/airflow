@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-18T14:31:59.501358
+# This constraints file was automatically generated on 2023-12-18T20:57:56.432673
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -150,7 +150,7 @@ protobuf==4.25.1
 psutil==5.9.7
 pure-sasl==0.6.2
 pyarrow-hotfix==0.6
-pyarrow==14.0.1
+pyarrow==14.0.2
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycparser==2.21
