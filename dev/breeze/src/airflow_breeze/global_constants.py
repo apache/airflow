@@ -430,6 +430,7 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
+    "common.io",
     "docker",
     "elasticsearch",
     "ftp",
@@ -458,7 +459,6 @@ DEFAULT_EXTRAS = [
 
 CHICKEN_EGG_PROVIDERS = " ".join(
     [
-        "common.io",
         "fab",
     ]
 )

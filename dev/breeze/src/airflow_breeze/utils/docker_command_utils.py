@@ -751,20 +751,6 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
             f"Changing the executor to {SEQUENTIAL_EXECUTOR}.\n"
         )
         shell_params.executor = SEQUENTIAL_EXECUTOR
-
-    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
-        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
-            get_console().print(
-                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
-            )
-            shell_params.airflow_extras += ",celery"
-        elif not shell_params.airflow_extras:
-            get_console().print(
-                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                "Setting airflow extras to 'celery'.\n"
-            )
-            shell_params.airflow_extras = "celery"
     if shell_params.restart:
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
