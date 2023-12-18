@@ -85,6 +85,7 @@ List of default extras in the production Dockerfile:
 * async
 * celery
 * cncf.kubernetes
+* common.io
 * docker
 * elasticsearch
 * ftp

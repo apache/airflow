@@ -430,6 +430,7 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
+    "common.io",
     "docker",
     "elasticsearch",
     "ftp",
@@ -456,11 +457,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "common.io",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 def _exclusion(providers: Iterable[str]) -> str:
