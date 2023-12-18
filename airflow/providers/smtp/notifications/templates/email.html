@@ -8,6 +8,10 @@
     <table role="presentation">
         {% if ti is defined %}
         <tr>
+            <td>Run ID:</td>
+            <td>{{ ti.run_id }}</td>
+        </tr>
+        <tr>
             <td>Try:</td>
             <td>{{ ti.try_number }} of {{ ti.max_tries + 1 }}</td>
         </tr>

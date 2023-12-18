@@ -631,7 +631,7 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 
 SMTP_DEFAULT_TEMPLATED_SUBJECT = """
 {% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ run_id }} in State {{ ti.state }}
+DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
 {% elif slas is defined %}
 SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
 {% endif %}
