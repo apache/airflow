@@ -235,14 +235,18 @@ class KubernetesPodTrigger(BaseTrigger):
                 }
             )
 
-    @cached_property
-    def hook(self) -> AsyncKubernetesHook:
+    def _get_async_hook(self) -> AsyncKubernetesHook:
+        # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
         return AsyncKubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
+
+    @cached_property
+    def hook(self) -> AsyncKubernetesHook:
+        return self._get_async_hook()
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses
