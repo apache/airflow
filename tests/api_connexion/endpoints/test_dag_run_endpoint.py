@@ -1189,11 +1189,11 @@ class TestPostDagRun(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert {
-                   "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
-                   "status": 400,
-                   "title": "DAG cannot be triggered",
-                   "type": EXCEPTIONS_LINK_MAP[400],
-               } == response.json
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
+            "status": 400,
+            "title": "DAG cannot be triggered",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        } == response.json
 
     def test_should_response_200_for_matching_execution_date_logical_date(self):
         execution_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1298,11 +1298,11 @@ class TestPostDagRun(TestDagRunEndpoint):
         )
         assert response.status_code == 404
         assert {
-                   "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
-                   "status": 404,
-                   "title": "DAG not found",
-                   "type": EXCEPTIONS_LINK_MAP[404],
-               } == response.json
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
+            "status": 404,
+            "title": "DAG not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
 
     @pytest.mark.parametrize(
         "url, request_json, expected_response",
@@ -1353,7 +1353,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 409, response.data
         assert response.json == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
-                      "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
+            "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],
@@ -1374,7 +1374,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 409, response.data
         assert response.json == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
-                      "DAGRun logical date: '2020-06-11 18:00:00+00:00' already exists",
+            "DAGRun logical date: '2020-06-11 18:00:00+00:00' already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],
@@ -1872,8 +1872,6 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         created_dr = dag_runs[0]
         response = self.client.post(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns",
-            json={
-                "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "note": "I am setting a note with anonymous user"},
+            json={"dag_run_id": "TEST_DAG_RUN_ID_1", "note": "I am setting a note with anonymous user"},
         )
         assert response.status_code == 200
