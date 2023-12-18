@@ -275,3 +275,43 @@ class TestKeda:
             "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
+
+    def test_mysql_keda_db_connection(self):
+        """Verify keda db connection when pgbouncer is enabled."""
+        import base64
+
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql", "port":3306} },
+                "workers": {"keda": {"enabled": True}},
+                "executor": "CeleryExecutor",
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        worker_deployment = docs[0]
+        keda_autoscaler = docs[1]
+        metadata_connection_secret = docs[2]
+
+        worker_container_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[].name", worker_deployment
+        )
+        assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
+        assert "KEDA_DB_CONN" in worker_container_env_vars
+
+        keda_autoscaler_metadata = jmespath.search(
+            "spec.triggers[0].metadata", keda_autoscaler
+        )
+        assert "queryValue" in keda_autoscaler_metadata
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "connection" in secret_data.keys()
+        assert "kedaConnection" in secret_data.keys()
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "KEDA_DB_CONN"
