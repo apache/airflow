@@ -1861,3 +1861,61 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
+
+    def test_should_respond_200_with_anonymous_user(self,dag_maker, session):
+        def client_without_login(app):
+            app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+            client = app.test_client()
+            return client
+
+        # client = client_without_login(self.app)
+
+        self.app.config["AIRFLOW__API__AUTH_BACKENDS"] = "airflow.api.auth.backend.default"
+        self.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+
+        print(self.app.config)
+        import os
+        print(os.getenv("AIRFLOW__API__AUTH_BACKENDS"))
+
+        #
+        dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)
+        session.add_all(dag_runs)
+        session.commit()
+        created_dr: DagRun = dag_runs[0]
+        # response = self.client.patch(
+        #     f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
+        #     json={"note": new_note_value},
+        #     environ_overrides={"REMOTE_USER": "test"},
+        # )
+
+        response = client.post(
+            f"api/v1/dags/{created_dr.dag_id}/dagRuns",
+            json={
+                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "note": "I am setting a note with anonymous user"},
+                environ_overrides={"AIRFLOW__API__AUTH_BACKENDS": "airflow.api.auth.backend.default"},
+                # environ_overrides={"REMOTE_USER": None},
+        )
+
+        print("devd")
+        print(os.getenv("AIRFLOW__API__AUTH_BACKENDS"))
+        print(response)
+        print(response.status_code)
+        assert response.status_code == 200
+
+
+
+        #
+
+        # response = client.post(
+        #     "api/v1/dags/example_bash_operator/dagRuns",
+        #     json={
+        #         "dag_run_id": "TEST_DAG_RUN_ID_1",
+        #         "note": "I am setting a note with anonymous user"},
+        #         # environ_overrides={"AIRFLOW__API__AUTH_BACKENDS": "airflow.api.auth.backend.default"},
+        # )
+        # print("devd")
+        # print(os.getenv("AIRFLOW__API__AUTH_BACKENDS"))
+        # print(response)
+        # print(response.status_code)
+        # assert response.status_code == 200
