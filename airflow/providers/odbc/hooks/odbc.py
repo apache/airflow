@@ -17,11 +17,13 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
+import warnings
 from typing import Any, List, NamedTuple, TypeVar, cast
 from urllib.parse import quote_plus
 
 import pyodbc
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
@@ -213,6 +215,13 @@ class OdbcHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
+
+    def _make_serializable(self, result: Any) -> Any:
+        """Use `airflow.providers.odbc.hooks.odbc.OdbcHook._make_common_data_structure`.
+
+        This method is deprecated.
+        """
+        return self._make_common_data_structure(result=result)
 
     def _make_common_data_structure(
         self, result: list[T] | T | None
