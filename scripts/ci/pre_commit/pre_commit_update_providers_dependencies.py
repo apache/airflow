@@ -213,11 +213,12 @@ if __name__ == "__main__":
         DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
         if os.environ.get("CI"):
             console.print()
-            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print(f"[info]There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
             console.print(
-                f"[yellow]You will need to run breeze locally and commit "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+                f"[red]You need to run the following command locally and commit generated "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
             )
+            console.print("breeze static-checks --type update-providers-dependencies --all-files")
             console.print()
         else:
             console.print()
@@ -227,6 +228,7 @@ if __name__ == "__main__":
             )
             console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
+        sys.exit(1)
     else:
         console.print(
             "[green]No need to regenerate dependencies!\n[/]"
