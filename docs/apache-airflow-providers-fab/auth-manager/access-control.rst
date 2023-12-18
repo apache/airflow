@@ -38,11 +38,6 @@ By default, only ``Admin`` users can configure/alter permissions for roles. Howe
 it is recommended that these default roles remain unaltered, and instead ``Admin`` users
 create new roles with the desired permissions if changes are necessary.
 
-Admin
-^^^^^
-``Admin`` users have all possible permissions, including granting or revoking permissions from
-other users.
-
 Public
 ^^^^^^
 ``Public`` users (anonymous) don't have any permissions.
@@ -73,6 +68,16 @@ Op
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users. ``Admin`` users have ``Op`` permission plus additional permissions:
+
+.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+    :language: python
+    :start-after: [START security_admin_perms]
+    :end-before: [END security_admin_perms]
 
 Custom Roles
 '''''''''''''
@@ -152,12 +157,12 @@ Endpoint                                                                        
 /importErrors/{import_error_id}                                                    GET    ImportError.can_read                                              Viewer
 /health                                                                            GET    None                                                              Public
 /version                                                                           GET    None                                                              Public
-/pools                                                                             GET    Pool.can_read                                                     Op
-/pools                                                                             POST   Pool.can_create                                                   Op
-/pools/{pool_name}                                                                 DELETE Pool.can_delete                                                   Op
-/pools/{pool_name}                                                                 GET    Pool.can_read                                                     Op
-/pools/{pool_name}                                                                 PATCH  Pool.can_edit                                                     Op
-/providers                                                                         GET    Provider.can_read                                                 Op
+/pools                                                                             GET    Pools.can_read                                                     Op
+/pools                                                                             POST   Pools.can_create                                                   Op
+/pools/{pool_name}                                                                 DELETE Pools.can_delete                                                   Op
+/pools/{pool_name}                                                                 GET    Pools.can_read                                                     Op
+/pools/{pool_name}                                                                 PATCH  Pools.can_edit                                                     Op
+/providers                                                                         GET    Providers.can_read                                                 Op
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
@@ -173,7 +178,15 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
 /users                                                                             GET    Users.can_read                                                    Admin
+/users                                                                             POST   Users.can_create                                                  Admin
 /users/{username}                                                                  GET    Users.can_read                                                    Admin
+/users/{username}                                                                  PATCH  Users.can_edit                                                    Admin
+/users/{username}                                                                  DELETE Users.can_delete                                                  Admin
+/roles                                                                             GET    Roles.can_read                                                    Admin
+/roles                                                                             POST   Roles.can_create                                                  Admin
+/roles/{role_name}                                                                 GET    Roles.can_read                                                    Admin
+/roles/{role_name}                                                                 PATCH  Roles.can_edit                                                    Admin
+/roles/{role_name}                                                                 DELETE Roles.can_delete                                                  Admin
 ================================================================================== ====== ================================================================= ============
 
 

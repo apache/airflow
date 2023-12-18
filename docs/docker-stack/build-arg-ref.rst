@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``23.3.1``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``23.3.2``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |
@@ -85,6 +85,7 @@ List of default extras in the production Dockerfile:
 * async
 * celery
 * cncf.kubernetes
+* common.io
 * docker
 * elasticsearch
 * ftp

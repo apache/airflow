@@ -28,6 +28,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
+    get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
@@ -196,3 +197,16 @@ class CommonBuildParams:
         for arg in self.build_arg_values:
             build_args.extend(["--build-arg", arg])
         return build_args
+
+    def _get_version_with_suffix(self) -> str:
+        from packaging.version import Version
+
+        airflow_version = get_airflow_version()
+        try:
+            if self.version_suffix_for_pypi and self.version_suffix_for_pypi not in airflow_version:
+                version = Version(airflow_version)
+                return version.base_version + f".{self.version_suffix_for_pypi}"
+        except Exception:
+            # in case of any failure just fall back to the original version set
+            pass
+        return airflow_version

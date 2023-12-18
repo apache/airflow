@@ -58,23 +58,21 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
     By default, if the topic already exists, this operator will
     not cause the DAG to fail. ::
 
-        with DAG('successful DAG') as dag:
-            (
-                PubSubCreateTopicOperator(project_id='my-project', topic='my_new_topic')
-                >> PubSubCreateTopicOperator(project_id='my-project', topic='my_new_topic')
-            )
+        with DAG("successful DAG") as dag:
+            create_topic = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
+            create_topic_again = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
+
+            create_topic >> create_topic_again
 
     The operator can be configured to fail if the topic already exists. ::
 
-        with DAG('failing DAG') as dag:
-            (
-                PubSubCreateTopicOperator(project_id='my-project', topic='my_new_topic')
-                >> PubSubCreateTopicOperator(
-                    project_id='my-project',
-                    topic='my_new_topic',
-                    fail_if_exists=True,
-                )
+        with DAG("failing DAG") as dag:
+            create_topic = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
+            create_topic_again = PubSubCreateTopicOperator(
+                project_id="my-project", topic="my_new_topic", fail_if_exists=True
             )
+
+            create_topic >> create_topic_again
 
     Both ``project_id`` and ``topic`` are templated so you can use Jinja templating in their values.
 
@@ -197,43 +195,35 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
     By default, if the subscription already exists, this operator will
     not cause the DAG to fail. However, the topic must exist in the project. ::
 
-        with DAG('successful DAG') as dag:
-            (
-                PubSubCreateSubscriptionOperator(
-                    project_id='my-project',
-                    topic='my-topic',
-                    subscription='my-subscription'
-                )
-                >> PubSubCreateSubscriptionOperator(
-                    project_id='my-project',
-                    topic='my-topic',
-                    subscription='my-subscription',
-                )
+        with DAG("successful DAG") as dag:
+            create_subscription = PubSubCreateSubscriptionOperator(
+                project_id="my-project", topic="my-topic", subscription="my-subscription"
             )
+            create_subscription_again = PubSubCreateSubscriptionOperator(
+                project_id="my-project", topic="my-topic", subscription="my-subscription"
+            )
+
+            create_subscription >> create_subscription_again
+
 
     The operator can be configured to fail if the subscription already exists.
     ::
 
-        with DAG('failing DAG') as dag:
-            (
-                PubSubCreateSubscriptionOperator(
-                    project_id='my-project',
-                    topic='my-topic',
-                    subscription='my-subscription',
-                )
-                >> PubSubCreateSubscriptionOperator(
-                    project_id='my-project',
-                    topic='my-topic',
-                    subscription='my-subscription',
-                    fail_if_exists=True,
-                )
+        with DAG("failing DAG") as dag:
+            create_subscription = PubSubCreateSubscriptionOperator(
+                project_id="my-project", topic="my-topic", subscription="my-subscription"
             )
+            create_subscription_again = PubSubCreateSubscriptionOperator(
+                project_id="my-project", topic="my-topic", subscription="my-subscription", fail_if_exists=True
+            )
+
+            create_subscription >> create_subscription_again
 
     Finally, subscription is not required. If not passed, the operator will
     generated a universally unique identifier for the subscription's name. ::
 
-        with DAG('DAG') as dag:
-            PubSubCreateSubscriptionOperator(project_id='my-project', topic='my-topic')
+        with DAG("DAG") as dag:
+            PubSubCreateSubscriptionOperator(project_id="my-project", topic="my-topic")
 
     ``project_id``, ``topic``, ``subscription``, ``subscription_project_id`` and
     ``impersonation_chain`` are templated so you can use Jinja templating in their values.
@@ -410,14 +400,16 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
     By default, if the topic does not exist, this operator will
     not cause the DAG to fail. ::
 
-        with DAG('successful DAG') as dag:
-            PubSubDeleteTopicOperator(project_id='my-project', topic='non_existing_topic')
+        with DAG("successful DAG") as dag:
+            PubSubDeleteTopicOperator(project_id="my-project", topic="non_existing_topic")
 
     The operator can be configured to fail if the topic does not exist. ::
 
-        with DAG('failing DAG') as dag:
+        with DAG("failing DAG") as dag:
             PubSubDeleteTopicOperator(
-                project_id='my-project', topic='non_existing_topic', fail_if_not_exists=True,
+                project_id="my-project",
+                topic="non_existing_topic",
+                fail_if_not_exists=True,
             )
 
     Both ``project_id`` and ``topic`` are templated so you can use Jinja templating in their values.
@@ -506,16 +498,18 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
     By default, if the subscription does not exist, this operator will
     not cause the DAG to fail. ::
 
-        with DAG('successful DAG') as dag:
-            PubSubDeleteSubscriptionOperator(project_id='my-project', subscription='non-existing')
+        with DAG("successful DAG") as dag:
+            PubSubDeleteSubscriptionOperator(project_id="my-project", subscription="non-existing")
 
     The operator can be configured to fail if the subscription already exists.
 
     ::
 
-        with DAG('failing DAG') as dag:
+        with DAG("failing DAG") as dag:
             PubSubDeleteSubscriptionOperator(
-                project_id='my-project', subscription='non-existing', fail_if_not_exists=True,
+                project_id="my-project",
+                subscription="non-existing",
+                fail_if_not_exists=True,
             )
 
     ``project_id``, and ``subscription`` are templated so you can use Jinja templating in their values.
@@ -605,15 +599,13 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
     in a single Google Cloud project. If the topic does not exist, this
     task will fail. ::
 
-        m1 = {'data': b'Hello, World!',
-              'attributes': {'type': 'greeting'}
-             }
-        m2 = {'data': b'Knock, knock'}
-        m3 = {'attributes': {'foo': ''}}
+        m1 = {"data": b"Hello, World!", "attributes": {"type": "greeting"}}
+        m2 = {"data": b"Knock, knock"}
+        m3 = {"attributes": {"foo": ""}}
 
         t1 = PubSubPublishMessageOperator(
-            project_id='my-project',
-            topic='my_topic',
+            project_id="my-project",
+            topic="my_topic",
             messages=[m1, m2, m3],
             create_topic=True,
             dag=dag,

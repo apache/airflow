@@ -26,7 +26,6 @@ from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
     get_airflow_extras,
-    get_airflow_version,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
@@ -62,7 +61,7 @@ class BuildProdParams(CommonBuildParams):
         if self.install_airflow_version:
             return self.install_airflow_version
         else:
-            return get_airflow_version()
+            return self._get_version_with_suffix()
 
     @property
     def image_type(self) -> str:

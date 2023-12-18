@@ -63,6 +63,7 @@ class AirbyteHook(HttpHook):
         start = time.monotonic()
         while True:
             if timeout and start + timeout < time.monotonic():
+                self.cancel_job(job_id=(int(job_id)))
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
             try:

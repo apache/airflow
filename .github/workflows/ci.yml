@@ -880,7 +880,7 @@ jobs:
           path: old-airflow
       - name: "Prepare airflow package: wheel"
         run: |
-          pip install pip==23.3.1 wheel==0.36.2 gitpython==3.1.40
+          pip install pip==23.3.2 wheel==0.36.2 gitpython==3.1.40
           python setup.py egg_info --tag-build ".dev0" bdist_wheel -d ../dist
         working-directory: ./old-airflow
       - name: >
@@ -1993,7 +1993,7 @@ jobs:
         run: >
           cd ./docker_tests &&
           python -m pip install -r requirements.txt &&
-          TEST_IMAGE="ghcr.io/${GITHUB_REPOSITORY}/main/prod/python${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
+          TEST_IMAGE="ghcr.io/${{env.GITHUB_REPOSITORY}}/${{needs.build-info.outputs.default-branch}}/prod/python${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
           python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"

@@ -202,9 +202,10 @@ class VersionedFile(NamedTuple):
     suffix: str
     type: str
     comparable_version: Version
+    file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.1"
+AIRFLOW_PIP_VERSION = "23.3.2"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -1291,10 +1292,10 @@ def clean_old_provider_artifacts(
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
                 get_console().print(
-                    f"""[warning]Removing {versioned_file.base + versioned_file.version +
-                versioned_file.suffix} as they are older than remaining file"""
+                    f"[warning]Removing {versioned_file.file_name} as they are older than remaining file: "
+                    f"{package_types[-1].file_name}[/]"
                 )
-                command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
+                command = ["svn", "rm", versioned_file.file_name]
                 run_command(command, check=False)
 
 
@@ -1939,4 +1940,5 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         suffix=suffix,
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
+        file_name=file_name,
     )

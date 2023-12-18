@@ -67,12 +67,14 @@ class TestBeamHook:
     def test_start_python_pipeline(self, mock_check_output, mock_runner):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         process_line_callback = MagicMock()
+        check_job_status_callback = MagicMock()
 
         hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
             process_line_callback=process_line_callback,
+            check_job_status_callback=check_job_status_callback,
         )
 
         expected_cmd = [
@@ -88,6 +90,7 @@ class TestBeamHook:
             process_line_callback=process_line_callback,
             working_directory=None,
             log=ANY,
+            check_job_status_callback=check_job_status_callback,
         )
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
@@ -108,6 +111,7 @@ class TestBeamHook:
                 py_requirements=None,
                 py_system_site_packages=False,
                 process_line_callback=MagicMock(),
+                check_job_status_callback=MagicMock(),
             )
 
     @pytest.mark.parametrize(
@@ -126,6 +130,7 @@ class TestBeamHook:
     ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         process_line_callback = MagicMock()
+        check_job_status_callback = MagicMock()
 
         hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
@@ -133,6 +138,7 @@ class TestBeamHook:
             py_options=PY_OPTIONS,
             py_interpreter=py_interpreter,
             process_line_callback=process_line_callback,
+            check_job_status_callback=check_job_status_callback,
         )
 
         expected_cmd = [
@@ -148,6 +154,7 @@ class TestBeamHook:
             process_line_callback=process_line_callback,
             working_directory=None,
             log=ANY,
+            check_job_status_callback=check_job_status_callback,
         )
 
     @pytest.mark.parametrize(
@@ -172,6 +179,7 @@ class TestBeamHook:
         hook = BeamHook(runner=DEFAULT_RUNNER)
         mock_virtualenv.return_value = "/dummy_dir/bin/python"
         process_line_callback = MagicMock()
+        check_job_status_callback = MagicMock()
 
         hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
@@ -180,6 +188,7 @@ class TestBeamHook:
             py_requirements=current_py_requirements,
             py_system_site_packages=current_py_system_site_packages,
             process_line_callback=process_line_callback,
+            check_job_status_callback=check_job_status_callback,
         )
 
         expected_cmd = [
@@ -193,6 +202,7 @@ class TestBeamHook:
         mock_runner.assert_called_once_with(
             cmd=expected_cmd,
             process_line_callback=process_line_callback,
+            check_job_status_callback=check_job_status_callback,
             working_directory=None,
             log=ANY,
         )
@@ -211,6 +221,7 @@ class TestBeamHook:
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
+        check_job_status_callback = MagicMock()
 
         with pytest.raises(AirflowException, match=r"Invalid method invocation\."):
             hook.start_python_pipeline(
@@ -219,6 +230,7 @@ class TestBeamHook:
                 py_options=PY_OPTIONS,
                 py_requirements=[],
                 process_line_callback=process_line_callback,
+                check_job_status_callback=check_job_status_callback,
             )
 
         mock_runner.assert_not_called()
@@ -244,7 +256,11 @@ class TestBeamHook:
             '--labels={"foo":"bar"}',
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None, log=ANY
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
+            check_job_status_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
@@ -273,6 +289,7 @@ class TestBeamHook:
             process_line_callback=process_line_callback,
             working_directory=None,
             log=ANY,
+            check_job_status_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -303,6 +320,7 @@ class TestBeamHook:
             process_line_callback=process_line_callback,
             working_directory=go_workspace,
             log=ANY,
+            check_job_status_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -348,6 +366,7 @@ class TestBeamHook:
             process_line_callback=process_line_callback,
             working_directory=None,
             log=ANY,
+            check_job_status_callback=None,
         )
 
 
