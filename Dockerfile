@@ -1250,6 +1250,8 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
 
+COPY --from=scripts common.sh /scripts/docker/
+
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
