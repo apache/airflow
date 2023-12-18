@@ -726,8 +726,8 @@ You can also use fixture to create object that needs database just like this.
       @pytest.mark.parametrize(
           "conn",
           [
-              pytest.param("get_connection1", "{}", id="empty"),
-              pytest.param("get_connection2", '{"host": "apache.org"}', id="empty-extra"),
+              "get_connection1",
+              "get_connection2",
           ],
       )
       def test_as_json_from_connection(self, conn: Connection):
