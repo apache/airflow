@@ -65,6 +65,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
     fi
 
+    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider packages from docker-context files, we need to still
+        # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
+        # pre-release dockerhub image of airflow is built, but we want to install some providers from
+        # docker-context files
+        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+    fi
     # Find Apache Airflow packages in docker-context files
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \

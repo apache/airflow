@@ -50,6 +50,8 @@ from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
 
 
@@ -886,7 +888,9 @@ class TestDagBag:
         # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
         mock_s10n_write_dag.assert_has_calls(
             [
-                mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
+                mock.call(
+                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
+                ),
             ]
         )
 

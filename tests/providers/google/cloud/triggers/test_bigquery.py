@@ -40,6 +40,9 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.triggers.base import TriggerEvent
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
 TEST_GCP_PROJECT_ID = "test-project"
@@ -57,6 +60,7 @@ TEST_DAYS_BACK = -7
 TEST_RATIO_FORMULA = "max_over_min"
 TEST_IGNORE_ZERO = True
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
+TEST_IMPERSONATION_CHAIN = "TEST_SERVICE_ACCOUNT"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_PARTITION_ID = "1234"
 
@@ -70,6 +74,7 @@ def insert_job_trigger():
         dataset_id=TEST_DATASET_ID,
         table_id=TEST_TABLE_ID,
         poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -82,6 +87,7 @@ def get_data_trigger():
         dataset_id=TEST_DATASET_ID,
         table_id=TEST_TABLE_ID,
         poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -94,6 +100,7 @@ def table_existence_trigger():
         TEST_GCP_CONN_ID,
         TEST_HOOK_PARAMS,
         POLLING_PERIOD_SECONDS,
+        TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -113,6 +120,7 @@ def interval_check_trigger():
         dataset_id=TEST_DATASET_ID,
         table_id=TEST_TABLE_ID,
         poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -125,6 +133,7 @@ def check_trigger():
         dataset_id=TEST_DATASET_ID,
         table_id=TEST_TABLE_ID,
         poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -140,6 +149,7 @@ def value_check_trigger():
         table_id=TEST_TABLE_ID,
         tolerance=TEST_TOLERANCE,
         poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
@@ -157,6 +167,7 @@ class TestBigQueryInsertJobTrigger:
             "dataset_id": TEST_DATASET_ID,
             "table_id": TEST_TABLE_ID,
             "poll_interval": POLLING_PERIOD_SECONDS,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
         }
 
     @pytest.mark.asyncio
@@ -229,6 +240,7 @@ class TestBigQueryGetDataTrigger:
         assert kwargs == {
             "as_dict": False,
             "conn_id": TEST_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "job_id": TEST_JOB_ID,
             "dataset_id": TEST_DATASET_ID,
             "project_id": TEST_GCP_PROJECT_ID,
@@ -389,6 +401,7 @@ class TestBigQueryCheckTrigger:
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger"
         assert kwargs == {
             "conn_id": TEST_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "job_id": TEST_JOB_ID,
             "dataset_id": TEST_DATASET_ID,
             "project_id": TEST_GCP_PROJECT_ID,
@@ -469,6 +482,7 @@ class TestBigQueryIntervalCheckTrigger:
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger"
         assert kwargs == {
             "conn_id": TEST_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "first_job_id": TEST_FIRST_JOB_ID,
             "second_job_id": TEST_SECOND_JOB_ID,
             "project_id": TEST_GCP_PROJECT_ID,
@@ -559,6 +573,7 @@ class TestBigQueryValueCheckTrigger:
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger"
         assert kwargs == {
             "conn_id": TEST_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "pass_value": TEST_PASS_VALUE,
             "job_id": TEST_JOB_ID,
             "dataset_id": TEST_DATASET_ID,
@@ -656,6 +671,7 @@ class TestBigQueryTableExistenceTrigger:
             "project_id": TEST_GCP_PROJECT_ID,
             "table_id": TEST_TABLE_ID,
             "gcp_conn_id": TEST_GCP_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "poll_interval": POLLING_PERIOD_SECONDS,
             "hook_params": TEST_HOOK_PARAMS,
         }
@@ -774,6 +790,7 @@ class TestBigQueryTablePartitionExistenceTrigger:
             partition_id=TEST_PARTITION_ID,
             poll_interval=POLLING_PERIOD_SECONDS,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
             hook_params={},
         )
 
@@ -788,6 +805,7 @@ class TestBigQueryTablePartitionExistenceTrigger:
             "table_id": TEST_TABLE_ID,
             "partition_id": TEST_PARTITION_ID,
             "gcp_conn_id": TEST_GCP_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "poll_interval": POLLING_PERIOD_SECONDS,
             "hook_params": TEST_HOOK_PARAMS,
         }

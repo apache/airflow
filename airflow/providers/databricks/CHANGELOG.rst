@@ -23,9 +23,51 @@
 
 ``apache-airflow-providers-databricks``
 
-
 Changelog
 ---------
+
+5.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Make pyodbc.Row and databricks.Row JSON-serializable via new 'make_serializable' method (#32319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``offset`` parameter has been deprecated from ``list_jobs`` in favor of faster pagination with ``page_token`` similarly to `Databricks API <https://docs.databricks.com/api/workspace/jobs/list>`_.
+
+* ``Remove offset-based pagination from 'list_jobs' function in 'DatabricksHook' (#34926)``
 
 4.7.0
 .....

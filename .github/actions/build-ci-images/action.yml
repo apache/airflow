@@ -34,7 +34,15 @@ runs:
     - name: "Build & Push AMD64 CI images ${{ env.IMAGE_TAG }} ${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
-    - name: "Fix ownership"
+    - name: "Source constraints"
       shell: bash
-      run: breeze ci fix-ownership
-      if: always()
+      run: >
+        breeze release-management generate-constraints --run-in-parallel
+        --airflow-constraints-mode constraints-source-providers
+    - name: "Upload constraint artifacts"
+      uses: actions/upload-artifact@v3
+      with:
+        name: source-constraints
+        path: ./files/constraints-*/constraints-*.txt
+        retention-days: 7
+        if-no-files-found: error

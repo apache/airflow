@@ -120,6 +120,7 @@ def async_get_operation():
     return func
 
 
+@pytest.mark.db_test
 class TestDataprocClusterTrigger:
     def test_async_cluster_trigger_serialization_should_execute_successfully(self, cluster_trigger):
         classpath, kwargs = cluster_trigger.serialize()
@@ -203,6 +204,7 @@ class TestDataprocClusterTrigger:
         assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
 
 
+@pytest.mark.db_test
 class TestDataprocBatchTrigger:
     def test_async_create_batch_trigger_serialization_should_execute_successfully(self, batch_trigger):
         """

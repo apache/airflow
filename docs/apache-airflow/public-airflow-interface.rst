@@ -86,6 +86,16 @@ References for the modules used in DAGs are here:
   _api/airflow/models/dagbag/index
   _api/airflow/models/param/index
 
+Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dagrun/index
+
+
 Operators
 ---------
 
@@ -301,6 +311,13 @@ Extra Links
 
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperatorlink/index
 
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 

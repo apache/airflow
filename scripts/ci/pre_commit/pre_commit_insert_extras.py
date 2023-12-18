@@ -30,8 +30,9 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from
 
 os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
 
-from common_precommit_utils import insert_documentation  # isort: skip  # noqa: E402
-from setup import EXTRAS_DEPENDENCIES  # isort:skip  # noqa: E402
+from common_precommit_utils import insert_documentation
+
+from setup import EXTRAS_DEPENDENCIES
 
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
@@ -43,13 +44,6 @@ INSTALL_FOOTER = "# END EXTRAS HERE"
 
 CONSTANTS_HEADER = "# START EXTRAS HERE"
 CONSTANTS_FOOTER = "# END EXTRAS HERE"
-
-DEFAULT_EXTRAS = (
-    "amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,"
-    "google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,"
-    "postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
-)
-
 
 if __name__ == "__main__":
     install_file_path = AIRFLOW_SOURCES_DIR / "INSTALL"

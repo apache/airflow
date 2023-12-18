@@ -22,11 +22,14 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from databricks.sql.types import Row
 
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
+
+pytestmark = pytest.mark.db_test
 
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -65,7 +68,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test",
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[1, 2], [11, 12]],
             id="The return_last set and no split statements set on single query in string",
@@ -76,7 +79,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;",
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[1, 2], [11, 12]],
             id="The return_last not set and no split statements set on single query in string",
@@ -87,7 +90,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;",
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[1, 2], [11, 12]],
             id="The return_last set and split statements set on single query in string",
@@ -98,7 +101,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;",
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[[1, 2], [11, 12]]],
             id="The return_last not set and split statements set on single query in string",
@@ -109,7 +112,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
             id="The return_last set and split statements set on multiple queries in string",
@@ -120,7 +123,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
             id="The return_last not set and split statements set on multiple queries in string",
@@ -131,7 +134,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             ["select * from test.test;"],
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[[1, 2], [11, 12]]],
             id="The return_last set on single query in list",
@@ -142,7 +145,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             ["select * from test.test;"],
             ["select * from test.test"],
             [["id", "value"]],
-            ([[1, 2], [11, 12]],),
+            ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
             [[[1, 2], [11, 12]]],
             id="The return_last not set on single query in list",
@@ -153,7 +156,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
             id="The return_last set on multiple queries in list",
@@ -164,10 +167,21 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             "select * from test.test;select * from test.test2;",
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
             id="The return_last not set on multiple queries not set",
+        ),
+        pytest.param(
+            True,
+            False,
+            "select * from test.test",
+            ["select * from test.test"],
+            [["id", "value"]],
+            (Row(id=1, value=2),),
+            [[("id",), ("value",)]],
+            [1, 2],
+            id="The return_last set and no split statements set on single query in string",
         ),
     ],
 )

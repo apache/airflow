@@ -30,6 +30,7 @@ from urllib3 import HTTPResponse
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
+from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -39,6 +40,9 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
@@ -146,6 +150,7 @@ class TestKubernetesPodOperator:
             arguments="{{ dag.dag_id }}",
             cmds="{{ dag.dag_id }}",
             image="{{ dag.dag_id }}",
+            annotations={"dag-id": "{{ dag.dag_id }}"},
         )
 
         rendered = ti.render_templates()
@@ -164,6 +169,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.pod_template_file
         assert dag_id == ti.task.arguments
         assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.annotations["dag-id"]
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id="dag") as dag:
@@ -1014,6 +1020,64 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_pod_template_dict(self, randomize_name):
+        templated_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace="templatenamespace",
+                name="hello",
+                labels={"release": "stable"},
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[],
+                init_containers=[
+                    k8s.V1Container(
+                        name="git-clone",
+                        image="registry.k8s.io/git-sync:v3.1.1",
+                        args=[
+                            "--repo=git@github.com:airflow/some_repo.git",
+                            "--branch={{ params.get('repo_branch', 'master') }}",
+                        ],
+                    ),
+                ],
+            ),
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            random_name_suffix=randomize_name,
+            pod_template_dict=pod_generator.PodGenerator.serialize_pod(templated_pod),
+            labels={"hello": "world"},
+        )
+
+        # render templated fields before checking generated pod spec
+        k.render_template_fields(context={"params": {"repo_branch": "test_branch"}})
+        pod = k.build_pod_request_obj(create_context(k))
+
+        if randomize_name:
+            assert pod.metadata.name.startswith("hello")
+            assert pod.metadata.name != "hello"
+        else:
+            assert pod.metadata.name == "hello"
+
+        assert pod.metadata.labels == {
+            "hello": "world",
+            "release": "stable",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
+            "run_id": "test",
+        }
+
+        assert pod.spec.init_containers[0].name == "git-clone"
+        assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
+        assert pod.spec.init_containers[0].args == [
+            "--repo=git@github.com:airflow/some_repo.git",
+            "--branch=test_branch",
+        ]
+
     @patch(f"{POD_MANAGER_CLASS}.fetch_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
     def test_no_handle_failure_on_success(self, fetch_container_mock):
@@ -1368,9 +1432,7 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
 
         # check that the base container is not included in the logs
-        mock_fetch_log.assert_called_once_with(
-            pod=pod, container_logs=["some_init_container"], follow_logs=True
-        )
+        mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
         # check that KPO waits for the base container to complete before proceeding to extract XCom
         mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
         # check that we wait for the xcom sidecar to start before extracting XCom

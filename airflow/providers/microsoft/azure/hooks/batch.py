@@ -26,7 +26,11 @@ from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -46,15 +50,8 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -80,6 +77,14 @@ class AzureBatchHook(BaseHook):
         super().__init__()
         self.conn_id = azure_batch_conn_id
 
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
     @cached_property
     def connection(self) -> BatchServiceClient:
         """Get the Batch client connection (cached)."""
@@ -101,8 +106,13 @@ class AzureBatchHook(BaseHook):
         if all([conn.login, conn.password]):
             credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         else:
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
             credentials = AzureIdentityCredentialAdapter(
-                None, resource_id="https://batch.core.windows.net/.default"
+                None,
+                resource_id="https://batch.core.windows.net/.default",
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)

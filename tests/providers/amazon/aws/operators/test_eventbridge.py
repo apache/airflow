@@ -59,7 +59,7 @@ class TestEventBridgePutEventsOperator:
             entries=ENTRIES,
         )
 
-        result = operator.execute(None)
+        result = operator.execute(context={})
 
         assert result == ["foobar"]
 
@@ -78,7 +78,7 @@ class TestEventBridgePutEventsOperator:
         )
 
         with pytest.raises(AirflowException):
-            operator.execute(None)
+            operator.execute(context={})
 
 
 class TestEventBridgePutRuleOperator:
@@ -100,7 +100,7 @@ class TestEventBridgePutRuleOperator:
             event_pattern=EVENT_PATTERN,
         )
 
-        result = operator.execute(None)
+        result = operator.execute(context={})
 
         assert result == hook_response
 
@@ -131,7 +131,7 @@ class TestEventBridgeEnableRuleOperator:
             name=RULE_NAME,
         )
 
-        enable_rule.execute(None)
+        enable_rule.execute(context={})
         mock_conn.enable_rule.assert_called_with(Name=RULE_NAME)
 
 
@@ -151,5 +151,5 @@ class TestEventBridgeDisableRuleOperator:
             name=RULE_NAME,
         )
 
-        disable_rule.execute(None)
+        disable_rule.execute(context={})
         mock_conn.disable_rule.assert_called_with(Name=RULE_NAME)

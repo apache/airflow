@@ -35,6 +35,7 @@ concurrency:
   cancel-in-progress: true
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  VERBOSE: true
 jobs:
   build-info:
     timeout-minutes: 10
@@ -46,6 +47,7 @@ jobs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
+      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
       limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
     env:
@@ -55,10 +57,9 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks
@@ -92,18 +93,13 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Free space
         run: breeze ci free-space --answer yes
-      - name: Build CI image for PROD build ${{ needs.build-info.outputs.defaultPythonVersion }}
-        run: breeze ci-image build
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
-          COMMIT_SHA: ${{ github.sha }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Start ARM instance"
@@ -113,6 +109,20 @@ jobs:
         run: >
           echo ${{ secrets.DOCKERHUB_TOKEN }} |
           docker login --password-stdin --username ${{ secrets.DOCKERHUB_USER }}
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages
+          --package-format wheel
+          --version-suffix-for-pypi dev0 ${{ needs.build-info.outputs.chicken-egg-providers }}
+        if: needs.build-info.outputs.chicken-egg-providers != ''
+      - name: "Copy dist packages to docker-context files"
+        shell: bash
+        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
+        if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: >
           Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
@@ -122,6 +132,7 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }}
+          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
         env:
           COMMIT_SHA: ${{ github.sha }}
       - name: >
@@ -155,7 +166,4 @@ jobs:
           ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
       - name: "Docker logout"
         run: docker logout
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()

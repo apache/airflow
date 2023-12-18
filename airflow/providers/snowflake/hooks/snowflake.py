@@ -90,8 +90,8 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
     _test_connection_sql = "select 1"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -112,8 +112,8 @@ class SnowflakeHook(DbApiHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -440,6 +440,7 @@ class SnowflakeHook(DbApiHook):
                 "column_name",
                 "ordinal_position",
                 "data_type",
+                "table_catalog",
             ],
             database=database,
             is_information_schema_cross_db=True,
@@ -479,7 +480,7 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_database_info(connection))
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
 
         if self.query_ids:
             return OperatorLineage(

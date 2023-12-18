@@ -227,28 +227,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         set_new_process_group()
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
-        # Reload configurations and settings to avoid collision with parent process.
-        # Because this process may need custom configurations that cannot be shared,
-        # e.g. RotatingFileHandler. And it can cause connection corruption if we
-        # do not recreate the SQLA connection pool.
-        os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"] = "True"
-        os.environ["AIRFLOW__LOGGING__COLORED_CONSOLE_LOG"] = "False"
-        # Replicating the behavior of how logging module was loaded
-        # in logging_config.py
-
-        # TODO: This reloading should be removed when we fix our logging behaviour
-        # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
-        # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
-        # in a parent process (likely via resources shared in memory by the ORM libraries).
-        # This caused flaky tests in our CI for many months and has been discovered while
-        # iterating on https://github.com/apache/airflow/pull/19860
-        # The issue that describes the problem and possible remediation is
-        # at https://github.com/apache/airflow/issues/19934
-
-        importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit(".", 1)[0]))  # type: ignore
-        importlib.reload(airflow.settings)
-        airflow.settings.initialize()
-        del os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"]
+        reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
             dag_directory=dag_directory,
             max_runs=max_runs,
@@ -764,7 +743,9 @@ class DagFileProcessorManager(LoggingMixin):
 
             try:
                 self.log.debug("Removing old import errors")
-                DagFileProcessorManager.clear_nonexistent_import_errors(file_paths=self._file_paths)
+                DagFileProcessorManager.clear_nonexistent_import_errors(
+                    file_paths=self._file_paths, processor_subdir=self.get_dag_directory()
+                )
             except Exception:
                 self.log.exception("Error removing old import errors")
 
@@ -814,7 +795,9 @@ class DagFileProcessorManager(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def clear_nonexistent_import_errors(file_paths: list[str] | None, session=NEW_SESSION):
+    def clear_nonexistent_import_errors(
+        file_paths: list[str] | None, processor_subdir: str | None, session=NEW_SESSION
+    ):
         """
         Clear import errors for files that no longer exist.
 
@@ -824,7 +807,10 @@ class DagFileProcessorManager(LoggingMixin):
         query = delete(errors.ImportError)
 
         if file_paths:
-            query = query.where(~errors.ImportError.filename.in_(file_paths))
+            query = query.where(
+                ~errors.ImportError.filename.in_(file_paths),
+                errors.ImportError.processor_subdir == processor_subdir,
+            )
 
         session.execute(query.execution_options(synchronize_session="fetch"))
         session.commit()
@@ -1292,3 +1278,26 @@ class DagFileProcessorManager(LoggingMixin):
     @property
     def file_paths(self):
         return self._file_paths
+
+
+def reload_configuration_for_dag_processing():
+    # Reload configurations and settings to avoid collision with parent process.
+    # Because this process may need custom configurations that cannot be shared,
+    # e.g. RotatingFileHandler. And it can cause connection corruption if we
+    # do not recreate the SQLA connection pool.
+    os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"] = "True"
+    os.environ["AIRFLOW__LOGGING__COLORED_CONSOLE_LOG"] = "False"
+    # Replicating the behavior of how logging module was loaded
+    # in logging_config.py
+    # TODO: This reloading should be removed when we fix our logging behaviour
+    # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
+    # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
+    # in a parent process (likely via resources shared in memory by the ORM libraries).
+    # This caused flaky tests in our CI for many months and has been discovered while
+    # iterating on https://github.com/apache/airflow/pull/19860
+    # The issue that describes the problem and possible remediation is
+    # at https://github.com/apache/airflow/issues/19934
+    importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit(".", 1)[0]))  # type: ignore
+    importlib.reload(airflow.settings)
+    airflow.settings.initialize()
+    del os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"]

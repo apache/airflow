@@ -31,6 +31,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
+@pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance):
@@ -239,7 +240,7 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
                     content_type="text/plain",
                 ),
             ],

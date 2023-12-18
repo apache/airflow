@@ -23,7 +23,7 @@ from flask import Blueprint
 from flask_appbuilder import BaseView
 
 from airflow.hooks.base import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -32,6 +32,8 @@ from airflow.utils.module_loading import qualname
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+pytestmark = pytest.mark.db_test
 
 
 class PluginHook(BaseHook):

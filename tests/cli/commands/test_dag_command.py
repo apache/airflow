@@ -22,7 +22,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest import mock
+from unittest import TestCase, mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -37,9 +37,10 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _StopDagTest
+from airflow.models.dag import _run_trigger
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.triggers.temporal import TimeDeltaTrigger
+from airflow.triggers.base import TriggerEvent
+from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -50,6 +51,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDags:
@@ -544,10 +547,12 @@ class TestCliDags:
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            dag_command.dag_list_import_errors(args)
+            with TestCase.assertRaises(TestCase(), SystemExit) as context:
+                dag_command.dag_list_import_errors(args)
             out = temp_stdout.getvalue()
         assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
+        assert context.exception.code == 1
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -820,35 +825,47 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
-    def test_dag_test_no_triggerer(self, dag_maker):
-        with dag_maker() as dag:
+    def test_dag_test_run_trigger(self, dag_maker):
+        now = timezone.utcnow()
+        trigger = DateTimeTrigger(moment=now)
+        e = _run_trigger(trigger)
+        assert isinstance(e, TriggerEvent)
+        assert e.payload == now
 
-            @task
-            def one():
-                return 1
+    def test_dag_test_no_triggerer_running(self, dag_maker):
+        with mock.patch("airflow.models.dag._run_trigger", wraps=_run_trigger) as mock_run:
+            with dag_maker() as dag:
 
-            @task
-            def two(val):
-                return val + 1
+                @task
+                def one():
+                    return 1
 
-            class MyOp(BaseOperator):
-                template_fields = ("tfield",)
+                @task
+                def two(val):
+                    return val + 1
 
-                def __init__(self, tfield, **kwargs):
-                    self.tfield = tfield
-                    super().__init__(**kwargs)
+                trigger = TimeDeltaTrigger(timedelta(seconds=0))
 
-                def execute(self, context, event=None):
-                    if event is None:
-                        print("I AM DEFERRING")
-                        self.defer(trigger=TimeDeltaTrigger(timedelta(seconds=20)), method_name="execute")
-                        return
-                    print("RESUMING")
-                    return self.tfield + 1
+                class MyOp(BaseOperator):
+                    template_fields = ("tfield",)
 
-            task_one = one()
-            task_two = two(task_one)
-            op = MyOp(task_id="abc", tfield=str(task_two))
-            task_two >> op
-        with pytest.raises(_StopDagTest, match="Task has deferred but triggerer component is not running"):
-            dag.test()
+                    def __init__(self, tfield, **kwargs):
+                        self.tfield = tfield
+                        super().__init__(**kwargs)
+
+                    def execute(self, context, event=None):
+                        if event is None:
+                            print("I AM DEFERRING")
+                            self.defer(trigger=trigger, method_name="execute")
+                            return
+                        print("RESUMING")
+                        return self.tfield + 1
+
+                task_one = one()
+                task_two = two(task_one)
+                op = MyOp(task_id="abc", tfield=task_two)
+                task_two >> op
+            dr = dag.test()
+            assert mock_run.call_args_list[0] == ((trigger,), {})
+            tis = dr.get_task_instances()
+            assert [x for x in tis if x.task_id == "abc"][0].state == "success"

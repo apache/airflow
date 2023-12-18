@@ -130,6 +130,7 @@ def init_appbuilder_views(app):
     appbuilder.add_view_no_menu(views.RedocView)
     # Development views
     appbuilder.add_view_no_menu(views.DevView)
+    appbuilder.add_view_no_menu(views.DocsView)
 
 
 def init_plugins(app):
@@ -328,9 +329,8 @@ def init_api_experimental(app):
 def init_api_auth_provider(app):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
-    api = auth_mgr.get_api_endpoints()
-    if api:
-        blueprint = api.blueprint
+    blueprint = auth_mgr.get_api_endpoints()
+    if blueprint:
         base_paths.append(blueprint.url_prefix)
         app.register_blueprint(blueprint)
         app.extensions["csrf"].exempt(blueprint)

@@ -46,6 +46,7 @@ CONFIG_DEFAULTS = {
     "assign_public_ip": "False",
     "launch_type": "FARGATE",
     "platform_version": "LATEST",
+    "check_health_on_startup": "True",
 }
 
 
@@ -96,6 +97,7 @@ class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     AWS_CONN_ID = "conn_id"
     RUN_TASK_KWARGS = "run_task_kwargs"
     REGION_NAME = "region_name"
+    CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
 
 
 class EcsExecutorException(Exception):

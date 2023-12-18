@@ -20,10 +20,10 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
+import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
-from pendulum.tz.timezone import Timezone
 
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
@@ -33,14 +33,16 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.serialization.enums import DagAttributeTypes as DAT
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
@@ -140,7 +142,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (1, None, equals),
         (datetime.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
-        (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
+        (pendulum.tz.timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
@@ -213,6 +215,27 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     json.dumps(serialized)  # does not raise
 
 
+@pytest.mark.parametrize(
+    "conn_uri",
+    [
+        pytest.param("aws://", id="only-conn-type"),
+        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
+            "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
+            id="extra",
+        ),
+    ],
+)
+def test_backcompat_deserialize_connection(conn_uri):
+    """Test deserialize connection which serialised by previous serializer implementation."""
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    deserialized = BaseSerialization.deserialize(conn_obj)
+    assert deserialized.get_uri() == conn_uri
+
+
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
@@ -257,6 +280,12 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
             DAT.DAG_MODEL,
             lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
         ),
+        (
+            LogTemplate(id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()),
+            LogTemplatePydantic,
+            DAT.LOG_TEMPLATE,
+            lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
+        ),
     ],
 )
 def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
@@ -278,6 +307,7 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
     BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
 
 
+@pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
     from tests.test_utils.mock_operators import MockOperator

@@ -32,6 +32,8 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
 
 def generate_host_key(pkey: paramiko.PKey):
     with StringIO() as key_fh:

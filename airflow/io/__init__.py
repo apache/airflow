@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import (
     TYPE_CHECKING,
     Callable,
+    Mapping,
 )
 
 from fsspec.implementations.local import LocalFileSystem
@@ -32,21 +34,29 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
+    from airflow.io.typedef import Properties
+
+
 log = logging.getLogger(__name__)
 
 
-def _file(_: str | None) -> LocalFileSystem:
-    return LocalFileSystem()
+def _file(_: str | None, storage_options: Properties) -> LocalFileSystem:
+    return LocalFileSystem(**storage_options)
 
 
 # builtin supported filesystems
-_BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None], AbstractFileSystem]] = {
+_BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFileSystem]] = {
     "file": _file,
 }
 
 
 @cache
-def _register_filesystems() -> dict[str, Callable[[str | None], AbstractFileSystem]]:
+def _register_filesystems() -> (
+    Mapping[
+        str,
+        Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
+    ]
+):
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManager()
@@ -65,19 +75,38 @@ def _register_filesystems() -> dict[str, Callable[[str | None], AbstractFileSyst
     return scheme_to_fs
 
 
-def get_fs(scheme: str, conn_id: str | None = None) -> AbstractFileSystem:
+def get_fs(
+    scheme: str, conn_id: str | None = None, storage_options: Properties | None = None
+) -> AbstractFileSystem:
     """
     Get a filesystem by scheme.
 
     :param scheme: the scheme to get the filesystem for
     :return: the filesystem method
     :param conn_id: the airflow connection id to use
+    :param storage_options: the storage options to pass to the filesystem
     """
     filesystems = _register_filesystems()
     try:
-        return filesystems[scheme](conn_id)
+        fs = filesystems[scheme]
     except KeyError:
-        raise ValueError(f"No filesystem registered for scheme {scheme}")
+        raise ValueError(f"No filesystem registered for scheme {scheme}") from None
+
+    options = storage_options or {}
+
+    # MyPy does not recognize dynamic parameters inspection when we call the method, and we have to do
+    # it for compatibility reasons with already released providers, that's why we need to ignore
+    # mypy errors here
+    parameters = inspect.signature(fs).parameters
+    if len(parameters) == 1:
+        if options:
+            raise AttributeError(
+                f"Filesystem {scheme} does not support storage options, but options were passed."
+                f"This most likely means that you are using an old version of the provider that does not "
+                f"support storage options. Please upgrade the provider if possible."
+            )
+        return fs(conn_id)  # type: ignore[call-arg]
+    return fs(conn_id, options)  # type: ignore[call-arg]
 
 
 def has_fs(scheme: str) -> bool:

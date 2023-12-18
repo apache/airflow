@@ -133,9 +133,7 @@ def create_iam_oidc_identity_provider(cluster_name):
 def delete_iam_oidc_identity_provider(cluster_name):
     oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
         name=cluster_name,
-    )["cluster"][
-        "identity"
-    ]["oidc"]["issuer"]
+    )["cluster"]["identity"]["oidc"]["issuer"]
     oidc_provider_issuer_endpoint = oidc_provider_issuer_url.replace("https://", "")
 
     account_id = boto3.client("sts").get_caller_identity()["Account"]

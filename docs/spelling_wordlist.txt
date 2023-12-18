@@ -118,6 +118,7 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
@@ -272,6 +273,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -315,6 +317,7 @@ cpus
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -478,6 +481,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -496,6 +500,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -547,6 +552,7 @@ env
 envFrom
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -637,6 +643,7 @@ ga
 Gantt
 gantt
 gapic
+gapped
 gbq
 gcc
 gcloud
@@ -789,7 +796,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -800,6 +809,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -852,6 +862,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -1022,6 +1033,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1070,8 +1082,11 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch
@@ -1130,13 +1145,16 @@ permalinks
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1343,6 +1361,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl
@@ -1621,6 +1640,7 @@ ui
 uid
 ukey
 ulimit
+ulimits
 Umask
 umask
 Un
@@ -1663,6 +1683,8 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
+upserting
 upserts
 Upsight
 upstreams
@@ -1692,6 +1714,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1714,6 +1738,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

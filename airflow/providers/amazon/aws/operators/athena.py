@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
+from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -27,6 +28,10 @@ from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
+
+    from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -45,6 +50,10 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     :param database: Database to select. (templated)
     :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
+        To run the query, you must specify the query results location using one of the ways:
+        either for individual queries using either this setting (client-side),
+        or in the workgroup, using WorkGroupConfiguration.
+        If none of them is set, Athena issues an error that no output location is provided
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
@@ -79,7 +88,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         *,
         query: str,
         database: str,
-        output_location: str,
+        output_location: str | None = None,
         client_request_token: str | None = None,
         workgroup: str = "primary",
         query_execution_context: dict[str, str] | None = None,
@@ -114,7 +123,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         """Run Trino/Presto Query on Amazon Athena."""
         self.query_execution_context["Database"] = self.database
         self.query_execution_context["Catalog"] = self.catalog
-        self.result_configuration["OutputLocation"] = self.output_location
+        if self.output_location:
+            self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
             self.query,
             self.query_execution_context,
@@ -155,6 +165,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 f"query_execution_id is {self.query_execution_id}."
             )
 
+        # Save output location from API response for later use in OpenLineage.
+        self.output_location = self.hook.get_output_location(self.query_execution_id)
+
         return self.query_execution_id
 
     def execute_complete(self, context, event=None):
@@ -182,3 +195,110 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                         "Polling Athena for query with id %s to reach final state", self.query_execution_id
                     )
                     self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage:
+        """Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
+
+        In addition to CTAS query, query and calculation results are stored in S3 location.
+        For that reason additional output is attached with this location.
+        """
+        from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors.base import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        sql_parser = SQLParser(dialect="generic")
+
+        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=sql_parser.normalize_sql(self.query))}
+        parse_result = sql_parser.parse(sql=self.query)
+
+        if not parse_result:
+            return OperatorLineage(job_facets=job_facets)
+
+        run_facets: dict[str, BaseFacet] = {}
+        if parse_result.errors:
+            run_facets["extractionError"] = ExtractionErrorRunFacet(
+                totalTasks=len(self.query) if isinstance(self.query, list) else 1,
+                failedTasks=len(parse_result.errors),
+                errors=[
+                    ExtractionError(
+                        errorMessage=error.message,
+                        stackTrace=None,
+                        task=error.origin_statement,
+                        taskNumber=error.index,
+                    )
+                    for error in parse_result.errors
+                ],
+            )
+
+        inputs: list[Dataset] = list(
+            filter(
+                None,
+                [
+                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    for table in parse_result.in_tables
+                ],
+            )
+        )
+
+        outputs: list[Dataset] = list(
+            filter(
+                None,
+                [
+                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    for table in parse_result.out_tables
+                ],
+            )
+        )
+
+        if self.output_location:
+            parsed = urlparse(self.output_location)
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+
+        return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
+
+    def get_openlineage_dataset(self, database, table) -> Dataset | None:
+        from openlineage.client.facet import (
+            SchemaDatasetFacet,
+            SchemaField,
+            SymlinksDatasetFacet,
+            SymlinksDatasetFacetIdentifiers,
+        )
+        from openlineage.client.run import Dataset
+
+        client = self.hook.get_conn()
+        try:
+            table_metadata = client.get_table_metadata(
+                CatalogName=self.catalog, DatabaseName=database, TableName=table
+            )
+
+            # Dataset has also its' physical location which we can add in symlink facet.
+            s3_location = table_metadata["TableMetadata"]["Parameters"]["location"]
+            parsed_path = urlparse(s3_location)
+            facets: dict[str, BaseFacet] = {
+                "symlinks": SymlinksDatasetFacet(
+                    identifiers=[
+                        SymlinksDatasetFacetIdentifiers(
+                            namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",
+                            name=str(parsed_path.path),
+                            type="TABLE",
+                        )
+                    ]
+                )
+            }
+            fields = [
+                SchemaField(name=column["Name"], type=column["Type"], description=column["Comment"])
+                for column in table_metadata["TableMetadata"]["Columns"]
+            ]
+            if fields:
+                facets["schema"] = SchemaDatasetFacet(fields=fields)
+            return Dataset(
+                namespace=f"awsathena://athena.{self.hook.region_name}.amazonaws.com",
+                name=".".join(filter(None, (self.catalog, database, table))),
+                facets=facets,
+            )
+
+        except Exception as e:
+            self.log.error("Cannot retrieve table metadata from Athena.Client. %s", e)
+            return None

@@ -46,6 +46,8 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -93,7 +95,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("task_2 ran successfully") == 2
+    assert caplog.text.count("[DAG TEST] end task task_id=task_2") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text

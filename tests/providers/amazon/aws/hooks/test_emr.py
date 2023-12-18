@@ -152,6 +152,7 @@ class TestEmrHook:
         assert "test failure details" in caplog.messages[-1]
         mock_conn.get_waiter.assert_called_with("step_complete")
 
+    @pytest.mark.db_test
     @mock_emr
     def test_create_job_flow_extra_args(self):
         """

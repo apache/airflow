@@ -24,6 +24,8 @@ import pytest
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
 

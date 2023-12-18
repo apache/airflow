@@ -258,6 +258,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -977,6 +980,8 @@ This includes:
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- For the first MINOR (X.Y.0) release - remove all providers from ``CHICKEN_EGG_PROVIDERS`` list
+  in ``src/airflow_breeze/global_constants.py`` that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 ## Update default Airflow version in the helm chart
 
@@ -1005,29 +1010,27 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 After releasing airflow core, we need to check if we have to follow up with API clients release.
 
-Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
-ASF policy does not allow to vote against multiple artifacts with different versions.
+Clients are released in a separate process, with their own vote.
 
-### API Clients versioning policy
-
-For major/minor version release, always release new versions of the API clients.
+Clients can be found here:
 
 - [Python client](https://github.com/apache/airflow-client-python)
 - [Go client](https://github.com/apache/airflow-client-go)
 
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
-There are other external reasons for which we might want to release a patch version for clients only, but they are not
-tied to an airflow release and therefore out of scope.
+### API Clients versioning policy
 
-To determine if you should also release API clients you can run:
+Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+changed, clients need to be released.
+
+To determine if you should release API clients, you can run from the airflow repository:
 
 ```shell
-./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+./dev/airflow-github api-clients-policy 2.3.2 2.4.0
 ```
 
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
-> You need to check for each client what is the next patch version to be released.
+> All clients follow SemVer and you should check what the appropriate new version for each client should be. Depending on the current
+> client version and type of content added (feature, fix, breaking change etc.) appropriately increment the version number.
 
 ### Releasing the clients
 

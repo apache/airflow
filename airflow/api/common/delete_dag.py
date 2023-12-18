@@ -72,7 +72,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
         )
     )
 
-    dags_to_delete = [dag_id for dag_id, in dags_to_delete_query]
+    dags_to_delete = [dag_id for (dag_id,) in dags_to_delete_query]
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.

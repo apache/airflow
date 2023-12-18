@@ -199,12 +199,14 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         actual = await generator.asend(None)
+        actual_stack_trace = actual.payload.pop("stack_trace")
         assert (
             TriggerEvent(
                 {"name": POD_NAME, "namespace": NAMESPACE, "status": "error", "message": "Test exception"}
             )
             == actual
         )
+        assert actual_stack_trace.startswith("Traceback (most recent call last):")
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
@@ -314,6 +316,7 @@ def async_get_operation_result():
     return func
 
 
+@pytest.mark.db_test
 class TestGKEOperationTrigger:
     def test_serialize(self, operation_trigger):
         classpath, trigger_init_kwargs = operation_trigger.serialize()

@@ -55,6 +55,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
@@ -181,6 +182,7 @@ class KubernetesPodOperator(BaseOperator):
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param container_logs: list of containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
@@ -189,7 +191,7 @@ class KubernetesPodOperator(BaseOperator):
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
-        that are not permitted by labels.
+        that are not permitted by labels. (templated)
     :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
@@ -216,6 +218,7 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
+    :param pod_template_dict: pod template dictionary (templated)
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
@@ -259,11 +262,13 @@ class KubernetesPodOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "image",
         "cmds",
+        "annotations",
         "arguments",
         "env_vars",
         "labels",
         "config_file",
         "pod_template_file",
+        "pod_template_dict",
         "namespace",
         "container_resources",
         "volumes",
@@ -285,7 +290,7 @@ class KubernetesPodOperator(BaseOperator):
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
         volumes: list[k8s.V1Volume] | None = None,
-        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,
@@ -293,6 +298,7 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
+        startup_check_interval_seconds: int = 1,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = BASE_CONTAINER_NAME,
         image_pull_policy: str | None = None,
@@ -318,6 +324,7 @@ class KubernetesPodOperator(BaseOperator):
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
+        pod_template_dict: dict | None = None,
         priority_class_name: str | None = None,
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
@@ -357,6 +364,7 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
+        self.startup_check_interval_seconds = startup_check_interval_seconds
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
@@ -399,6 +407,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log_events_on_failure = log_events_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
+        self.pod_template_dict = pod_template_dict
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
@@ -559,7 +568,11 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+            self.pod_manager.await_pod_start(
+                pod=pod,
+                startup_timeout=self.startup_timeout_seconds,
+                startup_check_interval=self.startup_check_interval_seconds,
+            )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 for event in self.pod_manager.read_pod_events(pod).items:
@@ -569,7 +582,7 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieve xcom value and kill xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
-        if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
+        if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None
         else:
@@ -584,6 +597,7 @@ class KubernetesPodOperator(BaseOperator):
             return self.execute_sync(context)
 
     def execute_sync(self, context: Context):
+        result = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
@@ -602,7 +616,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
                     pod=self.pod,
-                    container_logs=self.container_logs,
+                    containers=self.container_logs,
                     follow_logs=True,
                 )
             if not self.get_logs or (
@@ -654,6 +668,7 @@ class KubernetesPodOperator(BaseOperator):
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
+                startup_check_interval=self.startup_check_interval_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
             ),
@@ -661,6 +676,7 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        self.log.debug("Triggered with event: %s", event)
         pod = None
         try:
             pod = self.hook.get_pod(
@@ -671,7 +687,11 @@ class KubernetesPodOperator(BaseOperator):
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self.write_logs(pod)
-                raise AirflowException(event["message"])
+                if "stack_trace" in event:
+                    message = f"{event['message']}\n{event['stack_trace']}"
+                else:
+                    message = event["message"]
+                raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
@@ -879,6 +899,11 @@ class KubernetesPodOperator(BaseOperator):
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.pod_template_dict:
+            self.log.debug("Pod template dict found, will parse for base pod")
+            pod_template = pod_generator.PodGenerator.deserialize_model_dict(self.pod_template_dict)
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:

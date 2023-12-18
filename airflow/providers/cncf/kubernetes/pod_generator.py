@@ -46,10 +46,8 @@ from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
     PodDefaults,
     PodGenerator as PodGeneratorDeprecated,
 )
-
-# replace it with airflow.utils.hashlib_wrapper.md5 when min airflow version for k8s provider is 2.6.0
-from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
+from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -434,8 +432,8 @@ class PodGenerator:
         )
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
+        pod_list = [base_worker_pod, dynamic_pod, pod_override_object]
 
         try:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)
