@@ -53,7 +53,8 @@ AUTH_TYPE = AUTH_DB
 # AUTH_ROLE_ADMIN = 'Admin'
 
 # Uncomment and set to desired role to enable access without authentication
-AUTH_ROLE_PUBLIC = "Admin"
+# AUTH_ROLE_PUBLIC = 'Viewer'
+
 
 # Will allow user self registration
 # AUTH_USER_REGISTRATION = True
