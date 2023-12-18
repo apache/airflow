@@ -126,8 +126,8 @@ def connection_policy(conn_id: str) -> str:
 
     from airflow.operators.python import get_current_context
 
-    task_instance_context = get_current_context()
-    dag_owner = task_instance_context["dag"].owner
+    task_context = get_current_context()
+    dag_owner = task_context["dag"].owner
 
     try:
         return dagowner_connid_prefixes[dag_owner] + conn_id
