@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import warnings
 from contextlib import closing
 from datetime import datetime
 from typing import (
@@ -36,7 +38,7 @@ from urllib.parse import urlparse
 import sqlparse
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -423,6 +425,17 @@ class DbApiHook(BaseHook):
         If this method is not overridden, the result data is returned as-is. If the output of the cursor
         is already a common data structure, this method should be ignored.
         """
+        # Back-compatibility call for providers implementing old ´_make_serializable' method.
+        with contextlib.suppress(AttributeError):
+            result = self._make_serializable(result=result)  # type: ignore[attr-defined]
+            warnings.warn(
+                "The `_make_serializable` method is deprecated and support will be removed in a future "
+                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
+                "to a version based on common.sql >= 1.9.1.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            return result
         return result
 
     def _run_command(self, cur, sql_statement, parameters):
