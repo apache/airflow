@@ -49,7 +49,7 @@ def get_dag_source(*, file_token: str, session: Session = NEW_SESSION) -> Respon
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",
-                "details": DagDetails(id=dag_id),
+                "details": DagDetails(id=dag_id[0]),
             }
             for dag_id in dag_ids
         ]
