@@ -201,8 +201,8 @@ Here are practical examples:
     Section title
     ----------------------------------
 
-Creating links between providers
---------------------------------
+Creating links between provider package docs
+--------------------------------------------
 
 Role ``:class:`` works well with references between packages. If you want to use other roles, it is a good idea to specify a package:
 
