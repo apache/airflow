@@ -256,4 +256,4 @@ If you need help, write to `#documentation <https://apache-airflow.slack.com/arc
 
 For more resources about working with Sphinx or reST markup syntax, see the `Sphinx documentation <https://www.sphinx-doc.org/en/master/usage/quickstart.html>`__.
 
-The `Write the Docs <https://www.writethedocs.org/slack/>__` community also includes a #Sphinx Slack channel for questions and additional support.
+The `Write the Docs <https://www.writethedocs.org/slack/>`__ community also includes a #Sphinx Slack channel for questions and additional support.
