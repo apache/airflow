@@ -45,7 +45,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - apache-airflow-providers-common-sql>=1.8.1
+  - apache-airflow-providers-common-sql>=1.9.1
   - pyodbc
 
 integrations:

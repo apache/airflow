@@ -31,8 +31,8 @@ console = Console(color_system="standard", width=200)
 
 
 COMMON_SQL_PROVIDER_NAME: str = "apache-airflow-providers-common-sql"
-COMMON_SQL_PROVIDER_MIN_COMPATIBLE_VERSIONS: str = "1.8.1"
-COMMON_SQL_PROVIDER_LATEST_INCOMPATIBLE_VERSION: str = "1.8.0"
+COMMON_SQL_PROVIDER_MIN_COMPATIBLE_VERSIONS: str = "1.9.1"
+COMMON_SQL_PROVIDER_LATEST_INCOMPATIBLE_VERSION: str = "1.9.0"
 MAKE_COMMON_METHOD_NAME: str = "_make_common_data_structure"
 
 

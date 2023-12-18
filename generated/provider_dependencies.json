@@ -291,7 +291,7 @@
   "databricks": {
     "deps": [
       "aiohttp>=3.6.3, <4",
-      "apache-airflow-providers-common-sql>=1.8.1",
+      "apache-airflow-providers-common-sql>=1.9.1",
       "apache-airflow>=2.6.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
       "requests>=2.27,<3"
@@ -653,7 +653,7 @@
   },
   "odbc": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.8.1",
+      "apache-airflow-providers-common-sql>=1.9.1",
       "apache-airflow>=2.6.0",
       "pyodbc"
     ],
