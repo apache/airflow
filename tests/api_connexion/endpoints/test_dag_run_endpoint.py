@@ -1862,16 +1862,21 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         )
         assert response.status_code == 404
 
+    @conf_vars(
+        {
+            ("api", "auth_backends"): "airflow.api.auth.backend.default",
+        }
+    )
     def test_should_respond_200_with_anonymous_user(self, dag_maker, session):
-        self.app.config["AIRFLOW__API__AUTH_BACKENDS"] = "airflow.api.auth.backend.default"
-        self.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        from airflow.www import app as application
 
+        app = application.create_app(config={"AUTH_ROLE_PUBLIC": "Admin"}, testing=True)
         dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
         session.add_all(dag_runs)
         session.commit()
         created_dr = dag_runs[0]
-        response = self.client.post(
-            f"api/v1/dags/{created_dr.dag_id}/dagRuns",
-            json={"dag_run_id": "TEST_DAG_RUN_ID_1", "note": "I am setting a note with anonymous user"},
+        response = app.test_client().patch(
+            f"api/v1/dags/{created_dr.dag_id}/dagRuns/TEST_DAG_RUN_ID_1/setNote",
+            json={"note": "I am setting a note with anonymous user"},
         )
         assert response.status_code == 200
