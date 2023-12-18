@@ -441,7 +441,7 @@ repos:
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
         language: python
-        files: ^docs
+        files: ^docs|^airflow/__init__.py$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
