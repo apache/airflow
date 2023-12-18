@@ -340,6 +340,16 @@ that conflicts with the version of apache-airflow that you are using.
 Run ``docker compose build`` to build the image, or add ``--build`` flag to ``docker compose up`` or
 ``docker compose run`` commands to build the image automatically as needed.
 
+Special case - Adding a custom config file
+==========================================
+
+If you have a custom config file and wish to use it in your Airflow instance, you need to perform the following steps:
+
+1) Remove comment from the ``- ${AIRFLOW_PROJ_DIR:-.}/airflow.cfg:/opt/airflow/airflow.cfg`` line 
+   in the ``docker-compose.yaml`` file.  
+
+2) Place your custom ``airflow.cfg`` file in the same folder as the ``docker-compose.yaml`` file.
+
 Networking
 ==========
 
