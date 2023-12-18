@@ -142,7 +142,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (1, None, equals),
         (datetime.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
-        (pendulum.tz.timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
+        (pendulum.tz.Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),

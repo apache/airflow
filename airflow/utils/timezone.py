@@ -23,9 +23,10 @@ from typing import overload
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
 # UTC time zone as a tzinfo instance.
-utc = pendulum.tz.timezone("UTC")
+utc = Timezone("UTC")
 
 
 def is_localized(value):
@@ -135,12 +136,10 @@ def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> 
     # Check that we won't overwrite the timezone of an aware datetime.
     if is_localized(value):
         raise ValueError(f"make_aware expects a naive datetime, got {value}")
-    if hasattr(value, "fold"):
-        # In case of python 3.6 we want to do the same that pendulum does for python3.5
-        # i.e in case we move clock back we want to schedule the run at the time of the second
-        # instance of the same clock time rather than the first one.
-        # Fold parameter has no impact in other cases so we can safely set it to 1 here
-        value = value.replace(fold=1)
+    # In case we move clock back we want to schedule the run at the time of the second
+    # instance of the same clock time rather than the first one.
+    # Fold parameter has no impact in other cases, so we can safely set it to 1 here
+    value = value.replace(fold=1)
     localized = getattr(timezone, "localize", None)
     if localized is not None:
         # This method is available for pytz time zones
@@ -273,3 +272,27 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     if not joined:
         return "<1s"
     return joined
+
+
+def parse_timezone(name: str | int) -> FixedTimezone | Timezone:
+    """
+    Parse timezone and return one of the pendulum Timezone.
+
+    Provide the same interface as ``pendulum.timezone(name)``
+
+    :param name: Either IANA timezone or offset to UTC in seconds.
+
+    :meta private:
+    """
+    return pendulum.timezone(name)
+
+
+def local_timezone() -> FixedTimezone | Timezone:
+    """
+    Return local timezone.
+
+    Provide the same interface as ``pendulum.tz.local_timezone()``
+
+    :meta private:
+    """
+    return pendulum.tz.local_timezone()

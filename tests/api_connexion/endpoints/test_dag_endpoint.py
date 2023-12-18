@@ -316,7 +316,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "Timezone('UTC')",
+            "timezone": "UTC",
         }
         assert response.json == expected
 
@@ -367,7 +367,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "Timezone('UTC')",
+            "timezone": "UTC",
         }
         assert response.json == expected
 
@@ -418,7 +418,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "Timezone('UTC')",
+            "timezone": "UTC",
         }
         assert response.json == expected
 
@@ -478,7 +478,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "Timezone('UTC')",
+            "timezone": "UTC",
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -539,7 +539,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "Timezone('UTC')",
+            "timezone": "UTC",
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected

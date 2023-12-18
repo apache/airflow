@@ -184,7 +184,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
         "template_searchpath": None,
-        "timezone": "Timezone('UTC')",
+        "timezone": "UTC",
         "max_active_runs": 16,
         "pickle_id": None,
         "end_date": None,

@@ -19,17 +19,15 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any
 
-import pendulum
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
+from airflow.utils.timezone import convert_to_utc, make_aware, make_naive, parse_timezone
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
-    from pendulum.tz.timezone import Timezone
+    from pendulum import DateTime, FixedTimezone, Timezone
 
 
 def _covers_every_hour(cron: croniter) -> bool:
@@ -63,11 +61,11 @@ def _covers_every_hour(cron: croniter) -> bool:
 class CronMixin:
     """Mixin to provide interface to work with croniter."""
 
-    def __init__(self, cron: str, timezone: str | Timezone) -> None:
+    def __init__(self, cron: str, timezone: str | Timezone | FixedTimezone) -> None:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
-            timezone = pendulum.tz.timezone(timezone)
+            timezone = parse_timezone(timezone)
         self._timezone = timezone
 
         try:
