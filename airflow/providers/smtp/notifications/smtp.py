@@ -34,11 +34,15 @@ class SmtpNotifier(BaseNotifier):
 
     .. code-block:: python
 
-        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(to="myemail@myemail.com"))
+        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"))
 
         EmptyOperator(
             task_id="task",
-            on_failure_callback=SmtpNotifier(to="myemail@myemail.com", from_email="myemail@myemail.com"),
+            on_failure_callback=SmtpNotifier(
+                from_email="myemail@myemail.com",
+                to="myemail@myemail.com",
+                subject="Task {{ ti.task_id }} failed",
+            ),
         )
 
     Default template is defined in airflow.settings but can be overridden in local_settings.py
@@ -62,9 +66,10 @@ class SmtpNotifier(BaseNotifier):
 
     def __init__(
         self,
-        *,
+        # TODO: Move from_email to keyword parameter in next major release so that users do not
+        # need to specify from_email. No argument here will lead to defaults from conf being used.
+        from_email: str | None,
         to: str | Iterable[str],
-        from_email: str | None = None,
         subject: str | None = None,
         html_content: str | None = None,
         files: list[str] | None = None,
@@ -74,6 +79,7 @@ class SmtpNotifier(BaseNotifier):
         mime_charset: str = "utf-8",
         custom_headers: dict[str, Any] | None = None,
         smtp_conn_id: str = SmtpHook.default_conn_name,
+        *,
         template: str | None = None,
     ):
         from airflow.settings import SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH, SMTP_DEFAULT_TEMPLATED_SUBJECT

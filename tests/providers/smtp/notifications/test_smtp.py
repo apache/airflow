@@ -119,6 +119,7 @@ class TestSmtpNotifier:
         ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
         notifier = SmtpNotifier(
+            from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
         )
         notifier(context)
@@ -148,6 +149,7 @@ class TestSmtpNotifier:
             "blocking_tis": [],
         }
         notifier = SmtpNotifier(
+            from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
         )
         notifier(context)
