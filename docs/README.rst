@@ -22,13 +22,6 @@ This directory contains documentation for the Apache Airflow project and other p
 
 Development documentation preview
 ==================================
-Footer
-© 2023 GitHub, Inc.
-Footer navigation
-Terms
-
-Development documentation preview
-==================================
 
 Documentation from the development version is built and automatically published: `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_
 
@@ -100,7 +93,7 @@ The documentation build consists of verifying consistency of documentation and t
 * spell checking
 * building documentation
 
-You can choose to run the complete build, to build all the docs and run spellcheck. Or, you can use the optional flags, ``--spellcheck-only``, ``--docs-only``, or ``--package-filter`` to choose the scope of the build.
+You can choose to run the complete build, to build all the docs and run spellcheck. Or, you can use package names and the optional flags, ``--spellcheck-only`` or ``--docs-only`` to choose the scope of the build.
 
 Build all docs and spell check them:
 
@@ -124,7 +117,13 @@ Build documentation of just one provider package:
 
 .. code-block:: bash
 
-    breeze build-docs --package-filter <PACKAGE-NAME>
+    breeze build-docs PACKAGE_ID
+
+Or, build docs for more than one provider package in the same command:
+
+.. code-block:: bash
+
+    breeze build-docs PACKAGE1_ID PACKAGE2_ID
 
 You can also use shorthand names as arguments instead of using the full names
 for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
@@ -225,8 +224,8 @@ Docs troubleshooting
 ``example_dags`` Apache license
 -------------------------------
 
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
-license or copy another ``__init__.py`` file that contains the necessary license.
+If you are creating ``example_dags`` directory, you need to create an ``example_dags/__init__.py`` file. You can leave the file empty and the pre-commit processing
+adds the license automatically. Otherwise, you can add a file with the Apache license or copy another ``__init__.py`` file that contains the necessary license.
 
 Common Docs build errors
 ------------------------
@@ -246,7 +245,7 @@ If you do not add a blank line, it creates a build error.
 
 While easy to resolve, there's `a Sphinx bug <https://github.com/sphinx-doc/sphinx/issues/11026>`__ in certain versions that causes the
 warning to report the wrong line in the file for your missing white space. If your PR has the ``unexpected unindent`` warning blocking your build,
-and the line in the file it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
+and the line number it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
 list, code block, or other whitespace-sensitive markup element.
 
 Support
