@@ -165,12 +165,13 @@ export const BaseNode = ({
                 noOfLines={1}
                 maxWidth={`calc(${width}px - 12px)`}
                 fontWeight={400}
-                fontSize="md"
+                fontSize="lg"
                 width="fit-content"
                 borderRadius={5}
                 bg={operatorBG}
                 color={operatorTextColor || "gray.500"}
                 px={1}
+                padding={2}
               >
                 {task.operator}
               </Text>
