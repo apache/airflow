@@ -473,8 +473,9 @@ def main():
     # If only one inventory is missing, the remaining packages are correct. If we are missing
     # two or more inventories, it is better to try to build for all packages as the previous packages
     # may have failed as well.
+    packages_to_build = current_packages if len(priority_packages) > 1 else normal_packages
     package_build_errors, package_spelling_errors = build_docs_for_packages(
-        current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
+        current_packages=packages_to_build,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         jobs=jobs,
@@ -493,6 +494,7 @@ def main():
             args,
             docs_only,
             jobs,
+            packages_to_build,
             package_build_errors,
             package_spelling_errors,
             spellcheck_only,
@@ -505,6 +507,7 @@ def main():
             args,
             docs_only,
             jobs,
+            packages_to_build,
             package_build_errors,
             package_spelling_errors,
             spellcheck_only,
@@ -535,26 +538,37 @@ def retry_building_docs_if_needed(
     args,
     docs_only,
     jobs,
+    all_packages_to_build,
     package_build_errors,
     package_spelling_errors,
     spellcheck_only,
 ):
-    to_retry_packages = [
+    build_to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
         if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
     ]
+    spelling_to_retry_packages = [
+        package_name
+        for package_name, errors in package_spelling_errors.items()
+        if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
+    ]
+    to_retry_packages = build_to_retry_packages + spelling_to_retry_packages
     if to_retry_packages:
-        for package_name in to_retry_packages:
-            if package_name in all_build_errors:
-                del all_build_errors[package_name]
-            if package_name in all_spelling_errors:
-                del all_spelling_errors[package_name]
+        if spellcheck_only:
+            all_build_errors = {}
+            all_spelling_errors = {}
+        else:
+            for package_name in to_retry_packages:
+                if package_name in all_build_errors:
+                    del all_build_errors[package_name]
+                if package_name in all_spelling_errors:
+                    del all_spelling_errors[package_name]
 
         package_build_errors, package_spelling_errors = build_docs_for_packages(
-            current_packages=to_retry_packages,
+            current_packages=all_packages_to_build if spellcheck_only else to_retry_packages,
             docs_only=docs_only,
-            spellcheck_only=spellcheck_only,
+            spellcheck_only=False,
             jobs=jobs,
             verbose=args.verbose,
         )
