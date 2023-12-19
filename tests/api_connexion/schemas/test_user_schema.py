@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
-from airflow.auth.managers.fab.models import User
+from airflow.providers.fab.auth_manager.models import User
 from airflow.utils import timezone
 from tests.test_utils.api_connexion_utils import create_role, delete_role
 

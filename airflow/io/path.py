@@ -40,6 +40,8 @@ if typing.TYPE_CHECKING:
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
+default = "file"
+
 
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
@@ -70,7 +72,7 @@ class ObjectStoragePath(CloudPath):
 
     __version__: typing.ClassVar[int] = 1
 
-    _default_accessor: type[_CloudAccessor] = _AirflowCloudAccessor
+    _default_accessor = _AirflowCloudAccessor
 
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
@@ -149,7 +151,10 @@ class ObjectStoragePath(CloudPath):
 
     @functools.lru_cache
     def __hash__(self) -> int:
-        return hash(self._bucket)
+        return hash(str(self))
+
+    def __eq__(self, other: typing.Any) -> bool:
+        return self.samestore(other) and str(self) == str(other)
 
     def samestore(self, other: typing.Any) -> bool:
         return isinstance(other, ObjectStoragePath) and self._accessor == other._accessor
@@ -258,11 +263,11 @@ class ObjectStoragePath(CloudPath):
         --------
         >>> read_block(0, 13)
         b'Alice, 100\\nBo'
-        >>> read_block(0, 13, delimiter=b'\\n')
+        >>> read_block(0, 13, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\n'
 
         Use ``length=None`` to read to the end of the file.
-        >>> read_block(0, None, delimiter=b'\\n')
+        >>> read_block(0, None, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\nCharlie, 300'
 
         See Also
@@ -386,10 +391,14 @@ class ObjectStoragePath(CloudPath):
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink()
 
-    def serialize(self) -> dict[str, str]:
+    def serialize(self) -> dict[str, typing.Any]:
+        _kwargs = self._kwargs.copy()
+        conn_id = _kwargs.pop("conn_id", None)
+
         return {
             "path": str(self),
-            **self._kwargs,
+            "conn_id": conn_id,
+            "kwargs": _kwargs,
         }
 
     @classmethod
@@ -397,5 +406,8 @@ class ObjectStoragePath(CloudPath):
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
 
+        _kwargs = data.pop("kwargs")
         path = data.pop("path")
-        return ObjectStoragePath(path, **data)
+        conn_id = data.pop("conn_id", None)
+
+        return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)

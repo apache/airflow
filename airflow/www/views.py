@@ -1055,7 +1055,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/cluster_activity")
-    @auth.has_access_cluster_activity("GET")
+    @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
     def cluster_activity(self):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
@@ -3553,7 +3553,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/historical_metrics_data")
-    @auth.has_access_cluster_activity("GET")
+    @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
     def historical_metrics_data(self):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))

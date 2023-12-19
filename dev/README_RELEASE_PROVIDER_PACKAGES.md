@@ -80,7 +80,7 @@ You can read more about the command line tools used to generate the packages in 
 # Bump min Airflow version for providers
 
 1. Update `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py` to remove
-the versions of Airflow that are not applicable any more.
+the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
 searching and replacing old version occurrences with newer one. For example 2.5.0 to 2.6.0
@@ -161,18 +161,15 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
+breeze release-management prepare-provider-documentation  --include-removed-providers
+```
+
+In case you prepare provider documentation for just a few selected providers, you can run:
+
+```shell script
 breeze release-management prepare-provider-documentation [packages]
 ```
 
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), documentation for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-documentation removed.provider
-```
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
@@ -193,6 +190,12 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
+breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+```
+
+In case you prepare provider documentation for just a few selected providers, you can run:
+
+```shell script
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
@@ -202,7 +205,7 @@ For example if you try to build a `cncf.kubernetes` provider that is build from 
 branch should be prepared like this:
 
 ```shell script
-breeze release-management prepare-provider-documentation \
+breeze release-management prepare-provider-documentation --include-removed-providers \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
@@ -219,7 +222,7 @@ Regenerate the documentation templates by running the command with
 * Provider README file used when publishing package in PyPI
 
 ```shell script
-breeze release-management prepare-provider-documentation --reapply-templates-only
+breeze release-management prepare-provider-documentation --include-removed-providers --reapply-templates-only
 ```
 
 ## Open PR with suggested version releases
@@ -245,7 +248,7 @@ generates corresponding .asc and .sha512 files for each file to sign.
 * Cleanup dist folder:
 
 ```shell script
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
@@ -253,26 +256,15 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages  --include-removed-providers \
+--package-format both PACKAGE PACKAGE ....
 ```
-
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Sign all your packages
 
@@ -334,25 +326,16 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages  --include-removed-providers \
+ --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages \
+--version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), package for the provider will not be prepared when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management prepare-provider-packages --package-format both removed.provider
-```
-
 
 * Verify the artifacts that would be uploaded:
 
@@ -418,7 +401,7 @@ lists and should be updated every time a new version of provider packages is rel
 ```shell script
 git clone https://github.com/apache/airflow-site.git airflow-site
 cd airflow-site
-export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
 ```
 
 Note if this is not the first time you clone the repo make sure main branch is rebased:
@@ -433,7 +416,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build apache-airflow-providers all-providers
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -446,18 +429,6 @@ If we want to just release some providers you can release them using package nam
 cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
-
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), doc for the provider will not be built when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze build-docs removed.provider
-```
-
 
 - Now you can preview the documentation.
 
@@ -484,7 +455,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers all-providers --include-removed-providers \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -502,17 +473,6 @@ If you have providers as list of provider ids because you just released them you
 cd "${AIRFLOW_REPO_ROOT}"
 
 breeze release-management publish-docs amazon apache.beam google ....
-breeze release-management add-back-references all-providers
-```
-
-NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
-provider), docs for the provider will not be published when you prepare documentation for
-all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `removed.provider` provider marked for removal you need to run
-separately this command:
-
-```shell script
-breeze release-management publish-docs removed.provider
 breeze release-management add-back-references all-providers
 ```
 
@@ -712,7 +672,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages --include-removed-providers --package-format both
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
@@ -1001,14 +961,16 @@ We also need to archive older releases before copying the new ones
 ```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT="$(pwd)"
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
 
 # Go the folder where you have checked out the release repo from SVN
 # Make sure this is direct directory and a symbolic link
 # Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
 cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
 
-export ASF_DIST_PARENT="$(pwd)"
+export ASF_DIST_PARENT="$(pwd -P)"
+# make sure physical path is used, in case original directory is symbolically linked
+cd "${ASF_DIST_PARENT}"
 
 # or clone it if it's not done yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
@@ -1025,7 +987,7 @@ svn rm ${SOURCE_DIR}/*<provider>*
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
-cd asf-dist/release/airflow
+cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
 mkdir -pv providers
 cd providers
 
@@ -1040,10 +1002,10 @@ do
 done
 
 # Check which old packages will be removed using dry run
-breeze release-management clean-old-provider-artifacts --directory . --dry-run
+breeze release-management clean-old-provider-artifacts --directory $(pwd -P) --dry-run
 
 # Remove those packages
-breeze release-management clean-old-provider-artifacts --directory .
+breeze release-management clean-old-provider-artifacts --directory $(pwd -P)
 
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
@@ -1141,15 +1103,16 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 ./dev/provider_packages/tag_providers.sh
 ```
 
 ## Update providers metadata
 
-Make sure you create the following branch from the git tag (steps before) and not from main!
-
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout main
+git pull
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata

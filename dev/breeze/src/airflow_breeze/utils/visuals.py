@@ -101,14 +101,18 @@ CHEATSHEET = f"""
           which is mounted from folder in Airflow sources:
           * `{AIRFLOW_SOURCES_ROOT}/files/dags`
 
+        * Your plugins are read from `/files/plugins` directory
+          which is mounted from folder in Airflow sources:
+          * `{AIRFLOW_SOURCES_ROOT}/files/plugins`
+
         * You can add `airflow-breeze-config` directory. Place it in
           `{AIRFLOW_SOURCES_ROOT}/files/airflow-breeze-config` and:
             * Add `variables.env` - to make breeze source the variables automatically for you
             * Add `.tmux.conf` - to add extra initial configuration to `tmux`
             * Add `init.sh` - this file will be sourced when you enter container, so you can add
               any custom code there.
-
-        * You can put any other files. You can add them in
+            * Add `requirements.
+        * You can put share other files. Just add them in
           `{AIRFLOW_SOURCES_ROOT}/files` folder
           and they will be visible in `/files/` folder inside the container
 

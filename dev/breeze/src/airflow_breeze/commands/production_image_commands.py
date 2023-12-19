@@ -21,11 +21,7 @@ from copy import deepcopy
 
 import click
 
-from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_image_options import (
     option_additional_airflow_extras,
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
@@ -35,46 +31,55 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
-    option_answer,
     option_build_progress,
-    option_builder,
-    option_commit_sha,
     option_debian_version,
-    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
+    option_image_tag_for_building,
+    option_image_tag_for_pulling,
+    option_image_tag_for_verifying,
+    option_install_mysql_client_type,
+    option_install_providers_from_sources,
+    option_platform_multiple,
+    option_prepare_buildx_cache,
+    option_pull,
+    option_push,
+    option_python_image,
+    option_runtime_apt_command,
+    option_runtime_apt_deps,
+    option_tag_as_latest,
+    option_verify,
+    option_wait_for_image,
+)
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_builder,
+    option_commit_sha,
+    option_debug_resources,
     option_docker_host,
     option_dry_run,
     option_github_repository,
     option_github_token,
     option_image_name,
-    option_image_tag_for_building,
-    option_image_tag_for_pulling,
-    option_image_tag_for_verifying,
     option_include_success_outputs,
-    option_install_providers_from_sources,
     option_parallelism,
-    option_platform_multiple,
-    option_prepare_buildx_cache,
-    option_pull,
-    option_push,
     option_python,
-    option_python_image,
     option_python_versions,
     option_run_in_parallel,
-    option_runtime_apt_command,
-    option_runtime_apt_deps,
     option_skip_cleanup,
-    option_tag_as_latest,
     option_verbose,
-    option_verify,
     option_version_suffix_for_pypi,
-    option_wait_for_image,
 )
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_prod,
+)
+from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
+from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -226,6 +231,7 @@ def prod_image():
 @option_github_token
 @option_image_tag_for_building
 @option_include_success_outputs
+@option_install_mysql_client_type
 @option_install_providers_from_sources
 @option_parallelism
 @option_platform_multiple
@@ -274,6 +280,7 @@ def build(
     include_success_outputs,
     install_airflow_reference: str | None,
     install_airflow_version: str | None,
+    install_mysql_client_type: str,
     install_packages_from_context: bool,
     install_providers_from_sources: bool,
     installation_method: str,
@@ -336,6 +343,7 @@ def build(
         image_tag=image_tag,
         install_airflow_reference=install_airflow_reference,
         install_airflow_version=install_airflow_version,
+        install_mysql_client_type=install_mysql_client_type,
         install_packages_from_context=install_packages_from_context,
         install_providers_from_sources=install_providers_from_sources,
         installation_method=installation_method,

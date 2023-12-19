@@ -17,23 +17,23 @@
 """
 This module is deprecated.
 
-Please use :mod:`airflow.auth.managers.fab.api.auth.backend.basic_auth` instead.
+Please use :mod:`airflow.providers.fab.auth_manager.api.auth.backend.basic_auth` instead.
 """
 from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-import airflow.auth.managers.fab.api.auth.backend.basic_auth as fab_basic_auth
+import airflow.providers.fab.auth_manager.api.auth.backend.basic_auth as fab_basic_auth
 from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.fab.models import User
+    from airflow.providers.fab.auth_manager.models import User
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.auth.managers.fab.api.auth.backend.basic_auth` instead.",
+    "This module is deprecated. Please use `airflow.providers.fab.auth_manager.api.auth.backend.basic_auth` instead.",
     RemovedInAirflow3Warning,
     stacklevel=2,
 )

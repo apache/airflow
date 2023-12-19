@@ -31,10 +31,7 @@ from click import Context
 from rich.console import Console
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.main_command import main
-from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
@@ -43,6 +40,9 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_verbose,
 )
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console, get_stderr_console
 from airflow_breeze.utils.custom_param_types import BetterChoice

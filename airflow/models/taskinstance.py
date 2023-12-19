@@ -3317,18 +3317,22 @@ class TaskInstance(Base, LoggingMixin):
             def this_task(v):  # This is self.task.
                 return v * 2
 
+
             @task_group
             def tg1(inp):
                 val = upstream(inp)  # This is the upstream task.
                 this_task(val)  # When inp is 1, val here should resolve to 2.
                 return val
 
+
             # This val is the same object returned by tg1.
             val = tg1.expand(inp=[1, 2, 3])
+
 
             @task_group
             def tg2(inp):
                 another_task(inp, val)  # val here should resolve to [2, 4, 6].
+
 
             tg2.expand(inp=["a", "b"])
 

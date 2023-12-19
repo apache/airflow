@@ -148,8 +148,8 @@ pre-release versions of Airflow - because ``pip`` does not recognize the ``.dev0
 suffixes of those packages as valid in the ``>=X.Y.Z`` comparison.
 
 When you want to install a provider package with ``apache-airflow>=2.8.0`` requirement and you have
-``2.8.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
-``2.8.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
+``2.9.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
+``2.9.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
 currently implements the minimum version selection algorithm requirement specified in packaging as
 described in the packaging version specification
 https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases
@@ -163,7 +163,7 @@ not possible.
 To work around this limitation, we have introduced the concept of "chicken-egg" providers. Those providers
 are providers that are released together with the version of Airflow they depend on. They are released
 with the same version number as the Airflow version they depend on, but with a different suffix. For example
-``apache-airflow-providers-common-io==2.8.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.8.0.dev0``.
+``apache-airflow-providers-common-io==2.9.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.9.0.dev0``.
 
 However - we should not release providers with such exclusion to ``pypi``, so in order to allow our
 CI to work with pre-release versions and perform both - constraint generation and image releasing,
@@ -514,14 +514,15 @@ providers (and then remove all the code and documentation related to the provide
 
 The "removed: true" flag will cause the provider to be available for the following commands (note that such
 provider has to be explicitly added as selected to the package - such provider will not be included in
-the available list of providers):
+the available list of providers or when documentation is built unless --include-removed-providers
+flag is used):
 
 * ``breeze build-docs``
 * ``breeze release-management prepare-provider-documentation``
 * ``breeze release-management prepare-provider-packages``
 * ``breeze release-management publish-docs``
 
-For all those commands, release manager needs to specify such to-be-removed provider explicitly as extra
-command during the release process. Except the changelog that needs to be maintained manually, all other
-documentation (main page of the provider documentation, PyPI README), will be automatically updated
-to include removal notice.
+For all those commands, release manager needs to specify ``--include-removed-providers`` when all providers
+are built or must add the provider id explicitly during the release process.
+Except the changelog that needs to be maintained manually, all other documentation (main page of the provider
+documentation, PyPI README), will be automatically updated to include removal notice.

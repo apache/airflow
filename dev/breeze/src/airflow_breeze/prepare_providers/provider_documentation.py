@@ -779,7 +779,7 @@ def _get_changes_classified(
     classified_changes = ClassifiedChanges()
     for change in changes:
         # Special cases
-        if "Bump minimum Airflow version in providers" in change.message.lower():
+        if "bump minimum Airflow version in providers" in change.message.lower():
             classified_changes.misc.append(change)
         # General cases
         elif "fix" in change.message.lower():
@@ -993,6 +993,8 @@ def update_min_airflow_version(
     :return:
     """
     provider_details = get_provider_details(provider_package_id)
+    if provider_details.removed:
+        return
     jinja_context = get_provider_documentation_jinja_context(
         provider_id=provider_package_id,
         with_breaking_changes=with_breaking_changes,

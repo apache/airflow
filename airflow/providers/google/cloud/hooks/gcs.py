@@ -821,12 +821,13 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+
+            blob_names = [blob.name for blob in blobs]
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(blob.name for blob in blobs)
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -933,16 +934,17 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+
+            blob_names = [
+                blob.name
+                for blob in blobs
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+            ]
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(
-                    blob.name
-                    for blob in blobs
-                    if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
-                )
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:

@@ -234,7 +234,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
-   For managed Postgres such as Redshift, Azure Postgresql, CloudSQL, Amazon RDS, you should use
+   For managed Postgres such as Azure Postgresql, CloudSQL, Amazon RDS, you should use
    ``keepalives_idle`` in the connection parameters and set it to less than the idle time because those
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
@@ -349,5 +349,5 @@ configuring a different :doc:`executor </core-concepts/executor/index>` for bett
 Migrating off MS SQL Server
 ---------------------------
 
-As with Airflow 2.8.0 the support of MSSQL has been ended, we have provided a migration tool allowing to migrate with the latest
-supported Airflow version 2.7.3 off the database. Please take a look to the Airflow GIT repo in ``scripts/tools/migrate_script.py``.
+As with Airflow 2.9.0 the support of MSSQL has been ended, we have provided a migration tool allowing to migrate with the latest
+supported Airflow version 2.8.x off the database. Please take a look to the Airflow GIT repo in ``scripts/tools/migrate_script.py``.
