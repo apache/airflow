@@ -35,6 +35,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.cloud.dataform_v1beta1.services.dataform.pagers import QueryWorkflowInvocationActionsPager
 
 
 class DataformHook(GoogleBaseHook):
@@ -237,6 +238,43 @@ class DataformHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def query_workflow_invocation_actions(
+        self,
+        project_id: str,
+        region: str,
+        repository_id: str,
+        workflow_invocation_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> QueryWorkflowInvocationActionsPager:
+        """
+        Fetches WorkflowInvocation actions.
+
+        :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+        :param region: Required. The ID of the Google Cloud region that the task belongs to.
+        :param repository_id: Required. The ID of the Dataform repository that the task belongs to.
+        :param workflow_invocation_id:  Required. The workflow invocation resource's id.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_dataform_client()
+        name = (
+            f"projects/{project_id}/locations/{region}/repositories/"
+            f"{repository_id}/workflowInvocations/{workflow_invocation_id}"
+        )
+        response = client.query_workflow_invocation_actions(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def cancel_workflow_invocation(
         self,
         project_id: str,
@@ -263,9 +301,26 @@ class DataformHook(GoogleBaseHook):
             f"projects/{project_id}/locations/{region}/repositories/"
             f"{repository_id}/workflowInvocations/{workflow_invocation_id}"
         )
-        client.cancel_workflow_invocation(
-            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
-        )
+        try:
+            workflow_invocation = self.get_workflow_invocation(
+                project_id=project_id,
+                region=region,
+                repository_id=repository_id,
+                workflow_invocation_id=workflow_invocation_id,
+            )
+            state = workflow_invocation.state
+        except Exception as err:
+            raise AirflowException(f"Dataform API returned error when waiting for workflow invocation:\n{err}")
+
+        if state == WorkflowInvocation.State.RUNNING:
+            client.cancel_workflow_invocation(
+                request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
+            )
+        else:
+            self.log.info(
+                "Workflow is not active. Either the execution has already finished or has been canceled. "
+                "Please check the logs above for more details."
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_repository(
