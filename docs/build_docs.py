@@ -495,7 +495,7 @@ def main():
             jobs,
             package_build_errors,
             package_spelling_errors,
-            spellcheck_only,
+            False,
         )
 
         # And try again in case one change spans across three-level dependencies
@@ -507,7 +507,7 @@ def main():
             jobs,
             package_build_errors,
             package_spelling_errors,
-            spellcheck_only,
+            False,
         )
 
     if not disable_checks:
