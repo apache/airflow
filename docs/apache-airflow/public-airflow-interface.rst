@@ -370,6 +370,17 @@ You can read more about Secret Backends in :doc:`security/secrets/secrets-backen
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
+Auth managers
+-------------
+
+Auth managers are responsible of user authentication and user authorization in Airflow. All auth managers are
+derived from :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+
+The auth manager interface itself (the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` class) is
+public, but the different implementations of auth managers are not (i.e. FabAuthManager).
+
+You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager`.
+
 Authentication Backends
 -----------------------
 
