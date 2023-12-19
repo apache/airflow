@@ -576,6 +576,8 @@ task to copy the same file to a date-partitioned storage location in S3 for long
         dest_bucket_key=f"""{BASE_PATH}/{"{{ execution_date.strftime('%Y/%m/%d') }}"}/{FILE_NAME}""",
     )
 
+.. _taskflow/accessing_context_variables:
+
 Accessing context variables in decorated tasks
 ----------------------------------------------
 
