@@ -253,7 +253,7 @@ def find_installation_spec(
         )
     else:
         console.print(f"\nInstalling airflow via apache-airflow=={use_airflow_version}")
-        airflow_package_spec = f"apache-airflow=={use_airflow_version}{airflow_extras}"
+        airflow_package_spec = f"apache-airflow{airflow_extras}=={use_airflow_version}"
         airflow_constraints_location = get_airflow_constraints_location(
             airflow_skip_constraints=airflow_skip_constraints,
             airflow_constraints_mode=airflow_constraints_mode,

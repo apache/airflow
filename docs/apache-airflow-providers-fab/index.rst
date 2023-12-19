@@ -35,7 +35,7 @@
     :caption: Guides
 
     Configuration <configurations-ref>
-    Auth manager <auth-manager>
+    Auth manager <auth-manager/index>
 
 .. toctree::
     :hidden:

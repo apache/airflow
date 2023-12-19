@@ -381,11 +381,12 @@ class DAG(LoggingMixin):
 
         **Example**: to avoid Jinja from removing a trailing newline from template strings ::
 
-            DAG(dag_id='my-dag',
+            DAG(
+                dag_id="my-dag",
                 jinja_environment_kwargs={
-                    'keep_trailing_newline': True,
+                    "keep_trailing_newline": True,
                     # some other jinja2 Environment options here
-                }
+                },
             )
 
         **See**: `Jinja Environment documentation

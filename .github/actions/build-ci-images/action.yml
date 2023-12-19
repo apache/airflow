@@ -23,9 +23,7 @@ runs:
   steps:
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
-    - name: "Regenerate dependencies"
-      # This is done in case some someone updated provider dependencies and did not generate
-      # dependencies - in which case build image might fail because of lack of new dependencies
+    - name: "Check if dependencies are properly regenerated"
       shell: bash
       run: |
         pip install rich>=12.4.4 pyyaml
