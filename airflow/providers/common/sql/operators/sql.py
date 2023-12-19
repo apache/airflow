@@ -729,6 +729,8 @@ class SQLCheckOperator(BaseSQLOperator):
     The ``SQLCheckOperator`` expects a sql query that will return a single row.
     Each value on that first row is evaluated using python ``bool`` casting.
     If any of the values return ``False`` the check is failed and errors out.
+    If a Python dict is returned, and any values in the Python dict are ``False``,
+    the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -737,6 +739,7 @@ class SQLCheckOperator(BaseSQLOperator):
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
+    * Dictionary with value = ``False`` (``{'DUPLICATE_ID_CHECK': False}``)
 
     Given a query like ``SELECT COUNT(*) FROM foo``, it will fail only if
     the count ``== 0``. You can craft much more complex query that could,
@@ -785,6 +788,8 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
+        elif isinstance(records, dict) and not all(records.values()):
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
