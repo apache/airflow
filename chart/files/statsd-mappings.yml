@@ -76,8 +76,18 @@ mappings:
     labels:
       pool: "$1"
 
-  - match: airflow.pool.used_slots.*
-    name: "airflow_pool_used_slots"
+  - match: airflow.pool.queued_slots.*
+    name: "airflow_pool_queued_slots"
+    labels:
+      pool: "$1"
+
+  - match: airflow.pool.running_slots.*
+    name: "airflow_pool_running_slots"
+    labels:
+      pool: "$1"
+
+  - match: airflow.pool.deferred_slots.*
+    name: "airflow_pool_deferred_slots"
     labels:
       pool: "$1"
 
