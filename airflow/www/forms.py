@@ -32,6 +32,7 @@ from flask_appbuilder.fieldwidgets import (
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
+from markupsafe import Markup
 from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
@@ -194,6 +195,29 @@ class TaskInstanceEditForm(DynamicForm):
                 field.populate_obj(item, name)
 
 
+class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
+
+    @staticmethod
+    def _make_collapsable_panel(field: Field, content: Markup) -> str:
+        collapsable_id: str = f"collapsable_{field.id}"
+        return f"""
+        <div class="panel panel-default form-panel">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a class="accordion-toggle" data-toggle="collapse" aria-expanded="false" aria-controls="{collapsable_id}" href="#{collapsable_id}">Show</a>
+                </h4>
+            </div>
+            <div class="panel-collapse collapse" id="{collapsable_id}" aria-expanded="false">
+                {content.__html__()}
+            </div>
+        </div>
+        """
+
+    def __call__(self, field, **kwargs):
+        text_area = super(BS3TextAreaFieldWidget, self).__call__(field, **kwargs)
+        return self._make_collapsable_panel(field=field, content=text_area)
+
+
 @cache
 def create_connection_form_class() -> type[DynamicForm]:
     """Create a form class for editing and adding Connection.
@@ -240,7 +264,7 @@ def create_connection_form_class() -> type[DynamicForm]:
         login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
         password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
         port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
-        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
+        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3AccordionTextAreaFieldWidget())
 
     for key, value in providers_manager.connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)

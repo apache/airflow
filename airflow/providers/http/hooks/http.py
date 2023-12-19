@@ -25,6 +25,8 @@ import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
+from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget
+from markupsafe import Markup
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
@@ -125,13 +127,8 @@ class HttpHook(BaseHook):
                 widget=Select2Widget(),
             ),
             "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
-            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget()),
+            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget())
         }
-
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom field behaviour."""
-        return {"hidden_fields": ["extra"], "relabeling": {}}
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
