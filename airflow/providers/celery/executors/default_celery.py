@@ -47,18 +47,17 @@ log = logging.getLogger(__name__)
 
 broker_url = conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
-broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
+broker_transport_options: dict = conf.getsection("celery_broker_transport_options") or {}
 if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options["visibility_timeout"] = 21600
 
-broker_transport_options_for_celery: dict = broker_transport_options.copy()
 if "sentinel_kwargs" in broker_transport_options:
     try:
-        sentinel_kwargs = broker_transport_options.get("sentinel_kwargs")
+        sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
         if not isinstance(sentinel_kwargs, dict):
             raise ValueError
-        broker_transport_options_for_celery["sentinel_kwargs"] = sentinel_kwargs
+        broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
     except Exception:
         raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
 
@@ -77,7 +76,7 @@ DEFAULT_CELERY_CONFIG = {
     "task_default_exchange": conf.get("operators", "DEFAULT_QUEUE"),
     "task_track_started": conf.getboolean("celery", "task_track_started", fallback=True),
     "broker_url": broker_url,
-    "broker_transport_options": broker_transport_options_for_celery,
+    "broker_transport_options": broker_transport_options,
     "result_backend": result_backend,
     "database_engine_options": conf.getjson(
         "celery", "result_backend_sqlalchemy_engine_options", fallback={}
