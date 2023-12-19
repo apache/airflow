@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-18T20:57:44.601245
+# This constraints file was automatically generated on 2023-12-19T14:42:53.687672
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -49,7 +49,7 @@ adal==1.2.7
 adlfs==2023.10.0
 aiobotocore==2.9.0
 aiofiles==23.2.1
-aiohttp==3.8.6
+aiohttp==3.9.1
 aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -63,7 +63,7 @@ alibabacloud-openapi-util==0.2.2
 alibabacloud-tea-openapi==0.3.8
 alibabacloud-tea-util==0.3.11
 alibabacloud-tea-xml==0.0.2
-alibabacloud-tea==0.3.4
+alibabacloud-tea==0.3.5
 aliyun-python-sdk-core==2.14.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
@@ -97,7 +97,7 @@ azure-kusto-data==4.3.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
-azure-mgmt-cosmosdb==9.3.0
+azure-mgmt-cosmosdb==9.4.0
 azure-mgmt-datafactory==4.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
