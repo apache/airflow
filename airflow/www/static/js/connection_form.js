@@ -83,7 +83,7 @@ function restoreFieldBehaviours() {
     }
   );
 
-  Array.from(document.querySelectorAll(".form-control")).forEach((elem) => {
+  Array.from(document.querySelectorAll(".form-control, .form-panel")).forEach((elem) => {
     // eslint-disable-next-line no-param-reassign
     elem.placeholder = "";
     elem.parentElement.parentElement.classList.remove("hide");
@@ -101,7 +101,7 @@ function applyFieldBehaviours(connection) {
     if (Array.isArray(connection.hidden_fields)) {
       connection.hidden_fields.forEach((field) => {
         document
-          .getElementById(field)
+          .querySelector(`label[for='${field}']`)
           .parentElement.parentElement.classList.add("hide");
       });
     }
