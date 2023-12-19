@@ -42,12 +42,19 @@ TEST_JOB_ID = "test-job-id"
 GO_FILE = "/path/to/file.go"
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = "airflow.providers.apache.beam.hooks.beam.{}"
+BEAM_VARIABLES = {"output": "gs://test/output", "labels": {"foo": "bar"}}
 BEAM_VARIABLES_PY = {"output": "gs://test/output", "labels": {"foo": "bar"}}
 BEAM_VARIABLES_JAVA = {
     "output": "gs://test/output",
     "labels": {"foo": "bar"},
 }
+BEAM_VARIABLES_JAVA_STRING_LABELS = {
+    "output": "gs://test/output",
+    "labels": '{"foo":"bar"}',
+}
 BEAM_VARIABLES_GO = {"output": "gs://test/output", "labels": {"foo": "bar"}}
+PIPELINE_COMMAND_PREFIX = ["a", "b", "c"]
+WORKING_DIRECTORY = "test_wd"
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
 Dataflow SDK version: 2.14.0
@@ -420,6 +427,25 @@ class TestBeamOptionsToArgs:
 class TestBeamAsyncHook:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
+    async def test_start_pipline_async(self, mock_runner):
+        expected_cmd = [
+            *PIPELINE_COMMAND_PREFIX,
+            f"--runner={DEFAULT_RUNNER}",
+            *beam_options_to_args(BEAM_VARIABLES),
+        ]
+        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
+        await hook.start_pipeline_async(
+            variables=BEAM_VARIABLES,
+            command_prefix=PIPELINE_COMMAND_PREFIX,
+            working_directory=WORKING_DIRECTORY,
+        )
+
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, working_directory=WORKING_DIRECTORY, log=hook.log
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
     async def test_start_python_pipeline(self, mock_create_dir, mock_runner):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
@@ -583,3 +609,21 @@ class TestBeamAsyncHook:
             )
 
         mock_runner.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "job_class, command_prefix",
+        [
+            (JOB_CLASS, ["java", "-cp", JAR_FILE, JOB_CLASS]),
+            (None, ["java", "-jar", JAR_FILE]),
+        ],
+    )
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_pipeline_async")
+    async def test_start_java_pipeline_async(self, mock_start_pipeline, job_class, command_prefix):
+        variables = copy.deepcopy(BEAM_VARIABLES_JAVA)
+        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
+        await hook.start_java_pipeline_async(variables=variables, jar=JAR_FILE, job_class=job_class)
+
+        mock_start_pipeline.assert_called_once_with(
+            variables=BEAM_VARIABLES_JAVA_STRING_LABELS, command_prefix=command_prefix
+        )

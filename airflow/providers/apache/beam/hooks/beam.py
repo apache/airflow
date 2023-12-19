@@ -508,6 +508,25 @@ class BeamAsyncHook(BeamHook):
             )
             return return_code
 
+    async def start_java_pipeline_async(self, variables: dict, jar: str, job_class: str | None = None):
+        """
+        Start Apache Beam Java pipeline.
+
+        :param variables: Variables passed to the job.
+        :param jar: Name of the jar for the pipeline.
+        :param job_class: Name of the java class for the pipeline.
+        :return: Beam command execution return code.
+        """
+        if "labels" in variables:
+            variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
+
+        command_prefix = ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        return_code = await self.start_pipeline_async(
+            variables=variables,
+            command_prefix=command_prefix,
+        )
+        return return_code
+
     async def start_pipeline_async(
         self,
         variables: dict,
