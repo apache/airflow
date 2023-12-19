@@ -70,7 +70,7 @@ x-airflow-common:
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     #The following line can be used to set a custom location for a config file 
-    #If you want to use it, outcomment it and replace airfloe.cfg with the name of your config file
+    #If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     #AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
