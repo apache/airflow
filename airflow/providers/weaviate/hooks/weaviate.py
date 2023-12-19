@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import json
 import warnings
-from functools import cached_property
+from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
@@ -384,6 +384,7 @@ class WeaviateHook(BaseHook):
         self,
         class_name: str,
         data: list[dict[str, Any]] | pd.DataFrame,
+        insertion_errors: list,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
@@ -401,43 +402,51 @@ class WeaviateHook(BaseHook):
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         :param tenant: The tenant to which the object will be added.
         :param uuid_col: Name of the column containing the UUID.
+        :param insertion_errors: list to hold errors while inserting.
         """
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
+
+        # configuration for context manager for __exit__ method to callback on errors for weaviate
+        # batch ingestion.
+        if not batch_config_params.get("callback"):
+            batch_config_params.update({"callback": partial(self.process_batch_errors, insertion_errors)})
+
+        if not batch_config_params.get("timeout_retries"):
+            batch_config_params.update({"timeout_retries": 5})
+
+        if not batch_config_params.get("connection_error_retries"):
+            batch_config_params.update({"connection_error_retries": 5})
+
         client.batch.configure(**batch_config_params)
         data = self._convert_dataframe_to_list(data)
-        insertion_errors = []
         with client.batch as batch:
             # Batch import all data
-            try:
-                for index, data_obj in enumerate(data):
-                    for attempt in Retrying(
-                        stop=stop_after_attempt(retry_attempts_per_object),
-                        retry=(
-                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                        ),
-                    ):
-                        with attempt:
-                            vector = data_obj.pop(vector_col, None)
-                            uuid = data_obj.pop(uuid_col, None)
-                            self.log.debug(
-                                "Attempt %s of inserting object with uuid: %s",
-                                attempt.retry_state.attempt_number,
-                                uuid,
-                            )
-                            batch.add_data_object(
-                                data_object=data_obj,
-                                class_name=class_name,
-                                vector=vector,
-                                uuid=uuid,
-                                tenant=tenant,
-                            )
-                            self.log.debug("Inserted object with uuid: %s", uuid)
-            except Exception as e:
-                insertion_errors.append({"uuid": uuid, "result": {"errors": str(e)}})
-                self.log.error("Failed to add object with UUID %s. Error: %s", uuid, e)
+            for index, data_obj in enumerate(data):
+                for attempt in Retrying(
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        vector = data_obj.pop(vector_col, None)
+                        uuid = data_obj.pop(uuid_col, None)
+                        self.log.debug(
+                            "Attempt %s of inserting object with uuid: %s",
+                            attempt.retry_state.attempt_number,
+                            uuid,
+                        )
+                        batch.add_data_object(
+                            data_object=data_obj,
+                            class_name=class_name,
+                            vector=vector,
+                            uuid=uuid,
+                            tenant=tenant,
+                        )
+                        self.log.debug("Inserted object with uuid: %s", uuid)
         return insertion_errors
 
     def query_with_vector(
@@ -628,6 +637,35 @@ class WeaviateHook(BaseHook):
         client = self.conn
         return client.data_object.exists(uuid, **kwargs)
 
+    def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
+        """
+        Helper function for `create_or_replace_objects()` to delete multiple objects.
+
+        :param uuids: Collection of uuids.
+        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        """
+        for uuid in uuids:
+            for attempt in Retrying(
+                stop=stop_after_attempt(retry_attempts_per_object),
+                retry=(
+                    retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                    | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                ),
+            ):
+                with attempt:
+                    try:
+                        self.delete_object(uuid=uuid, class_name=class_name)
+                        self.log.debug("Deleted object with uuid %s", uuid)
+                    except weaviate.exceptions.UnexpectedStatusCodeException as e:
+                        if e.status_code == 404:
+                            self.log.debug("Tried to delete a non existent object with uuid %s", uuid)
+                        else:
+                            self.log.debug("Error occurred while trying to delete object with uuid %s", uuid)
+                            raise e
+
+        self.log.info("Deleted %s objects.", len(uuids))
+
     def _generate_uuids(
         self,
         df: pd.DataFrame,
@@ -679,87 +717,125 @@ class WeaviateHook(BaseHook):
 
         return df, uuid_column
 
-    def _check_existing_objects(self, data: pd.DataFrame, uuid_column: str, class_name: str, existing: str):
+    def _check_existing_documents(
+        self, data: pd.DataFrame, document_column: str, class_name: str, uuid_column: str
+    ) -> tuple[set, set]:
         """
-        Helper function to check if the objects with uuid exist or not.
+        Get all object uuids belonging to a document.
 
         :param data: A single pandas DataFrame.
-        :param uuid_column: Column with pre-generated UUIDs.
-        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
-        :param existing: Strategy for handling existing data: 'skip', or 'replace'.
+        :param document_column: The name of the property to query.
+        :param class_name: The name of the class to query.
+        :param uuid_column: The name of the column containing the UUID.
         """
-        existing_uuid: set = set()
-        non_existing_uuid: set = set()
+        offset = 0
+        limit = 2000
+        documents_to_uuid: dict = {}
+        existing_documents = set()
+        document_keys = set(data[document_column])
+        non_existing_documents = document_keys.copy()
+        while True:
+            data_objects = (
+                self.conn.query.get(properties=[document_column], class_name=class_name)
+                .with_additional([uuid_column])
+                .with_where(
+                    {
+                        "operator": "Or",
+                        "operands": [
+                            {"valueText": key, "path": document_column, "operator": "Equal"}
+                            for key in document_keys
+                        ],
+                    }
+                )
+                .with_offset(offset)
+                .with_limit(limit)
+                .do()["data"]["Get"][class_name]
+            )
+            if len(data_objects) == 0:
+                break
+            for data_object in data_objects:
+                document_url = data_object[document_column]
 
-        if existing == "replace":
-            existing_uuid = set(data[uuid_column].to_list())
-        else:
-            self.log.info("checking if %s objects exists.", data.shape[0])
-            for uuid in data[uuid_column]:
-                for attempt in Retrying(
-                    stop=stop_after_attempt(5),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
-                ):
-                    with attempt:
-                        if self.object_exists(uuid=uuid, class_name=class_name):
-                            existing_uuid.add(uuid)
-                            if existing == "error":
-                                return existing_uuid, non_existing_uuid
-                            self.log.debug("object with uuid %s exists.", uuid)
-                        else:
-                            non_existing_uuid.add(uuid)
-                            self.log.debug("object with uuid %s don't exists.", uuid)
+                if document_url not in documents_to_uuid:
+                    documents_to_uuid[document_url] = set()
+                    existing_documents.add(document_url)
+                    non_existing_documents.remove(document_url)
 
-        self.log.info(
-            f"Objects to override {len(existing_uuid)} and {len(non_existing_uuid)} " f"objects to create"
-        )
-        return existing_uuid, non_existing_uuid
+                documents_to_uuid[document_url].add(data_object["_additional"][uuid_column])
+            offset = offset + limit
+        return existing_documents, non_existing_documents
 
-    def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
+    def _delete_all_documents_objects(
+        self,
+        document_keys: list[str],
+        document_column: str,
+        class_name: str,
+        batch_delete_error: list | None = None,
+        tenant: str | None = None,
+        batch_config_params: dict[str, Any] | None = None,
+    ):
+        if not batch_config_params:
+            batch_config_params = {}
+
+        # configuration for context manager for __exit__ method to callback on errors for weaviate
+        # batch ingestion.
+        if not batch_config_params.get("callback"):
+            batch_config_params.update({"callback": partial(self.process_batch_errors, batch_delete_error)})
+
+        self.conn.batch.configure(**batch_config_params)
+
+        with self.conn.batch as batch:
+            batch.consistency_level = weaviate.data.replication.ConsistencyLevel.ALL
+            batch.delete_objects(
+                class_name=class_name,
+                # same where operator as in the GraphQL API
+                where={
+                    "operator": "Or",
+                    "operands": [
+                        {
+                            "path": [document_column],
+                            "operator": "Equal",
+                            "valueText": key,
+                        }
+                        for key in document_keys
+                    ],
+                },
+                output="verbose",
+                dry_run=False,
+                tenant=tenant,
+            )
+        return batch_delete_error
+
+    def process_batch_errors(self, batch_errors: list, results: list, verbose: bool = True) -> None:
         """
-        Helper function for `create_or_replace_objects()` to delete multiple objects.
+        Processes the results from batch operation and collects any errors.
 
-        :param uuids: Collection of uuids.
-        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
-        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        :param batch_errors: list to populate in case of error
+        :param results: Results from the batch operation.
+        :param verbose: Flag to enable verbose logging.
         """
-        for uuid in uuids:
-            for attempt in Retrying(
-                stop=stop_after_attempt(retry_attempts_per_object),
-                retry=(
-                    retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                    | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                ),
-            ):
-                with attempt:
-                    try:
-                        self.delete_object(uuid=uuid, class_name=class_name)
-                        self.log.debug("Deleted object with uuid %s", uuid)
-                    except weaviate.exceptions.UnexpectedStatusCodeException as e:
-                        if e.status_code == 404:
-                            self.log.debug("Tried to delete a non existent object with uuid %s", uuid)
-                        else:
-                            self.log.debug("Error occurred while trying to delete object with uuid %s", uuid)
-                            raise e
+        for item in results:
+            if "errors" in item["result"]:
+                item_error = {"uuid": item["id"], "errors": item["result"]["errors"]}
+                if verbose:
+                    self.log.info(
+                        f"Error occurred in batch process for {item['id']} with error {item['result']['errors']}"
+                    )
+                batch_errors.append(item_error)
 
-        self.log.info("Deleted %s objects.", len(uuids))
-
-    def create_or_replace_objects(
+    def create_or_replace_document_objects(
         self,
         data: pd.DataFrame | list[dict[str, Any]],
         class_name: str,
+        document_column: str,
         existing: str = "skip",
-        unique_columns: list[str] | str | None = None,
         uuid_column: str | None = None,
         vector_column: str = "Vector",
         batch_config_params: dict | None = None,
         tenant: str | None = None,
-    ) -> list:
+    ):
         """
-        create or replace objects.
+        create or replace objects belonging to documents.
 
         Provides users with multiple ways of dealing with existing values.
             1. replace: replace the existing object with new object. This option requires to identify the rows
@@ -768,12 +844,11 @@ class WeaviateHook(BaseHook):
             2. skip: skip the existing objects.
             3. error: raise an error if an existing object is found.
 
-
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
         :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
-        :param unique_columns: Columns in DataFrame or keys in dict uniquely identifying each document,
-            required for 'upsert' operations.
+        :param document_column: Column in DataFrame that identifying source document, required for 'replace'
+         operation.
         :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
         :param vector_column: Column with embedding vectors for pre-embedded data.
         :param batch_config_params: Additional parameters for Weaviate batch configuration.
@@ -788,10 +863,7 @@ class WeaviateHook(BaseHook):
         if isinstance(data, list):
             data = pd.json_normalize(data)
 
-        if isinstance(unique_columns, str):
-            unique_columns = [unique_columns]
-        elif unique_columns is None:
-            unique_columns = sorted(data.columns.to_list())
+        unique_columns = sorted(data.columns.to_list())
 
         self.log.info("Inserting %s objects.", data.shape[0])
 
@@ -806,41 +878,54 @@ class WeaviateHook(BaseHook):
                 vector_column=vector_column,
                 uuid_column=uuid_column,
             )
-        # drop duplicate rows, using uuid_column and unique_columns
-        data = data.drop_duplicates(
-            subset=list({*unique_columns, uuid_column} - {vector_column, None}), keep="first"
-        )
 
-        uuids_to_create = set()
-        existing_uuid, non_existing_uuid = self._check_existing_objects(
-            data=data, uuid_column=uuid_column, class_name=class_name, existing=existing
+        # drop duplicate rows, using uuid_column and unique_columns. Removed  `None` as it can be added to
+        # set when `uuid_column` is None.
+        data = data.drop_duplicates(subset=[document_column, uuid_column], keep="first")
+        batch_delete_error: list = []
+        existing_documents, non_existing_documents = self._check_existing_documents(
+            data=data,
+            document_column=document_column,
+            uuid_column=uuid_column,
+            class_name=class_name,
         )
-        if existing == "error" and len(existing_uuid):
-            self.log.info("Found duplicate UUIDs %s", " ,".join(existing_uuid))
+        if existing == "error" and len(existing_documents):
             raise ValueError(
-                f"Found {len(existing_uuid)} object with duplicate UUIDs. You can either ignore or replace"
+                f"Documents {', '.join(existing_documents)} already exists. You can either skip or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
-        elif existing == "replace":
-            uuids_to_create = existing_uuid.union(non_existing_uuid)
-            self._delete_objects(existing_uuid, class_name=class_name)
         elif existing == "skip":
-            uuids_to_create = non_existing_uuid
-        data = data[data[uuid_column].isin(uuids_to_create)]
-        insertion_errors = []
+            data = data[data[document_column].isin(non_existing_documents)]
+        elif existing == "replace":
+            batch_delete_error = self._delete_all_documents_objects(
+                document_keys=list(existing_documents),
+                document_column=document_column,
+                class_name=class_name,
+                batch_delete_error=batch_delete_error,
+                tenant=tenant,
+                batch_config_params=batch_config_params,
+            )
+            data = data[data[document_column].isin(non_existing_documents.union(existing_documents))]
+
+        insertion_errors: list = []
         if data.shape[0]:
             self.log.info("Batch inserting %s objects.", data.shape[0])
             insertion_errors = self.batch_data(
                 class_name=class_name,
                 data=data,
+                insertion_errors=insertion_errors,
                 batch_config_params=batch_config_params,
                 vector_col=vector_column,
                 uuid_col=uuid_column,
                 tenant=tenant,
             )
-            if insertion_errors:
-                self.log.info("Failed to insert %s objects.", len(insertion_errors))
+            if insertion_errors or batch_delete_error:
+                if insertion_errors:
+                    self.log.info("Failed to insert %s objects.", len(insertion_errors))
+                if batch_delete_error:
+                    self.log.info("Failed to delete %s objects.", len(insertion_errors))
                 # Rollback object that were not created properly
-                self._delete_objects([item["uuid"] for item in insertion_errors], class_name=class_name)
-
+                self._delete_objects(
+                    [item["uuid"] for item in insertion_errors + batch_delete_error], class_name=class_name
+                )
         return insertion_errors
