@@ -15,7 +15,18 @@
     specific language governing permissions and limitations
     under the License.
 
-Fab auth manager
-================
+Flask AppBuilder (FAB) auth manager
+===================================
 
-To be written
+FAB auth (for authentication/authorization) manager is the auth manager that comes by default with Airflow. This auth manager defines the user authentication and user authorization by default in Airflow.
+The backend used to store all entities used by the FAB auth manager is the Airflow database: :doc:`apache-airflow:database-erd-ref`.
+
+.. image:: ../img/diagram_fab_auth_manager_airflow_architecture.png
+
+Follow the below topics as well to understand other aspects of FAB auth manager:
+
+.. toctree::
+    :maxdepth: 1
+    :glob:
+
+    *
