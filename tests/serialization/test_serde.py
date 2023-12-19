@@ -98,6 +98,7 @@ class C:
     def __call__(self):
         return None
 
+
 class TestSerDe:
     def test_ser_primitives(self):
         i = 10
@@ -209,7 +210,6 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
-    
     def test_allow_list_for_imports(self):
         i = Z(10)
         e = serialize(i)
@@ -217,7 +217,6 @@ class TestSerDe:
             deserialize(e)
 
         assert f"{qualname(Z)} was not found in allow list" in str(ex.value)
-
 
     @conf_vars(
         {
@@ -227,14 +226,14 @@ class TestSerDe:
     def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
         assert _match("tests.wrongpath") is False
-    
+
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
         }
     )
     def test_allow_list_match_class(self):
-        """ Test the match function when passing a full classname as
+        """Test the match function when passing a full classname as
         allowed_deserialization_classes
         """
         assert _match("tests.airflow.deep")
@@ -247,7 +246,7 @@ class TestSerDe:
         }
     )
     def test_allow_list_match_regexp(self):
-        """ Test the match function when passing a path as
+        """Test the match function when passing a path as
         allowed_deserialization_classes_regexp with no glob pattern defined
         """
         assert _match("tests.airflow.deep")
@@ -260,12 +259,12 @@ class TestSerDe:
         }
     )
     def test_allow_list_match_class_regexp(self):
-        """ Test the match function when passing a full classname as
+        """Test the match function when passing a full classname as
         allowed_deserialization_classes_regexp with no glob pattern defined
         """
         assert _match("tests.airflow.deep")
         assert _match("tests.airflow.FALSE") is False
-    
+
     def test_incompatible_version(self):
         data = dict(
             {

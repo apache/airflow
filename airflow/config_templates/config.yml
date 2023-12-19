@@ -241,8 +241,8 @@ core:
     allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as a pattern to a glob function. 
-        Python built-in classes (like dict) are always allowed. 
+        The individual items will be parsed as a pattern to a glob function.
+        Python built-in classes (like dict) are always allowed.
       version_added: 2.5.0
       type: string
       default: 'airflow.*'
@@ -250,7 +250,7 @@ core:
     allowed_deserialization_classes_regexp:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as regexp patterns. 
+        The individual items will be parsed as regexp patterns.
         This is a secondary option to ``allowed_deserialization_classes``.
       version_added: 2.8.1
       type: string

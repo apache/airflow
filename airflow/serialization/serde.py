@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import functools
 import logging
 import sys
 from fnmatch import fnmatch
@@ -287,25 +288,19 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    """Checks if the given classname matches a path pattern
-    either using glob format or regexp format
-    """
+    """Checks if the given classname matches a path pattern either using glob format or regexp format."""
     return _match_glob(classname) or _match_regexp(classname)
 
 
 def _match_glob(classname: str):
-    """Checks if the given classname matches a pattern from
-    allowed_deserialization_classes using glob syntax
-    """
-    patterns = conf.get("core", "allowed_deserialization_classes").split()
+    """Checks if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
+    patterns = _get_patterns()
     return any(fnmatch(classname, p) for p in patterns)
 
 
 def _match_regexp(classname: str):
-    """Checks if the given classname matches a pattern from
-    allowed_deserialization_classes_regexp using regexp
-    """
-    patterns = conf.get("core", "allowed_deserialization_classes_regexp").split()
+    """Checks if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    patterns = _get_regexp_patterns()
     return any(re2.match(p, classname) is not None for p in patterns)
 
 
@@ -373,6 +368,16 @@ def _register():
                 _stringifiers[c] = name
 
     log.debug("loading serializers took %.3f seconds", timer.duration)
+
+
+@functools.lru_cache(maxsize=None)
+def _get_patterns() -> list[str]:
+    return conf.get("core", "allowed_deserialization_classes").split()
+
+
+@functools.lru_cache(maxsize=None)
+def _get_regexp_patterns() -> list[str]:
+    return conf.get("core", "allowed_deserialization_classes_regexp").split()
 
 
 _register()
