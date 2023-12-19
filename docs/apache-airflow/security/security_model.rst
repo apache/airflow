@@ -134,8 +134,6 @@ Regular users
 They can view and interact with the UI and API. They are able to view and edit DAGs,
 task instances, and DAG runs, and view task logs.
 
-For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.
-
 Capabilities of DAG Authors
 ---------------------------
 

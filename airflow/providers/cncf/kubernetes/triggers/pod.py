@@ -22,6 +22,7 @@ import traceback
 import warnings
 from asyncio import CancelledError
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -116,7 +117,6 @@ class KubernetesPodTrigger(BaseTrigger):
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
-        self._hook: AsyncKubernetesHook | None = None
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -142,11 +142,10 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
-        hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
             while True:
-                pod = await hook.get_pod(
+                pod = await self.hook.get_pod(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
@@ -206,13 +205,13 @@ class KubernetesPodTrigger(BaseTrigger):
             # That means that task was marked as failed
             if self.get_logs:
                 self.log.info("Outputting container logs...")
-                await self._get_async_hook().read_logs(
+                await self.hook.read_logs(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
             if self.on_finish_action == OnFinishAction.DELETE_POD:
                 self.log.info("Deleting pod...")
-                await self._get_async_hook().delete_pod(
+                await self.hook.delete_pod(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
@@ -237,14 +236,17 @@ class KubernetesPodTrigger(BaseTrigger):
             )
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
-        if self._hook is None:
-            self._hook = AsyncKubernetesHook(
-                conn_id=self.kubernetes_conn_id,
-                in_cluster=self.in_cluster,
-                config_file=self.config_file,
-                cluster_context=self.cluster_context,
-            )
-        return self._hook
+        # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
+        return AsyncKubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    @cached_property
+    def hook(self) -> AsyncKubernetesHook:
+        return self._get_async_hook()
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses

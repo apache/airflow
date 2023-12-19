@@ -24,11 +24,12 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.apache.beam.operators.beam import (
+    BeamBasePipelineOperator,
     BeamRunGoPipelineOperator,
     BeamRunJavaPipelineOperator,
     BeamRunPythonPipelineOperator,
 )
-from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger
+from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.version import version
 
@@ -60,6 +61,35 @@ EXPECTED_ADDITIONAL_OPTIONS = {
     "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
 }
 TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
+BEAM_OPERATOR_PATH = "airflow.providers.apache.beam.operators.beam.{}"
+
+
+class TestBeamBasePipelineOperator:
+    def setup_method(self):
+        self.operator = BeamBasePipelineOperator(
+            task_id=TASK_ID,
+            runner=DEFAULT_RUNNER,
+        )
+
+    def test_async_execute_should_throw_exception(self):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            self.operator.execute_complete(
+                context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
+            )
+
+    def test_async_execute_logging_should_execute_successfully(self):
+        """Asserts that logging occurs as expected"""
+
+        with mock.patch.object(self.operator.log, "info") as mock_log_info:
+            self.operator.execute_complete(
+                context=mock.MagicMock(),
+                event={"status": "success", "message": "Pipeline has finished SUCCESSFULLY"},
+            )
+        mock_log_info.assert_called_with(
+            "%s completed with response %s ", TASK_ID, "Pipeline has finished SUCCESSFULLY"
+        )
 
 
 class TestBeamRunPythonPipelineOperator:
@@ -82,8 +112,8 @@ class TestBeamRunPythonPipelineOperator:
         assert self.operator.default_pipeline_options == PY_DEFAULT_OPTIONS
         assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_direct_runner(self, gcs_hook, beam_hook_mock):
         """Test BeamHook is created and the right args are passed to
         start_python_workflow.
@@ -111,10 +141,10 @@ class TestBeamRunPythonPipelineOperator:
             process_line_callback=None,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """Test DataflowHook is created and the right args are passed to
         start_python_dataflow.
@@ -164,10 +194,10 @@ class TestBeamRunPythonPipelineOperator:
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
         self.operator.runner = "DataflowRunner"
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
@@ -178,9 +208,9 @@ class TestBeamRunPythonPipelineOperator:
             job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         self.operator.execute(None)
@@ -207,8 +237,8 @@ class TestBeamRunJavaPipelineOperator:
         assert self.operator.jar == JAR_FILE
         assert self.operator.pipeline_options == ADDITIONAL_OPTIONS
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_direct_runner(self, gcs_hook, beam_hook_mock):
         """Test BeamHook is created and the right args are passed to
         start_java_workflow.
@@ -226,10 +256,10 @@ class TestBeamRunJavaPipelineOperator:
             process_line_callback=None,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_dataflow.
@@ -274,10 +304,10 @@ class TestBeamRunJavaPipelineOperator:
             process_line_callback=mock.ANY,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
         self.operator.runner = "DataflowRunner"
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
@@ -289,9 +319,9 @@ class TestBeamRunJavaPipelineOperator:
             job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         self.operator.execute(None)
@@ -386,8 +416,8 @@ class TestBeamRunGoPipelineOperator:
         "tempfile.TemporaryDirectory",
         return_value=MagicMock(__enter__=MagicMock(return_value="/tmp/apache-beam-go")),
     )
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_direct_runner_with_gcs_go_file(self, gcs_hook, beam_hook_mock, _):
         """Test BeamHook is created and the right args are passed to
         start_go_workflow.
@@ -413,8 +443,8 @@ class TestBeamRunGoPipelineOperator:
             should_init_module=True,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch("tempfile.TemporaryDirectory")
     def test_exec_direct_runner_with_gcs_launcher_binary(
         self, mock_tmp_dir, mock_beam_hook, mock_gcs_hook, tmp_path
@@ -468,7 +498,7 @@ class TestBeamRunGoPipelineOperator:
             process_line_callback=None,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch("airflow.providers.google.go_module_utils.init_module")
     def test_exec_direct_runner_with_local_go_file(self, init_module, beam_hook_mock):
         """
@@ -490,7 +520,7 @@ class TestBeamRunGoPipelineOperator:
             should_init_module=False,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     def test_exec_direct_runner_with_local_launcher_binary(self, mock_beam_hook):
         """
         Test start_go_pipeline_with_binary is called with a local launcher binary.
@@ -513,14 +543,14 @@ class TestBeamRunGoPipelineOperator:
             process_line_callback=None,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(
         "tempfile.TemporaryDirectory",
         return_value=MagicMock(__enter__=MagicMock(return_value="/tmp/apache-beam-go")),
     )
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner_with_go_file(
         self, gcs_hook, dataflow_hook_mock, beam_hook_mock, _, persist_link_mock
     ):
@@ -575,11 +605,11 @@ class TestBeamRunGoPipelineOperator:
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("tempfile.TemporaryDirectory")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("tempfile.TemporaryDirectory"))
     def test_exec_dataflow_runner_with_launcher_binary_and_worker_binary(
         self, mock_tmp_dir, mock_beam_hook, mock_gcs_hook, mock_dataflow_hook, mock_persist_link, tmp_path
     ):
@@ -672,10 +702,10 @@ class TestBeamRunGoPipelineOperator:
             project_id=dataflow_config.project_id,
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
         self.operator.runner = "DataflowRunner"
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
@@ -686,9 +716,9 @@ class TestBeamRunGoPipelineOperator:
             job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         self.operator.execute(None)
@@ -717,40 +747,22 @@ class TestBeamRunPythonPipelineOperatorAsync:
         assert self.operator.default_pipeline_options == DEFAULT_OPTIONS
         assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_async_execute_should_execute_successfully(self, gcs_hook, beam_hook_mock):
         """
-        Asserts that a task is deferred and the BeamPipelineTrigger will be fired
+        Asserts that a task is deferred and the BeamPythonPipelineTrigger will be fired
         when the BeamRunPythonPipelineOperator is executed in deferrable mode when deferrable=True.
         """
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(context=mock.MagicMock())
 
-        assert isinstance(exc.value.trigger, BeamPipelineTrigger), "Trigger is not a BeamPipelineTrigger"
+        assert isinstance(
+            exc.value.trigger, BeamPythonPipelineTrigger
+        ), "Trigger is not a BeamPythonPipelineTrigger"
 
-    def test_async_execute_should_throw_exception(self):
-        """Tests that an AirflowException is raised in case of error event"""
-
-        with pytest.raises(AirflowException):
-            self.operator.execute_complete(
-                context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
-            )
-
-    def test_async_execute_logging_should_execute_successfully(self):
-        """Asserts that logging occurs as expected"""
-
-        with mock.patch.object(self.operator.log, "info") as mock_log_info:
-            self.operator.execute_complete(
-                context=mock.MagicMock(),
-                event={"status": "success", "message": "Pipeline has finished SUCCESSFULLY"},
-            )
-        mock_log_info.assert_called_with(
-            "%s completed with response %s ", TASK_ID, "Pipeline has finished SUCCESSFULLY"
-        )
-
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_async_execute_direct_runner(self, gcs_hook, beam_hook_mock):
         """
         Test BeamHook is created and the right args are passed to
@@ -762,10 +774,10 @@ class TestBeamRunPythonPipelineOperatorAsync:
         beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """
         Test DataflowHook is created and the right args are passed to
@@ -809,10 +821,10 @@ class TestBeamRunPythonPipelineOperatorAsync:
         beam_hook_mock.return_value.start_python_pipeline.assert_not_called()
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowJobLink.persist")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
         self.operator.runner = "DataflowRunner"
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
@@ -824,9 +836,129 @@ class TestBeamRunPythonPipelineOperatorAsync:
             job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
         )
 
-    @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.DataflowHook")
-    @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_on_kill_direct_runner(self, _, dataflow_mock, __):
+        dataflow_cancel_job = dataflow_mock.return_value.cancel_job
+        with pytest.raises(TaskDeferred):
+            self.operator.execute(mock.MagicMock())
+        self.operator.on_kill()
+        dataflow_cancel_job.assert_not_called()
+
+
+class TestBeamRunJavaPipelineOperatorAsync:
+    def setup_method(self):
+        self.operator = BeamRunJavaPipelineOperator(
+            task_id=TASK_ID,
+            jar=JAR_FILE,
+            job_class=JOB_CLASS,
+            default_pipeline_options=DEFAULT_OPTIONS,
+            pipeline_options=ADDITIONAL_OPTIONS,
+            deferrable=True,
+        )
+
+    def test_init(self):
+        """Test BeamRunJavaPipelineOperator instance is properly initialized."""
+        assert self.operator.task_id == TASK_ID
+        assert self.operator.jar == JAR_FILE
+        assert self.operator.runner == DEFAULT_RUNNER
+        assert self.operator.job_class == JOB_CLASS
+        assert self.operator.default_pipeline_options == DEFAULT_OPTIONS
+        assert self.operator.pipeline_options == ADDITIONAL_OPTIONS
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_async_execute_should_execute_successfully(self, gcs_hook, beam_hook_mock):
+        """
+        Asserts that a task is deferred and the BeamJavaPipelineTrigger will be fired
+        when the BeamRunPythonPipelineOperator is executed in deferrable mode when deferrable=True.
+        """
+        with pytest.raises(TaskDeferred) as exc:
+            self.operator.execute(context=mock.MagicMock())
+
+        assert isinstance(
+            exc.value.trigger, BeamJavaPipelineTrigger
+        ), "Trigger is not a BeamPJavaPipelineTrigger"
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_async_execute_direct_runner(self, gcs_hook, beam_hook_mock):
+        """
+        Test BeamHook is created and the right args are passed to
+        start_java_pipeline when executing direct runner.
+        """
+        gcs_provide_file = gcs_hook.return_value.provide_file
+        with pytest.raises(TaskDeferred):
+            self.operator.execute(context=mock.MagicMock())
+        beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
+        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
+        """
+        Test DataflowHook is created and the right args are passed to
+        start_java_pipeline when executing Dataflow runner.
+        """
+
+        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
+        self.operator.runner = "DataflowRunner"
+        self.operator.dataflow_config = dataflow_config
+        gcs_provide_file = gcs_hook.return_value.provide_file
+        magic_mock = mock.MagicMock()
+        with pytest.raises(TaskDeferred):
+            self.operator.execute(context=magic_mock)
+
+        job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
+        dataflow_hook_mock.assert_called_once_with(
+            gcp_conn_id=dataflow_config.gcp_conn_id,
+            poll_sleep=dataflow_config.poll_sleep,
+            impersonation_chain=dataflow_config.impersonation_chain,
+            drain_pipeline=dataflow_config.drain_pipeline,
+            cancel_timeout=dataflow_config.cancel_timeout,
+            wait_until_finished=dataflow_config.wait_until_finished,
+        )
+        expected_options = {
+            "project": dataflow_hook_mock.return_value.project_id,
+            "job_name": job_name,
+            "staging_location": "gs://test/staging",
+            "output": "gs://test/output",
+            "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
+            "region": "us-central1",
+            "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
+        }
+        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
+        persist_link_mock.assert_called_once_with(
+            self.operator,
+            magic_mock,
+            expected_options["project"],
+            expected_options["region"],
+            self.operator.dataflow_job_id,
+        )
+        beam_hook_mock.return_value.start_python_pipeline.assert_not_called()
+        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
+        self.operator.runner = "DataflowRunner"
+        dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
+        with pytest.raises(TaskDeferred):
+            self.operator.execute(context=mock.MagicMock())
+        self.operator.dataflow_job_id = JOB_ID
+        self.operator.on_kill()
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
+        )
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         with pytest.raises(TaskDeferred):
