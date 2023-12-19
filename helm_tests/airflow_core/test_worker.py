@@ -659,6 +659,29 @@ class TestWorker:
         assert v is not None
         assert v["emptyDir"] == {}
 
+    def test_airflow_worker_args_when_kerberos_sidecar_enabled(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kerberosSidecar": {"enabled": True},
+                    "command": ["custom", "command"],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        worker = get_container_by_name(containers, "worker")
+        assert worker is not None
+        assert worker["args"] == [
+            "bash",
+            "-c",
+            "exec \\\nairflow celery worker &&",
+            "sh",
+            "-c",
+            'echo "EXIT file content" > /opt/kerberos-exit/EXIT',
+        ]
+
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [

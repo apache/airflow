@@ -233,7 +233,13 @@ spec:
           {{- if .Values.workers.command }}
           command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.workers.args }}
+          {{- if and .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
+          args:
+            {{ tpl (toYaml .Values.workers.args) . | nindent 12 }} &&
+            - sh
+            - -c
+            - echo "EXIT file content" > /opt/kerberos-exit/EXIT
+          {{- else if .Values.workers.args }}
           args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}

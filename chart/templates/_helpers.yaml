@@ -1018,6 +1018,7 @@ capabilities:
      fi
   done
 {{- else }}
+- airflow
 - kerberos
 {{- end }}
 {{- end }}
