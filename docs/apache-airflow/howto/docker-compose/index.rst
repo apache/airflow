@@ -345,10 +345,13 @@ Special case - Adding a custom config file
 
 If you have a custom config file and wish to use it in your Airflow instance, you need to perform the following steps:
 
-1) Remove comment from the ``- ${AIRFLOW_PROJ_DIR:-.}/airflow.cfg:/opt/airflow/airflow.cfg`` line 
+1) Remove comment from the ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'`` line 
    in the ``docker-compose.yaml`` file.  
 
-2) Place your custom ``airflow.cfg`` file in the same folder as the ``docker-compose.yaml`` file.
+2) Place your custom ``airflow.cfg`` file in the local config folder.
+
+3) If your config file has a different name than ``airflow.cfg``, adjust the filename in 
+   ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'``
 
 Networking
 ==========
