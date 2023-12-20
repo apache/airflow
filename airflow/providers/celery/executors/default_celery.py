@@ -18,6 +18,7 @@
 """Default celery configuration."""
 from __future__ import annotations
 
+import json
 import logging
 import ssl
 
@@ -54,7 +55,7 @@ if "visibility_timeout" not in broker_transport_options:
 
 if "sentinel_kwargs" in broker_transport_options:
     try:
-        sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
+        sentinel_kwargs = json.loads(broker_transport_options["sentinel_kwargs"])
         if not isinstance(sentinel_kwargs, dict):
             raise ValueError
         broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
