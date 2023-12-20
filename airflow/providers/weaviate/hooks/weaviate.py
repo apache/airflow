@@ -446,7 +446,7 @@ class WeaviateHook(BaseHook):
                             uuid=uuid,
                             tenant=tenant,
                         )
-                        self.log.debug("Inserted object with uuid: %s", uuid)
+                        self.log.debug("Inserted object with uuid: %s into batch", uuid)
         return insertion_errors
 
     def query_with_vector(
@@ -837,18 +837,25 @@ class WeaviateHook(BaseHook):
         """
         create or replace objects belonging to documents.
 
+        In real-world scenarios, information sources like Airflow docs, Stack Overflow, or other issues
+        are considered 'documents' here. It's crucial to keep the database objects in sync with these sources.
+        If any changes occur in these documents, this function aims to reflect those changes in the database.
+
+        Note: This function assumes responsibility for identifying changes in documents, dropping relevant
+        database objects, and recreating them based on updated information. It's crucial to handle this
+        process with care, ensuring backups and validation are in place to prevent data loss or
+         inconsistencies.
+
         Provides users with multiple ways of dealing with existing values.
-            1. replace: replace the existing object with new object. This option requires to identify the rows
-                uniquely, which by default is done by using all columns(except `vector`) to create a uuid.
-                User can modify this behaviour by providing `unique_columns` params.
-            2. skip: skip the existing objects.
-            3. error: raise an error if an existing object is found.
+            1. replace: replace the existing objects with new objects. This option requires to identify the
+             objects belonging to a document. which by default is done by using document_column field.
+            2. skip: skip the existing objects and only add the missing objects of a document.
+            3. error: raise an error if an object belonging to a existing document is tried to be created.
 
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
         :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
-        :param document_column: Column in DataFrame that identifying source document, required for 'replace'
-         operation.
+        :param document_column: Column in DataFrame that identifying source document.
         :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
         :param vector_column: Column with embedding vectors for pre-embedded data.
         :param batch_config_params: Additional parameters for Weaviate batch configuration.
