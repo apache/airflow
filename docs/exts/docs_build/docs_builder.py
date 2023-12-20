@@ -125,7 +125,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> list[SpellingError]:
+    def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
         """
         Checks spelling
 
@@ -133,6 +133,7 @@ class AirflowDocsBuilder:
         :return: list of errors
         """
         spelling_errors = []
+        build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
@@ -182,12 +183,17 @@ class AirflowDocsBuilder:
                     ),
                 )
             )
-            warning_text = ""
+            spelling_warning_text = ""
             for filepath in glob(f"{self.log_spelling_output_dir}/**/*.spelling", recursive=True):
                 with open(filepath) as spelling_file:
-                    warning_text += spelling_file.read()
-
-            spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
+                    spelling_warning_text += spelling_file.read()
+            spelling_errors.extend(parse_spelling_warnings(spelling_warning_text, self._src_dir))
+            if os.path.isfile(self.log_spelling_filename):
+                with open(self.log_spelling_filename) as warning_file:
+                    warning_text = warning_file.read()
+                # Remove 7-bit C1 ANSI escape sequences
+                warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
+                build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
             console.print(f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]")
         else:
             if spelling_errors:
@@ -198,7 +204,7 @@ class AirflowDocsBuilder:
                 console.print(
                     f"[info]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
                 )
-        return spelling_errors
+        return spelling_errors, build_errors
 
     def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
         """
