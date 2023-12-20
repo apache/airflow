@@ -65,6 +65,7 @@ class Trigger(Base):
     kwargs = Column(ExtendedJSON, nullable=False)
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
+    queue = Column(String(256), nullable=True)
 
     triggerer_job = relationship(
         "Job",
@@ -79,19 +80,21 @@ class Trigger(Base):
         self,
         classpath: str,
         kwargs: dict[str, Any],
+        queue: str,
         created_date: datetime.datetime | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
         self.kwargs = kwargs
+        self.queue = queue
         self.created_date = created_date or timezone.utcnow()
 
     @classmethod
     @internal_api_call
-    def from_object(cls, trigger: BaseTrigger) -> Trigger:
+    def from_object(cls, trigger: BaseTrigger, queue: str) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        return cls(classpath=classpath, kwargs=kwargs, queue=queue)
 
     @classmethod
     @internal_api_call
@@ -197,15 +200,17 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
+    def ids_for_triggerer(cls, triggerer_id, queues: set, session: Session = NEW_SESSION) -> list[int]:
         """Retrieve a list of triggerer_ids."""
-        return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
+        return session.scalars(
+            select(cls.id).where(cls.triggerer_id == triggerer_id, cls.queue.in_(queues))
+        ).all()
 
     @classmethod
     @internal_api_call
     @provide_session
     def assign_unassigned(
-        cls, triggerer_id, capacity, health_check_threshold, session: Session = NEW_SESSION
+        cls, triggerer_id, capacity, queues: set, health_check_threshold, session: Session = NEW_SESSION
     ) -> None:
         """
         Assign unassigned triggers based on a number of conditions.
@@ -233,7 +238,7 @@ class Trigger(Base):
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
         trigger_ids_query = cls.get_sorted_triggers(
-            capacity=capacity, alive_triggerer_ids=alive_triggerer_ids, session=session
+            capacity=capacity, queues=queues, alive_triggerer_ids=alive_triggerer_ids, session=session
         )
         if trigger_ids_query:
             session.execute(
@@ -246,11 +251,14 @@ class Trigger(Base):
         session.commit()
 
     @classmethod
-    def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
+    def get_sorted_triggers(cls, capacity, queues, alive_triggerer_ids, session):
         query = with_row_locks(
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
+            .where(
+                cls.queue.in_(queues),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date)
             .limit(capacity),
             session,

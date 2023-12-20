@@ -100,6 +100,10 @@ const Details = ({ instance, group, dagId }: Props) => {
                 <Td>{`${apiTI?.trigger?.createdDate}`}</Td>
               </Tr>
               <Tr>
+                <Td>Trigger queue</Td>
+                <Td>{`${apiTI?.trigger?.queue}`}</Td>
+              </Tr>
+              <Tr>
                 <Td>Assigned triggerer</Td>
                 <Td>{`${apiTI?.triggererJob?.hostname}`}</Td>
               </Tr>

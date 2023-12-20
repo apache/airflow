@@ -88,6 +88,7 @@ interface TaskInstance {
 interface Trigger {
   classpath: string | null;
   createdDate: string | null;
+  queue: string | null;
 }
 
 interface Job {

@@ -2389,6 +2389,13 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    default_queue:
+      description: |
+        Default queue that trigger get assigned to and that triggerer listen on.
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "default"
 kerberos:
   description: ~
   options:

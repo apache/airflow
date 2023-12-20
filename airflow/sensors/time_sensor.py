@@ -62,9 +62,10 @@ class TimeSensorAsync(BaseSensorOperator):
         :ref:`howto/operator:TimeSensorAsync`
     """
 
-    def __init__(self, *, target_time, **kwargs):
+    def __init__(self, *, target_time, trigger_queue=None, **kwargs):
         super().__init__(**kwargs)
         self.target_time = target_time
+        self.trigger_queue = trigger_queue
 
         aware_time = timezone.coerce_datetime(
             datetime.datetime.combine(datetime.datetime.today(), self.target_time, self.dag.timezone)
@@ -73,7 +74,7 @@ class TimeSensorAsync(BaseSensorOperator):
         self.target_datetime = timezone.convert_to_utc(aware_time)
 
     def execute(self, context: Context):
-        trigger = DateTimeTrigger(moment=self.target_datetime)
+        trigger = DateTimeTrigger(moment=self.target_datetime, queue=self.trigger_queue)
         self.defer(
             trigger=trigger,
             method_name="execute_complete",

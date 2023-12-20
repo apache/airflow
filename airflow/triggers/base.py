@@ -19,6 +19,7 @@ from __future__ import annotations
 import abc
 from typing import Any, AsyncIterator
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -36,7 +37,14 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, queue, **kwargs):
+        if queue is None:
+            self.queue = conf.get("triggerer", "default_queue")
+        elif isinstance(queue, str) and len(queue) > 0 and "," not in queue:
+            self.queue = queue
+        else:
+            raise ValueError(f"The trigger queue {queue} is invalid")
+
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None

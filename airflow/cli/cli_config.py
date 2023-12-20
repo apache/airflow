@@ -978,6 +978,11 @@ ARG_CAPACITY = Arg(
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
+ARG_QUEUES = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to serve",
+    default=conf.get("triggerer", "default_queue"),
+)
 
 # reserialize
 ARG_CLEAR_ONLY = Arg(
@@ -1966,6 +1971,7 @@ core_commands: list[CLICommand] = [
             ARG_CAPACITY,
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(

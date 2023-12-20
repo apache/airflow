@@ -251,6 +251,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         capacity=None,
+        queues=None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -259,6 +260,16 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.capacity = capacity
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
+
+        err = f"Comma delimited list of queues {queues} is invalid"
+        if queues is None:
+            self.queues = {conf.get("triggerer", "default_queue")}
+        elif isinstance(queues, str) and len(queues) > 0:
+            self.queues = {s.strip() for s in queues.split(",")}
+            if not self.queues:
+                raise ValueError(err)
+        else:
+            raise ValueError(err)
 
         self.health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
 
@@ -372,8 +383,8 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
-        Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
-        ids = Trigger.ids_for_triggerer(self.job.id)
+        Trigger.assign_unassigned(self.job.id, self.capacity, self.queues, self.health_check_threshold)
+        ids = Trigger.ids_for_triggerer(self.job.id, self.queues)
         self.trigger_runner.update_triggers(set(ids))
 
     def handle_events(self):

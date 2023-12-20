@@ -34,8 +34,8 @@ class DateTimeTrigger(BaseTrigger):
     The provided datetime MUST be in UTC.
     """
 
-    def __init__(self, moment: datetime.datetime):
-        super().__init__()
+    def __init__(self, moment: datetime.datetime, queue: str | None = None):
+        super().__init__(queue=queue)
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
@@ -84,5 +84,5 @@ class TimeDeltaTrigger(DateTimeTrigger):
     DateTimeTrigger class, since they're operationally the same.
     """
 
-    def __init__(self, delta: datetime.timedelta):
-        super().__init__(moment=timezone.utcnow() + delta)
+    def __init__(self, delta: datetime.timedelta, queue: str | None = None):
+        super().__init__(moment=timezone.utcnow() + delta, queue=queue)

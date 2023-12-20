@@ -2522,7 +2522,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
-        trigger_row = Trigger.from_object(defer.trigger)
+        trigger_row = Trigger.from_object(defer.trigger, defer.trigger.queue)
         session.add(trigger_row)
         session.flush()
 

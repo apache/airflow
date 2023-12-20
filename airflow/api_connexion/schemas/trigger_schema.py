@@ -23,7 +23,7 @@ from airflow.models import Trigger
 
 
 class TriggerSchema(SQLAlchemySchema):
-    """Sla Miss Schema."""
+    """Trigger Schema."""
 
     class Meta:
         """Meta."""
@@ -35,3 +35,4 @@ class TriggerSchema(SQLAlchemySchema):
     kwargs = auto_field(dump_only=True)
     created_date = auto_field(dump_only=True)
     triggerer_id = auto_field(dump_only=True)
+    queue = auto_field(dump_only=True)
