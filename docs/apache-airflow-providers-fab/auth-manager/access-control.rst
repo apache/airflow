@@ -151,6 +151,9 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_edit, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_edit, DAG Runs.can_read                                  User
+/datasets                                                                          GET    Datasets.can_read                                                 Viewer
+/datasets/{uri}                                                                    GET    Datasets.can_read                                                 Viewer
+/datasets/events                                                                   GET    Datasets.can_read                                                 Viewer
 /eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
 /eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
@@ -187,6 +190,7 @@ Endpoint                                                                        
 /roles/{role_name}                                                                 GET    Roles.can_read                                                    Admin
 /roles/{role_name}                                                                 PATCH  Roles.can_edit                                                    Admin
 /roles/{role_name}                                                                 DELETE Roles.can_delete                                                  Admin
+/permissions                                                                       GET    Permission Views.can_read                                         Admin
 ================================================================================== ====== ================================================================= ============
 
 
@@ -273,7 +277,7 @@ Show Pools menu                        Pools.menu_access                        
 Show Variables menu                    Variables.menu_access                                                   Op
 Show Roles menu                        Roles.menu_access                                                       Admin
 List Roles                             Roles.can_read                                                          Admin
-Create Roles                           Users.can_create                                                        Admin
+Create Roles                           Roles.can_create                                                        Admin
 Update Roles                           Roles.can_edit                                                          Admin
 Delete Roles                           Roles.can_delete                                                        Admin
 Show Users menu                        Users.menu_access                                                       Admin
