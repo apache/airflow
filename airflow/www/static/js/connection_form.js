@@ -83,11 +83,13 @@ function restoreFieldBehaviours() {
     }
   );
 
-  Array.from(document.querySelectorAll(".form-control, .form-panel")).forEach((elem) => {
-    // eslint-disable-next-line no-param-reassign
-    elem.placeholder = "";
-    elem.parentElement.parentElement.classList.remove("hide");
-  });
+  Array.from(document.querySelectorAll(".form-control, .form-panel")).forEach(
+    (elem) => {
+      // eslint-disable-next-line no-param-reassign
+      elem.placeholder = "";
+      elem.parentElement.parentElement.classList.remove("hide");
+    }
+  );
 }
 
 /**

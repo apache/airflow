@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import operator
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -32,10 +32,10 @@ from flask_appbuilder.fieldwidgets import (
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
-from markupsafe import Markup
 from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
+from wtforms.widgets.core import html_params
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -49,6 +49,9 @@ from airflow.www.widgets import (
     BS3TextAreaROWidget,
     BS3TextFieldROWidget,
 )
+
+if TYPE_CHECKING:
+    from markupsafe import Markup
 
 
 class DateTimeWithTimezoneField(Field):
@@ -196,18 +199,33 @@ class TaskInstanceEditForm(DynamicForm):
 
 
 class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
+    """Collapsable Text Area Field Widget.
+
+    Text Area Field encapsulated into an accordion, which allows to "Show" and
+    "Hide" the field within a form.
+    """
 
     @staticmethod
-    def _make_collapsable_panel(field: Field, content: Markup) -> str:
+    def _make_accordion_panel(field: Field, content: Markup) -> str:
         collapsable_id: str = f"collapsable_{field.id}"
         return f"""
-        <div class="panel panel-default form-panel">
-            <div class="panel-heading">
-                <h4 class="panel-title">
-                    <a class="accordion-toggle" data-toggle="collapse" aria-expanded="false" aria-controls="{collapsable_id}" href="#{collapsable_id}">Show</a>
+        <div {html_params(class_="panel panel-default form-panel")}>
+            <div {html_params(class_="panel-heading")}>
+                <h4 {html_params(class_="panel-title")}>
+                    <a {html_params(
+                            class_="accordion-toggle",
+                            data_toggle="collapse",
+                            aria_expanded=False,
+                            aria_controls=collapsable_id,
+                            href='#' + collapsable_id
+                        )}>Show</a>
                 </h4>
             </div>
-            <div class="panel-collapse collapse" id="{collapsable_id}" aria-expanded="false">
+            <div {html_params(
+                    class_="panel-collapse collapse",
+                    id=collapsable_id,
+                    aria_expanded=False
+                )}>
                 {content.__html__()}
             </div>
         </div>
@@ -215,7 +233,7 @@ class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
 
     def __call__(self, field, **kwargs):
         text_area = super(BS3TextAreaFieldWidget, self).__call__(field, **kwargs)
-        return self._make_collapsable_panel(field=field, content=text_area)
+        return self._make_accordion_panel(field=field, content=text_area)
 
 
 @cache
