@@ -41,7 +41,11 @@ from airflow.exceptions import (
     AirflowException,
     RemovedInAirflow3Warning,
 )
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
+    add_pod_suffix,
+    rand_str,
+)
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
     PodDefaults,
     PodGenerator as PodGeneratorDeprecated,
@@ -380,11 +384,11 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
-        if len(pod_id) > 253:
+        if len(pod_id) > POD_NAME_MAX_LENGTH:
             warnings.warn(
-                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+                f"pod_id supplied is longer than {POD_NAME_MAX_LENGTH} characters; truncating and adding unique suffix."
             )
-            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
+            pod_id = add_pod_suffix(pod_name=pod_id, max_len=POD_NAME_MAX_LENGTH)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
