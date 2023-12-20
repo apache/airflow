@@ -68,15 +68,15 @@ add the following lines to your ``Chart.yaml`` file:
 
 .. note::
 
-    Make sure you already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
+    Make sure you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
 
 .. tip::
 
-    You can also use the name of the repo instead the URL by replacing
+    You can also use the name of the repo instead of the URL by replacing
     ``https://airflow.apache.org`` with ``"@apache-airflow"``.
 
-Adding the Airflow chart as a dependency means that it will be deploy together with your custom chart.
-You can disable the installation of the Airflow by adding the ``condition`` field to the ``dependencies`` section.
+Adding the Airflow chart as a dependency means that it will be deployed together with your custom chart.
+You can disable the installation of Airflow by adding the ``condition`` field to the ``dependencies`` section.
 For example:
 
 .. code-block::
@@ -94,7 +94,7 @@ Otherwise, only your templates will be deployed.
 Download the Airflow Chart
 ''''''''''''''''''''''''''
 
-Third, after you specified the Airflow chart inside the ``dependencies`` section in ``Chart.yaml`` file,
+Third, after you have specified the Airflow chart inside the ``dependencies`` section in ``Chart.yaml`` file,
 you can download the Airflow chart by running the following command:
 
 .. code-block::
@@ -113,8 +113,8 @@ Overriding default values
 When you add a chart as a subchart to your chart,
 you have the ability to override the default values of the subchart in your ``values.yaml``.
 This is useful when your chart needs a specific configuration for your custom chart.
-E.g. if you want that the Airflow chart will only be installed with the ``KubernetesExecutor``.
-You can do that by adding the following section to your ``values.yaml``:
+E.g. if you want that the Airflow chart be installed with the ``KubernetesExecutor``,
+you can do it by adding the following section to your ``values.yaml``:
 
 .. code-block::
 
