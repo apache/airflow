@@ -426,7 +426,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     in the creation process.
 
     If the cluster already exists and ``use_if_exists`` is True, then the operator will:
-    
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
     - if cluster state is DELETING wait for it and then create new cluster
