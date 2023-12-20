@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-20T07:49:58.147103
+# This constraints file was automatically generated on 2023-12-20T10:24:59.798888
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -594,7 +594,7 @@ vine==5.1.0
 virtualenv==20.25.0
 watchtower==3.0.1
 wcwidth==0.2.12
-weaviate-client==3.25.3
+weaviate-client==3.26.0
 websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
