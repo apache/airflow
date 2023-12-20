@@ -235,10 +235,11 @@ spec:
           {{- end }}
           {{- if and .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
           args:
-            {{ tpl (toYaml .Values.workers.args) . | nindent 12 }} &&
-            - sh
+            - bash
             - -c
-            - echo "EXIT file content" > /opt/kerberos-exit/EXIT
+            - |-
+              exec airflow celery worker &&
+              sh -c "echo 'EXIT file content' > /opt/kerberos-exit/EXIT"
           {{- else if .Values.workers.args }}
           args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
           {{- end }}
