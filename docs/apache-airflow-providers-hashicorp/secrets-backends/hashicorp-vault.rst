@@ -236,6 +236,7 @@ In order to do this, you will need to setup you configuration this way:
 For example:
 
 .. code-block:: ini
+
     [core]
     sql_alchemy_conn_secret: "deployment_mount_point/airflow/configs/sql_alchemy_conn_value"
 
