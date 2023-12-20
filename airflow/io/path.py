@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import json
 import os
 import shutil
 import typing
@@ -31,11 +32,15 @@ from upath.registry import get_upath_class
 
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if typing.TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from fsspec import AbstractFileSystem
+    from sqlalchemy.orm import Session
+
+    from airflow.utils.context import Context
 
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
@@ -411,3 +416,13 @@ class ObjectStoragePath(CloudPath):
         conn_id = data.pop("conn_id", None)
 
         return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
+
+    def _load_json(self):
+        return json.loads(self.read_text())
+
+    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        return len(self._load_json())
+
+    @provide_session
+    def resolve(self, context: Context, session: Session = NEW_SESSION) -> typing.Any:
+        return self._load_json()

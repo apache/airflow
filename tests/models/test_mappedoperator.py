@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 from collections import defaultdict
 from datetime import timedelta
+from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -29,6 +31,7 @@ import pytest
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
+from airflow.io.path import ObjectStoragePath
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
@@ -161,6 +164,119 @@ def test_map_xcom_arg():
         mapped >> finish
 
     assert task1.downstream_list == [mapped]
+
+
+def test_mapping_from_object_storage_path(dag_maker, session):
+    """Test that mapping from an ObjectStoragePath"""
+
+    test_data = [1, 2, 3]
+    fixed_value = "fixed"
+
+    with NamedTemporaryFile("w", delete=False) as tmp:
+        tmp.write(json.dumps(test_data))
+        tmp.flush()
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
+        MockOperator.partial(
+            task_id="mapped_task",
+            retries=1,
+            arg1=fixed_value,
+        ).expand(arg2=ObjectStoragePath(f"file:{tmp.name}"))
+    dr = dag_maker.create_dagrun()
+    mapped_tis = dr.get_task_instances()
+    assert len(mapped_tis) == len(test_data)
+    for ind, ti in enumerate(mapped_tis):
+        ti.refresh_from_task(dag.get_task("mapped_task"))
+        ti.run(session=session)
+        assert ti.task.arg1 == fixed_value
+        assert ti.task.arg2 == ind + 1
+
+
+def test_mapping_from_xcom_object_storage_path(dag_maker, session):
+    """Test that mapping from a XCom ObjectStoragePath"""
+    test_data = [1, 2, 3]
+    fixed_value = "fixed"
+
+    class PathCreator(BaseOperator):
+        def execute(self, context):
+            with NamedTemporaryFile("w", delete=False) as tmp:
+                tmp.write(json.dumps(test_data))
+                tmp.flush()
+            return ObjectStoragePath(f"file:{tmp.name}")
+
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
+        path = PathCreator(task_id="path")
+        mapped_task = MockOperator.partial(
+            task_id="mapped_task",
+            retries=1,
+            arg1=fixed_value,
+        ).expand(arg2=path.output)
+    dr = dag_maker.create_dagrun()
+    path_ti = dr.get_task_instance("path", session)
+    path_ti.run()
+    mapped_tis, _ = mapped_task.expand_mapped_task(dr.run_id, session=session)
+    assert len(mapped_tis) == len(test_data)
+    for ind, ti in enumerate(mapped_tis):
+        ti.refresh_from_task(dag.get_task("mapped_task"))
+        ti.run(session=session)
+        assert ti.task.arg1 == fixed_value
+        assert ti.task.arg2 == ind + 1
+
+
+def test_expand_kwargs_from_object_storage_path(dag_maker, session):
+    """Test that expand_kwargs mapping from an ObjectStoragePath"""
+
+    test_data = [
+        {"arg1": 1, "arg2": 1},
+        {"arg1": 2},
+        {"arg2": 3},
+    ]
+
+    with NamedTemporaryFile("w", delete=False) as tmp:
+        tmp.write(json.dumps(test_data))
+        tmp.flush()
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
+        MockOperator.partial(task_id="mapped_task", retries=1).expand_kwargs(
+            ObjectStoragePath(f"file:{tmp.name}")
+        )
+    dr = dag_maker.create_dagrun()
+    mapped_tis = dr.get_task_instances()
+    assert len(mapped_tis) == len(test_data)
+    for ind, ti in enumerate(mapped_tis):
+        ti.refresh_from_task(dag.get_task("mapped_task"))
+        ti.run(session=session)
+        assert ti.task.arg1 == (test_data[ind].get("arg1") or "")
+        assert ti.task.arg2 == (test_data[ind].get("arg2") or "")
+
+
+def test_expand_kwargs_from_xcom_object_storage_path(dag_maker, session):
+    """Test that expand_kwargs mapping from a XCom ObjectStoragePath"""
+
+    test_data = [
+        {"arg1": 1, "arg2": 1},
+        {"arg1": 2},
+        {"arg2": 3},
+    ]
+
+    class PathCreator(BaseOperator):
+        def execute(self, context):
+            with NamedTemporaryFile("w", delete=False) as tmp:
+                tmp.write(json.dumps(test_data))
+                tmp.flush()
+            return ObjectStoragePath(f"file:{tmp.name}")
+
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
+        path = PathCreator(task_id="path")
+        mapped_task = MockOperator.partial(task_id="mapped_task", retries=1).expand_kwargs(path.output)
+    dr = dag_maker.create_dagrun()
+    path_ti = dr.get_task_instance("path", session)
+    path_ti.run()
+    mapped_tis, _ = mapped_task.expand_mapped_task(dr.run_id, session=session)
+    assert len(mapped_tis) == len(test_data)
+    for ind, ti in enumerate(mapped_tis):
+        ti.refresh_from_task(dag.get_task("mapped_task"))
+        ti.run(session=session)
+        assert ti.task.arg1 == (test_data[ind].get("arg1") or "")
+        assert ti.task.arg2 == (test_data[ind].get("arg2") or "")
 
 
 def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):

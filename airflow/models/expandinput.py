@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import collections.abc
 import functools
+import json
 import operator
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
 
 import attr
 
+from airflow.io.path import ObjectStoragePath
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -37,13 +39,15 @@ if TYPE_CHECKING:
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
-# Each keyword argument to expand() can be an XComArg, sequence, or dict (not
+# Each keyword argument to expand() can be an XComArg, ObjectStoragePath, sequence, or dict (not
 # any mapping since we need the value to be ordered).
-OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, Dict[str, Any]]
+OperatorExpandArgument = Union["MappedArgument", "XComArg", "ObjectStoragePath", Sequence, Dict[str, Any]]
 
-# The single argument of expand_kwargs() can be an XComArg, or a list with each
+# The single argument of expand_kwargs() can be an XComArg, ObjectStoragePath or a list with each
 # element being either an XComArg or a dict.
-OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
+OperatorExpandKwargsArgument = Union[
+    "XComArg", "ObjectStoragePath", Sequence[Union["XComArg", Mapping[str, Any]]]
+]
 
 
 @attr.define(kw_only=True)
@@ -75,21 +79,23 @@ class MappedArgument(ResolveMixin):
 def is_mappable(v: Any) -> TypeGuard[OperatorExpandArgument]:
     from airflow.models.xcom_arg import XComArg
 
-    return isinstance(v, (MappedArgument, XComArg, Mapping, Sequence)) and not isinstance(v, str)
+    return isinstance(v, (MappedArgument, XComArg, Mapping, Sequence, ObjectStoragePath)) and not isinstance(
+        v, str
+    )
 
 
 # To replace tedious isinstance() checks.
 def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Sequence]:
     from airflow.models.xcom_arg import XComArg
 
-    return not isinstance(v, (MappedArgument, XComArg))
+    return not isinstance(v, (MappedArgument, XComArg, ObjectStoragePath))
 
 
 # To replace tedious isinstance() checks.
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | XComArg]:
     from airflow.models.xcom_arg import XComArg
 
-    return isinstance(v, (MappedArgument, XComArg))
+    return isinstance(v, (MappedArgument, XComArg, ObjectStoragePath))
 
 
 class NotFullyPopulated(RuntimeError):
@@ -181,6 +187,8 @@ class DictOfListsExpandInput(NamedTuple):
         found_index = _find_index_for_this_field(map_index)
         if found_index < 0:
             return value
+        if isinstance(value, ObjectStoragePath):
+            value = json.loads(value.read_text())
         if isinstance(value, collections.abc.Sequence):
             return value[found_index]
         if not isinstance(value, dict):
@@ -249,10 +257,14 @@ class ListOfDictsExpandInput(NamedTuple):
         mapping: Any
         if isinstance(self.value, collections.abc.Sized):
             mapping = self.value[map_index]
+            if isinstance(mapping, ObjectStoragePath):
+                mapping = json.loads(mapping.read_text())
             if not isinstance(mapping, collections.abc.Mapping):
                 mapping = mapping.resolve(context, session)
         else:
             mappings = self.value.resolve(context, session)
+            if isinstance(mappings, ObjectStoragePath):
+                mappings = json.loads(mappings.read_text())
             if not isinstance(mappings, collections.abc.Sequence):
                 raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
             mapping = mappings[map_index]

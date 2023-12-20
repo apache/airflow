@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import contextlib
 import copy
+import json
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
@@ -27,6 +28,7 @@ import attr
 
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
+from airflow.io.path import ObjectStoragePath
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -180,6 +182,8 @@ class OperatorPartial:
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
         from airflow.models.xcom_arg import XComArg
 
+        if isinstance(kwargs, ObjectStoragePath):
+            kwargs = json.loads(kwargs.read_text())
         if isinstance(kwargs, collections.abc.Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, collections.abc.Mapping)):

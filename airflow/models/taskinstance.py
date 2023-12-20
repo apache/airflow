@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import hashlib
 import itertools
+import json
 import logging
 import math
 import operator
@@ -84,6 +85,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.io.path import ObjectStoragePath
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dagbag import DagBag
@@ -913,6 +915,8 @@ def _record_task_map_for_downstreams(
         return
     if value is None:
         raise XComForMappingNotPushed()
+    if isinstance(value, ObjectStoragePath):
+        value = json.loads(value.read_text())
     if not _is_mappable_value(value):
         raise UnmappableXComTypePushed(value)
     task_map = TaskMap.from_task_instance_xcom(task_instance, value)
