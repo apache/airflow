@@ -230,7 +230,7 @@ In order to do this, you will need to setup you configuration this way:
   elements will be the path to the secrets)
 * leave ``config_path`` as the empty string ``""``
 * if you use ``config_path``, each configuration item will need to be prefixed with the ``mount_point`` used for configs,
-  as ``"mount_point/path/to/the/config"`` (here again, the string will be split using the separator ``/``, 
+  as ``"mount_point/path/to/the/config"`` (here again, the string will be split using the separator ``/``,
   the first element will be the mount point, the remaining elements will be the path to the configuration parameter)
 
 For example:
