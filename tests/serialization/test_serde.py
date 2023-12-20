@@ -32,12 +32,31 @@ from airflow.serialization.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
+    _get_patterns,
+    _get_regexp_patterns,
     _match,
+    _match_glob,
+    _match_regexp,
     deserialize,
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 from tests.test_utils.config import conf_vars
+
+
+@pytest.fixture()
+def recalculate_patterns():
+    _get_patterns.cache_clear()
+    _get_regexp_patterns.cache_clear()
+    _match_glob.cache_clear()
+    _match_regexp.cache_clear()
+    try:
+        yield
+    finally:
+        _get_patterns.cache_clear()
+        _get_regexp_patterns.cache_clear()
+        _match_glob.cache_clear()
+        _match_regexp.cache_clear()
 
 
 class Z:
@@ -99,6 +118,7 @@ class C:
         return None
 
 
+@pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
         i = 10
@@ -210,6 +230,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_for_imports(self):
         i = Z(10)
         e = serialize(i)
@@ -223,6 +244,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "tests.airflow.*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
         assert _match("tests.wrongpath") is False
@@ -232,6 +254,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_class(self):
         """Test the match function when passing a full classname as
         allowed_deserialization_classes
@@ -245,6 +268,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_regexp(self):
         """Test the match function when passing a path as
         allowed_deserialization_classes_regexp with no glob pattern defined
@@ -258,6 +282,7 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_class_regexp(self):
         """Test the match function when passing a full classname as
         allowed_deserialization_classes_regexp with no glob pattern defined

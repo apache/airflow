@@ -24,7 +24,7 @@ import logging
 import sys
 from fnmatch import fnmatch
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
 
 import attr
 import re2
@@ -292,16 +292,18 @@ def _match(classname: str) -> bool:
     return _match_glob(classname) or _match_regexp(classname)
 
 
+@functools.lru_cache(maxsize=None)
 def _match_glob(classname: str):
     """Checks if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
     patterns = _get_patterns()
-    return any(fnmatch(classname, p) for p in patterns)
+    return any(fnmatch(classname, p.pattern) for p in patterns)
 
 
+@functools.lru_cache(maxsize=None)
 def _match_regexp(classname: str):
     """Checks if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
     patterns = _get_regexp_patterns()
-    return any(re2.match(p, classname) is not None for p in patterns)
+    return any(p.match(classname) is not None for p in patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
@@ -371,13 +373,13 @@ def _register():
 
 
 @functools.lru_cache(maxsize=None)
-def _get_patterns() -> list[str]:
-    return conf.get("core", "allowed_deserialization_classes").split()
+def _get_patterns() -> list[Pattern]:
+    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
 
 
 @functools.lru_cache(maxsize=None)
-def _get_regexp_patterns() -> list[str]:
-    return conf.get("core", "allowed_deserialization_classes_regexp").split()
+def _get_regexp_patterns() -> list[Pattern]:
+    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
 
 
 _register()
