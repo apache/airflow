@@ -196,19 +196,28 @@ Website Permissions
 Action                                 Permissions                                                             Minimum Role
 ====================================== ======================================================================= ============
 Access homepage                        Website.can_read                                                        Viewer
+Show Browse menu                       Browse.menu_access                                                      Viewer
+Show DAGs menu                         DAGs.menu_access                                                        Viewer
 Get DAG stats                          DAGs.can_read, DAG Runs.can_read                                        Viewer
+Show Task Instances menu               Task Instances.menu_access                                              Viewer
 Get Task stats                         DAGs.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
 Get last DAG runs                      DAGs.can_read, DAG Runs.can_read                                        Viewer
 Get DAG code                           DAGs.can_read, DAG Code.can_read                                        Viewer
 Get DAG details                        DAGs.can_read, DAG Runs.can_read                                        Viewer
+Show DAG Dependencies menu             DAG Dependencies menu                                                   Viewer
+Get DAG Dependencies                   DAG Dependencies.can_read                                               Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Get Log                                DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Redirect to external Log               DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Get Task                               DAGs.can_read, Task Instances.can_read                                  Viewer
+Show XCom menu                         XComs.menu_access                                                       Op
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
+Create XCom                            XComs.can_create                                                        Op #TODO
+Delete XCom                            XComs.can_delete                                                        Op
 Triggers Task Instance                 DAGs.can_edit, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
+Show DAG Runs menu                     DAG Runs.menu_access                                                    Viewer
 Trigger DAG run                        DAGs.can_edit, DAG Runs.can_create                                      User
 Clear DAG                              DAGs.can_edit, Task Instances.can_delete                                User
 Clear DAG Run                          DAGs.can_edit, Task Instances.can_delete                                User
@@ -228,6 +237,7 @@ Toggle DAG paused status               DAGs.can_edit                            
 Show Gantt Chart                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get external links                     DAGs.can_read, Task Instances.can_read                                  Viewer
 Show Task Instances                    DAGs.can_read, Task Instances.can_read                                  Viewer
+Show Configurations menu               Configurations.menu_access                                              Op
 Show Configs                           Configurations.can_read                                                 Viewer
 Delete multiple records                DAGs.can_edit                                                           User
 Set Task Instance as running           DAGs.can_edit                                                           User
@@ -235,12 +245,42 @@ Set Task Instance as failed            DAGs.can_edit                            
 Set Task Instance as success           DAGs.can_edit                                                           User
 Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
 Autocomplete                           DAGs.can_read                                                           Viewer
+Show Dataset menu                      Datasets.menu_access                                                    Viewer
+Show Datasets                          Datasets.can_read                                                       Viewer
+Show Docs menu                         Docs.menu_access                                                        Viewer
+Show Documentation menu                Documentation.menu_access                                               Viewer
+Show Jobs menu                         Jobs.menu_access                                                        Viewer
+Show Audit Log                         Audit Logs.menu_access                                                  Viewer
+Reset Password                         My Password.can_read, My Password.can_edit                              Viewer                      Viewer
+Show Permissions menu                  Permission Views.menu_access                                            Admin
+List Permissions                       Permission Views.can_read                                               Admin
+Get My Profile                         My Profile.can_read                                                     Viewer
+Update My Profile                      My Profile.can_edit                                                     Viewer
 List Logs                              Audit Logs.can_read                                                     Viewer
 List Jobs                              Jobs.can_read                                                           Viewer
+Show SLA Misses menu                   SLA Misses.menu_access                                                  Viewer
 List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer
+Show Plugins menu                      Plugins.menu_access                                                     Viewer
+Show Providers menu                    Providers.menu_access                                                   Op
+List Providers                         Providers.can_read                                                      Op
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
+Show Triggers menu                     Triggers.menu_access                                                    Admin
 List Triggers                          Triggers.can_read                                                       Admin
+Show Admin menu                        Admin.menu_access                                                       Viewer
+Show Connections menu                  Connections.menu_access                                                 Op
+Show Pools menu                        Pools.menu_access                                                       Viewer
+Show Variables menu                    Variables.menu_access                                                   Op
+Show Roles menu                        Roles.menu_access                                                       Admin
+List Roles                             Roles.can_read                                                          Admin
+Create Roles                           Users.can_create                                                        Admin
+Update Roles                           Roles.can_edit                                                          Admin
+Delete Roles                           Roles.can_delete                                                        Admin
+Show Users menu                        Users.menu_access                                                       Admin
+Create Users                           Users.can_create                                                        Admin
+Update Users                           Users.can_edit                                                          Admin
+Delete Users                           Users.can_delete                                                        Admin
+Reset user Passwords                   Passwords.can_edit, Passwords.can_read                                  Admin
 ====================================== ======================================================================= ============
 
 These DAG-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
