@@ -174,7 +174,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.7
+    rev: v0.1.8
     hooks:
       # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
       # host CPU to it's fullest
@@ -416,8 +416,8 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
         language: python
-        files: ^scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
-        pass_filenames: false
+        files: ^docs/.*/diagram_[^/]*\.py$
+        pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
       - id: update-supported-versions
         name: Updates supported versions in documentation
@@ -441,7 +441,7 @@ repos:
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
         language: python
-        files: ^docs
+        files: ^docs|^airflow/__init__.py$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
@@ -547,7 +547,6 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
@@ -565,6 +564,7 @@ repos:
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|

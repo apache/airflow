@@ -26,6 +26,7 @@ from typing import Any, Callable, Collection, Container, Iterable, Mapping, over
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
@@ -54,6 +55,7 @@ __all__ = [
     "branch_external_python_task",
     "short_circuit_task",
     "sensor_task",
+    "bash_task",
     "setup",
     "teardown",
 ]
@@ -638,6 +640,36 @@ class TaskDecoratorCollection:
     def pyspark(
         self, python_callable: Callable[FParams, FReturn] | None = None
     ) -> Task[FParams, FReturn]: ...
+    @overload
+    def bash(
+        self,
+        *,
+        env: dict[str, str] | None = None,
+        append_env: bool = False,
+        output_encoding: str = "utf-8",
+        skip_on_exit_code: int = 99,
+        cwd: str | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Decorator to wrap a callable into a BashOperator task.
+
+        :param bash_command: The command, set of commands or reference to a bash script
+            (must be '.sh' or '.bash') to be executed. (templated)
+        :param env: If env is not None, it must be a dict that defines the environment variables for the new
+            process; these are used instead of inheriting the current process environment, which is the
+            default behavior. (templated)
+        :param append_env: If False(default) uses the environment variables passed in env params and does not
+            inherit the current process environment. If True, inherits the environment variables from current
+            passes and then environment variable passed by the user will either update the existing inherited
+            environment variables or the new variables gets appended to it
+        :param output_encoding: Output encoding of bash command
+        :param skip_on_exit_code: If task exits with this exit code, leave the task in ``skipped`` state
+            (default: 99). If set to ``None``, any non-zero exit code will be treated as a failure.
+        :param cwd: Working directory to execute the command in. If None (default), the command is run in a
+            temporary directory.
+        """
+    @overload
+    def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
 setup: Callable

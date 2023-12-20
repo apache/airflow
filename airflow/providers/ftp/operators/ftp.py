@@ -66,7 +66,7 @@ class FTPFileTransmitOperator(BaseOperator):
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
                 create_intermediate_dirs=True,
-                dag=dag
+                dag=dag,
             )
     """
 

@@ -27,9 +27,10 @@ import time
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
+from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -41,6 +42,10 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
+
+if TYPE_CHECKING:
+    from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
+
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
@@ -219,7 +224,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def is_job_running(self) -> bool:
         """
-        Helper method to check if jos is still running in dataflow.
+        Helper method to check if job is still running in dataflow.
 
         :return: True if job is running.
         """
@@ -1203,6 +1208,24 @@ class DataflowHook(GoogleBaseHook):
         )
         job_controller.wait_for_done()
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def is_job_done(self, location: str, project_id: str, job_id: str) -> bool:
+        """
+        Check that Dataflow job is started(for streaming job) or finished(for batch job).
+
+        :param location: location the job is running
+        :param project_id: Google Cloud project ID in which to start a job
+        :param job_id: Dataflow job ID
+        """
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        job = job_controller.fetch_job_by_id(job_id)
+
+        return job_controller._check_dataflow_job_state(job)
+
 
 class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
@@ -1295,3 +1318,38 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         )
         state = job.current_state
         return state
+
+    async def list_jobs(
+        self,
+        jobs_filter: int | None = None,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+        page_size: int | None = None,
+        page_token: str | None = None,
+    ) -> ListJobsAsyncPager:
+        """List jobs.
+
+        For detail see:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.ListJobsRequest
+
+        :param jobs_filter: Optional. This field filters out and returns jobs in the specified job state.
+        :param project_id: Optional. The Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: Optional. The location of the Dataflow job (for example europe-west1).
+        :param page_size: Optional. If there are many jobs, limit response to at most this many.
+        :param page_token: Optional. Set this to the 'next_page_token' field of a previous response to request
+            additional results in a long list.
+        """
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(JobsV1Beta3AsyncClient)
+        request: ListJobsRequest = ListJobsRequest(
+            {
+                "project_id": project_id,
+                "location": location,
+                "filter": jobs_filter,
+                "page_size": page_size,
+                "page_token": page_token,
+            }
+        )
+        page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
+        return page_result

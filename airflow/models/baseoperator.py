@@ -628,12 +628,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
 
-            MyOperator(...,
-                executor_config={
-                    "KubernetesExecutor":
-                        {"image": "myCustomDockerImage"}
-                }
-            )
+            MyOperator(..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
@@ -1152,9 +1147,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(
-                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
-                )
+                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
                 generate_content >> send_email
 
         """
@@ -1866,12 +1859,7 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     Then you can accomplish like so::
 
-        chain_linear(
-            op1,
-            [op2, op3],
-            [op4, op5, op6],
-            op7
-        )
+        chain_linear(op1, [op2, op3], [op4, op5, op6], op7)
 
     :param elements: a list of operators / lists of operators
     """

@@ -762,11 +762,11 @@ class S3ListOperator(BaseOperator):
         ``customers/2018/04/`` key in the ``data`` bucket. ::
 
             s3_file = S3ListOperator(
-                task_id='list_3s_files',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_3s_files",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 
@@ -843,11 +843,11 @@ class S3ListPrefixesOperator(BaseOperator):
         from the S3 ``customers/2018/04/`` prefix in the ``data`` bucket. ::
 
             s3_file = S3ListPrefixesOperator(
-                task_id='list_s3_prefixes',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_s3_prefixes",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 
