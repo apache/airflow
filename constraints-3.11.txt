@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-19T18:35:56.970878
+# This constraints file was automatically generated on 2023-12-20T07:55:31.065920
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -416,8 +416,8 @@ limits==3.7.0
 linkify-it-py==2.0.2
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==23.20.0
-lxml==4.9.3
+looker-sdk==23.20.1
+lxml==4.9.4
 lz4==4.3.2
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.0.1
@@ -438,7 +438,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.2
+mypy-boto3-rds==1.34.4
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.0
 mypy-extensions==1.0.0
@@ -455,7 +455,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.5.0
+openai==1.6.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.6.2
@@ -473,7 +473,7 @@ opentelemetry-proto==1.22.0
 opentelemetry-sdk==1.22.0
 opentelemetry-semantic-conventions==0.43b0
 opsgenie-sdk==2.1.5
-oracledb==1.4.2
+oracledb==2.0.0
 ordered-set==4.1.0
 orjson==3.9.10
 oss2==2.18.3
