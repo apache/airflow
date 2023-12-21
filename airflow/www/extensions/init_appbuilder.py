@@ -44,6 +44,7 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth
 
 if TYPE_CHECKING:
     from flask import Flask
+    import connexion
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session

@@ -22,7 +22,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
-import connexion
 from connexion.options import SwaggerUIOptions
 from flask import url_for
 from sqlalchemy import select
@@ -92,6 +91,7 @@ if TYPE_CHECKING:
         CLICommand,
     )
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    import connexion
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),

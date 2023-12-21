@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from connexion import ProblemException, problem
-from connexion.lifecycle import ConnexionRequest, ConnexionResponse
 
 from airflow.utils.docs import get_docs_url
+
+if TYPE_CHECKING:
+    from connexion.lifecycle import ConnexionRequest, ConnexionResponse
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
 
