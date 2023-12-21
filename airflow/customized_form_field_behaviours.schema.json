@@ -22,6 +22,10 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+    "collapse_extra": {
+      "type": "boolean",
+      "description": "Collapse the 'Extra' field."
     }
   },
   "additionalProperties": true,

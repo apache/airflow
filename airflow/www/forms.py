@@ -198,16 +198,18 @@ class TaskInstanceEditForm(DynamicForm):
                 field.populate_obj(item, name)
 
 
-class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
-    """Collapsable Text Area Field Widget.
+class BS3CollapsibleTextAreaFieldWidget(BS3TextAreaFieldWidget):
+    """Collapsible Text Area Field Widget.
 
-    Text Area Field encapsulated into an accordion, which allows to "Show" and
+    Text Area Field encapsulated into an accordion/collapsible, which allows to "Show" and
     "Hide" the field within a form.
     """
 
-    @staticmethod
-    def _make_accordion_panel(field: Field, content: Markup) -> str:
-        collapsable_id: str = f"collapsable_{field.id}"
+    def __init__(self, default_expanded: bool = True):
+        self._expanded = default_expanded
+
+    def _make_accordion_panel(self, field: Field, content: Markup) -> str:
+        collapsible_id: str = f"collapsible_{field.id}"
         return f"""
         <div {html_params(class_="panel panel-default form-panel")}>
             <div {html_params(class_="panel-heading")}>
@@ -215,16 +217,21 @@ class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
                     <a {html_params(
                             class_="accordion-toggle",
                             data_toggle="collapse",
-                            aria_expanded=False,
-                            aria_controls=collapsable_id,
-                            href='#' + collapsable_id
-                        )}>Show</a>
+                            aria_expanded=self._expanded,
+                            aria_controls=collapsible_id,
+                            href='#' + collapsible_id
+                        )}>
+                            Show <span {html_params(class_="caret")}></span>
+                        </a>
                 </h4>
             </div>
             <div {html_params(
-                    class_="panel-collapse collapse",
-                    id=collapsable_id,
-                    aria_expanded=False
+                    class_=(
+                        "panel-collapse collapse"
+                        + " in" if self._expanded else ""
+                    ),
+                    id=collapsible_id,
+                    aria_expanded=self._expanded
                 )}>
                 {content.__html__()}
             </div>
@@ -282,7 +289,7 @@ def create_connection_form_class() -> type[DynamicForm]:
         login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
         password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
         port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
-        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3AccordionTextAreaFieldWidget())
+        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3CollapsibleTextAreaFieldWidget())
 
     for key, value in providers_manager.connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
