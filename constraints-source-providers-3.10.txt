@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-21T17:49:38.400049
+# This constraints file was automatically generated on 2023-12-21T19:38:37.841357
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -55,7 +55,7 @@ aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.13.1
-alibabacloud-adb20211201==1.2.4
+alibabacloud-adb20211201==1.2.5
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
 alibabacloud-gateway-spi==0.0.1
@@ -485,7 +485,7 @@ rich-click==1.7.2
 rich==13.7.0
 rpds-py==0.15.2
 rsa==4.9
-ruff==0.1.8
+ruff==0.1.9
 s3fs==2023.12.2
 s3transfer==0.8.2
 sarif-om==1.0.4
