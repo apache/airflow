@@ -259,7 +259,7 @@ Setting ``access_control`` on a DAG will overwrite any previously existing DAG-l
         dag_id="example_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={
-            "Viewer": {"can_edit", "can_create", "can_delete"},
+            "Viewer": {"can_edit", "can_read", "can_delete"},
         },
     )
 
