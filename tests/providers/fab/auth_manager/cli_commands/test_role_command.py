@@ -151,17 +151,7 @@ class TestCliRoles:
         role: Role = self.appbuilder.sm.find_role("FakeTeamC")
         assert len(role.permissions) == 0
 
-    def test_cli_import_roles(self, tmp_path):
-        fn = tmp_path / "import_roles.json"
-        fn.touch()
-        roles_list = ["FakeTeamA", "FakeTeamB"]
-        with open(fn, "w") as outfile:
-            json.dump(roles_list, outfile)
-        role_command.roles_import(self.parser.parse_args(["roles", "import", str(fn)]))
-        assert self.appbuilder.sm.find_role("FakeTeamA") is not None
-        assert self.appbuilder.sm.find_role("FakeTeamB") is not None
-
-    def test_cli_export_roles_with_perms(self, tmp_path):
+    def test_cli_export_roles(self, tmp_path):
         fn = tmp_path / "export_roles.json"
         fn.touch()
         args = self.parser.parse_args(["roles", "create", "FakeTeamA", "FakeTeamB"])
@@ -185,3 +175,28 @@ class TestCliRoles:
             roles_exported = json.load(outfile)
         assert {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"} in roles_exported
         assert {"name": "FakeTeamB", "resource": "", "action": ""} in roles_exported
+
+    def test_cli_import_roles(self, tmp_path):
+        fn = tmp_path / "import_roles.json"
+        fn.touch()
+        roles_list = [
+            {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"},
+            {"name": "FakeTeamA", "resource": "Admin", "action": "menu_access"},
+            {"name": "FakeTeamB", "resource": "", "action": ""},
+        ]
+        with open(fn, "w") as outfile:
+            json.dump(roles_list, outfile)
+        role_command.roles_import(self.parser.parse_args(["roles", "import", str(fn)]))
+        fakeTeamA: Role = self.appbuilder.sm.find_role("FakeTeamA")
+        fakeTeamB: Role = self.appbuilder.sm.find_role("FakeTeamB")
+
+        assert fakeTeamA is not None
+        assert fakeTeamB is not None
+        assert len(fakeTeamB.permissions) == 0
+        assert len(fakeTeamA.permissions) == 3
+        assert fakeTeamA.permissions[0].resource.name == permissions.RESOURCE_POOL
+        assert fakeTeamA.permissions[0].action.name == permissions.ACTION_CAN_EDIT
+        assert fakeTeamA.permissions[1].resource.name == permissions.RESOURCE_POOL
+        assert fakeTeamA.permissions[1].action.name == permissions.ACTION_CAN_READ
+        assert fakeTeamA.permissions[2].resource.name == permissions.RESOURCE_ADMIN_MENU
+        assert fakeTeamA.permissions[2].action.name == permissions.ACTION_CAN_ACCESS_MENU

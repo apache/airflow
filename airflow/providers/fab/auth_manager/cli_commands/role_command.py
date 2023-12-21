@@ -21,6 +21,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+from argparse import Namespace
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -182,10 +183,9 @@ def roles_export(args):
 @suppress_logs_and_warning
 def roles_import(args):
     """
-    Import all the roles into the db from the given json file.
+    Import all the roles into the db from the given json file including their permissions.
 
-    Note, this function does not import the permissions for different roles and import them as well.
-    Strictly, it imports the role names in the role json file passed.
+    Note, if a role already exists in the db, it is not overwritten, even when the permissions change.
     """
     json_file = args.file
     try:
@@ -200,7 +200,30 @@ def roles_import(args):
 
     with get_application_builder() as appbuilder:
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]
-        roles_to_import = [role for role in role_list if role not in existing_roles]
-        for role_name in roles_to_import:
-            appbuilder.sm.add_role(role_name)
-    print(f"roles '{roles_to_import}' successfully imported")
+        roles_to_import = [role_dict for role_dict in role_list if role_dict["name"] not in existing_roles]
+        for role_dict in roles_to_import:
+            if role_dict["name"] not in appbuilder.sm.get_all_roles():
+                if role_dict["action"] == "" or role_dict["resource"] == "":
+                    appbuilder.sm.add_role(role_dict["name"])
+                else:
+                    appbuilder.sm.add_role(role_dict["name"])
+                    role_args = Namespace(
+                        subcommand="add-perms",
+                        role=[role_dict["name"]],
+                        resource=[role_dict["resource"]],
+                        action=role_dict["action"].split(","),
+                    )
+                __roles_add_or_remove_permissions(role_args)
+
+            if role_dict["name"] in appbuilder.sm.get_all_roles():
+                if role_dict["action"] == "" or role_dict["resource"] == "":
+                    pass
+                else:
+                    role_args = Namespace(
+                        subcommand="add-perms",
+                        role=[role_dict["name"]],
+                        resource=[role_dict["resource"]],
+                        action=role_dict["action"].split(","),
+                    )
+                __roles_add_or_remove_permissions(role_args)
+        print("roles and permissions successfully imported")
