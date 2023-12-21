@@ -24,9 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import connexion
-import starlette.exceptions
 from connexion import ProblemException, Resolver
-from connexion.lifecycle import ConnexionRequest, ConnexionResponse
 from connexion.options import SwaggerUIOptions
 from connexion.problem import problem
 
@@ -39,6 +37,8 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from flask import Flask
+    import starlette.exceptions
+    from connexion.lifecycle import ConnexionRequest, ConnexionResponse
 
 log = logging.getLogger(__name__)
 
