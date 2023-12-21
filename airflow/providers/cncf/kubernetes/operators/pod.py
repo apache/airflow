@@ -418,7 +418,7 @@ class KubernetesPodOperator(BaseOperator):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
@@ -745,34 +745,37 @@ class KubernetesPodOperator(BaseOperator):
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
             istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        ):
+        )
+
+        if failed:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
-            self.process_pod_deletion(remote_pod, reraise=False)
+        self.process_pod_deletion(remote_pod, reraise=False)
 
+        if self.skip_on_exit_code:
+            container_statuses = (
+                remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
+            ) or []
+            base_container_status = next(
+                (x for x in container_statuses if x.name == self.base_container_name), None
+            )
+            exit_code = (
+                base_container_status.state.terminated.exit_code
+                if base_container_status
+                and base_container_status.state
+                and base_container_status.state.terminated
+                else None
+            )
+            if exit_code in self.skip_on_exit_code:
+                raise AirflowSkipException(
+                    f"Pod {pod and pod.metadata.name} returned exit code {exit_code}. Skipping."
+                )
+
+        if failed:
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
-            if self.skip_on_exit_code is not None:
-                container_statuses = (
-                    remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
-                ) or []
-                base_container_status = next(
-                    (x for x in container_statuses if x.name == self.base_container_name), None
-                )
-                exit_code = (
-                    base_container_status.state.terminated.exit_code
-                    if base_container_status
-                    and base_container_status.state
-                    and base_container_status.state.terminated
-                    else None
-                )
-                if exit_code in self.skip_on_exit_code:
-                    raise AirflowSkipException(
-                        f"Pod {pod and pod.metadata.name} returned exit code "
-                        f"{self.skip_on_exit_code}. Skipping."
-                    )
             raise AirflowException(
                 "\n".join(
                     filter(
@@ -785,8 +788,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                 )
             )
-        else:
-            self.process_pod_deletion(remote_pod, reraise=False)
 
     def _read_pod_events(self, pod, *, reraise=True):
         """Will fetch and emit events from pod."""
