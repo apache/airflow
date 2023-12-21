@@ -847,31 +847,41 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_state",
+        "kwargs, actual_exit_code, expected_state",
         [
-            (None, 99, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": (100, 101)}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({}, 0, TaskInstanceState.SUCCESS),
+            ({}, 100, TaskInstanceState.FAILED),
+            ({}, 101, TaskInstanceState.FAILED),
             ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": None}, 100, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 0}, 0, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": (100,)}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": (100,)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100,)}, 101, TaskInstanceState.FAILED),
         ],
     )
-    def test_on_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
+    def test_on_skip_exit_code(self, kwargs, actual_exit_code, expected_state):
         def f(exit_code):
             if exit_code != 0:
                 raise SystemExit(exit_code)
 
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(CalledProcessError):
-                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs or {}))
+                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **kwargs)
         else:
             ti = self.run_as_task(
                 f,
                 return_ti=True,
                 op_kwargs={"exit_code": actual_exit_code},
-                **(extra_kwargs or {}),
+                **kwargs,
             )
             assert ti.state == expected_state
 
