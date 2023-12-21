@@ -85,7 +85,7 @@ config:
           Semicolon separated paths to custom OpenLineage extractors.
         type: string
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
-        default: ""
+        default: ~
         version_added: ~
       config_path:
         description: |
