@@ -109,6 +109,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -139,7 +140,6 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     clean_www_assets,
@@ -1083,7 +1083,7 @@ def run_docs_publishing(
     verbose: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    builder = PublishDocsBuilder(package_name=package_name, output=output, verbose=verbose)
+    builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
     builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
     return (
         0,
