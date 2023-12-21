@@ -51,7 +51,7 @@ class WeaviateIngestOperator(BaseOperator):
     :param vector_col: key/column name in which the vectors are stored.
     """
 
-    template_fields: Sequence[str] = ("input_json",)
+    template_fields: Sequence[str] = ("input_json", "input_data")
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class WeaviateIngestOperator(BaseOperator):
         self.class_name = class_name
         self.conn_id = conn_id
         self.vector_col = vector_col
-
+        self.input_json = input_json
         if input_data is not None:
             self.input_data = input_data
         elif input_json is not None:
