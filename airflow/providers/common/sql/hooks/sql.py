@@ -26,6 +26,7 @@ from typing import (
     Callable,
     Generator,
     Iterable,
+    List,
     Mapping,
     Protocol,
     Sequence,
@@ -307,7 +308,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -318,7 +319,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
@@ -414,8 +415,8 @@ class DbApiHook(BaseHook):
         else:
             return results
 
-    def _make_common_data_structure(self, result: Any) -> Any:
-        """Ensure the data returned from an SQL command is standard.
+    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
+        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
         transform the result of an SQL command (typically returned by cursor methods) into a common
@@ -435,8 +436,10 @@ class DbApiHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            return result
-        return result
+
+        if isinstance(result, Sequence):
+            return cast(List[tuple], result)
+        return cast(tuple, result)
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""

@@ -17,15 +17,13 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, List, NamedTuple, TypeVar, cast
+from typing import Any, List, NamedTuple, Sequence, cast
 from urllib.parse import quote_plus
 
-import pyodbc
+from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
-
-T = TypeVar("T")
 
 
 class OdbcHook(DbApiHook):
@@ -195,9 +193,9 @@ class OdbcHook(DbApiHook):
 
         return merged_connect_kwargs
 
-    def get_conn(self) -> pyodbc.Connection:
+    def get_conn(self) -> Connection:
         """Returns a pyodbc connection object."""
-        conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
+        conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
     def get_uri(self) -> str:
@@ -214,20 +212,15 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    def _make_common_data_structure(
-        self, result: list[T] | T | None
-    ) -> list[T] | T | list[NamedTuple] | NamedTuple | None:
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
         """Transform the pyodbc.Row objects returned from an SQL command into typed NamedTuples."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
         # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
         field_names: list[tuple[str, type]] | None = None
-        if isinstance(result, list) and all(isinstance(item, pyodbc.Row) for item in result):
-            rows: list[pyodbc.Row] = result
-            field_names = [col[:2] for col in rows[0].cursor_description]
+        if isinstance(result, Sequence):
+            field_names = [col[:2] for col in result[0].cursor_description]
             row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
-            return cast(List[NamedTuple], [row_object(*row) for row in rows])
-        elif isinstance(result, pyodbc.Row):
-            row: pyodbc.Row = result
-            field_names = [col[:2] for col in row.cursor_description]
-            return cast(NamedTuple, NamedTuple("Row", field_names)(*row))  # type: ignore[misc, operator]
-        return result
+            return cast(List[tuple], [row_object(*row) for row in result])
+        else:
+            field_names = [col[:2] for col in result.cursor_description]
+            return cast(tuple, NamedTuple("Row", field_names)(*result))  # type: ignore[misc, operator]

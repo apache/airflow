@@ -25,14 +25,15 @@ from typing import (
     Any,
     Callable,
     Iterable,
+    List,
     Mapping,
+    Sequence,
     TypeVar,
     cast,
     overload,
 )
 
 from databricks import sql  # type: ignore[attr-defined]
-from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
@@ -40,6 +41,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
+    from databricks.sql.types import Row
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
@@ -193,7 +195,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -204,7 +206,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> T | tuple | list[T] | list[tuple] | list[T | tuple | list[T] | list[tuple] | None] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
 
@@ -249,7 +251,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 with closing(conn.cursor()) as cur:
                     self._run_command(cur, sql_statement, parameters)
                     if handler is not None:
-                        result = self._make_common_data_structure(handler(cur))
+                        raw_result = handler(cur)
+                        if self.return_tuple:
+                            result = self._make_common_data_structure(raw_result)
+                        else:
+                            # Returning raw result is deprecated, and do not comply with current common.sql interface
+                            result = raw_result  # type: ignore[assignment]
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
@@ -267,24 +274,20 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    def _make_common_data_structure(
-        self, result: list[T] | T | None
-    ) -> list[T] | T | list[tuple] | tuple | None:
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
-        if self.return_tuple:
-            if isinstance(result, list) and all(isinstance(item, Row) for item in result):
-                rows: list[Row] = result
-                rows_fields = rows[0].__fields__
-                rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
-                return cast(list[tuple], [rows_object(*row) for row in rows])
-            elif isinstance(result, Row):
-                row: Row = result
-                row_fields = row.__fields__
-                row_object = namedtuple("Row", row_fields)  # type: ignore[misc]
-                return cast(tuple, row_object(*row))
-        return result
+        if isinstance(result, list):
+            rows: list[Row] = result
+            rows_fields = rows[0].__fields__
+            rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
+            return cast(List[tuple], [rows_object(*row) for row in rows])
+        else:
+            row: Row = result
+            row_fields = row.__fields__
+            row_object = namedtuple("Row", row_fields)  # type: ignore[misc]
+            return cast(tuple, row_object(*row))
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()
