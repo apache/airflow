@@ -681,7 +681,7 @@ class WeaviateHook(BaseHook):
 
         :param uuids: Collection of uuids.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
-        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        :param retry_attempts_per_object: number of times to try in case of failure before giving up.
         """
         for uuid in uuids:
             for attempt in Retrying(
