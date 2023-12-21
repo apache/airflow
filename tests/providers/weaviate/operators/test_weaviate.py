@@ -16,11 +16,31 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.models import Connection
+from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
+
+
+@pytest.fixture
+def mock_weaviate_connection():
+    conn_id = "weaviate_conn"
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="weaviate",
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    yield conn
+
+
+@pytest.fixture
+def mock_weaviate_hook(mock_weaviate_connection):
+    with patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook"):
+        yield WeaviateHook(conn_id=mock_weaviate_connection.conn_id)
 
 
 class TestWeaviateIngestOperator:
@@ -50,3 +70,19 @@ class TestWeaviateIngestOperator:
             "my_class", {"data": "sample_data"}, vector_col="Vector", **{}
         )
         mock_log.debug.assert_called_once_with("Input data: %s", {"data": "sample_data"})
+
+    def test_templates(self, create_task_instance_of_operator):
+        dag_id = "TestWeaviateIngestOperator"
+        ti = create_task_instance_of_operator(
+            WeaviateIngestOperator,
+            dag_id=dag_id,
+            task_id="task-id",
+            conn_id="weaviate_conn",
+            class_name="my_class",
+            input_json="{{ dag.dag_id }}",
+            input_data="{{ dag.dag_id }}",
+        )
+        ti.render_templates()
+
+        assert dag_id == ti.task.input_json
+        assert dag_id == ti.task.input_data
