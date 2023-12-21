@@ -162,7 +162,7 @@ class BashOperator(BaseOperator):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
         self.cwd = cwd
@@ -206,8 +206,8 @@ class BashOperator(BaseOperator):
             output_encoding=self.output_encoding,
             cwd=self.cwd,
         )
-        if self.skip_on_exit_code is not None and result.exit_code in self.skip_on_exit_code:
-            raise AirflowSkipException(f"Bash command returned exit code {self.skip_on_exit_code}. Skipping.")
+        if result.exit_code in self.skip_on_exit_code:
+            raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
         elif result.exit_code != 0:
             raise AirflowException(
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
