@@ -25,6 +25,8 @@ import pyodbc
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
+DEFAULT_ODBC_PLACEHOLDERS = frozenset({"%s", "?"})
+
 
 class OdbcHook(DbApiHook):
     """
@@ -161,7 +163,7 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
+            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
             extra_params = {
                 k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
             }
@@ -197,6 +199,20 @@ class OdbcHook(DbApiHook):
         """Returns a pyodbc connection object."""
         conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
+
+    @property
+    def placeholder(self):
+        placeholder = self.connection.extra_dejson.get("placeholder")
+        if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
+            return placeholder
+        else:
+            self.log.warning(
+                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_ODBC_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                placeholder,
+                self._placeholder,
+            )
+            return self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""
