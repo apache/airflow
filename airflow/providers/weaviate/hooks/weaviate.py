@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import json
 import warnings
-from functools import cached_property, partial
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 import requests
@@ -35,7 +35,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Collection, Literal, Sequence
+    from typing import Callable, Collection, Literal, Sequence
 
     import pandas as pd
     from weaviate import ConsistencyLevel
@@ -367,6 +367,7 @@ class WeaviateHook(BaseHook):
         """
         # When the class properties are not in same order or not the same length. We convert them to dicts
         # with property `name` as the key. This way we ensure, the subset is checked.
+
         classes_objects = self._convert_properties_to_dict(classes_objects)
         exiting_classes_list = self._convert_properties_to_dict(self.get_schema()["classes"])
 
@@ -404,6 +405,44 @@ class WeaviateHook(BaseHook):
         :param uuid_col: Name of the column containing the UUID.
         :param insertion_errors: list to hold errors while inserting.
         """
+        data = self._convert_dataframe_to_list(data)
+        total_results = 0
+        error_results = 0
+
+        def _process_batch_errors(
+            results: list,
+            verbose: bool = True,
+        ) -> None:
+            """
+            Helper function to processes the results from insert or delete batch operation and collects any errors.
+
+            :param results: Results from the batch operation.
+            :param verbose: Flag to enable verbose logging.
+            """
+            nonlocal total_results
+            nonlocal error_results
+            total_batch_results = len(results)
+            error_batch_results = 0
+            for item in results:
+                if "errors" in item["result"]:
+                    error_batch_results = error_batch_results + 1
+                    item_error = {"uuid": item["id"], "errors": item["result"]["errors"]}
+                    if verbose:
+                        self.log.info(
+                            f"Error occurred in batch process for {item['id']} with error {item['result']['errors']}"
+                        )
+                    insertion_errors.append(item_error)
+            if verbose:
+                total_results = total_results + (total_batch_results - error_batch_results)
+                error_results = error_results + error_batch_results
+
+                self.log.info(
+                    "Total Objects %s / Objects %s successfully inserted and Objects %s had errors.",
+                    len(data),
+                    total_results,
+                    error_results,
+                )
+
         client = self.conn
         if not batch_config_params:
             batch_config_params = {}
@@ -411,7 +450,7 @@ class WeaviateHook(BaseHook):
         # configuration for context manager for __exit__ method to callback on errors for weaviate
         # batch ingestion.
         if not batch_config_params.get("callback"):
-            batch_config_params.update({"callback": partial(self.process_batch_errors, insertion_errors)})
+            batch_config_params.update({"callback": _process_batch_errors})
 
         if not batch_config_params.get("timeout_retries"):
             batch_config_params.update({"timeout_retries": 5})
@@ -420,7 +459,6 @@ class WeaviateHook(BaseHook):
             batch_config_params.update({"connection_error_retries": 5})
 
         client.batch.configure(**batch_config_params)
-        data = self._convert_dataframe_to_list(data)
         with client.batch as batch:
             # Batch import all data
             for index, data_obj in enumerate(data):
@@ -717,11 +755,10 @@ class WeaviateHook(BaseHook):
 
         return df, uuid_column
 
-    def _check_existing_documents(
-        self, data: pd.DataFrame, document_column: str, class_name: str, uuid_column: str
-    ) -> tuple[set, set]:
-        """
-        Get all object uuids belonging to a document.
+    def _get_documents_to_uuid_map(
+        self, data: pd.DataFrame, document_column: str, uuid_column: str, class_name: str
+    ) -> dict[str, set]:
+        """Helper function to get the document to uuid map of existing objects in db.
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
@@ -731,9 +768,7 @@ class WeaviateHook(BaseHook):
         offset = 0
         limit = 2000
         documents_to_uuid: dict = {}
-        existing_documents = set()
         document_keys = set(data[document_column])
-        non_existing_documents = document_keys.copy()
         while True:
             data_objects = (
                 self.conn.query.get(properties=[document_column], class_name=class_name)
@@ -753,79 +788,121 @@ class WeaviateHook(BaseHook):
             )
             if len(data_objects) == 0:
                 break
-            for data_object in data_objects:
-                document_url = data_object[document_column]
-
-                if document_url not in documents_to_uuid:
-                    documents_to_uuid[document_url] = set()
-                    existing_documents.add(document_url)
-                    non_existing_documents.remove(document_url)
-
-                documents_to_uuid[document_url].add(data_object["_additional"][uuid_column])
             offset = offset + limit
-        return existing_documents, non_existing_documents
+            documents_to_uuid.update(
+                self._prepare_document_to_uuid_map(
+                    data=data_objects,
+                    group_key=document_column,
+                    get_value=lambda x: x["_additional"][uuid_column],
+                )
+            )
+        return documents_to_uuid
+
+    @staticmethod
+    def _prepare_document_to_uuid_map(
+        data: list[dict], group_key: str, get_value: Callable[[dict], str]
+    ) -> dict[str, set]:
+        """Helper function to prepare the map of grouped_key to set."""
+        grouped_key_to_set: dict = {}
+        for item in data:
+            document_url = item[group_key]
+
+            if document_url not in grouped_key_to_set:
+                grouped_key_to_set[document_url] = set()
+
+            grouped_key_to_set[document_url].add(get_value(item))
+        return grouped_key_to_set
+
+    def _check_existing_documents(
+        self, data: pd.DataFrame, document_column: str, class_name: str, uuid_column: str
+    ) -> tuple[dict[str, set], set, set, set]:
+        """
+        Get all object uuids belonging to a document.
+
+        :param data: A single pandas DataFrame.
+        :param document_column: The name of the property to query.
+        :param class_name: The name of the class to query.
+        :param uuid_column: The name of the column containing the UUID.
+        """
+        changed_documents = set()
+        unchanged_docs = set()
+        non_existing_documents = set()
+        documents_to_uuid = self._get_documents_to_uuid_map(
+            data=data, uuid_column=uuid_column, document_column=document_column, class_name=class_name
+        )
+
+        insert_documents_to_uuid = self._prepare_document_to_uuid_map(
+            data=data.to_dict("records"),
+            group_key=document_column,
+            get_value=lambda x: x[uuid_column],
+        )
+
+        for doc_url, doc_set in insert_documents_to_uuid.items():
+            if doc_url in documents_to_uuid:
+                if documents_to_uuid[doc_url].difference(doc_set) or doc_set.difference(
+                    documents_to_uuid[doc_url]
+                ):
+                    changed_documents.add(doc_url)
+                else:
+                    unchanged_docs.add(doc_url)
+            else:
+                non_existing_documents.add(doc_url)
+
+        return documents_to_uuid, changed_documents, unchanged_docs, non_existing_documents
 
     def _delete_all_documents_objects(
         self,
         document_keys: list[str],
         document_column: str,
         class_name: str,
+        total_objects_count: int = 1,
         batch_delete_error: list | None = None,
         tenant: str | None = None,
         batch_config_params: dict[str, Any] | None = None,
+        verbose: bool = False,
     ):
         if not batch_config_params:
             batch_config_params = {}
 
-        # configuration for context manager for __exit__ method to callback on errors for weaviate
-        # batch ingestion.
-        if not batch_config_params.get("callback"):
-            batch_config_params.update({"callback": partial(self.process_batch_errors, batch_delete_error)})
+        # This limit is imposed by Weavaite database
+        MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS = 10000
 
         self.conn.batch.configure(**batch_config_params)
-
         with self.conn.batch as batch:
             batch.consistency_level = weaviate.data.replication.ConsistencyLevel.ALL
-            batch.delete_objects(
-                class_name=class_name,
-                # same where operator as in the GraphQL API
-                where={
-                    "operator": "Or",
-                    "operands": [
-                        {
-                            "path": [document_column],
-                            "operator": "Equal",
-                            "valueText": key,
-                        }
-                        for key in document_keys
-                    ],
-                },
-                output="verbose",
-                dry_run=False,
-                tenant=tenant,
-            )
-        return batch_delete_error
-
-    def process_batch_errors(self, batch_errors: list, results: list, verbose: bool = True) -> None:
-        """
-        Processes the results from batch operation and collects any errors.
-
-        :param batch_errors: list to populate in case of error
-        :param results: Results from the batch operation.
-        :param verbose: Flag to enable verbose logging.
-        """
-        for item in results:
-            if "errors" in item["result"]:
-                item_error = {"uuid": item["id"], "errors": item["result"]["errors"]}
+            while total_objects_count > 0:
+                document_objects = batch.delete_objects(
+                    class_name=class_name,
+                    where={
+                        "operator": "Or",
+                        "operands": [
+                            {
+                                "path": [document_column],
+                                "operator": "Equal",
+                                "valueText": key,
+                            }
+                            for key in document_keys
+                        ],
+                    },
+                    output="verbose",
+                    dry_run=False,
+                    tenant=tenant,
+                )
+                total_objects_count = total_objects_count - MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS
+                matched_objects = document_objects["results"]["matches"]
+                batch_delete_error = [
+                    {"uuid": obj["id"]}
+                    for obj in document_objects["results"]["objects"]
+                    if "error" in obj["status"]
+                ]
                 if verbose:
-                    self.log.info(
-                        f"Error occurred in batch process for {item['id']} with error {item['result']['errors']}"
-                    )
-                batch_errors.append(item_error)
+                    self.log.info("Deleted %s Objects", matched_objects)
+
+        return batch_delete_error
 
     def create_or_replace_document_objects(
         self,
-        data: pd.DataFrame | list[dict[str, Any]],
+        data: pd.DataFrame | list[dict[str, Any]] | list[pd.DataFrame],
         class_name: str,
         document_column: str,
         existing: str = "skip",
@@ -833,6 +910,7 @@ class WeaviateHook(BaseHook):
         vector_column: str = "Vector",
         batch_config_params: dict | None = None,
         tenant: str | None = None,
+        verbose: bool = False,
     ):
         """
         create or replace objects belonging to documents.
@@ -860,6 +938,7 @@ class WeaviateHook(BaseHook):
         :param vector_column: Column with embedding vectors for pre-embedded data.
         :param batch_config_params: Additional parameters for Weaviate batch configuration.
         :param tenant: The tenant to which the object will be added.
+        :param verbose: Flag to enable verbose output during the ingestion process.
         :return: list of UUID which failed to create
         """
         import pandas as pd
@@ -867,12 +946,19 @@ class WeaviateHook(BaseHook):
         if existing not in ["skip", "replace", "error"]:
             raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
 
-        if isinstance(data, list):
-            data = pd.json_normalize(data)
+        # data = list(data)
+
+        if isinstance(data, list) and len(data) and isinstance(data[0], dict):
+            data = cast(pd.DataFrame, pd.json_normalize(data))
+        elif isinstance(data, list) and len(data) and isinstance(data[0], pd.DataFrame):
+            data = cast(pd.DataFrame, pd.concat(data, ignore_index=True))
+        else:
+            data = cast(pd.DataFrame, data)
 
         unique_columns = sorted(data.columns.to_list())
 
-        self.log.info("Inserting %s objects.", data.shape[0])
+        if verbose:
+            self.log.info("%s objects came in for insertion.", data.shape[0])
 
         if uuid_column is None or uuid_column not in data.columns:
             (
@@ -889,30 +975,65 @@ class WeaviateHook(BaseHook):
         # drop duplicate rows, using uuid_column and unique_columns. Removed  `None` as it can be added to
         # set when `uuid_column` is None.
         data = data.drop_duplicates(subset=[document_column, uuid_column], keep="first")
+        if verbose:
+            self.log.info("%s objects remain after deduplication.", data.shape[0])
+
         batch_delete_error: list = []
-        existing_documents, non_existing_documents = self._check_existing_documents(
+        (
+            documents_to_uuid_map,
+            changed_documents,
+            unchanged_docs,
+            non_existing_documents,
+        ) = self._check_existing_documents(
             data=data,
             document_column=document_column,
             uuid_column=uuid_column,
             class_name=class_name,
         )
-        if existing == "error" and len(existing_documents):
+        if verbose:
+            self.log.info(
+                "Found %s changed documents, %s unchanged documents and %s non-existing documents",
+                len(changed_documents),
+                len(unchanged_docs),
+                len(non_existing_documents),
+            )
+            for document in changed_documents:
+                self.log.info(
+                    "Changed document: %s has %s objects.", document, len(documents_to_uuid_map[document])
+                )
+
+            self.log.info("Non-existing document: %s", ", ".join(non_existing_documents))
+
+        if existing == "error" and len(changed_documents):
             raise ValueError(
-                f"Documents {', '.join(existing_documents)} already exists. You can either skip or replace"
+                f"Documents {', '.join(changed_documents)} already exists. You can either skip or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
         elif existing == "skip":
             data = data[data[document_column].isin(non_existing_documents)]
+            if verbose:
+                self.log.info(
+                    "Since existing=skip, ingesting only non-existing document's object %s", data.shape[0]
+                )
         elif existing == "replace":
+            total_objects_count = sum([len(documents_to_uuid_map[doc]) for doc in changed_documents])
+            if verbose:
+                self.log.info(
+                    "Since existing='replace', deleting %s objects belonging changed documents %s",
+                    total_objects_count,
+                    changed_documents,
+                )
             batch_delete_error = self._delete_all_documents_objects(
-                document_keys=list(existing_documents),
+                document_keys=list(changed_documents),
+                total_objects_count=total_objects_count,
                 document_column=document_column,
                 class_name=class_name,
                 batch_delete_error=batch_delete_error,
                 tenant=tenant,
                 batch_config_params=batch_config_params,
+                verbose=verbose,
             )
-            data = data[data[document_column].isin(non_existing_documents.union(existing_documents))]
+            data = data[data[document_column].isin(non_existing_documents.union(changed_documents))]
 
         insertion_errors: list = []
         if data.shape[0]:
@@ -935,4 +1056,11 @@ class WeaviateHook(BaseHook):
                 self._delete_objects(
                     [item["uuid"] for item in insertion_errors + batch_delete_error], class_name=class_name
                 )
-        return insertion_errors
+
+        if verbose:
+            self.log.info(
+                "Total objects in class %s : %s ",
+                class_name,
+                self.conn.query.aggregate(class_name).with_meta_count().do(),
+            )
+        return insertion_errors, batch_delete_error
