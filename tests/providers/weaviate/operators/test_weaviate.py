@@ -51,6 +51,7 @@ class TestWeaviateIngestOperator:
         )
         mock_log.debug.assert_called_once_with("Input data: %s", {"data": "sample_data"})
 
+    @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
         dag_id = "TestWeaviateIngestOperator"
         ti = create_task_instance_of_operator(
