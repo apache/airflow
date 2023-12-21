@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -202,6 +202,39 @@ class TestSSHOperator:
         task.execute()
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_exc",
+        [
+            ({}, 0, None),
+            ({}, 100, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100,)}, 101, AirflowException),
+        ],
+    )
+    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+        command = "not_a_real_command"
+        self.exec_ssh_client_command.return_value = (actual_exit_code, b"", b"")
+
+        operator = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=command,
+            **extra_kwargs,
+        )
+
+        if expected_exc is None:
+            operator.execute({})
+        else:
+            with pytest.raises(expected_exc):
+                operator.execute({})
 
     def test_command_errored(self):
         # Test that run_ssh_client_command works on invalid commands
