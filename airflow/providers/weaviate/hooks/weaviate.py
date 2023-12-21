@@ -919,10 +919,11 @@ class WeaviateHook(BaseHook):
         are considered 'documents' here. It's crucial to keep the database objects in sync with these sources.
         If any changes occur in these documents, this function aims to reflect those changes in the database.
 
-        Note: This function assumes responsibility for identifying changes in documents, dropping relevant
-        database objects, and recreating them based on updated information. It's crucial to handle this
-        process with care, ensuring backups and validation are in place to prevent data loss or
-         inconsistencies.
+        .. note::
+            This function assumes responsibility for identifying changes in documents, dropping relevant
+            database objects, and recreating them based on updated information. It's crucial to handle this
+            process with care, ensuring backups and validation are in place to prevent data loss or
+            inconsistencies.
 
         Provides users with multiple ways of dealing with existing values.
             1. replace: replace the existing objects with new objects. This option requires to identify the
