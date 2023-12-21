@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-20T20:06:06.277577
+# This constraints file was automatically generated on 2023-12-21T09:25:48.193927
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -179,7 +179,7 @@ eventlet==0.34.1
 execnet==2.0.2
 executing==2.0.1
 facebook-business==18.0.5
-fastavro==1.9.1
+fastavro==1.9.2
 fasteners==0.19
 fastjsonschema==2.19.0
 filelock==3.13.1
@@ -592,10 +592,10 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.248.0
+yandexcloud==0.249.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.43
+zenpy==2.0.44
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
