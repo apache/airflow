@@ -16,31 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.models import Connection
-from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
-
-
-@pytest.fixture
-def mock_weaviate_connection():
-    conn_id = "weaviate_conn"
-    conn = Connection(
-        conn_id=conn_id,
-        conn_type="weaviate",
-    )
-    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
-    yield conn
-
-
-@pytest.fixture
-def mock_weaviate_hook(mock_weaviate_connection):
-    with patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook"):
-        yield WeaviateHook(conn_id=mock_weaviate_connection.conn_id)
 
 
 class TestWeaviateIngestOperator:
