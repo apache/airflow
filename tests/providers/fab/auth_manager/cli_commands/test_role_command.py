@@ -176,12 +176,12 @@ class TestCliRoles:
                     permissions.RESOURCE_POOL,
                     "-a",
                     permissions.ACTION_CAN_EDIT,
-                    permissions.ACTION_CAN_READ
+                    permissions.ACTION_CAN_READ,
                 ]
             )
         )
         role_command.roles_export(self.parser.parse_args(["roles", "export", str(fn)]))
         with open(fn) as outfile:
             roles_exported = json.load(outfile)
-        assert {"name" : "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"} in roles_exported
-        assert {"name" : "FakeTeamB", "resource": "", "action": ""} in roles_exported
+        assert {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"} in roles_exported
+        assert {"name": "FakeTeamB", "resource": "", "action": ""} in roles_exported

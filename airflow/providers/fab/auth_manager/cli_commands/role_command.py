@@ -161,7 +161,7 @@ def roles_export(args):
         exporting_roles = [role for role in roles if role.name not in EXISTING_ROLES]
     filename = os.path.expanduser(args.file)
 
-    permission_map : dict[tuple[str, str], list[str]] = defaultdict(list)
+    permission_map: dict[tuple[str, str], list[str]] = defaultdict(list)
     for role in exporting_roles:
         if role.permissions:
             for permission in role.permissions:
@@ -170,11 +170,13 @@ def roles_export(args):
             permission_map[(role.name, "")].append("")
     export_data = [
         {"name": role, "resource": resource, "action": ",".join(sorted(permissions))}
-        for (role, resource), permissions in permission_map.items()]
+        for (role, resource), permissions in permission_map.items()
+    ]
     kwargs = {} if not args.pretty else {"sort_keys": False, "indent": 4}
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(export_data, f, **kwargs)
     print(f"{len(export_data)} roles with permissions successfully exported to {filename}")
+
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
