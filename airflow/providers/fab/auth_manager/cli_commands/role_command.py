@@ -155,21 +155,26 @@ def roles_del_perms(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_export(args):
-    """
-    Export all the roles from the database to a file.
-
-    Note, this function does not export the permissions associated for each role.
-    Strictly, it exports the role names into the passed role json file.
-    """
+    """Export all the roles from the database to a file including permissions."""
     with get_application_builder() as appbuilder:
         roles = appbuilder.sm.get_all_roles()
-        exporting_roles = [role.name for role in roles if role.name not in EXISTING_ROLES]
+        exporting_roles = [role for role in roles if role.name not in EXISTING_ROLES]
     filename = os.path.expanduser(args.file)
-    kwargs = {} if not args.pretty else {"sort_keys": True, "indent": 4}
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(exporting_roles, f, **kwargs)
-    print(f"{len(exporting_roles)} roles successfully exported to {filename}")
 
+    permission_map : dict[tuple[str, str], list[str]] = defaultdict(list)
+    for role in exporting_roles:
+        if role.permissions:
+            for permission in role.permissions:
+                permission_map[(role.name, permission.resource.name)].append(permission.action.name)
+        else:
+            permission_map[(role.name, "")].append("")
+    export_data = [
+        {"name": role, "resource": resource, "action": ",".join(sorted(permissions))}
+        for (role, resource), permissions in permission_map.items()]
+    kwargs = {} if not args.pretty else {"sort_keys": False, "indent": 4}
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(export_data, f, **kwargs)
+    print(f"{len(export_data)} roles with permissions successfully exported to {filename}")
 
 @cli_utils.action_cli
 @suppress_logs_and_warning

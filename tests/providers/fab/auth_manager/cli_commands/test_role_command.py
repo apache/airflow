@@ -161,17 +161,27 @@ class TestCliRoles:
         assert self.appbuilder.sm.find_role("FakeTeamA") is not None
         assert self.appbuilder.sm.find_role("FakeTeamB") is not None
 
-    def test_cli_export_roles(self, tmp_path):
+    def test_cli_export_roles_with_perms(self, tmp_path):
         fn = tmp_path / "export_roles.json"
         fn.touch()
         args = self.parser.parse_args(["roles", "create", "FakeTeamA", "FakeTeamB"])
         role_command.roles_create(args)
-
-        assert self.appbuilder.sm.find_role("FakeTeamA") is not None
-        assert self.appbuilder.sm.find_role("FakeTeamB") is not None
-
+        role_command.roles_add_perms(
+            self.parser.parse_args(
+                [
+                    "roles",
+                    "add-perms",
+                    "FakeTeamA",
+                    "-r",
+                    permissions.RESOURCE_POOL,
+                    "-a",
+                    permissions.ACTION_CAN_EDIT,
+                ]
+            )
+        )
         role_command.roles_export(self.parser.parse_args(["roles", "export", str(fn)]))
         with open(fn) as outfile:
             roles_exported = json.load(outfile)
-        assert "FakeTeamA" in roles_exported
-        assert "FakeTeamB" in roles_exported
+        print(roles_exported)
+        assert {"name" : "FakeTeamA", "resource": "Pools", "action": "can_edit"} in roles_exported
+        assert {"name" : "FakeTeamB", "resource": "", "action": ""} in roles_exported
