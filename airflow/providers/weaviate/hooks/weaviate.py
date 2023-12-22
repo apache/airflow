@@ -569,7 +569,7 @@ class WeaviateHook(BaseHook):
         :param class_name: Class name associated with the object given. This is required to create a new object.
         :param vector: Vector associated with the object given. This argument is only used when creating object.
         :param consistency_level: Consistency level to be used. Applies to both create and get operations.
-        :tenant: Tenant to be used. Applies to both create and get operations.
+        :param tenant: Tenant to be used. Applies to both create and get operations.
         :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create() and
             weaviate_client.data_object.get()
         """
@@ -944,16 +944,17 @@ class WeaviateHook(BaseHook):
         If any changes occur in these documents, this function aims to reflect those changes in the database.
 
         .. note::
+
             This function assumes responsibility for identifying changes in documents, dropping relevant
             database objects, and recreating them based on updated information. It's crucial to handle this
             process with care, ensuring backups and validation are in place to prevent data loss or
             inconsistencies.
 
         Provides users with multiple ways of dealing with existing values.
-            1. replace: replace the existing objects with new objects. This option requires to identify the
+        replace: replace the existing objects with new objects. This option requires to identify the
              objects belonging to a document. which by default is done by using document_column field.
-            2. skip: skip the existing objects and only add the missing objects of a document.
-            3. error: raise an error if an object belonging to a existing document is tried to be created.
+        skip: skip the existing objects and only add the missing objects of a document.
+        error: raise an error if an object belonging to a existing document is tried to be created.
 
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
