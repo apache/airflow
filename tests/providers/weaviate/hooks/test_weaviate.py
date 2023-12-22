@@ -715,6 +715,47 @@ def test__delete_objects(delete_object, weaviate_hook):
     assert delete_object.call_count == 5
 
 
+def test__prepare_document_to_uuid_map(weaviate_hook):
+    input_data = [
+        {"id": "1", "name": "ross", "age": "12", "gender": "m"},
+        {"id": "2", "name": "bob", "age": "22", "gender": "m"},
+        {"id": "3", "name": "joy", "age": "15", "gender": "f"},
+    ]
+    grouped_data = weaviate_hook._prepare_document_to_uuid_map(
+        data=input_data, group_key="gender", get_value=lambda x: x["name"]
+    )
+    assert grouped_data == {"m": {"ross", "bob"}, "f": {"joy"}}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map")
+def test___check_existing_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
+    _get_documents_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid2", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "dfg.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    _prepare_document_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid56", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "hjk.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    (
+        _,
+        changed_documents,
+        unchanged_docs,
+        non_existing_documents,
+    ) = weaviate_hook._check_existing_documents(
+        data=pd.DataFrame(),
+        document_column="doc_key",
+        uuid_column="id",
+        class_name="doc",
+    )
+    assert changed_documents == {"abc.doc"}
+    assert unchanged_docs == {"xyz.doc"}
+    assert non_existing_documents == {"hjk.doc"}
+
+
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_documents")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_error_option_of_create_or_replace_document_objects(

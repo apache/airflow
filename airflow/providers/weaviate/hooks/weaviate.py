@@ -1032,10 +1032,10 @@ class WeaviateHook(BaseHook):
                 verbose=verbose,
             )
             data = data[data[document_column].isin(non_existing_documents.union(changed_documents))]
+            self.log.info("Batch inserting %s objects for non-existing and changed documents.", data.shape[0])
 
         insertion_errors: list = []
         if data.shape[0]:
-            self.log.info("Batch inserting %s objects.", data.shape[0])
             insertion_errors = self.batch_data(
                 class_name=class_name,
                 data=data,
