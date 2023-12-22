@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -30,8 +31,11 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
+import google.auth
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.auth import impersonated_credentials
+from google.auth.transport import requests as google_auth_requests
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -3247,6 +3251,35 @@ def _format_schema_for_description(schema: dict) -> list:
     return description
 
 
+class ImpersonationToken:
+    """Simulate the interface of gcloud.aio.auth.token.BaseToken and generate impersonation_chain access_token"""
+
+    def __init__(self, project_id: str | None, impersonation_account: str) -> None:
+        self.project_id = project_id
+        self.impersonation_account = impersonation_account
+
+    async def get_project(self) -> str | None:
+        project = (
+            self.project_id
+            or os.environ.get("GOOGLE_CLOUD_PROJECT")
+            or os.environ.get("GCLOUD_PROJECT")
+            or os.environ.get("APPLICATION_ID")
+        )
+        return project
+
+    async def get(self) -> str | None:
+        creds, _ = google.auth.default()
+
+        impersonated_creds = impersonated_credentials.Credentials(
+            source_credentials=creds,
+            target_principal=self.impersonation_account,
+            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+
+        impersonated_creds.refresh(google_auth_requests.Request())
+        return impersonated_creds.token
+
+
 class BigQueryAsyncHook(GoogleBaseAsyncHook):
     """Uses gcloud-aio library to retrieve Job details."""
 
@@ -3256,6 +3289,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        # *,
         **kwargs,
     ):
         super().__init__(
@@ -3269,7 +3303,16 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     ) -> Job:
         """Get the specified job resource by job ID and project ID."""
         with await self.service_file_as_context() as f:
-            return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
+            impersonation_chain = self._hook_kwargs.get("impersonation_chain")
+            token = ImpersonationToken(project_id, impersonation_chain) if impersonation_chain else None
+
+            return Job(
+                job_id=job_id,
+                project=project_id,
+                service_file=f,
+                session=cast(Session, session),
+                token=token,  # type: ignore
+            )
 
     async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
         async with ClientSession() as s:
@@ -3514,10 +3557,14 @@ class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
         :param session: aiohttp ClientSession
         """
         with await self.service_file_as_context() as file:
+            impersonation_chain = self._hook_kwargs.get("impersonation_chain")
+            token = ImpersonationToken(project_id, impersonation_chain) if impersonation_chain else None
+
             return Table_async(
                 dataset_name=dataset,
                 table_name=table_id,
                 project=project_id,
                 service_file=file,
                 session=cast(Session, session),
+                token=token,
             )
