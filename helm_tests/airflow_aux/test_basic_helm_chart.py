@@ -631,7 +631,7 @@ class TestBaseChartTest:
             assert objs[i]["metadata"]["name"] == ("my-release" + "-" + pc[i]["name"])
             assert objs[i]["preemptionPolicy"] == pc[i]["preemptionPolicy"]
             assert objs[i]["value"] == pc[i]["value"]
-            assert objs[i]["description"] == 'This priority class will not cause other pods to be preempted.'
+            assert objs[i]["description"] == "This priority class will not cause other pods to be preempted."
 
     def test_priority_classes_default_preemption(self):
         obj = render_chart(
@@ -645,7 +645,7 @@ class TestBaseChartTest:
         )[0]
 
         assert obj["preemptionPolicy"] == "PreemptLowerPriority"
-        assert obj["description"] == 'This priority class will not cause other pods to be preempted.'
+        assert obj["description"] == "This priority class will not cause other pods to be preempted."
 
     def test_redis_broker_connection_url(self):
         # no nameoverride, redis
