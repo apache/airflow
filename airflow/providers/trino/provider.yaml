@@ -22,7 +22,7 @@ description: |
     `Trino <https://trino.io/>`__
 
 suspended: false
-source-date-epoch: 1703275228
+source-date-epoch: 1703288179
 versions:
   - 5.6.0
   - 5.5.0

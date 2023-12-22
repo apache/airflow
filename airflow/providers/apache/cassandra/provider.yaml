@@ -22,7 +22,7 @@ description: |
     `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 suspended: false
-source-date-epoch: 1703274836
+source-date-epoch: 1703288104
 versions:
   - 3.4.1
   - 3.4.0

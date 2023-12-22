@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.6.0``
-``apache-airflow-providers-common-sql``  ``>=1.9.1``
+``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``snowflake-connector-python``           ``>=2.7.8``
 ``snowflake-sqlalchemy``                 ``>=1.1.0``
 =======================================  ==================

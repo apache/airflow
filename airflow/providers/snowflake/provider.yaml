@@ -22,7 +22,7 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 suspended: false
-source-date-epoch: 1703275200
+source-date-epoch: 1703288173
 versions:
   - 5.2.1
   - 5.2.0
