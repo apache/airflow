@@ -163,6 +163,53 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow/operators/python.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
+                    "ExternalPython Operators PythonVenv",
+                },
+                id="Only Python tests",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow/serialization/python.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Always Serialization",
+                },
+                id="Only Serialization tests",
+            )
+        ),
+        (
+            pytest.param(
                 (
                     "airflow/api/file.py",
                     "tests/providers/postgres/file.py",
