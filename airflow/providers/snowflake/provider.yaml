@@ -22,8 +22,9 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 suspended: false
-source-date-epoch: 1701983420
+source-date-epoch: 1703275200
 versions:
+  - 5.2.1
   - 5.2.0
   - 5.1.2
   - 5.1.1
@@ -67,7 +68,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - apache-airflow-providers-common-sql>=1.9.1
+  - apache-airflow-providers-common-sql>=1.10.0
   - snowflake-connector-python>=2.7.8
   - snowflake-sqlalchemy>=1.1.0
 

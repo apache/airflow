@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+* ``Make "placeholder" of ODBC configurable in UI (#36000)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+* ``SQLCheckOperator fails if returns dict with any False values (#36273)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.9.0
 .....
 

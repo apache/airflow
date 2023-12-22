@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package                              Version required
 =======================================  ==========================
 ``apache-airflow``                       ``>=2.6.0``
-``apache-airflow-providers-common-sql``  ``>=1.8.1``
+``apache-airflow-providers-common-sql``  ``>=1.9.1``
 ``requests``                             ``>=2.27,<3``
 ``databricks-sql-connector``             ``>=2.0.0,!=2.9.0,<3.0.0``
 ``aiohttp``                              ``>=3.6.3,<4``

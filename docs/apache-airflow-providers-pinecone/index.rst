@@ -114,7 +114,7 @@ Package apache-airflow-providers-pinecone
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 1.1.0
+Release: 1.1.1
 
 Provider package
 ----------------

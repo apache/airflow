@@ -42,9 +42,12 @@ Misc
 ~~~~
 
 * ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``fix typos in DatabricksSubmitRunOperator (#36248)``
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
 
 .. Review and move the new changes to one of the sections above:
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+   * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
 
 5.0.1
 .....

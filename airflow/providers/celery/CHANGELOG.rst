@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'sentinel_kwargs' load from ENV (#36318)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.5.0
 .....
 

@@ -22,8 +22,9 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 suspended: false
-source-date-epoch: 1701983347
+source-date-epoch: 1703274816
 versions:
+  - 8.14.0
   - 8.13.0
   - 8.12.0
   - 8.11.0
