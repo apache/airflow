@@ -827,28 +827,27 @@ class WeaviateHook(BaseHook):
         changed_documents = set()
         unchanged_docs = set()
         non_existing_documents = set()
-        documents_to_uuid = self._get_documents_to_uuid_map(
+        existing_documents_to_uuid = self._get_documents_to_uuid_map(
             data=data, uuid_column=uuid_column, document_column=document_column, class_name=class_name
         )
 
-        insert_documents_to_uuid = self._prepare_document_to_uuid_map(
+        input_documents_to_uuid = self._prepare_document_to_uuid_map(
             data=data.to_dict("records"),
             group_key=document_column,
             get_value=lambda x: x[uuid_column],
         )
 
-        for doc_url, doc_set in insert_documents_to_uuid.items():
-            if doc_url in documents_to_uuid:
-                if documents_to_uuid[doc_url].difference(doc_set) or doc_set.difference(
-                    documents_to_uuid[doc_url]
-                ):
+        # segregate documents into changed, unchanged and non-existing documents.
+        for doc_url, doc_set in input_documents_to_uuid.items():
+            if doc_url in existing_documents_to_uuid:
+                if existing_documents_to_uuid[doc_url] != doc_set:
                     changed_documents.add(doc_url)
                 else:
                     unchanged_docs.add(doc_url)
             else:
                 non_existing_documents.add(doc_url)
 
-        return documents_to_uuid, changed_documents, unchanged_docs, non_existing_documents
+        return existing_documents_to_uuid, changed_documents, unchanged_docs, non_existing_documents
 
     def _delete_all_documents_objects(
         self,
