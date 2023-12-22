@@ -472,6 +472,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 else:
                     raise
 
+            if 0 in self.skip_on_exit_code:
+                raise AirflowSkipException("Process exited with code 0. Skipping.")
+
             return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
