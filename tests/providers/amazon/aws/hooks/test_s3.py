@@ -22,6 +22,7 @@ import inspect
 import os
 import re
 import unittest
+from datetime import datetime as std_datetime, timezone
 from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import parse_qs
@@ -762,7 +763,7 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_pending_async(self, mock_list_keys, mock_client):
+    async def test_s3_key_hook_is_keys_unchanged_async_handle_tzinfo(self, mock_list_keys, mock_client):
         """
         Test is_key_unchanged gives AirflowException.
         """
@@ -811,6 +812,30 @@ class TestAwsS3Hook:
             "status": "error",
             "message": "FAILURE: Inactivity Period passed, not enough objects found in test_bucket/test",
         }
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_pending_async_with_tzinfo(self, mock_list_keys, mock_client):
+        """
+        Test is_key_unchanged gives AirflowException.
+        """
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=0,
+            previous_objects=set(),
+            inactivity_seconds=0,
+            allow_delete=False,
+            last_activity_time=std_datetime.now(timezone.utc),
+        )
+        assert response.get("status") == "pending"
 
     def test_load_bytes(self, s3_bucket):
         hook = S3Hook()
