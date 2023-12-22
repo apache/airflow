@@ -208,7 +208,7 @@ Get Task stats                         DAGs.can_read, DAG Runs.can_read, Task In
 Get last DAG runs                      DAGs.can_read, DAG Runs.can_read                                        Viewer
 Get DAG code                           DAGs.can_read, DAG Code.can_read                                        Viewer
 Get DAG details                        DAGs.can_read, DAG Runs.can_read                                        Viewer
-Show DAG Dependencies menu             DAG Dependencies.menu_access                                                   Viewer
+Show DAG Dependencies menu             DAG Dependencies.menu_access                                            Viewer
 Get DAG Dependencies                   DAG Dependencies.can_read                                               Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
