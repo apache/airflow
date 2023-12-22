@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-21T19:44:11.196939
+# This constraints file was automatically generated on 2023-12-22T11:42:51.222102
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -179,7 +179,7 @@ apache-airflow-providers-weaviate==1.1.0
 apache-airflow-providers-yandex==3.7.0
 apache-airflow-providers-zendesk==4.5.0
 apache-beam==2.52.0
-apispec==6.3.0
+apispec==6.3.1
 apprise==1.6.0
 argcomplete==3.2.1
 asana==3.2.2
@@ -229,7 +229,7 @@ boto3==1.33.13
 botocore==1.33.13
 cachelib==0.9.0
 cachetools==5.3.2
-cassandra-driver==3.28.0
+cassandra-driver==3.29.0
 cattrs==23.2.3
 celery==5.3.6
 certifi==2023.11.17
@@ -357,7 +357,7 @@ google-resumable-media==2.7.0
 googleapis-common-protos==1.62.0
 graphql-core==3.2.3
 graphviz==0.20.1
-greenlet==3.0.2
+greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpcio-gcp==0.2.2
 grpcio-status==1.60.0
@@ -440,7 +440,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.4
+mypy-boto3-rds==1.34.6
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.0
 mypy-extensions==1.0.0
@@ -457,7 +457,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.6.0
+openai==1.6.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.7.0
@@ -526,8 +526,8 @@ pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.19.0
-pydantic==2.5.2
-pydantic_core==2.14.5
+pydantic==2.5.3
+pydantic_core==2.14.6
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.6
@@ -706,7 +706,7 @@ yamllint==1.33.0
 yandexcloud==0.249.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.44
+zenpy==2.0.45
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
