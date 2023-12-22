@@ -3173,11 +3173,6 @@ class TestTaskInstance:
         assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
-        """
-        test that running task which returns AirflowSkipOperator will end
-        up in a SKIPPED state.
-        """
-
         def raise_skip_exception():
             raise AirflowSkipException
 
