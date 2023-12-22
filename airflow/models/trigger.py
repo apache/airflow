@@ -25,6 +25,7 @@ from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.configuration import conf
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -91,8 +92,10 @@ class Trigger(Base):
 
     @classmethod
     @internal_api_call
-    def from_object(cls, trigger: BaseTrigger, queue: str) -> Trigger:
+    def from_object(cls, trigger: BaseTrigger, queue: str | None = None) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
+        if queue is None:
+            queue = conf.get("triggerer", "default_queue")
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs, queue=queue)
 
