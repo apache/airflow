@@ -115,7 +115,7 @@ PIP package                              Version required
 ``asgiref``                              ``>=3.5.2``
 ``gcloud-aio-auth``                      ``>=4.0.0,<5.0.0``
 ``gcloud-aio-bigquery``                  ``>=6.1.2``
-``gcloud-aio-storage``
+``gcloud-aio-storage``                   ``>=9.0.0``
 ``gcsfs``                                ``>=2023.10.0``
 ``google-ads``                           ``>=22.1.0``
 ``google-api-core``                      ``>=2.11.0``
@@ -140,10 +140,10 @@ PIP package                              Version required
 ``google-cloud-language``                ``>=2.9.0``
 ``google-cloud-logging``                 ``>=3.5.0``
 ``google-cloud-memcache``                ``>=1.7.0``
-``google-cloud-monitoring``              ``>=2.14.1``
+``google-cloud-monitoring``              ``>=2.18.0``
 ``google-cloud-orchestration-airflow``   ``>=1.10.0``
 ``google-cloud-os-login``                ``>=2.9.1``
-``google-cloud-pubsub``                  ``>=2.15.0``
+``google-cloud-pubsub``                  ``>=2.19.0``
 ``google-cloud-redis``                   ``>=2.12.0``
 ``google-cloud-secret-manager``          ``>=2.16.0``
 ``google-cloud-spanner``                 ``>=3.11.1``

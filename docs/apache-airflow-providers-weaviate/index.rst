@@ -114,7 +114,7 @@ Package apache-airflow-providers-weaviate
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------

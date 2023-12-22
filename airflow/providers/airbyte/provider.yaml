@@ -22,8 +22,9 @@ description: |
   `Airbyte <https://airbyte.com/>`__
 
 suspended: false
-source-date-epoch: 1701983344
+source-date-epoch: 1703274763
 versions:
+  - 3.5.1
   - 3.5.0
   - 3.4.0
   - 3.3.2

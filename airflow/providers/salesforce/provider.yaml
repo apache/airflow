@@ -22,8 +22,9 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 suspended: false
-source-date-epoch: 1701983412
+source-date-epoch: 1703275154
 versions:
+  - 5.6.1
   - 5.6.0
   - 5.5.1
   - 5.5.0

@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.1
+.....
+
+Latest change: 2023-12-21
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`d039437fc2 <https://github.com/apache/airflow/commit/d039437fc2c01ebdc93bcb409e0218997e3bfadd>`_  2023-12-21   ``Allow DockerOperator.skip_on_exit_code to be zero (#36360)``
+`1fa18cb974 <https://github.com/apache/airflow/commit/1fa18cb9740a2eb39d079b42ad24787772e5699f>`_  2023-12-20   ``Remove remaining Airflow 2.5 backcompat code from Docker Provider (#36325)``
+=================================================================================================  ===========  ==============================================================================
+
 3.9.0
 .....
 
-Latest change: 2023-12-11
+Latest change: 2023-12-12
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`64931b1a65 <https://github.com/apache/airflow/commit/64931b1a65a22cb5c6fa6921ed5f4d00f011abd9>`_  2023-12-12   ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
 `cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
 `f9c952bb7f <https://github.com/apache/airflow/commit/f9c952bb7f5b8dd321bd33697d3fcddc16c39d8c>`_  2023-12-09   ``Fix broken log streaming from #35677 (#36127)``
 `999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``

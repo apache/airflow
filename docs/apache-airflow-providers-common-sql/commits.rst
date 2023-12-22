@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.9.0
+1.9.1
 .....
 
-Latest change: 2023-12-07
+Latest change: 2023-12-22
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`5fe5d31a46 <https://github.com/apache/airflow/commit/5fe5d31a46885fbb2fb6ba9c0bd551a6b57d129a>`_  2023-12-22   ``Return common data structure in DBApi derived classes``
+`f84eb2ab6f <https://github.com/apache/airflow/commit/f84eb2ab6fe777938f85a5fbb2a0b8a6dc07b9bc>`_  2023-12-21   ``Make "placeholder" of ODBC configurable in UI (#36000)``
+`5c1d8f40a1 <https://github.com/apache/airflow/commit/5c1d8f40a10b3e0beb1cae70d301fe704e64ab0e>`_  2023-12-20   ``SQLCheckOperator fails if returns dict with any False values (#36273)``
+=================================================================================================  ===========  =========================================================================
+
+1.9.0
+.....
+
+Latest change: 2023-12-08
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `3bb5978e63 <https://github.com/apache/airflow/commit/3bb5978e63f3be21a5bb7ae89e7e3ce9d06a4ab8>`_  2023-12-06   ``Add Architecture Decision Record for common.sql introduction (#36015)``
 =================================================================================================  ===========  =========================================================================

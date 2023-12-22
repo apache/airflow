@@ -22,8 +22,9 @@ description: |
     `Exasol <https://www.exasol.com/>`__
 
 suspended: false
-source-date-epoch: 1701983378
+source-date-epoch: 1703275027
 versions:
+  - 4.4.1
   - 4.4.0
   - 4.3.0
   - 4.2.5
@@ -52,7 +53,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - apache-airflow-providers-common-sql>=1.9.1
+  - apache-airflow-providers-common-sql>=1.10.0
   - pyexasol>=0.5.1
   - pandas>=0.17.1
 

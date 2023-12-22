@@ -22,8 +22,9 @@ description: |
     `Datadog <https://www.datadoghq.com/>`__
 
 suspended: false
-source-date-epoch: 1701983372
+source-date-epoch: 1703274984
 versions:
+  - 3.5.1
   - 3.5.0
   - 3.4.0
   - 3.3.2

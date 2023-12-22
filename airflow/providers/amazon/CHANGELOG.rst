@@ -26,6 +26,32 @@
 Changelog
 ---------
 
+8.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
+* ``Increase ConflictException retries to 4 total (#36337)``
+* ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'is_authorized_cluster_activity' from auth manager (#36175)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+* ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.13.0
 ......
 
