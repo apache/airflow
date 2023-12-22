@@ -68,14 +68,14 @@ class TestHPA:
                 "workers": {
                     "hpa": {
                         "enabled": True,
-                        "minReplicaCount": min_replicas,
-                        "maxReplicaCount": max_replicas,
-                    },
+                        **({"minReplicaCount": min_replicas} if min_replicas else {}),
+                        **({"maxReplicaCount": max_replicas} if max_replicas else {}),
+                    }
                 },
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        assert jmespath.search("spec.minReplicas", docs[0]) == 1 if min_replicas is None else min_replicas
+        assert jmespath.search("spec.minReplicas", docs[0]) == 0 if min_replicas is None else min_replicas
         assert jmespath.search("spec.maxReplicas", docs[0]) == 5 if max_replicas is None else max_replicas
 
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])

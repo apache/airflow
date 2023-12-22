@@ -1549,7 +1549,7 @@
                         "maxReplicaCount": {
                             "description": "Maximum number of workers created by KEDA.",
                             "type": "integer",
-                            "default": 10
+                            "default": 5
                         },
                         "metrics": {
                             "description": "Specifications for which to use to calculate the desired replica count.",
