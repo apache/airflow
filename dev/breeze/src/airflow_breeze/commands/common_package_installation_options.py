@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import ALLOWED_CONSTRAINTS_MODES_CI, ALLOWED_CONSTRAINTS_MODES_PROD
 from airflow_breeze.utils.custom_param_types import BetterChoice
 
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
-    help="Constraint reference to use for airflow installation (used in calculated constraints URL). "
-    "Can be 'default' in which case the default constraints-reference is used.",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use for airflow installation (used in calculated constraints URL).",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
 option_airflow_constraints_location = click.option(
