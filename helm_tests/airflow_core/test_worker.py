@@ -676,10 +676,7 @@ class TestWorker:
         assert worker["args"] == [
             "bash",
             "-c",
-            "exec \\\nairflow celery worker &&",
-            "sh",
-            "-c",
-            'echo "EXIT file content" > /opt/kerberos-exit/EXIT',
+            "exec airflow celery worker &&\nsh -c \"echo 'EXIT file content' > /opt/kerberos-exit/EXIT\"",
         ]
 
     @pytest.mark.parametrize(
