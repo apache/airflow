@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock
+from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
@@ -729,7 +729,7 @@ def test__prepare_document_to_uuid_map(weaviate_hook):
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map")
-def test___check_existing_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
+def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
     _get_documents_to_uuid_map.return_value = {
         "abc.doc": {"uuid1", "uuid2", "uuid2"},
         "xyz.doc": {"uuid4", "uuid5"},
@@ -744,8 +744,8 @@ def test___check_existing_documents(_get_documents_to_uuid_map, _prepare_documen
         _,
         changed_documents,
         unchanged_docs,
-        non_existing_documents,
-    ) = weaviate_hook._check_existing_documents(
+        new_documents,
+    ) = weaviate_hook._get_segregated_documents(
         data=pd.DataFrame(),
         document_column="doc_key",
         uuid_column="id",
@@ -753,13 +753,13 @@ def test___check_existing_documents(_get_documents_to_uuid_map, _prepare_documen
     )
     assert changed_documents == {"abc.doc"}
     assert unchanged_docs == {"xyz.doc"}
-    assert non_existing_documents == {"hjk.doc"}
+    assert new_documents == {"hjk.doc"}
 
 
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_error_option_of_create_or_replace_document_objects(
-    _generate_uuids, _check_existing_documents, weaviate_hook
+    _generate_uuids, _get_segregated_documents, weaviate_hook
 ):
     df = pd.DataFrame.from_dict(
         {
@@ -771,7 +771,7 @@ def test_error_option_of_create_or_replace_document_objects(
         }
     )
 
-    _check_existing_documents.return_value = ({"abc.xml"}, {"zyx.html"})
+    _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
     _generate_uuids.return_value = (df, "id")
     with pytest.raises(
         ValueError, match="Documents abc.xml already exists. You can either" " skip or replace"
@@ -783,10 +783,10 @@ def test_error_option_of_create_or_replace_document_objects(
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_skip_option_of_create_or_replace_document_objects(
-    _generate_uuids, _check_existing_documents, batch_data, _delete_objects, weaviate_hook
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_objects, weaviate_hook
 ):
     df = pd.DataFrame.from_dict(
         {
@@ -799,8 +799,18 @@ def test_skip_option_of_create_or_replace_document_objects(
     )
 
     class_name = "test"
-    existing_documents, non_existing_documents = ({"abc.xml"}, {"zyx.html"})
-    _check_existing_documents.return_value = (existing_documents, non_existing_documents)
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
     _generate_uuids.return_value = (df, "id")
 
     weaviate_hook.create_or_replace_document_objects(
@@ -808,16 +818,16 @@ def test_skip_option_of_create_or_replace_document_objects(
     )
 
     pd.testing.assert_frame_equal(
-        batch_data.call_args_list[0].kwargs["data"], df[df["doc"].isin(non_existing_documents)]
+        batch_data.call_args_list[0].kwargs["data"], df[df["doc"].isin(new_documents)]
     )
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._check_existing_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_replace_option_of_create_or_replace_document_objects(
-    _generate_uuids, _check_existing_documents, batch_data, _delete_all_documents_objects, weaviate_hook
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
 ):
     df = pd.DataFrame.from_dict(
         {
@@ -830,22 +840,34 @@ def test_replace_option_of_create_or_replace_document_objects(
     )
 
     class_name = "test"
-    existing_documents, non_existing_documents = ({"abc.xml"}, {"zyx.html"})
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {"abc.xml": {"uuid"}},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
     batch_data.return_value = []
-    _check_existing_documents.return_value = (existing_documents, non_existing_documents)
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
     _generate_uuids.return_value = (df, "id")
     weaviate_hook.create_or_replace_document_objects(
         data=df, class_name=class_name, existing="replace", document_column="doc"
     )
     _delete_all_documents_objects.assert_called_with(
-        document_keys=list(existing_documents),
-        class_name=class_name,
+        document_keys=list(changed_documents),
+        total_objects_count=1,
         document_column="doc",
-        batch_delete_error=ANY,
+        class_name="test",
+        batch_delete_error=[],
         tenant=None,
-        batch_config_params=ANY,
+        batch_config_params=None,
+        verbose=False,
     )
     pd.testing.assert_frame_equal(
         batch_data.call_args_list[0].kwargs["data"],
-        df[df["doc"].isin(existing_documents.union(non_existing_documents))],
+        df[df["doc"].isin(changed_documents.union(new_documents))],
     )

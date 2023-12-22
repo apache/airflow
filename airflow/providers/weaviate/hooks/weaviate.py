@@ -821,11 +821,11 @@ class WeaviateHook(BaseHook):
             grouped_key_to_set[document_url].add(get_value(item))
         return grouped_key_to_set
 
-    def _check_existing_documents(
+    def _get_segregated_documents(
         self, data: pd.DataFrame, document_column: str, class_name: str, uuid_column: str
     ) -> tuple[dict[str, set], set, set, set]:
         """
-        Get all object uuids belonging to a document.
+        Segregate documents into changed, unchanged and new document, when compared to Weaviate db.
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
@@ -834,7 +834,7 @@ class WeaviateHook(BaseHook):
         """
         changed_documents = set()
         unchanged_docs = set()
-        non_existing_documents = set()
+        new_documents = set()
         existing_documents_to_uuid = self._get_documents_to_uuid_map(
             data=data, uuid_column=uuid_column, document_column=document_column, class_name=class_name
         )
@@ -853,9 +853,9 @@ class WeaviateHook(BaseHook):
                 else:
                     unchanged_docs.add(doc_url)
             else:
-                non_existing_documents.add(doc_url)
+                new_documents.add(doc_url)
 
-        return existing_documents_to_uuid, changed_documents, unchanged_docs, non_existing_documents
+        return existing_documents_to_uuid, changed_documents, unchanged_docs, new_documents
 
     def _delete_all_documents_objects(
         self,
@@ -972,9 +972,9 @@ class WeaviateHook(BaseHook):
             raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
 
         if isinstance(data, list) and len(data) and isinstance(data[0], dict):
-            data = cast(pd.DataFrame, pd.json_normalize(data))
+            data = pd.json_normalize(data)
         elif isinstance(data, list) and len(data) and isinstance(data[0], pd.DataFrame):
-            data = cast(pd.DataFrame, pd.concat(data, ignore_index=True))
+            data = pd.concat(data, ignore_index=True)
         else:
             data = cast(pd.DataFrame, data)
 
@@ -1005,9 +1005,9 @@ class WeaviateHook(BaseHook):
         (
             documents_to_uuid_map,
             changed_documents,
-            unchanged_docs,
-            non_existing_documents,
-        ) = self._check_existing_documents(
+            unchanged_documents,
+            new_documents,
+        ) = self._get_segregated_documents(
             data=data,
             document_column=document_column,
             uuid_column=uuid_column,
@@ -1017,15 +1017,15 @@ class WeaviateHook(BaseHook):
             self.log.info(
                 "Found %s changed documents, %s unchanged documents and %s non-existing documents",
                 len(changed_documents),
-                len(unchanged_docs),
-                len(non_existing_documents),
+                len(unchanged_documents),
+                len(new_documents),
             )
             for document in changed_documents:
                 self.log.info(
                     "Changed document: %s has %s objects.", document, len(documents_to_uuid_map[document])
                 )
 
-            self.log.info("Non-existing document: %s", ", ".join(non_existing_documents))
+            self.log.info("Non-existing document: %s", ", ".join(new_documents))
 
         if existing == "error" and len(changed_documents):
             raise ValueError(
@@ -1033,7 +1033,7 @@ class WeaviateHook(BaseHook):
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
         elif existing == "skip":
-            data = data[data[document_column].isin(non_existing_documents)]
+            data = data[data[document_column].isin(new_documents)]
             if verbose:
                 self.log.info(
                     "Since existing=skip, ingesting only non-existing document's object %s", data.shape[0]
@@ -1056,7 +1056,7 @@ class WeaviateHook(BaseHook):
                 batch_config_params=batch_config_params,
                 verbose=verbose,
             )
-            data = data[data[document_column].isin(non_existing_documents.union(changed_documents))]
+            data = data[data[document_column].isin(new_documents.union(changed_documents))]
             self.log.info("Batch inserting %s objects for non-existing and changed documents.", data.shape[0])
 
         insertion_errors: list = []
