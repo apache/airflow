@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Auth manager <auth-manager>
+    Auth manager <auth-manager/index>
 
 .. toctree::
     :hidden:

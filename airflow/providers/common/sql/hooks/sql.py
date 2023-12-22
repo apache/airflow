@@ -143,8 +143,6 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
-    # Override with the db-specific value used for placeholders
-    placeholder: str = "%s"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -163,6 +161,11 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
+        self._placeholder: str = "%s"
+
+    @property
+    def placeholder(self) -> str:
+        return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""
@@ -463,8 +466,7 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    @classmethod
-    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -477,7 +479,7 @@ class DbApiHook(BaseHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
 
         if target_fields:

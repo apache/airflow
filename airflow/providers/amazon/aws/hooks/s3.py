@@ -1233,6 +1233,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        **kwargs,
     ) -> None:
         """
         Create a copy of an object that is already stored in S3.
@@ -1274,7 +1275,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
         )
         return response
 

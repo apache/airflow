@@ -47,13 +47,13 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.3)       |
+|             | Main version (dev)     | Stable version (2.8.0)       |
 |-------------|------------------------|------------------------------|
 | Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
 | Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
-| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.25, 1.26, 1.27, 1.28       |
+| PostgreSQL  | 12, 13, 14, 15, 16     | 12, 13, 14, 15, 16           |
+| MySQL       | 8.0, Innovation        | 8.0, Innovation              |
 | SQLite      | 3.15.0+                | 3.15.0+                      |
 | MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
 
@@ -128,15 +128,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow==2.8.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.8.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check

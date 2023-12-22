@@ -116,9 +116,11 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
+
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.3.1"
+PIP_VERSION = "23.3.2"
 
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
@@ -428,6 +430,7 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
+    "common.io",
     "docker",
     "elasticsearch",
     "ftp",
@@ -456,7 +459,6 @@ DEFAULT_EXTRAS = [
 
 CHICKEN_EGG_PROVIDERS = " ".join(
     [
-        "common.io",
         "fab",
     ]
 )

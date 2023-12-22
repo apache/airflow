@@ -45,13 +45,6 @@ INSTALL_FOOTER = "# END EXTRAS HERE"
 CONSTANTS_HEADER = "# START EXTRAS HERE"
 CONSTANTS_FOOTER = "# END EXTRAS HERE"
 
-DEFAULT_EXTRAS = (
-    "amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,"
-    "google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,"
-    "postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
-)
-
-
 if __name__ == "__main__":
     install_file_path = AIRFLOW_SOURCES_DIR / "INSTALL"
     contributing_file_path = AIRFLOW_SOURCES_DIR / "CONTRIBUTING.rst"

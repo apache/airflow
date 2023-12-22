@@ -275,6 +275,11 @@ class TestOdbcHook:
                 assert "have supplied 'driver' via connection extra but it will not be used" in caplog.text
                 assert driver == "Blah driver"
 
+    def test_placeholder_config_from_extra(self):
+        conn_params = dict(extra=json.dumps(dict(placeholder="?")))
+        hook = self.get_hook(conn_params=conn_params)
+        assert hook.placeholder == "?"
+
     def test_database(self):
         hook = self.get_hook(hook_params=dict(database="abc"))
         assert hook.database == "abc"

@@ -50,3 +50,20 @@ class TestWeaviateIngestOperator:
             "my_class", {"data": "sample_data"}, vector_col="Vector", **{}
         )
         mock_log.debug.assert_called_once_with("Input data: %s", {"data": "sample_data"})
+
+    @pytest.mark.db_test
+    def test_templates(self, create_task_instance_of_operator):
+        dag_id = "TestWeaviateIngestOperator"
+        ti = create_task_instance_of_operator(
+            WeaviateIngestOperator,
+            dag_id=dag_id,
+            task_id="task-id",
+            conn_id="weaviate_conn",
+            class_name="my_class",
+            input_json="{{ dag.dag_id }}",
+            input_data="{{ dag.dag_id }}",
+        )
+        ti.render_templates()
+
+        assert dag_id == ti.task.input_json
+        assert dag_id == ti.task.input_data
