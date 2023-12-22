@@ -18,12 +18,14 @@
 Documentation
 #############
 
-This directory contains documentation for the Apache Airflow project and other packages that are closely related to it ie. providers packages.  Documentation is built using `Sphinx <https://www.sphinx-doc.org/>`__.
+This directory contains documentation for the `Apache Airflow project <https://airflow.apache.org/docs/>`__ and the providers packages that are closely related to it. You can contribute to the Airflow Docs in the same way and for the same reasons as contributing code; Docs contributions that improve existing content, fix bugs, and create new content are welcomed and encouraged.
+
+This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions for how to make Docs changes locally or with the GitHub UI. 
 
 Development documentation preview
 ==================================
 
-Documentation from the development version is built and automatically published: `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_
+You can find documentation for the current development version at `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_, where it is automatically built and published.
 
 Working with Sphinx
 ===================
@@ -62,7 +64,7 @@ You have two options for editing Airflow docs:
 | broken link.                         |                  | installation or build required.                 |
 +--------------------------------------+------------------+-------------------------------------------------+
 | My edits contain tables or           | Local Editor     | GitHub can provide Markdown previews, but might |
-| other formatting changes.            |                  | change ``.rst``` styling. Use a local build.    |
+| other formatting changes.            |                  | change ``.rst`` styling. Use a local build.     |
 +--------------------------------------+------------------+-------------------------------------------------+
 | I want to make a new page/           | Local Editor     | Will need a local build to check navigation and |
 | delete a page.                       |                  | link redirects.                                 |
@@ -113,13 +115,19 @@ Build docs without checking spelling:
 
      breeze build-docs --docs-only
 
-Build documentation of just one provider package:
+Build documentation of just one provider package by calling the ``PACKAGE_ID``. 
 
 .. code-block:: bash
 
     breeze build-docs PACKAGE_ID
 
-Or, build docs for more than one provider package in the same command:
+So, for example, to build just the ``apache-airflow-providers-apache-beam`` package docs, you would use the following:
+
+.. code-block:: bash
+
+  breeze build-docs apache.beam
+
+Or, build docs for more than one provider package in the same command by listing multiple package IDs:
 
 .. code-block:: bash
 
