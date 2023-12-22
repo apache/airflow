@@ -208,7 +208,7 @@ Get Task stats                         DAGs.can_read, DAG Runs.can_read, Task In
 Get last DAG runs                      DAGs.can_read, DAG Runs.can_read                                        Viewer
 Get DAG code                           DAGs.can_read, DAG Code.can_read                                        Viewer
 Get DAG details                        DAGs.can_read, DAG Runs.can_read                                        Viewer
-Show DAG Dependencies menu             DAG Dependencies menu                                                   Viewer
+Show DAG Dependencies menu             DAG Dependencies.menu_access                                                   Viewer
 Get DAG Dependencies                   DAG Dependencies.can_read                                               Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
@@ -217,7 +217,7 @@ Redirect to external Log               DAGs.can_read, Task Instances.can_read, T
 Get Task                               DAGs.can_read, Task Instances.can_read                                  Viewer
 Show XCom menu                         XComs.menu_access                                                       Op
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
-Create XCom                            XComs.can_create                                                        Op #TODO
+Create XCom                            XComs.can_create                                                        Op
 Delete XCom                            XComs.can_delete                                                        Op
 Triggers Task Instance                 DAGs.can_edit, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
@@ -255,7 +255,7 @@ Show Docs menu                         Docs.menu_access                         
 Show Documentation menu                Documentation.menu_access                                               Viewer
 Show Jobs menu                         Jobs.menu_access                                                        Viewer
 Show Audit Log                         Audit Logs.menu_access                                                  Viewer
-Reset Password                         My Password.can_read, My Password.can_edit                              Viewer                      Viewer
+Reset Password                         My Password.can_read, My Password.can_edit                              Viewer
 Show Permissions menu                  Permission Views.menu_access                                            Admin
 List Permissions                       Permission Views.can_read                                               Admin
 Get My Profile                         My Profile.can_read                                                     Viewer
