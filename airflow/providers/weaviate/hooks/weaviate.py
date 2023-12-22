@@ -63,7 +63,7 @@ def check_http_error_is_retryable(exc: BaseException):
 
 class WeaviateHook(BaseHook):
     """
-    Interact with Weaviate database to store vectors. This hook uses the `conn_id`.
+    Interact with Weaviate database to store vectors. This hook uses the 'conn_id'.
 
     :param conn_id: The connection id to use when connecting to Weaviate. <howto/connection:weaviate>
     """
@@ -952,7 +952,7 @@ class WeaviateHook(BaseHook):
 
         Provides users with multiple ways of dealing with existing values.
         replace: replace the existing objects with new objects. This option requires to identify the
-             objects belonging to a document. which by default is done by using document_column field.
+        objects belonging to a document. which by default is done by using document_column field.
         skip: skip the existing objects and only add the missing objects of a document.
         error: raise an error if an object belonging to a existing document is tried to be created.
 
