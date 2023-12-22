@@ -54,6 +54,30 @@ class TestHPA:
         else:
             assert docs == []
 
+    @pytest.mark.parametrize(
+        "min_replicas, max_replicas",
+        [
+            (None, None),
+            (2, 8),
+        ],
+    )
+    def test_min_max_replicas(self, min_replicas, max_replicas):
+        """Verify minimum and maximum replicas."""
+        docs = render_chart(
+            values={
+                "workers": {
+                    "hpa": {
+                        "enabled": True,
+                        "minReplicaCount": min_replicas,
+                        "maxReplicaCount": max_replicas,
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+        assert jmespath.search("spec.minReplicas", docs[0]) == 1 if min_replicas is None else min_replicas
+        assert jmespath.search("spec.maxReplicas", docs[0]) == 5 if max_replicas is None else max_replicas
+
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     def test_hpa_behavior(self, executor):
         """Verify HPA behavior."""
