@@ -28,6 +28,7 @@ import weaviate.exceptions
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
+from weaviate.data.replication import ConsistencyLevel
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
@@ -38,7 +39,6 @@ if TYPE_CHECKING:
     from typing import Callable, Collection, Literal, Sequence
 
     import pandas as pd
-    from weaviate import ConsistencyLevel
     from weaviate.types import UUID
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
@@ -397,13 +397,13 @@ class WeaviateHook(BaseHook):
 
         :param class_name: The name of the class that objects belongs to.
         :param data: list or dataframe of objects we want to add.
+        :param insertion_errors: list to hold errors while inserting.
         :param batch_config_params: dict of batch configuration option.
             .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
         :param vector_col: name of the column containing the vector.
+        :param uuid_col: Name of the column containing the UUID.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         :param tenant: The tenant to which the object will be added.
-        :param uuid_col: Name of the column containing the UUID.
-        :param insertion_errors: list to hold errors while inserting.
         """
         data = self._convert_dataframe_to_list(data)
         total_results = 0
@@ -429,7 +429,9 @@ class WeaviateHook(BaseHook):
                     item_error = {"uuid": item["id"], "errors": item["result"]["errors"]}
                     if verbose:
                         self.log.info(
-                            f"Error occurred in batch process for {item['id']} with error {item['result']['errors']}"
+                            "Error occurred in batch process for %s with error %s",
+                            item["id"],
+                            item["result"]["errors"],
                         )
                     insertion_errors.append(item_error)
             if verbose:
@@ -450,13 +452,13 @@ class WeaviateHook(BaseHook):
         # configuration for context manager for __exit__ method to callback on errors for weaviate
         # batch ingestion.
         if not batch_config_params.get("callback"):
-            batch_config_params.update({"callback": _process_batch_errors})
+            batch_config_params["callback"] = _process_batch_errors
 
         if not batch_config_params.get("timeout_retries"):
-            batch_config_params.update({"timeout_retries": 5})
+            batch_config_params["timeout_retries"] = 5
 
         if not batch_config_params.get("connection_error_retries"):
-            batch_config_params.update({"connection_error_retries": 5})
+            batch_config_params["connection_error_retries"] = 5
 
         client.batch.configure(**batch_config_params)
         with client.batch as batch:
@@ -756,7 +758,13 @@ class WeaviateHook(BaseHook):
         return df, uuid_column
 
     def _get_documents_to_uuid_map(
-        self, data: pd.DataFrame, document_column: str, uuid_column: str, class_name: str
+        self,
+        data: pd.DataFrame,
+        document_column: str,
+        uuid_column: str,
+        class_name: str,
+        offset: int = 0,
+        limit: int = 2000,
     ) -> dict[str, set]:
         """Helper function to get the document to uuid map of existing objects in db.
 
@@ -764,9 +772,9 @@ class WeaviateHook(BaseHook):
         :param document_column: The name of the property to query.
         :param class_name: The name of the class to query.
         :param uuid_column: The name of the column containing the UUID.
+        :param offset: pagination parameter to indicate the which object to start fetching data.
+        :param limit: pagination param to indicate the number of records to fetch from start object.
         """
-        offset = 0
-        limit = 2000
         documents_to_uuid: dict = {}
         document_keys = set(data[document_column])
         while True:
@@ -860,6 +868,20 @@ class WeaviateHook(BaseHook):
         batch_config_params: dict[str, Any] | None = None,
         verbose: bool = False,
     ):
+        """Delete all object that belong to list of documents.
+
+        :param document_keys: list of unique documents identifiers.
+        :param document_column: Column in DataFrame that identifying source document.
+        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param total_objects_count: total number of objects to delete, needed as max limit on one delete
+            query is 10,000, if we have more objects to delete we need to run query multiple times.
+        :param batch_delete_error: list to hold errors while inserting.
+        :param tenant: The tenant to which the object will be added.
+        :param batch_config_params: Additional parameters for Weaviate batch configuration.
+        :param verbose: Flag to enable verbose output during the ingestion process.
+        """
+        batch_delete_error = batch_delete_error or []
+
         if not batch_config_params:
             batch_config_params = {}
 
@@ -868,7 +890,10 @@ class WeaviateHook(BaseHook):
 
         self.conn.batch.configure(**batch_config_params)
         with self.conn.batch as batch:
-            batch.consistency_level = weaviate.data.replication.ConsistencyLevel.ALL
+            # ConsistencyLevel.ALL is essential here to guarantee complete deletion of objects
+            # across all nodes. Maintaining this level ensures data integrity, preventing
+            # irrelevant objects from providing misleading context for LLM models.
+            batch.consistency_level = ConsistencyLevel.ALL
             while total_objects_count > 0:
                 document_objects = batch.delete_objects(
                     class_name=class_name,
