@@ -20,7 +20,7 @@ Documentation
 
 This directory contains documentation for the `Apache Airflow project <https://airflow.apache.org/docs/>`__ and the providers packages that are closely related to it. You can contribute to the Airflow Docs in the same way and for the same reasons as contributing code; Docs contributions that improve existing content, fix bugs, and create new content are welcomed and encouraged.
 
-This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions for how to make Docs changes locally or with the GitHub UI. 
+This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions for how to make Docs changes locally or with the GitHub UI.
 
 Development documentation preview
 ==================================
@@ -115,7 +115,7 @@ Build docs without checking spelling:
 
      breeze build-docs --docs-only
 
-Build documentation of just one provider package by calling the ``PACKAGE_ID``. 
+Build documentation of just one provider package by calling the ``PACKAGE_ID``.
 
 .. code-block:: bash
 
@@ -125,7 +125,7 @@ So, for example, to build just the ``apache-airflow-providers-apache-beam`` pack
 
 .. code-block:: bash
 
-  breeze build-docs apache.beam
+    breeze build-docs apache.beam
 
 Or, build docs for more than one provider package in the same command by listing multiple package IDs:
 
