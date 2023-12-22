@@ -972,9 +972,12 @@ class WeaviateHook(BaseHook):
         if existing not in ["skip", "replace", "error"]:
             raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
 
-        if isinstance(data, list) and len(data) and isinstance(data[0], dict):
+        if len(data) == 0:
+            return []
+
+        if isinstance(data, list) and isinstance(data[0], dict):
             data = pd.json_normalize(data)
-        elif isinstance(data, list) and len(data) and isinstance(data[0], pd.DataFrame):
+        elif isinstance(data, list) and isinstance(data[0], pd.DataFrame):
             data = pd.concat(data, ignore_index=True)
         else:
             data = cast(pd.DataFrame, data)
