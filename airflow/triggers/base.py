@@ -37,7 +37,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, queue, **kwargs):
+    def __init__(self, queue=None, **kwargs):
         if queue is None:
             self.queue = conf.get("triggerer", "default_queue")
         elif isinstance(queue, str) and len(queue) > 0 and "," not in queue:
