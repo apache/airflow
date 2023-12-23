@@ -476,8 +476,11 @@ breeze release-management publish-docs amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
 
-- If you publish a new package, you must add it to
-  [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+Review the state of removed, suspended, new packages in
+[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+
+- If you publish a new package, you must add it to the list of packages in the index.
+- If there are changes to suspension or removal status of a package  you must move it appropriate section.
 
 - Create the commit and push changes.
 
