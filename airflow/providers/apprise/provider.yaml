@@ -24,7 +24,7 @@ description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
 suspended: false
-source-date-epoch: 1703274914
+source-date-epoch: 1703288116
 
 versions:
   - 1.2.1

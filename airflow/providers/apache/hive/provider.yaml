@@ -22,7 +22,7 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1703274844
+source-date-epoch: 1703288109
 versions:
   - 6.4.0
   - 6.3.0

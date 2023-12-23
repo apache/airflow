@@ -85,7 +85,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.6.0``
-``apache-airflow-providers-common-sql``  ``>=1.9.1``
+``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``pyexasol``                             ``>=0.5.1``
 ``pandas``                               ``>=0.17.1``
 =======================================  ==================

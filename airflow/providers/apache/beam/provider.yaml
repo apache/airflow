@@ -22,7 +22,7 @@ description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
 suspended: false
-source-date-epoch: 1703274826
+source-date-epoch: 1703288103
 versions:
   - 5.5.0
   - 5.4.0

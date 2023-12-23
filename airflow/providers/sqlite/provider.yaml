@@ -22,7 +22,7 @@ description: |
     `SQLite <https://www.sqlite.org/>`__
 
 suspended: false
-source-date-epoch: 1703275204
+source-date-epoch: 1703288175
 versions:
   - 3.7.0
   - 3.6.0

@@ -22,7 +22,7 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 suspended: false
-source-date-epoch: 1703274925
+source-date-epoch: 1703288119
 versions:
   - 3.5.1
   - 3.5.0
