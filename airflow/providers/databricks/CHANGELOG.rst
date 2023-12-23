@@ -26,12 +26,17 @@
 Changelog
 ---------
 
-5.1.0
+6.0.0
 .....
 
 .. note::
   This release of provider is only available for Airflow 2.6+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes (#36205)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -48,6 +53,10 @@ Misc
 .. Review and move the new changes to one of the sections above:
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
    * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Prepare 2nd wave of providers in December (#36373)``
 
 5.0.1
 .....

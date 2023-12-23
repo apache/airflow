@@ -35,14 +35,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-5.1.0
+6.0.0
 .....
 
-Latest change: 2023-12-22
+Latest change: 2023-12-23
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `5fe5d31a46 <https://github.com/apache/airflow/commit/5fe5d31a46885fbb2fb6ba9c0bd551a6b57d129a>`_  2023-12-22   ``Return common data structure in DBApi derived classes``
 `322aa649ed <https://github.com/apache/airflow/commit/322aa649edce6655f4bddfb9813ff8cb38616b7a>`_  2023-12-21   ``fix typos in DatabricksSubmitRunOperator (#36248)``
 `e9ba37bb58 <https://github.com/apache/airflow/commit/e9ba37bb58da0e3d6739ec063f7160f50487d3b8>`_  2023-12-17   ``Add code snippet formatting in docstrings via Ruff (#36262)``
