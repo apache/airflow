@@ -976,9 +976,13 @@ class WeaviateHook(BaseHook):
             return []
 
         if isinstance(data, list) and isinstance(data[0], dict):
-            data = pd.json_normalize(data)
+            # This is done to narrow the type to list[dict[str, Any].
+            dict_list: list[dict[str, Any]] = data
+            data = pd.json_normalize(dict_list)
         elif isinstance(data, list) and isinstance(data[0], pd.DataFrame):
-            data = pd.concat(data, ignore_index=True)
+            # This is done to narrow the type to list[pd.DataFrame].
+            df_list: list[pd.DataFrame] = data
+            data = pd.concat(df_list, ignore_index=True)
         else:
             data = cast(pd.DataFrame, data)
 
