@@ -99,13 +99,15 @@ class BaseAuthManager(LoggingMixin):
     def get_user(self) -> BaseUser | None:
         """Return the user associated to the user in session."""
 
-    def get_user_id(self) -> str:
+    def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
         user = self.get_user()
         if not user:
             self.log.error("Calling 'get_user_id()' but the user is not signed in.")
             raise AirflowException("The user must be signed in.")
-        return str(user.get_id())
+        if user_id := user.get_id():
+            return str(user_id)
+        return None
 
     def init(self) -> None:
         """
