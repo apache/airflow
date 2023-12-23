@@ -463,7 +463,7 @@ class TestFileTaskLogHandler:
         if is_a_trigger:
             ti.is_trigger_log_context = True
             job = Job()
-            t = Trigger("", {})
+            t = Trigger("", {}, "")
             t.triggerer_job = job
             ti.triggerer = t
             t.task_instance = ti
@@ -532,7 +532,7 @@ class TestLogUrl:
             execution_date=DEFAULT_DATE,
         )
         ti.hostname = "hostname"
-        trigger = Trigger("", {})
+        trigger = Trigger("", {}, "")
         job = Job(TriggererJobRunner.job_type)
         job.id = 123
         trigger.triggerer_job = job

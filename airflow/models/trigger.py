@@ -254,7 +254,7 @@ class Trigger(Base):
         session.commit()
 
     @classmethod
-    def get_sorted_triggers(cls, capacity, queues, alive_triggerer_ids, session):
+    def get_sorted_triggers(cls, capacity, queues: set, alive_triggerer_ids, session):
         query = with_row_locks(
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)

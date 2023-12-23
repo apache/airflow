@@ -58,11 +58,11 @@ def test_clean_unused(session, create_task_instance):
     are cleaned out automatically.
     """
     # Make three triggers
-    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default")
     trigger1.id = 1
-    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default")
     trigger2.id = 2
-    trigger3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default")
     trigger3.id = 3
     session.add(trigger1)
     session.add(trigger2)
@@ -93,7 +93,7 @@ def test_submit_event(session, create_task_instance):
     task instances.
     """
     # Make a trigger
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default")
     trigger.id = 1
     session.add(trigger)
     session.commit()
@@ -121,7 +121,7 @@ def test_submit_failure(session, create_task_instance):
     task instances.
     """
     # Make a trigger
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default")
     trigger.id = 1
     session.add(trigger)
     session.commit()
@@ -170,7 +170,9 @@ def test_assign_unassigned(session, create_task_instance):
     # Triggerer is not healtht, its last heartbeat was too long ago
     assert not unhealthy_triggerer.is_alive()
     session.commit()
-    trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_healthy_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default"
+    )
     trigger_on_healthy_triggerer.id = 1
     trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
     session.add(trigger_on_healthy_triggerer)
@@ -181,7 +183,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
     session.add(ti_trigger_on_healthy_triggerer)
-    trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_unhealthy_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default"
+    )
     trigger_on_unhealthy_triggerer.id = 2
     trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
     session.add(trigger_on_unhealthy_triggerer)
@@ -192,7 +196,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
     session.add(ti_trigger_on_unhealthy_triggerer)
-    trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_killed_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default"
+    )
     trigger_on_killed_triggerer.id = 3
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
     session.add(trigger_on_killed_triggerer)
@@ -203,7 +209,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
     session.add(ti_trigger_on_killed_triggerer)
-    trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_unassigned_to_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="default"
+    )
     trigger_unassigned_to_triggerer.id = 4
     session.add(trigger_unassigned_to_triggerer)
     ti_trigger_unassigned_to_triggerer = create_task_instance(
@@ -216,7 +224,7 @@ def test_assign_unassigned(session, create_task_instance):
     assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.commit()
     assert session.query(Trigger).count() == 4
-    Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
+    Trigger.assign_unassigned(new_triggerer.id, 100, {"default"}, health_check_threshold=30)
     session.expire_all()
     # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
     assert (
@@ -250,6 +258,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
         created_date=old_execution_date + datetime.timedelta(seconds=30),
+        queue="default",
     )
     trigger_old.id = 1
     session.add(trigger_old)
@@ -269,6 +278,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
         created_date=new_execution_date + datetime.timedelta(seconds=30),
+        queue="default",
     )
     trigger_new.id = 2
     session.add(trigger_new)
@@ -284,7 +294,9 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     session.commit()
     assert session.query(Trigger).count() == 2
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+    trigger_ids_query = Trigger.get_sorted_triggers(
+        capacity=100, queues={"default"}, alive_triggerer_ids=[], session=session
+    )
 
     assert trigger_ids_query == [(1,), (2,)]
 
@@ -300,6 +312,7 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
         created_date=old_execution_date + datetime.timedelta(seconds=30),
+        queue="default",
     )
     trigger_old.id = 1
     session.add(trigger_old)
@@ -319,6 +332,7 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
         created_date=new_execution_date + datetime.timedelta(seconds=30),
+        queue="default",
     )
     trigger_new.id = 2
     session.add(trigger_new)
@@ -334,6 +348,8 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.commit()
     assert session.query(Trigger).count() == 2
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+    trigger_ids_query = Trigger.get_sorted_triggers(
+        capacity=100, queues={"default"}, alive_triggerer_ids=[], session=session
+    )
 
     assert trigger_ids_query == [(2,), (1,)]

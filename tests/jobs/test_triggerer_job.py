@@ -611,7 +611,7 @@ def test_invalid_trigger(session, dag_maker):
     triggers that can't even be loaded.
     """
     # Create a totally invalid trigger
-    trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
+    trigger_orm = Trigger(classpath="fake.classpath", kwargs={}, queue="default")
     trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
@@ -629,7 +629,7 @@ def test_invalid_trigger(session, dag_maker):
 
     # Make a TriggererJobRunner and have it retrieve DB tasks
     job = Job()
-    job_runner = TriggererJobRunner(job)
+    job_runner = TriggererJobRunner(job, queues="default")
     job_runner.load_triggers()
 
     # Make sure it turned up in the failed queue

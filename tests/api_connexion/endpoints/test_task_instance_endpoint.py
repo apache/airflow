@@ -254,10 +254,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         ti = self.create_task_instances(
             session, task_instances=[{"state": State.DEFERRED}], update_extras=True
         )[0]
-        ti.trigger = Trigger("none", {})
+        ti.trigger = Trigger("none", {}, "default")
         ti.trigger.created_date = now
         ti.triggerer_job = Job()
-        TriggererJobRunner(job=ti.triggerer_job)
+        TriggererJobRunner(job=ti.triggerer_job, queues="default")
         ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(
@@ -304,6 +304,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": {
                 "classpath": "none",
                 "kwargs": "{}",
+                "queue": "default",
             },
             "triggerer_job": {
                 "dag_id": None,
