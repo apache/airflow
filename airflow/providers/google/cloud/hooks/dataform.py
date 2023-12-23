@@ -310,7 +310,9 @@ class DataformHook(GoogleBaseHook):
             )
             state = workflow_invocation.state
         except Exception as err:
-            raise AirflowException(f"Dataform API returned error when waiting for workflow invocation:\n{err}")
+            raise AirflowException(
+                f"Dataform API returned error when waiting for workflow invocation:\n{err}"
+            )
 
         if state == WorkflowInvocation.State.RUNNING:
             client.cancel_workflow_invocation(

@@ -16,15 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pytest
-import logging
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.dataform_v1beta1.types import WorkflowInvocation
 
 from airflow.exceptions import AirflowException
-from google.api_core.gapic_v1.method import DEFAULT
-
-from google.cloud.dataform_v1beta1.types import WorkflowInvocation
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -191,33 +190,29 @@ class TestDataformHook:
             timeout=None,
             metadata=(),
         )
-    
+
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_workflow_invocation"))
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
-    def test_get_workflow_invocation_raises_exception_on_cancel_workflow_invocation(self, mock_client, mock_state):
-        name = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/"
-            f"{REPOSITORY_ID}/workflowInvocations/{WORKFLOW_INVOCATION_ID}"
-        )
+    def test_get_workflow_invocation_raises_exception_on_cancel_workflow_invocation(
+        self, mock_client, mock_state
+    ):
         mock_client.return_value.get_dataform_client.return_value = None
-        mock_state.side_effect = AirflowException('Dataform API returned error when waiting for workflow invocation')
+        mock_state.side_effect = AirflowException(
+            "Dataform API returned error when waiting for workflow invocation"
+        )
 
-        with pytest.raises(AirflowException, match='Dataform API returned error*.'):
+        with pytest.raises(AirflowException, match="Dataform API returned error*."):
             self.hook.cancel_workflow_invocation(
-            project_id=PROJECT_ID,
-            region=REGION,
-            repository_id=REPOSITORY_ID,
-            workflow_invocation_id=WORKFLOW_INVOCATION_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                repository_id=REPOSITORY_ID,
+                workflow_invocation_id=WORKFLOW_INVOCATION_ID,
             )
 
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_workflow_invocation"))
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
     def test_cancel_workflow_invocation_is_not_called(self, mock_client, mock_state, caplog):
         mock_state.return_value.state = WorkflowInvocation.State.SUCCEEDED
-        name = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/"
-            f"{REPOSITORY_ID}/workflowInvocations/{WORKFLOW_INVOCATION_ID}"
-        )
         expected_log = "Workflow is not active. Either the execution has already "
         "finished or has been canceled. Please check the logs above "
         "for more details."
