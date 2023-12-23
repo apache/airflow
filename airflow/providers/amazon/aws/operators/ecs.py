@@ -420,6 +420,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param count: The number of instantiations of the specified task to place on your cluster. You can specify up to 10 tasks for each call.
     """
 
     ui_color = "#f0ede4"
@@ -444,6 +445,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "number_logs_exception",
         "wait_for_completion",
         "deferrable",
+        "count",
     )
     template_fields_renderers = {
         "overrides": "json",
@@ -479,6 +481,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        count: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -515,6 +518,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.count = count
 
         if self._aws_logs_enabled() and not self.wait_for_completion:
             self.log.warning(
@@ -635,6 +639,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
             run_opts["tags"] = [{"key": k, "value": v} for (k, v) in self.tags.items()]
         if self.propagate_tags is not None:
             run_opts["propagateTags"] = self.propagate_tags
+        if self.count is not None:
+            run_opts["count"] = count
 
         response = self.client.run_task(**run_opts)
 

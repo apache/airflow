@@ -188,6 +188,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "number_logs_exception",
             "wait_for_completion",
             "deferrable",
+            "count",
         )
 
     @pytest.mark.parametrize(
