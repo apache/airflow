@@ -46,11 +46,29 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         ],
     )
+    create_user(
+        app,  # type: ignore
+        username="test_read_only",
+        role_name="TestReadOnly",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
+        username="test_delete_only",
+        role_name="TestDeleteOnly",
+        permissions=[
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
+        ],
+    )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
 
     delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_read_only")  # type: ignore
+    delete_user(app, username="test_delete_only")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
@@ -109,14 +127,24 @@ class TestDeleteVariable(TestVariableEndpoint):
 
 
 class TestGetVariable(TestVariableEndpoint):
-    def test_should_respond_200(self):
+    @pytest.mark.parametrize(
+        "user, expected_status_code",
+        [
+            ("test", 200),
+            ("test_read_only", 200),
+            ("test_delete_only", 403),
+            ("test_no_permissions", 403),
+        ],
+    )
+    def test_read_variable(self, user, expected_status_code):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
-            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": user}
         )
-        assert response.status_code == 200
-        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
 
     def test_should_respond_404_if_not_found(self):
         response = self.client.get(
