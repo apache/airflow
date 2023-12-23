@@ -52,7 +52,7 @@ class TestWeaviateIngestOperator:
             batch_config_params={},
             vector_col="Vector",
             insertion_errors=[],
-            uuid_col=None,
+            uuid_col="id",
             tenant=None,
         )
         mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
