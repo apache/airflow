@@ -22,12 +22,13 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import copytree, rmtree
-from typing import IO, Any
+from typing import Any, TextIO
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     get_available_packages,
     get_latest_provider_tag,
+    get_not_ready_provider_ids,
     get_provider_details,
     get_provider_jinja_context,
     get_removed_provider_ids,
@@ -228,7 +229,10 @@ def move_built_packages_and_cleanup(
 
 
 def get_packages_list_to_act_on(
-    package_list_file: IO | None, provider_packages: tuple[str, ...], include_removed: bool = False
+    package_list_file: TextIO | None,
+    provider_packages: tuple[str, ...],
+    include_not_ready: bool = False,
+    include_removed: bool = False,
 ) -> list[str]:
     if package_list_file and provider_packages:
         get_console().print(
@@ -237,11 +241,13 @@ def get_packages_list_to_act_on(
         sys.exit(1)
     if package_list_file:
         removed_provider_ids = get_removed_provider_ids()
+        not_ready_provider_ids = get_not_ready_provider_ids()
         return [
             package.strip()
             for package in package_list_file.readlines()
-            if package.strip() not in removed_provider_ids
+            if (package.strip() not in removed_provider_ids or include_removed)
+            and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
     elif provider_packages:
         return list(provider_packages)
-    return get_available_packages(include_removed=include_removed)
+    return get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
