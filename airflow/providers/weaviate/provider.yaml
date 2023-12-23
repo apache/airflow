@@ -24,9 +24,11 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 suspended: false
-source-date-epoch: 1700827507
+source-date-epoch: 1703288181
 
 versions:
+  - 1.2.0
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -37,8 +39,9 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - weaviate-client>=3.24.2
+  - pandas>=0.17.1
 
 hooks:
   - integration-name: Weaviate

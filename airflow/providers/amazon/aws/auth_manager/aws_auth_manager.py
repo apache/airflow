@@ -99,9 +99,6 @@ class AwsAuthManager(BaseAuthManager):
             entity_id=config_section,
         )
 
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
-        return self.is_logged_in()
-
     def is_authorized_connection(
         self,
         *,

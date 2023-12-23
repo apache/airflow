@@ -55,7 +55,7 @@ INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
 LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
+LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
@@ -322,8 +322,8 @@ class DatabricksHook(BaseDatabricksHook):
             payload["filter"] = filter
 
         while has_more:
-            if next_token:
-                payload["page_token"] = next_token
+            if next_token is not None:
+                payload = {**payload, "page_token": next_token}
             response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
             pipelines = response.get("statuses", [])
             all_pipelines += pipelines
@@ -345,11 +345,11 @@ class DatabricksHook(BaseDatabricksHook):
 
         if len(matching_pipelines) > 1:
             raise AirflowException(
-                f"There are more than one job with name {pipeline_name}. "
+                f"There are more than one pipelines with name {pipeline_name}. "
                 "Please delete duplicated pipelines first"
             )
 
-        if not pipeline_name:
+        if not pipeline_name or len(matching_pipelines) == 0:
             return None
         else:
             return matching_pipelines[0]["pipeline_id"]

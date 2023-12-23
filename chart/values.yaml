@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.7.3"
+defaultAirflowTag: "2.8.0"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.7.3"
+airflowVersion: "2.8.0"
 
 # Images
 images:
@@ -1895,7 +1895,7 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
-  auth_type: md5
+  auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
   # annotations to be added to the PgBouncer deployment
@@ -2277,8 +2277,6 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
-  image:
-    tag: "11"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres

@@ -21,9 +21,12 @@ name: Plexus
 description: |
     `Plexus <https://plexus.corescientific.com/>`__
 
-suspended: false
-source-date-epoch: 1700827488
+removed: true
+suspended: true
+source-date-epoch: 1703288161
 versions:
+  - 3.4.1
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1
@@ -39,7 +42,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - arrow>=0.16.0
 
 integrations:

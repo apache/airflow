@@ -20,8 +20,10 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
-source-date-epoch: 1700827474
+source-date-epoch: 1703288146
 versions:
+  - 8.5.0
+  - 8.4.0
   - 8.3.0
   - 8.2.0
   - 8.1.0
@@ -69,7 +71,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.0.0

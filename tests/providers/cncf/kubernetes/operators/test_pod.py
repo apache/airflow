@@ -30,6 +30,7 @@ from urllib3 import HTTPResponse
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
+from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -1019,6 +1020,64 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_pod_template_dict(self, randomize_name):
+        templated_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace="templatenamespace",
+                name="hello",
+                labels={"release": "stable"},
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[],
+                init_containers=[
+                    k8s.V1Container(
+                        name="git-clone",
+                        image="registry.k8s.io/git-sync:v3.1.1",
+                        args=[
+                            "--repo=git@github.com:airflow/some_repo.git",
+                            "--branch={{ params.get('repo_branch', 'master') }}",
+                        ],
+                    ),
+                ],
+            ),
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            random_name_suffix=randomize_name,
+            pod_template_dict=pod_generator.PodGenerator.serialize_pod(templated_pod),
+            labels={"hello": "world"},
+        )
+
+        # render templated fields before checking generated pod spec
+        k.render_template_fields(context={"params": {"repo_branch": "test_branch"}})
+        pod = k.build_pod_request_obj(create_context(k))
+
+        if randomize_name:
+            assert pod.metadata.name.startswith("hello")
+            assert pod.metadata.name != "hello"
+        else:
+            assert pod.metadata.name == "hello"
+
+        assert pod.metadata.labels == {
+            "hello": "world",
+            "release": "stable",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
+            "run_id": "test",
+        }
+
+        assert pod.spec.init_containers[0].name == "git-clone"
+        assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
+        assert pod.spec.init_containers[0].args == [
+            "--repo=git@github.com:airflow/some_repo.git",
+            "--branch=test_branch",
+        ]
+
     @patch(f"{POD_MANAGER_CLASS}.fetch_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
     def test_no_handle_failure_on_success(self, fetch_container_mock):
@@ -1288,7 +1347,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj({})
         assert (
             re.match(
-                r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9]{8}",
+                r"a{54}-[a-z0-9]{8}",
                 pod.metadata.name,
             )
             is not None

@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.fab.models import Role, User
+from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session

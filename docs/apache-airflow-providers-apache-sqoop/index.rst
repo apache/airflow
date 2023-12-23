@@ -62,13 +62,21 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 4.1.0
+Release: 4.2.1
 
 Provider package
 ----------------
 
 This is a provider package for ``apache.sqoop`` provider. All classes for this provider package
 are in ``airflow.providers.apache.sqoop`` python package.
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
 
 Installation
 ------------
@@ -80,10 +88,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ==================  ==================

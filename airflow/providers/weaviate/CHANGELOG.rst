@@ -20,6 +20,48 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add helper function for CRUD operations on weaviate's schema and class objects (#35919)``
+* ``Add retry mechanism and dataframe support for WeaviateIngestOperator (#36085)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing template_fields for WeaviateIngestOperator (#36359)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add object methods in weaviate hook (#35934)``
+* ``Add a cache for weaviate client (#35983)``
+* ``Add more ways to connect to weaviate (#35864)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 1.0.0
 .....
 

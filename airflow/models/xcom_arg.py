@@ -59,8 +59,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
         xcomarg >> op
         xcomarg << op
-        op >> xcomarg   # By BaseOperator code
-        op << xcomarg   # By BaseOperator code
+        op >> xcomarg  # By BaseOperator code
+        op << xcomarg  # By BaseOperator code
 
     **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 

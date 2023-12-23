@@ -22,8 +22,10 @@ description: |
     `Asana <https://asana.com/>`__
 
 suspended: false
-source-date-epoch: 1700827446
+source-date-epoch: 1703288118
 versions:
+  - 2.4.1
+  - 2.4.0
   - 2.3.0
   - 2.2.2
   - 2.2.1
@@ -38,7 +40,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   # The Asana provider uses Asana Python API https://github.com/Asana/python-asana/ and version
   # 4.* of it introduced 31.07.2023 is heavily incompatible with previous versions
   # (new way of generating API client from specification has been used). Until we convert to the new API

@@ -22,8 +22,9 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 suspended: false
-source-date-epoch: 1700827508
+source-date-epoch: 1703288183
 versions:
+  - 4.5.0
   - 4.4.0
   - 4.3.2
   - 4.3.1
@@ -41,7 +42,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - zenpy>=2.0.24
 
 integrations:

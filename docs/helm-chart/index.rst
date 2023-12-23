@@ -36,6 +36,7 @@ Helm Chart for Apache Airflow
     using-additional-containers
     customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
+    Extending the Chart<extending-the-chart>
 
 .. toctree::
     :hidden:

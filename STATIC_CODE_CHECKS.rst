@@ -150,6 +150,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
@@ -167,8 +169,6 @@ require Breeze Docker image to be built locally.
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-common-sql-dependency-make-serializable             | Check dependency of SQL Providers with '_make_serializable'  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -237,6 +237,8 @@ require Breeze Docker image to be built locally.
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -463,18 +465,18 @@ Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
      breeze static-checks --type ruff --file tests/core.py --verbose
 
-Run the ``ruff for the ``tests.core`` package with verbose output:
+Run the ``ruff`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
 
-Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+Run the ``ruff-format`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
 ``airflow/example_dags/example_python_operator.py``:
 
 .. code-block:: bash
 
-     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+     breeze static-checks --type ruff-format --file airflow/example_dags/example_bash_operator.py \
          airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:

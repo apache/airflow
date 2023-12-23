@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add _request_timeout to KPO log fetch calls (#36297)``
+* ``Add 'pod_template_dict' field to 'KubernetesPodOperator' (#33174)``
+* ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
+* ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kubernetes executor running slots leak fix (#36240)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``list pods performance optimization (#36092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: KPO typing env_vars (#36048)``
+* ``Stop converting state to TaskInstanceState when it's None (#35891)``
+* ``Feature pass dictionary configuration in application_file in SparkKubernetesOperator (#35848)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Drive-by improvements to convert_env_vars (#36062)``
+   * ``Use fail instead of change_state(failed) in K8S executor (#35900)``
+
 7.10.0
 ......
 

@@ -29,58 +29,58 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import click
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_image_options import (
     option_additional_airflow_extras,
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
     option_additional_pip_install_flags,
     option_additional_python_deps,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
-    option_answer,
     option_build_progress,
-    option_build_timeout_minutes,
-    option_builder,
-    option_commit_sha,
     option_debian_version,
-    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
-    option_docker_host,
-    option_dry_run,
-    option_eager_upgrade_additional_requirements,
-    option_github_repository,
-    option_github_token,
-    option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
-    option_include_success_outputs,
+    option_install_mysql_client_type,
     option_install_providers_from_sources,
-    option_parallelism,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
     option_push,
-    option_python,
     option_python_image,
+    option_tag_as_latest,
+    option_verify,
+    option_wait_for_image,
+)
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_builder,
+    option_commit_sha,
+    option_debug_resources,
+    option_docker_host,
+    option_dry_run,
+    option_github_repository,
+    option_github_token,
+    option_image_name,
+    option_include_success_outputs,
+    option_parallelism,
+    option_python,
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
-    option_tag_as_latest,
-    option_upgrade_on_failure,
-    option_upgrade_to_newer_dependencies,
     option_verbose,
-    option_verify,
-    option_version_suffix_for_pypi_ci,
-    option_wait_for_image,
 )
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_ci,
+)
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docker_command_utils import (
@@ -235,6 +235,47 @@ def get_exitcode(status: int) -> int:
         return 1
 
 
+option_build_timeout_minutes = click.option(
+    "--build-timeout-minutes",
+    required=False,
+    type=int,
+    envvar="BUILD_TIMEOUT_MINUTES",
+    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
+)
+
+option_eager_upgrade_additional_requirements = click.option(
+    "--eager-upgrade-additional-requirements",
+    required=False,
+    type=str,
+    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
+    "(see `breeze ci find-backtracking-candidates`).",
+)
+
+option_upgrade_to_newer_dependencies = click.option(
+    "-u",
+    "--upgrade-to-newer-dependencies",
+    is_flag=True,
+    help="When set, upgrade all PIP packages to latest.",
+    envvar="UPGRADE_TO_NEWER_DEPENDENCIES",
+)
+
+option_upgrade_on_failure = click.option(
+    "--upgrade-on-failure",
+    is_flag=True,
+    help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
+    envvar="UPGRADE_ON_FAILURE",
+)
+
+option_version_suffix_for_pypi_ci = click.option(
+    "--version-suffix-for-pypi",
+    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
+    default="dev0",
+    show_default=True,
+    envvar="VERSION_SUFFIX_FOR_PYPI",
+)
+
+
 @ci_image.command(name="build")
 @option_additional_airflow_extras
 @option_additional_dev_apt_command
@@ -260,6 +301,7 @@ def get_exitcode(status: int) -> int:
 @option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
+@option_install_mysql_client_type
 @option_image_tag_for_building
 @option_include_success_outputs
 @option_install_providers_from_sources
@@ -302,6 +344,7 @@ def build(
     github_token: str | None,
     image_tag: str,
     include_success_outputs,
+    install_mysql_client_type: str,
     install_providers_from_sources: bool,
     parallelism: int,
     platform: str | None,
@@ -373,6 +416,7 @@ def build(
         github_repository=github_repository,
         github_token=github_token,
         image_tag=image_tag,
+        install_mysql_client_type=install_mysql_client_type,
         install_providers_from_sources=install_providers_from_sources,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,

@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import ast
+import difflib
 import os
 import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 from rich.console import Console
@@ -148,3 +150,29 @@ def run_command_via_breeze_shell(
     down_command.extend(["down", "--remove-orphans"])
     subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result
+
+
+class ConsoleDiff(difflib.Differ):
+    def _dump(self, tag, x, lo, hi):
+        """Generate comparison results for a same-tagged range."""
+        for i in range(lo, hi):
+            if tag == "+":
+                yield f"[green]{tag} {x[i]}[/]"
+            elif tag == "-":
+                yield f"[red]{tag} {x[i]}[/]"
+            else:
+                yield f"{tag} {x[i]}"
+
+
+def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> bool:
+    sorted_list = sorted(set(the_list))
+    if the_list == sorted_list:
+        console.print(f"{message} is [green]ok[/]")
+        console.print(the_list)
+        console.print()
+        return True
+    console.print(f"{message} [red]NOK[/]")
+    console.print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
+    console.print()
+    errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
+    return False

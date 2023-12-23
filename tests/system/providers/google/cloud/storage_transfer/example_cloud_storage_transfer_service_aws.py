@@ -113,7 +113,7 @@ with DAG(
     upload_file_to_s3 = GCSToS3Operator(
         task_id="upload_file_to_s3",
         gcp_user_project=GCP_PROJECT_ID,
-        bucket=EXAMPLE_BUCKET,
+        gcs_bucket=EXAMPLE_BUCKET,
         prefix=EXAMPLE_FILE,
         dest_s3_key=f"s3://{BUCKET_SOURCE_AWS}",
         replace=True,
