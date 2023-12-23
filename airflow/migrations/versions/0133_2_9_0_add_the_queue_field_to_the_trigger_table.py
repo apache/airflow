@@ -60,4 +60,4 @@ def upgrade():
 def downgrade():
     """Unapply Add the queue field to the trigger table."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.drop_column("queue", mssql_drop_default=True)
+        batch_op.drop_column("queue")
