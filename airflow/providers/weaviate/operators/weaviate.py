@@ -91,7 +91,7 @@ class WeaviateIngestOperator(BaseOperator):
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list:
         self.log.debug("Input data: %s", self.input_data)
         insertion_errors: list = []
         self.hook.batch_data(
