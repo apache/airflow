@@ -330,11 +330,19 @@ breeze release-management prepare-provider-packages  --include-removed-providers
  --version-suffix-for-pypi rc1 --package-format both
 ```
 
-if you only build few packages, run:
+If you only build few packages, run:
 
 ```shell script
 breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+```
+
+In case you are ALSO releasing RC2, RC3, etc. for selected packages, they will be skipped automatically because
+the `rc1` tag will be created for them already. In this case you should specify the ``rc*`` that you want to
+build and specify the package id's you want to build.
+
+```shell script
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc2 --package-format both PACKAGE
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -416,7 +424,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers all-providers
+breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -461,12 +469,6 @@ breeze release-management publish-docs apache-airflow-providers all-providers --
 breeze release-management add-back-references all-providers
 ```
 
-If you see `ModuleNotFoundError: No module named 'docs'`, set:
-
-```
-export PYTHONPATH=.:${PYTHONPATH}
-```
-
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
@@ -503,6 +505,8 @@ You can also pass the token as `--github-token` option in the script.
 You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
