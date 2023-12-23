@@ -21,21 +21,22 @@ import re
 import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterActiveTrigger,
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
 
@@ -45,21 +46,18 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID = "aws_default"
 
-
-class EcsBaseOperator(BaseOperator):
+class EcsBaseOperator(AwsBaseOperator[EcsHook]):
     """This is the base operator for all Elastic Container Service operators."""
 
-    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
-        self.aws_conn_id = aws_conn_id
-        self.region = region
+    aws_hook_class = EcsHook
+
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @cached_property
-    def hook(self) -> EcsHook:
-        """Create and return an EcsHook."""
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters}
 
     @cached_property
     def client(self) -> boto3.client:
@@ -101,7 +99,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "cluster_name",
         "create_cluster_kwargs",
         "wait_for_completion",

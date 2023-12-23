@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
-    DEFAULT_CONN_ID,
     EcsBaseOperator,
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
@@ -112,7 +111,7 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else DEFAULT_CONN_ID)
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
         assert op.region == (region_name if region_name is not NOTSET else None)
 
     @mock.patch("airflow.providers.amazon.aws.operators.ecs.EcsHook")

@@ -52,6 +52,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -66,6 +67,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
@@ -91,6 +93,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -104,6 +107,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
