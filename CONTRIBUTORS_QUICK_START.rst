@@ -543,9 +543,17 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 1.  Installing required packages
 
+on Linux, install via
+
 .. code-block:: bash
 
   sudo apt install libxml2-utils
+
+on macOS, install via
+
+.. code-block:: bash
+
+  brew install libxml2
 
 2. Installing required Python packages
 
