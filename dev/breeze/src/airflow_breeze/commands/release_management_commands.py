@@ -1496,6 +1496,23 @@ def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     )
 
 
+VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
+
+
+def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
+    """Get suffix from package prepared in dist folder."""
+    for file in dist_files:
+        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') and file.endswith(
+            ".tar.gz"
+        ):
+            file = file[: -len(".tar.gz")]
+            version = file.split("-")[-1]
+            match = VERSION_MATCH.match(version)
+            if match:
+                return match.group(4)
+    return None
+
+
 def get_prs_for_package(provider_id: str) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
     prs = []
@@ -1567,6 +1584,7 @@ def generate_issue_content_providers(
         pypi_package_name: str
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
+        suffix: str
 
     if not provider_packages:
         provider_packages = list(DEPENDENCIES.keys())
@@ -1623,16 +1641,18 @@ def generate_issue_content_providers(
                 ).read_text()
             )
             if pull_request_list:
+                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
                     provider_package_id=provider_id,
                     pypi_package_name=provider_yaml_dict["package-name"],
                     pr_list=pull_request_list,
+                    suffix=package_suffix if package_suffix else suffix,
                 )
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
-        issue_content = template.render(providers=providers, date=datetime.now(), suffix=suffix)
+        issue_content = template.render(providers=providers, date=datetime.now())
         get_console().print()
         get_console().print(
             "[green]Below you can find the issue content that you can use "
