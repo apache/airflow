@@ -49,13 +49,6 @@ class EcsBaseSensor(AwsBaseSensor[EcsHook]):
 
     aws_hook_class = EcsHook
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    @property
-    def _hook_parameters(self) -> dict[str, Any]:
-        return {**super()._hook_parameters}
-
     @cached_property
     def client(self) -> boto3.client:
         """Create and return an EcsHook client."""
