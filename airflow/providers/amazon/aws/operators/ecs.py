@@ -640,7 +640,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.propagate_tags is not None:
             run_opts["propagateTags"] = self.propagate_tags
         if self.count is not None:
-            run_opts["count"] = count
+            run_opts["count"] = self.count
 
         response = self.client.run_task(**run_opts)
 
