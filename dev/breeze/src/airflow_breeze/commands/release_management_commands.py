@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_historical_python_version,
     option_image_tag_for_running,
+    option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
     option_installation_package_format,
@@ -153,7 +154,7 @@ argument_provider_packages = click.argument(
     "provider_packages",
     nargs=-1,
     required=False,
-    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False)),
+    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False, include_not_ready=False)),
 )
 option_airflow_site_directory = click.option(
     "-a",
@@ -346,6 +347,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
 @argument_provider_packages
 @option_answer
 @option_dry_run
+@option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
     "--non-interactive",
@@ -368,6 +370,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     non_interactive: bool,
     only_min_version_update: bool,
@@ -390,7 +393,9 @@ def prepare_provider_documentation(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     if not provider_packages:
-        provider_packages = get_available_packages(include_removed=include_removed_providers)
+        provider_packages = get_available_packages(
+            include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
+        )
 
     if not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
@@ -520,12 +525,14 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
 )
 @option_dry_run
 @option_github_repository
+@option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_packages
 @option_verbose
 def prepare_provider_packages(
     clean_dist: bool,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     package_format: str,
     package_list_file: IO | None,
@@ -538,7 +545,10 @@ def prepare_provider_packages(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     packages_list = get_packages_list_to_act_on(
-        package_list_file, provider_packages, include_removed_providers
+        package_list_file=package_list_file,
+        provider_packages=provider_packages,
+        include_removed=include_removed_providers,
+        include_not_ready=include_not_ready_providers,
     )
     if not skip_tag_check:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
@@ -1145,6 +1155,7 @@ def run_publish_docs_in_parallel(
 @option_airflow_site_directory
 @option_debug_resources
 @option_dry_run
+@option_include_not_ready_providers
 @option_include_removed_providers
 @option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
@@ -1165,6 +1176,7 @@ def publish_docs(
     debug_resources: bool,
     doc_packages: tuple[str, ...],
     include_success_outputs: bool,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
     package_filter: tuple[str, ...],
@@ -1180,7 +1192,11 @@ def publish_docs(
         )
 
     current_packages = find_matching_long_package_names(
-        short_packages=expand_all_provider_packages(doc_packages, include_removed=include_removed_providers),
+        short_packages=expand_all_provider_packages(
+            short_doc_packages=doc_packages,
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
+        ),
         filters=package_filter,
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
@@ -1209,12 +1225,14 @@ def publish_docs(
     help="Command to add back references for documentation to make it backward compatible.",
 )
 @option_airflow_site_directory
+@option_include_not_ready_providers
 @option_include_removed_providers
 @argument_doc_packages
 @option_dry_run
 @option_verbose
 def add_back_references(
     airflow_site_directory: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -1232,7 +1250,14 @@ def add_back_references(
         )
         sys.exit(1)
     start_generating_back_references(
-        site_path, list(expand_all_provider_packages(doc_packages, include_removed=include_removed_providers))
+        site_path,
+        list(
+            expand_all_provider_packages(
+                short_doc_packages=doc_packages,
+                include_removed=include_removed_providers,
+                include_not_ready=include_not_ready_providers,
+            )
+        ),
     )
 
 

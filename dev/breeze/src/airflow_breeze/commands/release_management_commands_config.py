@@ -132,6 +132,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--clean-dist",
                 "--github-repository",
+                "--include-not-ready-providers",
                 "--include-removed-providers",
                 "--package-format",
                 "--package-list-file",
@@ -147,6 +148,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--base-branch",
                 "--github-repository",
+                "--include-not-ready-providers",
                 "--include-removed-providers",
                 "--non-interactive",
                 "--only-min-version-update",
@@ -197,6 +199,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Publish Docs",
             "options": [
                 "--airflow-site-directory",
+                "--include-not-ready-providers",
                 "--include-removed-providers",
                 "--override-versioned",
                 "--package-filter",
@@ -218,6 +221,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Add Back References to Docs",
             "options": [
                 "--airflow-site-directory",
+                "--include-not-ready-providers",
                 "--include-removed-providers",
             ],
         },
