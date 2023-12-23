@@ -69,13 +69,21 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 3.4.0
+Release: 3.4.1
 
 Provider package
 ----------------
 
 This is a provider package for ``plexus`` provider. All classes for this provider package
 are in ``airflow.providers.plexus`` python package.
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
 
 Installation
 ------------

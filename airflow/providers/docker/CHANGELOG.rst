@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow DockerOperator.skip_on_exit_code to be zero (#36360)``
+
+Misc
+~~~~
+
+* ``Remove remaining Airflow 2.5 backcompat code from Docker Provider (#36325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.9.0
 .....
 

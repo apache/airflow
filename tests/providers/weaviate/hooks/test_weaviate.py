@@ -428,7 +428,7 @@ def test_batch_data(data, expected_length, weaviate_hook):
     test_class_name = "TestClass"
 
     # Test the batch_data method
-    weaviate_hook.batch_data(test_class_name, data)
+    weaviate_hook.batch_data(test_class_name, data, insertion_errors=[])
 
     # Assert that the batch_data method was called with the correct arguments
     mock_client.batch.configure.assert_called_once()
@@ -446,7 +446,7 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     error.response = response
     side_effect = [None, error, None, error, None]
     get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
-    weaviate_hook.batch_data("TestClass", data)
+    weaviate_hook.batch_data("TestClass", data, insertion_errors=[])
     assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
 
 
@@ -670,3 +670,204 @@ def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_
         ]
     }
     assert weaviate_hook.check_subset_of_schema(classes_to_test) == expected_result
+
+
+@mock.patch("weaviate.util.generate_uuid5")
+def test___generate_uuids(generate_uuid5, weaviate_hook):
+    df = pd.DataFrame.from_dict({"name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]})
+    with pytest.raises(ValueError, match=r"Columns last_name don't exist in dataframe"):
+        weaviate_hook._generate_uuids(
+            df=df, class_name="test", unique_columns=["name", "age", "gender", "last_name"]
+        )
+
+    df = pd.DataFrame.from_dict(
+        {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
+    )
+    with pytest.raises(
+        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify" r" 'uuid_column'"
+    ):
+        weaviate_hook._generate_uuids(df=df, class_name="test", unique_columns=["name", "age", "gender"])
+
+    with pytest.raises(
+        ValueError,
+        match=r"Property age already in dataset. Consider renaming or specify" r" a different 'uuid_column'.",
+    ):
+        weaviate_hook._generate_uuids(
+            df=df, uuid_column="age", class_name="test", unique_columns=["name", "age", "gender"]
+        )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_object")
+def test__delete_objects(delete_object, weaviate_hook):
+    resp = requests.Response()
+    resp.status_code = 429
+    requests.exceptions.HTTPError(response=resp)
+    http_429_exception = requests.exceptions.HTTPError(response=resp)
+
+    resp = requests.Response()
+    resp.status_code = 404
+    not_found_exception = weaviate.exceptions.UnexpectedStatusCodeException(
+        message="object not found", response=resp
+    )
+
+    delete_object.side_effect = [not_found_exception, None, http_429_exception, http_429_exception, None]
+    weaviate_hook._delete_objects(uuids=["1", "2", "3"], class_name="test")
+    assert delete_object.call_count == 5
+
+
+def test__prepare_document_to_uuid_map(weaviate_hook):
+    input_data = [
+        {"id": "1", "name": "ross", "age": "12", "gender": "m"},
+        {"id": "2", "name": "bob", "age": "22", "gender": "m"},
+        {"id": "3", "name": "joy", "age": "15", "gender": "f"},
+    ]
+    grouped_data = weaviate_hook._prepare_document_to_uuid_map(
+        data=input_data, group_key="gender", get_value=lambda x: x["name"]
+    )
+    assert grouped_data == {"m": {"ross", "bob"}, "f": {"joy"}}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map")
+def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
+    _get_documents_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid2", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "dfg.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    _prepare_document_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid56", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "hjk.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    (
+        _,
+        changed_documents,
+        unchanged_docs,
+        new_documents,
+    ) = weaviate_hook._get_segregated_documents(
+        data=pd.DataFrame(),
+        document_column="doc_key",
+        uuid_column="id",
+        class_name="doc",
+    )
+    assert changed_documents == {"abc.doc"}
+    assert unchanged_docs == {"xyz.doc"}
+    assert new_documents == {"hjk.doc"}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_error_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
+    _generate_uuids.return_value = (df, "id")
+    with pytest.raises(
+        ValueError, match="Documents abc.xml already exists. You can either" " skip or replace"
+    ):
+        weaviate_hook.create_or_replace_document_objects(
+            data=df, document_column="doc", class_name="test", existing="error"
+        )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_skip_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    class_name = "test"
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
+    _generate_uuids.return_value = (df, "id")
+
+    weaviate_hook.create_or_replace_document_objects(
+        data=df, class_name=class_name, existing="skip", document_column="doc"
+    )
+
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"], df[df["doc"].isin(new_documents)]
+    )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_replace_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    class_name = "test"
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {"abc.xml": {"uuid"}},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    batch_data.return_value = []
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
+    _generate_uuids.return_value = (df, "id")
+    weaviate_hook.create_or_replace_document_objects(
+        data=df, class_name=class_name, existing="replace", document_column="doc"
+    )
+    _delete_all_documents_objects.assert_called_with(
+        document_keys=list(changed_documents),
+        total_objects_count=1,
+        document_column="doc",
+        class_name="test",
+        batch_delete_error=[],
+        tenant=None,
+        batch_config_params=None,
+        verbose=False,
+    )
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"],
+        df[df["doc"].isin(changed_documents.union(new_documents))],
+    )

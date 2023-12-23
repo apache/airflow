@@ -51,6 +51,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import POD_NAME_MAX_LENGTH
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
@@ -92,7 +93,7 @@ def _rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
+def _add_pod_suffix(*, pod_name, rand_len=8, max_len=POD_NAME_MAX_LENGTH):
     """Add random string to pod name while staying under max len.
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
@@ -107,7 +108,7 @@ def _create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = POD_NAME_MAX_LENGTH,
     unique: bool = True,
 ) -> str:
     """
@@ -962,7 +963,7 @@ class KubernetesPodOperator(BaseOperator):
 
         if not pod.metadata.name:
             pod.metadata.name = _create_pod_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix

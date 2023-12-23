@@ -102,6 +102,8 @@ Airflow could always use better documentation, whether as part of the official
 Airflow docs, in docstrings, ``docs/*.rst`` or even on the web as blog posts or
 articles.
 
+See the `Docs README <https://github.com/apache/airflow/blob/main/docs/README.rst>`__ for more information about contributing to Airflow docs.
+
 Submit Feedback
 ---------------
 

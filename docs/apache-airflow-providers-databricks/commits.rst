@@ -35,14 +35,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-5.1.0
+6.0.0
 .....
 
-Latest change: 2023-12-11
+Latest change: 2023-12-23
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`5fe5d31a46 <https://github.com/apache/airflow/commit/5fe5d31a46885fbb2fb6ba9c0bd551a6b57d129a>`_  2023-12-22   ``Return common data structure in DBApi derived classes``
+`322aa649ed <https://github.com/apache/airflow/commit/322aa649edce6655f4bddfb9813ff8cb38616b7a>`_  2023-12-21   ``fix typos in DatabricksSubmitRunOperator (#36248)``
+`e9ba37bb58 <https://github.com/apache/airflow/commit/e9ba37bb58da0e3d6739ec063f7160f50487d3b8>`_  2023-12-17   ``Add code snippet formatting in docstrings via Ruff (#36262)``
+`64931b1a65 <https://github.com/apache/airflow/commit/64931b1a65a22cb5c6fa6921ed5f4d00f011abd9>`_  2023-12-12   ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
 `36010f6d0e <https://github.com/apache/airflow/commit/36010f6d0e3231081dbae095baff5a5b5c5b34eb>`_  2023-12-11   ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
 `999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``

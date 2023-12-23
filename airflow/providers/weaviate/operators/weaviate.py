@@ -51,7 +51,7 @@ class WeaviateIngestOperator(BaseOperator):
     :param vector_col: key/column name in which the vectors are stored.
     """
 
-    template_fields: Sequence[str] = ("input_json",)
+    template_fields: Sequence[str] = ("input_json", "input_data")
 
     def __init__(
         self,
@@ -60,6 +60,8 @@ class WeaviateIngestOperator(BaseOperator):
         input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
         vector_col: str = "Vector",
+        uuid_column: str = "id",
+        tenant: str | None = None,
         **kwargs: Any,
     ) -> None:
         self.batch_params = kwargs.pop("batch_params", {})
@@ -69,7 +71,9 @@ class WeaviateIngestOperator(BaseOperator):
         self.class_name = class_name
         self.conn_id = conn_id
         self.vector_col = vector_col
-
+        self.input_json = input_json
+        self.uuid_column = uuid_column
+        self.tenant = tenant
         if input_data is not None:
             self.input_data = input_data
         elif input_json is not None:
@@ -87,11 +91,16 @@ class WeaviateIngestOperator(BaseOperator):
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> list:
         self.log.debug("Input data: %s", self.input_data)
+        insertion_errors: list = []
         self.hook.batch_data(
-            self.class_name,
-            self.input_data,
-            **self.batch_params,
+            class_name=self.class_name,
+            data=self.input_data,
+            batch_config_params=self.batch_params,
             vector_col=self.vector_col,
+            insertion_errors=insertion_errors,
+            uuid_col=self.uuid_column,
+            tenant=self.tenant,
         )
+        return insertion_errors
