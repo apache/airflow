@@ -39,6 +39,7 @@ from airflow_breeze.commands.common_options import (
     option_database_isolation,
     option_db_reset,
     option_docker_host,
+    option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_forward_credentials,
@@ -247,6 +248,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_db_reset
 @option_docker_host
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_dry_run
 @option_executor_shell
 @option_force_build
@@ -292,6 +294,7 @@ def shell(
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
+    downgrade_pendulum: bool,
     docker_host: str | None,
     executor: str,
     extra_args: tuple,
@@ -351,6 +354,7 @@ def shell(
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        downgrade_pendulum=downgrade_pendulum,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],

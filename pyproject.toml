@@ -119,7 +119,7 @@ dependencies = [
     "opentelemetry-exporter-otlp",
     "packaging>=14.0",
     "pathspec>=0.9.0",
-    "pendulum>=3.0,<4.0",
+    "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
     "pydantic>=2.3.0",

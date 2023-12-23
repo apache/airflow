@@ -18,15 +18,20 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
-from pendulum.tz.timezone import FixedTimezone, Timezone
 
-# UTC time zone as a tzinfo instance.
-utc = Timezone("UTC")
+if TYPE_CHECKING:
+    from pendulum.tz.timezone import FixedTimezone, Timezone
+
+_PENDULUM3 = pendulum.__version__.startswith("3")
+# UTC Timezone as a tzinfo instance. Actual value depends on pendulum version:
+# - Timezone("UTC") in pendulum 3
+# - FixedTimezone(0, "UTC") in pendulum 2
+utc = pendulum.UTC
 
 
 def is_localized(value):
@@ -284,7 +289,11 @@ def parse_timezone(name: str | int) -> FixedTimezone | Timezone:
 
     :meta private:
     """
-    return pendulum.timezone(name)
+    if _PENDULUM3:
+        # This only presented in pendulum 3 and code do not reached into the pendulum 2
+        return pendulum.timezone(name)  # type: ignore[operator]
+    # In pendulum 2 this refers to the function, in pendulum 3 refers to the module
+    return pendulum.tz.timezone(name)  # type: ignore[operator]
 
 
 def local_timezone() -> FixedTimezone | Timezone:

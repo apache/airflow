@@ -20,6 +20,7 @@ import os
 import unittest.mock
 from datetime import datetime
 
+import pendulum
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -46,6 +47,7 @@ DAG_ID = "test_dag"
 TASK_ID = "op1"
 DAG2_ID = "test_dag2"
 DAG3_ID = "test_dag3"
+UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
 @pytest.fixture(scope="module")
@@ -316,7 +318,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "UTC",
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
@@ -367,7 +369,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "UTC",
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
@@ -418,7 +420,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "UTC",
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
@@ -478,7 +480,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "UTC",
+            "timezone": UTC_JSON_REPR,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -539,7 +541,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [],
             "template_searchpath": None,
             "timetable_description": None,
-            "timezone": "UTC",
+            "timezone": UTC_JSON_REPR,
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected
