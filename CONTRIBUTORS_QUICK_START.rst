@@ -543,7 +543,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 1.  Installing required packages
 
-on Linux, install via
+on Debian / Ubuntu, install via
 
 .. code-block:: bash
 
