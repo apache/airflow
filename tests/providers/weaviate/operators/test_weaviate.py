@@ -30,13 +30,13 @@ class TestWeaviateIngestOperator:
             task_id="weaviate_task",
             conn_id="weaviate_conn",
             class_name="my_class",
-            input_json={"data": "sample_data"},
+            input_json=[{"data": "sample_data"}],
         )
 
     def test_constructor(self, operator):
         assert operator.conn_id == "weaviate_conn"
         assert operator.class_name == "my_class"
-        assert operator.input_data == {"data": "sample_data"}
+        assert operator.input_data == [{"data": "sample_data"}]
         assert operator.batch_params == {}
         assert operator.hook_params == {}
 
@@ -47,9 +47,15 @@ class TestWeaviateIngestOperator:
         operator.execute(context=None)
 
         operator.hook.batch_data.assert_called_once_with(
-            "my_class", {"data": "sample_data"}, vector_col="Vector", **{}
+            class_name="my_class",
+            data=[{"data": "sample_data"}],
+            batch_config_params={},
+            vector_col="Vector",
+            insertion_errors=[],
+            uuid_col=None,
+            tenant=None,
         )
-        mock_log.debug.assert_called_once_with("Input data: %s", {"data": "sample_data"})
+        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
 
     @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
