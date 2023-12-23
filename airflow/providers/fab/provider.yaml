@@ -25,6 +25,11 @@ description: |
   `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 suspended: false
+
+# The provider is not yet ready to be released, we will skip it by default when preparing new release waves
+# For providers until we think it should be released.
+not-ready: true
+
 source-date-epoch: 1703288133
 
 versions:
