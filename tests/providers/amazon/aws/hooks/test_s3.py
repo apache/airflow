@@ -816,6 +816,32 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_pending_async_without_tzinfo(
+        self, mock_list_keys, mock_client
+    ):
+        """
+        Test is_key_unchanged gives AirflowException.
+        """
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=0,
+            previous_objects=set(),
+            inactivity_seconds=0,
+            allow_delete=False,
+            last_activity_time=std_datetime.now(),
+        )
+        assert response.get("status") == "pending"
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
     async def test_s3_key_hook_is_keys_unchanged_pending_async_with_tzinfo(self, mock_list_keys, mock_client):
         """
         Test is_key_unchanged gives AirflowException.
