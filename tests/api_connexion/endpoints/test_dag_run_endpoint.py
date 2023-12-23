@@ -1870,7 +1870,8 @@ class TestSetDagRunNote(TestDagRunEndpoint):
     def test_should_respond_200_with_anonymous_user(self, dag_maker, session):
         from airflow.www import app as application
 
-        app = application.create_app(config={"AUTH_ROLE_PUBLIC": "Admin"}, testing=True)
+        app = application.create_app(testing=True)
+        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
         session.add_all(dag_runs)
         session.commit()
