@@ -776,6 +776,14 @@ repos:
         additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
+      - id: check-integrations-list-consistent
+        name: Sync integrations list with docs
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
+        language: python
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$
+        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4']
+        require_serial: true
+        pass_filenames: false
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
