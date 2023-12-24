@@ -461,49 +461,73 @@ class TaskDecoratorCollection:
     def kubernetes(
         self,
         *,
-        image: str,
-        kubernetes_conn_id: str = ...,
-        namespace: str = "default",
-        name: str = ...,
-        random_name_suffix: bool = True,
+        multiple_outputs: bool | None = None,
+        use_dill: bool = False,  # Added by _KubernetesDecoratedOperator.
+        # 'cmds' filled by _KubernetesDecoratedOperator.
+        kubernetes_conn_id: str | None = ...,
+        namespace: str | None = None,
+        image: str | None = None,
+        name: str | None = None,
+        random_name_suffix: bool = ...,
+        arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
         volumes: list[k8s.V1Volume] | None = None,
-        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         labels: dict | None = None,
-        reattach_on_restart: bool = True,
-        startup_timeout_seconds: int = 120,
+        reattach_on_restart: bool = ...,
+        startup_timeout_seconds: int = ...,
+        startup_check_interval_seconds: int = ...,
         get_logs: bool = True,
+        container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
-        config_file: str = ...,
+        config_file: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
-        is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
+        host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
-        security_context: dict | None = None,
+        security_context: k8s.V1PodSecurityContext | dict | None = None,
+        container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
+        dns_config: k8s.V1PodDNSConfig | None = None,
+        hostname: str | None = None,
+        subdomain: str | None = None,
         schedulername: str | None = None,
+        full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
+        pod_template_dict: dict | None = None,
         priority_class_name: str | None = None,
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        base_container_name: str | None = None,
+        deferrable: bool = ...,
+        poll_interval: float = ...,
+        log_pod_spec_on_failure: bool = ...,
+        on_finish_action: str = ...,
+        termination_message_policy: str = ...,
+        active_deadline_seconds: int | None = None,
+        progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
 
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill or pickle for serialization
         :param kubernetes_conn_id: The Kubernetes cluster's
             :ref:`connection ID <howto/connection:kubernetes>`.
         :param namespace: Namespace to run within Kubernetes. Defaults to *default*.
@@ -514,6 +538,8 @@ class TaskDecoratorCollection:
             (DNS-1123 subdomain, containing only ``[a-z0-9.-]``). Defaults to
             ``k8s_airflow_pod_{RANDOM_UUID}``.
         :param random_name_suffix: If *True*, will generate a random suffix.
+        :param arguments: arguments of the entrypoint. (templated)
+            The docker image's CMD is used if this is not provided.
         :param ports: Ports for the launched pod.
         :param volume_mounts: *volumeMounts* for the launched pod.
         :param volumes: Volumes for the launched pod. Includes *ConfigMaps* and
@@ -533,7 +559,12 @@ class TaskDecoratorCollection:
             a new pod for each try.
         :param labels: Labels to apply to the pod. (templated)
         :param startup_timeout_seconds: Timeout in seconds to startup the pod.
+        :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
         :param get_logs: Get the stdout of the container as logs of the tasks.
+        :param container_logs: list of containers whose logs will be published to stdout
+            Takes a sequence of containers, a single container name or True.
+            If True, all the containers logs are published. Works in conjunction with ``get_logs`` param.
+            The default value is the base container.
         :param image_pull_policy: Specify a policy to cache or always pull an
             image.
         :param annotations: Non-identifying metadata you can attach to the pod.
@@ -548,21 +579,25 @@ class TaskDecoratorCollection:
             pod. If more than one secret is required, provide a comma separated
             list, e.g. ``secret_a,secret_b``.
         :param service_account_name: Name of the service account.
-        :param is_delete_operator_pod: What to do when the pod reaches its final
-            state, or the execution is interrupted. If *True* (default), delete
-            the pod; otherwise leave the pod.
         :param hostnetwork: If *True*, enable host networking on the pod.
+        :param host_aliases: A list of host aliases to apply to the containers in the pod.
         :param tolerations: A list of Kubernetes tolerations.
         :param security_context: Security options the pod should run with
             (PodSecurityContext).
+        :param container_security_context: security options the container should run with.
         :param dnspolicy: DNS policy for the pod.
+        :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
+        :param hostname: hostname for the pod.
+        :param subdomain: subdomain for the pod.
         :param schedulername: Specify a scheduler name for the pod
+        :param full_pod_spec: The complete podSpec
         :param init_containers: Init containers for the launched pod.
         :param log_events_on_failure: Log the pod's events if a failure occurs.
         :param do_xcom_push: If *True*, the content of
             ``/airflow/xcom/return.json`` in the container will also be pushed
             to an XCom when the container completes.
         :param pod_template_file: Path to pod template file (templated)
+        :param pod_template_dict: pod template dictionary (templated)
         :param priority_class_name: Priority class name for the launched pod.
         :param pod_runtime_info_envs: A list of environment variables
             to be set in the container.
@@ -572,6 +607,24 @@ class TaskDecoratorCollection:
             ConfigMaps to populate the environment variables with. The contents
             of the target ConfigMap's Data field will represent the key-value
             pairs as environment variables. Extends env_from.
+        :param skip_on_exit_code: If task exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
+        :param base_container_name: The name of the base container in the pod. This container's logs
+            will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
+            will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
+            container name to use.
+        :param deferrable: Run operator in the deferrable mode.
+        :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+        :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
+        :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+            If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
+            only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        :param termination_message_policy: The termination message policy of the base container.
+            Default value is "File"
+        :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+            in V1PodSpec.
+        :param progress_callback: Callback function for receiving k8s container logs.
         """
     @overload
     def sensor(
