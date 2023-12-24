@@ -30,7 +30,7 @@ parameter as ``livy_default`` by default.
 Configuring the Connection
 --------------------------
 Host
-    The http host of the Livy server. You may add the scheme in the ``Host`` field or give it in the ``Scheme`` field.
+    The http host of the Livy server. You may add the scheme in the ``Host`` field or give it in the ``Schema`` field.
 
 Port
     Specify the port in case of host be an URL of the Apache Livy server.
