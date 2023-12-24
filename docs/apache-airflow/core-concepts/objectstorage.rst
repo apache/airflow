@@ -76,7 +76,8 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
     base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
-The username part of the URI is optional. It can alternatively be passed in as a separate keyword argument:
+The username part of the URI represents the Airflow connection id and is optional. It can alternatively be passed
+in as a separate keyword argument:
 
 .. code-block:: python
 
@@ -242,6 +243,11 @@ key
 
 Returns the object key.
 
+namespace
+^^^^^^^^^
+
+Returns the namespace of the object. Typically this is the protocol, like ``s3://`` with the
+bucket name.
 
 path
 ^^^^
@@ -303,6 +309,27 @@ The intended behavior is the same as specified by
 ``fsspec``. For cross object store directory copying,
 Airflow needs to walk the directory tree and copy each file individually. This is done by streaming each file from the
 source to the target.
+
+
+Caching
+-------
+
+The object storage abstraction can use a local cache to speed up access to remote files. The cache is implemented by
+``fsspec`` and is transparent to the user. You will need to attach a cache to the scheme you want to use. For example,
+to enable caching for s3, you would do the following:
+
+.. code-block:: python
+
+    import fsspec
+
+    from airflow.io.path import ObjectStoragePath
+    from airflow.io.store import attach
+
+    s3_storage_options = {}
+    filesystem = fsspec.filesystem(protocol="filecache", target_protocol="s3", **s3_storage_options)
+    attach(protocol="filecache", fs=filesystem)
+
+    base = ObjectStoragePath("filecache://my-bucket/")
 
 
 External Integrations

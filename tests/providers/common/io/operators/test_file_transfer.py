@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+from openlineage.client.run import Dataset
+
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
 
 
@@ -45,3 +47,25 @@ def test_file_transfer_copy():
         )
         source_path.copy.assert_called_once_with(target_path)
         target_path.copy.assert_not_called()
+
+
+def test_get_openlineage_facets_on_start():
+    src_bucket = "src-bucket"
+    src_key = "src-key"
+    dst_bucket = "dst-bucket"
+    dst_key = "dst-key"
+
+    expected_input = Dataset(namespace=f"s3://{src_bucket}", name=src_key)
+    expected_output = Dataset(namespace=f"s3://{dst_bucket}", name=dst_key)
+
+    op = FileTransferOperator(
+        task_id="test",
+        src=f"s3://{src_bucket}/{src_key}",
+        dst=f"s3://{dst_bucket}/{dst_key}",
+    )
+
+    lineage = op.get_openlineage_facets_on_start()
+    assert len(lineage.inputs) == 1
+    assert len(lineage.outputs) == 1
+    assert lineage.inputs[0] == expected_input
+    assert lineage.outputs[0] == expected_output
