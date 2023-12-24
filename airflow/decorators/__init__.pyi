@@ -356,8 +356,6 @@ class TaskDecoratorCollection:
         privileged: bool = False,
         cap_add: str | None = None,
         extra_hosts: dict[str, str] | None = None,
-        retrieve_output: bool = False,
-        retrieve_output_path: str | None = None,
         timeout: int = 60,
         device_requests: list[dict] | None = None,
         log_opts_max_size: str | None = None,
@@ -443,10 +441,6 @@ class TaskDecoratorCollection:
         :param cap_add: Include container capabilities
         :param extra_hosts: Additional hostnames to resolve inside the container,
             as a mapping of hostname to IP address.
-        :param retrieve_output: Should this docker image consistently attempt to pull from and output
-            file before manually shutting down the image. Useful for cases where users want a pickle serialized
-            output that is not posted to logs
-        :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
         :param device_requests: Expose host resources such as GPUs to the container.
         :param log_opts_max_size: The maximum size of the log before it is rolled.
             A positive integer plus a modifier representing the unit of measure (k, m, or g).
