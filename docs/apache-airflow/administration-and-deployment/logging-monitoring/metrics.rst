@@ -233,7 +233,7 @@ Name                                                             Description
 ``dag_processing.last_duration.<dag_file>``                      Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                             Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                              Seconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``                               Seconds of delay between the scheduled DagRun
+``dagrun.schedule_delay.<dag_id>``                               Milliseconds of delay between the scheduled DagRun
                                                                  start date and the actual DagRun start date
 ``scheduler.critical_section_duration``                          Milliseconds spent in the critical section of scheduler loop --
                                                                  only a single scheduler can enter this loop at a time
