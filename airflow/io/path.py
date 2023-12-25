@@ -264,11 +264,11 @@ class ObjectStoragePath(CloudPath):
         --------
         >>> read_block(0, 13)
         b'Alice, 100\\nBo'
-        >>> read_block(0, 13, delimiter=b'\\n')
+        >>> read_block(0, 13, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\n'
 
         Use ``length=None`` to read to the end of the file.
-        >>> read_block(0, None, delimiter=b'\\n')
+        >>> read_block(0, None, delimiter=b"\\n")
         b'Alice, 100\\nBob, 200\\nCharlie, 300'
 
         See Also

@@ -22,8 +22,9 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 suspended: false
-source-date-epoch: 1701983390
+source-date-epoch: 1703288144
 versions:
+  - 3.5.1
   - 3.5.0
   - 3.4.0
   - 3.3.2

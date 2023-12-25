@@ -49,6 +49,7 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  INCLUDE_NOT_READY_PROVIDERS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
   MOUNT_SOURCES: "skip"
 
@@ -880,7 +881,7 @@ jobs:
           path: old-airflow
       - name: "Prepare airflow package: wheel"
         run: |
-          pip install pip==23.3.1 wheel==0.36.2 gitpython==3.1.40
+          pip install pip==23.3.2 wheel==0.36.2 gitpython==3.1.40
           python setup.py egg_info --tag-build ".dev0" bdist_wheel -d ../dist
         working-directory: ./old-airflow
       - name: >
@@ -1497,8 +1498,8 @@ jobs:
         run: breeze testing tests || true
         env:
           BACKEND: "postgres"
-          BACKEND_VERSION: "11"
-          POSTGRES_VERSION: "11"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
+          POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
       - name: >
           Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true

@@ -22,9 +22,9 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 suspended: false
-source-date-epoch: 1701983371
+source-date-epoch: 1703288125
 versions:
-  - 5.1.0
+  - 6.0.0
   - 5.0.1
   - 5.0.0
   - 4.7.0
@@ -59,7 +59,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - apache-airflow-providers-common-sql>=1.8.1
+  - apache-airflow-providers-common-sql>=1.10.0
   - requests>=2.27,<3
   # The connector 2.9.0 released on Aug 10, 2023 has a bug that it does not properly declare urllib3 and
   # it needs to be excluded. See https://github.com/databricks/databricks-sql-python/issues/190

@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_historical_python_version,
     option_image_tag_for_running,
+    option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
     option_installation_package_format,
@@ -109,6 +110,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -139,7 +141,6 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     clean_www_assets,
@@ -153,7 +154,7 @@ argument_provider_packages = click.argument(
     "provider_packages",
     nargs=-1,
     required=False,
-    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False)),
+    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False, include_not_ready=False)),
 )
 option_airflow_site_directory = click.option(
     "-a",
@@ -202,9 +203,10 @@ class VersionedFile(NamedTuple):
     suffix: str
     type: str
     comparable_version: Version
+    file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.1"
+AIRFLOW_PIP_VERSION = "23.3.2"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -346,6 +348,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
 @argument_provider_packages
 @option_answer
 @option_dry_run
+@option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
     "--non-interactive",
@@ -368,6 +371,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     non_interactive: bool,
     only_min_version_update: bool,
@@ -390,7 +394,9 @@ def prepare_provider_documentation(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     if not provider_packages:
-        provider_packages = get_available_packages(include_removed=include_removed_providers)
+        provider_packages = get_available_packages(
+            include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
+        )
 
     if not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
@@ -520,12 +526,14 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
 )
 @option_dry_run
 @option_github_repository
+@option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_packages
 @option_verbose
 def prepare_provider_packages(
     clean_dist: bool,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     package_format: str,
     package_list_file: IO | None,
@@ -538,7 +546,10 @@ def prepare_provider_packages(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     packages_list = get_packages_list_to_act_on(
-        package_list_file, provider_packages, include_removed_providers
+        package_list_file=package_list_file,
+        provider_packages=provider_packages,
+        include_removed=include_removed_providers,
+        include_not_ready=include_not_ready_providers,
     )
     if not skip_tag_check:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
@@ -1083,7 +1094,7 @@ def run_docs_publishing(
     verbose: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    builder = PublishDocsBuilder(package_name=package_name, output=output, verbose=verbose)
+    builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
     builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
     return (
         0,
@@ -1145,6 +1156,7 @@ def run_publish_docs_in_parallel(
 @option_airflow_site_directory
 @option_debug_resources
 @option_dry_run
+@option_include_not_ready_providers
 @option_include_removed_providers
 @option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
@@ -1165,6 +1177,7 @@ def publish_docs(
     debug_resources: bool,
     doc_packages: tuple[str, ...],
     include_success_outputs: bool,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
     package_filter: tuple[str, ...],
@@ -1180,7 +1193,11 @@ def publish_docs(
         )
 
     current_packages = find_matching_long_package_names(
-        short_packages=expand_all_provider_packages(doc_packages, include_removed=include_removed_providers),
+        short_packages=expand_all_provider_packages(
+            short_doc_packages=doc_packages,
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
+        ),
         filters=package_filter,
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
@@ -1209,12 +1226,14 @@ def publish_docs(
     help="Command to add back references for documentation to make it backward compatible.",
 )
 @option_airflow_site_directory
+@option_include_not_ready_providers
 @option_include_removed_providers
 @argument_doc_packages
 @option_dry_run
 @option_verbose
 def add_back_references(
     airflow_site_directory: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -1232,7 +1251,14 @@ def add_back_references(
         )
         sys.exit(1)
     start_generating_back_references(
-        site_path, list(expand_all_provider_packages(doc_packages, include_removed=include_removed_providers))
+        site_path,
+        list(
+            expand_all_provider_packages(
+                short_doc_packages=doc_packages,
+                include_removed=include_removed_providers,
+                include_not_ready=include_not_ready_providers,
+            )
+        ),
     )
 
 
@@ -1291,10 +1317,10 @@ def clean_old_provider_artifacts(
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
                 get_console().print(
-                    f"""[warning]Removing {versioned_file.base + versioned_file.version +
-                versioned_file.suffix} as they are older than remaining file"""
+                    f"[warning]Removing {versioned_file.file_name} as they are older than remaining file: "
+                    f"{package_types[-1].file_name}[/]"
                 )
-                command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
+                command = ["svn", "rm", versioned_file.file_name]
                 run_command(command, check=False)
 
 
@@ -1495,6 +1521,23 @@ def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     )
 
 
+VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
+
+
+def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
+    """Get suffix from package prepared in dist folder."""
+    for file in dist_files:
+        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') and file.endswith(
+            ".tar.gz"
+        ):
+            file = file[: -len(".tar.gz")]
+            version = file.split("-")[-1]
+            match = VERSION_MATCH.match(version)
+            if match:
+                return match.group(4)
+    return None
+
+
 def get_prs_for_package(provider_id: str) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
     prs = []
@@ -1566,6 +1609,7 @@ def generate_issue_content_providers(
         pypi_package_name: str
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
+        suffix: str
 
     if not provider_packages:
         provider_packages = list(DEPENDENCIES.keys())
@@ -1622,16 +1666,18 @@ def generate_issue_content_providers(
                 ).read_text()
             )
             if pull_request_list:
+                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
                     provider_package_id=provider_id,
                     pypi_package_name=provider_yaml_dict["package-name"],
                     pr_list=pull_request_list,
+                    suffix=package_suffix if package_suffix else suffix,
                 )
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
-        issue_content = template.render(providers=providers, date=datetime.now(), suffix=suffix)
+        issue_content = template.render(providers=providers, date=datetime.now())
         get_console().print()
         get_console().print(
             "[green]Below you can find the issue content that you can use "
@@ -1939,4 +1985,5 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         suffix=suffix,
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
+        file_name=file_name,
     )

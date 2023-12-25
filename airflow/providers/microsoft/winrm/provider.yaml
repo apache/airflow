@@ -22,7 +22,7 @@ description: |
   `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 suspended: false
-source-date-epoch: 1701983395
+source-date-epoch: 1703288149
 versions:
   - 3.4.0
   - 3.3.0

@@ -51,6 +51,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import POD_NAME_MAX_LENGTH
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
@@ -92,7 +93,7 @@ def _rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
+def _add_pod_suffix(*, pod_name, rand_len=8, max_len=POD_NAME_MAX_LENGTH):
     """Add random string to pod name while staying under max len.
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
@@ -107,7 +108,7 @@ def _create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = POD_NAME_MAX_LENGTH,
     unique: bool = True,
 ) -> str:
     """
@@ -218,6 +219,7 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
+    :param pod_template_dict: pod template dictionary (templated)
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
@@ -267,6 +269,7 @@ class KubernetesPodOperator(BaseOperator):
         "labels",
         "config_file",
         "pod_template_file",
+        "pod_template_dict",
         "namespace",
         "container_resources",
         "volumes",
@@ -322,6 +325,7 @@ class KubernetesPodOperator(BaseOperator):
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
+        pod_template_dict: dict | None = None,
         priority_class_name: str | None = None,
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
@@ -404,6 +408,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log_events_on_failure = log_events_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
+        self.pod_template_dict = pod_template_dict
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
@@ -413,7 +418,7 @@ class KubernetesPodOperator(BaseOperator):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
@@ -672,6 +677,7 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        self.log.debug("Triggered with event: %s", event)
         pod = None
         try:
             pod = self.hook.get_pod(
@@ -682,7 +688,11 @@ class KubernetesPodOperator(BaseOperator):
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self.write_logs(pod)
-                raise AirflowException(event["message"])
+                if "stack_trace" in event:
+                    message = f"{event['message']}\n{event['stack_trace']}"
+                else:
+                    message = event["message"]
+                raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
@@ -735,34 +745,37 @@ class KubernetesPodOperator(BaseOperator):
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
             istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        ):
+        )
+
+        if failed:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
-            self.process_pod_deletion(remote_pod, reraise=False)
+        self.process_pod_deletion(remote_pod, reraise=False)
 
+        if self.skip_on_exit_code:
+            container_statuses = (
+                remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
+            ) or []
+            base_container_status = next(
+                (x for x in container_statuses if x.name == self.base_container_name), None
+            )
+            exit_code = (
+                base_container_status.state.terminated.exit_code
+                if base_container_status
+                and base_container_status.state
+                and base_container_status.state.terminated
+                else None
+            )
+            if exit_code in self.skip_on_exit_code:
+                raise AirflowSkipException(
+                    f"Pod {pod and pod.metadata.name} returned exit code {exit_code}. Skipping."
+                )
+
+        if failed:
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
-            if self.skip_on_exit_code is not None:
-                container_statuses = (
-                    remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
-                ) or []
-                base_container_status = next(
-                    (x for x in container_statuses if x.name == self.base_container_name), None
-                )
-                exit_code = (
-                    base_container_status.state.terminated.exit_code
-                    if base_container_status
-                    and base_container_status.state
-                    and base_container_status.state.terminated
-                    else None
-                )
-                if exit_code in self.skip_on_exit_code:
-                    raise AirflowSkipException(
-                        f"Pod {pod and pod.metadata.name} returned exit code "
-                        f"{self.skip_on_exit_code}. Skipping."
-                    )
             raise AirflowException(
                 "\n".join(
                     filter(
@@ -775,8 +788,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                 )
             )
-        else:
-            self.process_pod_deletion(remote_pod, reraise=False)
 
     def _read_pod_events(self, pod, *, reraise=True):
         """Will fetch and emit events from pod."""
@@ -892,6 +903,11 @@ class KubernetesPodOperator(BaseOperator):
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.pod_template_dict:
+            self.log.debug("Pod template dict found, will parse for base pod")
+            pod_template = pod_generator.PodGenerator.deserialize_model_dict(self.pod_template_dict)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
         else:
@@ -948,7 +964,7 @@ class KubernetesPodOperator(BaseOperator):
 
         if not pod.metadata.name:
             pod.metadata.name = _create_pod_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix

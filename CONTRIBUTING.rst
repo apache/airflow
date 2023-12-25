@@ -102,6 +102,8 @@ Airflow could always use better documentation, whether as part of the official
 Airflow docs, in docstrings, ``docs/*.rst`` or even on the web as blog posts or
 articles.
 
+See the `Docs README <https://github.com/apache/airflow/blob/main/docs/README.rst>`__ for more information about contributing to Airflow docs.
+
 Submit Feedback
 ---------------
 
@@ -980,6 +982,51 @@ Documentation
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie.
 providers packages are in ``/docs/`` directory. For detailed information on documentation development,
 see: `docs/README.rst <docs/README.rst>`_
+
+Diagrams
+========
+
+We started to use (and gradually convert old diagrams to use it) `Diagrams <https://diagrams.mingrammer.com/>`_
+as our tool of choice to generate diagrams. The diagrams are generated from Python code and can be
+automatically updated when the code changes. The diagrams are generated using pre-commit hooks (See
+static checks below) but they can also be generated manually by running the corresponding Python code.
+
+To run the code you need to install the dependencies in the virtualenv you use to run it:
+* ``pip install diagrams rich``. You need to have graphviz installed in your
+system (``brew install graphviz`` on macOS for example).
+
+The source code of the diagrams are next to the generated diagram, the difference is that the source
+code has ``.py`` extension and the generated diagram has ``.png`` extension. The pre-commit hook
+ ``generate-airflow-diagrams`` will look for ``diagram_*.py`` files in the ``docs`` subdirectories
+to find them and runs them when the sources changed and the diagrams are not up to date (the
+pre-commit will automatically generate an .md5sum hash of the sources and store it next to the diagram
+file).
+
+In order to generate the diagram manually you can run the following command:
+
+.. code-block:: bash
+
+    python <path-to-diagram-file>.py
+
+You can also generate all diagrams by:
+
+.. code-block:: bash
+
+    pre-commit run generate-airflow-diagrams
+
+or with Breeze:
+
+.. code-block:: bash
+
+    breeze static-checks --type generate-airflow-diagrams --all-files
+
+When you iterate over a diagram, you can also setup a "save" action in your IDE to run the python
+file automatically when you save the diagram file.
+
+Once you've done iteration and you are happy with the diagram, you can commit the diagram, the source
+code and the .md5sum file. The pre-commit hook will then not run the diagram generation until the
+source code for it changes.
+
 
 Static code checks
 ==================

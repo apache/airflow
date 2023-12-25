@@ -36,14 +36,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.1
+.....
+
+Latest change: 2023-12-12
+
+=================================================================================================  ===========  ========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================
+`6ee4d402e5 <https://github.com/apache/airflow/commit/6ee4d402e542e92ac2167867cd6711ac9ab4f0cf>`_  2023-12-12   ``fix connection type webhdfs (#36145)``
+=================================================================================================  ===========  ========================================
+
 4.3.0
 .....
 
-Latest change: 2023-12-07
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``

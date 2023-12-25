@@ -381,11 +381,12 @@ class DAG(LoggingMixin):
 
         **Example**: to avoid Jinja from removing a trailing newline from template strings ::
 
-            DAG(dag_id='my-dag',
+            DAG(
+                dag_id="my-dag",
                 jinja_environment_kwargs={
-                    'keep_trailing_newline': True,
+                    "keep_trailing_newline": True,
                     # some other jinja2 Environment options here
-                }
+                },
             )
 
         **See**: `Jinja Environment documentation
@@ -873,8 +874,8 @@ class DAG(LoggingMixin):
         from croniter import croniter
 
         cron = croniter(self.timetable._expression)
-        next_a = cron.get_next(datetime.datetime)
-        next_b = cron.get_next(datetime.datetime)
+        next_a = cron.get_next(datetime)
+        next_b = cron.get_next(datetime)
         return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
     def following_schedule(self, dttm):

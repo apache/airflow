@@ -22,8 +22,9 @@ description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 suspended: false
-source-date-epoch: 1701983399
+source-date-epoch: 1703288153
 versions:
+  - 4.4.0
   - 4.3.0
   - 4.2.0
   - 4.1.0
@@ -45,7 +46,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - apache-airflow-providers-common-sql>=1.8.1
+  - apache-airflow-providers-common-sql>=1.10.0
   - pyodbc
 
 integrations:
