@@ -17,17 +17,17 @@
 
 
 
-.. _howto/connection:spark:
+.. _howto/connection:spark-sql:
 
-Apache Spark Submit Connection
-==============================
+Apache Spark Sql Connection
+===========================
 
-The Apache Spark Submit connection type enables connection to Apache Spark via the ``spark-submit`` command.
+The Apache Spark SQL connection type enables connection to Apache Spark via the ``spark-sql`` command.
 
 Default Connection IDs
 ----------------------
 
-Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default.
+SparkSqlHook uses ``spark_sql_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -37,29 +37,8 @@ Host (required)
 Port (optional)
     Specify the port in case of host be an URL.
 
-YARN Queue (optional, only applies to spark on YARN applications)
+YARN Queue
     The name of the YARN queue to which the application is submitted.
-
-Deploy mode (optional)
-    Whether to deploy your driver on the worker nodes (cluster) or locally as an external client (client).
-
-Spark binary (optional)
-    The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``. Only ``spark-submit``, ``spark2-submit`` or ``spark3-submit`` are allowed as value.
-
-Kubernetes namespace (optional, only applies to spark on kubernetes applications)
-    Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
-
-When specifying the connection in environment variable you should specify
-it using URI syntax.
-
-Note that all components of the URI should be URL-encoded. The URI and the mongo
-connection string are not the same.
-
-For example:
-
-.. code-block:: bash
-
-   export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy-mode=cluster&spark_binary=command&namespace=kube+namespace'
 
 .. warning::
 

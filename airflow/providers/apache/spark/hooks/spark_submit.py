@@ -98,8 +98,40 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "login", "password"],
+            "hidden_fields": ["schema", "login", "password", "extra"],
             "relabeling": {},
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import Optional, any_of
+
+        return {
+            "queue": StringField(
+                lazy_gettext("YARN queue"),
+                widget=BS3TextFieldWidget(),
+                description="Default YARN queue to use",
+                validators=[Optional()],
+            ),
+            "deploy-mode": StringField(
+                lazy_gettext("Deploy mode"),
+                widget=BS3TextFieldWidget(),
+                description="Must be client or cluster",
+                validators=[any_of(["client", "cluster"])],
+            ),
+            "spark-binary": StringField(
+                lazy_gettext("Spark binary"),
+                widget=BS3TextFieldWidget(),
+                description=f"Must be one of: {', '.join(ALLOWED_SPARK_BINARIES)}",
+                validators=[any_of(ALLOWED_SPARK_BINARIES)],
+            ),
+            "namespace": StringField(
+                lazy_gettext("Kubernetes namespace"), widget=BS3TextFieldWidget(), validators=[Optional()]
+            ),
         }
 
     def __init__(
