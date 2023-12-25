@@ -538,7 +538,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[common.io] and dependencies",
+                "parallel-test-types-list-as-string": "Always Providers[common.io,openlineage]",
             },
             id="Only Always and Common.IO tests should run when only common.io and tests/always changed",
         ),
