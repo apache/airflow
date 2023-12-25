@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
 import attr
 import pendulum
-from sqlalchemy import select, update
+from sqlalchemy import select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -264,16 +264,33 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :return: An iterable of expanded TaskInstance per MappedTask
         """
         executor = self.job.executor
+        # list of tuples (dag_id, task_id, execution_date, map_index) of running tasks in executor
+        running_tis_ids = [
+            (key.dag_id, key.task_id, key.run_id, key.map_index)
+            for key in executor.get_event_buffer()
+            if key in running
+        ]
+        # list of TaskInstance of running tasks in executor (refreshed from db in batch)
+        refreshed_running_tis = session.scalars(
+            select(TaskInstance).where(
+                tuple_(
+                    TaskInstance.dag_id,
+                    TaskInstance.task_id,
+                    TaskInstance.run_id,
+                    TaskInstance.map_index,
+                ).in_(running_tis_ids)
+            )
+        ).all()
+        # dict of refreshed TaskInstance by key to easily find them
+        refreshed_running_tis_dict = {ti.key: ti for ti in refreshed_running_tis}
 
-        # TODO: query all instead of refresh from db
         for key, value in list(executor.get_event_buffer().items()):
             state, info = value
-            if key not in running:
+            if key not in refreshed_running_tis_dict:
                 self.log.warning("%s state %s not in running=%s", key, state, running.values())
                 continue
 
-            ti = running[key]
-            ti.refresh_from_db()
+            ti = refreshed_running_tis_dict[key]
 
             self.log.debug("Executor state: %s task %s", state, ti)
 
