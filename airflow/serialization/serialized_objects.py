@@ -168,7 +168,7 @@ def encode_timezone(var: Timezone | FixedTimezone) -> str | int:
     )
 
 
-def decode_timezone(var: str | int):
+def decode_timezone(var: str | int) -> Timezone | FixedTimezone:
     """Decode a previously serialized Pendulum Timezone."""
     return parse_timezone(var)
 
