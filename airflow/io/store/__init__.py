@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
@@ -37,8 +38,6 @@ class ObjectStore:
     conn_id: str | None
     protocol: str
     storage_options: Properties | None
-
-    _fs: AbstractFileSystem | None = None
 
     def __init__(
         self,
@@ -106,7 +105,13 @@ class ObjectStore:
         return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
 
     def __eq__(self, other):
-        return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
+        self_fs = None
+        other_fs = None
+        with suppress(ValueError):
+            self_fs = self.fs
+        with suppress(ValueError):
+            other_fs = other.fs
+        return isinstance(other, type(self)) and other.conn_id == self.conn_id and self_fs == other_fs
 
 
 _STORE_CACHE: dict[str, ObjectStore] = {}
