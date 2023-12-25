@@ -15,8 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""BigQuery Hook and a very basic PEP 249 implementation for BigQuery.
 
-"""BigQuery Hook and a very basic PEP 249 implementation for BigQuery."""
+.. spelling:word-list::
+
+    BaseToken
+"""
+
 
 from __future__ import annotations
 
@@ -59,6 +64,9 @@ from sqlalchemy import create_engine
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    _get_target_principal_and_delegates,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 
@@ -3252,11 +3260,11 @@ def _format_schema_for_description(schema: dict) -> list:
 
 
 class ImpersonationToken:
-    """Simulate the interface of gcloud.aio.auth.token.BaseToken and generate impersonation_chain access_token"""
+    """Simulate the interface of gcloud.aio.auth.token.BaseToken and generate impersonation_chain access_token."""
 
-    def __init__(self, project_id: str | None, impersonation_account: str) -> None:
+    def __init__(self, project_id: str | None, impersonation_chain: str) -> None:
         self.project_id = project_id
-        self.impersonation_account = impersonation_account
+        self.impersonation_chain = impersonation_chain
 
     async def get_project(self) -> str | None:
         project = (
@@ -3270,9 +3278,10 @@ class ImpersonationToken:
     async def get(self) -> str | None:
         creds, _ = google.auth.default()
 
+        target_principal, _ = _get_target_principal_and_delegates(self.impersonation_chain)
         impersonated_creds = impersonated_credentials.Credentials(
             source_credentials=creds,
-            target_principal=self.impersonation_account,
+            target_principal=target_principal,
             target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
 
@@ -3311,7 +3320,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 project=project_id,
                 service_file=f,
                 session=cast(Session, session),
-                token=token,  # type: ignore
+                token=token,  # type: ignore[arg-type]
             )
 
     async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
@@ -3566,5 +3575,5 @@ class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
                 project=project_id,
                 service_file=file,
                 session=cast(Session, session),
-                token=token,
+                token=token,  # type: ignore[arg-type]
             )
