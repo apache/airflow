@@ -52,7 +52,6 @@ class _AirflowCloudAccessor(_CloudAccessor):
         conn_id: str | None = None,
         **kwargs: typing.Any,
     ) -> None:
-        super().__init__(**kwargs)
         if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
@@ -148,7 +147,7 @@ class ObjectStoragePath(CloudPath):
             conn_id = conn_id or userinfo or None
             parsed_url = parsed_url._replace(netloc=hostinfo)
 
-        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)
+        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
