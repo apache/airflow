@@ -176,6 +176,8 @@ class ObjectStoragePath(CloudPath):
     @property
     def key(self) -> str:
         if self._url:
+            # per convention, we strip the leading slashes to ensure a relative key is returned
+            # we keep the trailing slash to allow for directory-like semantics
             return self._url.path.lstrip(self.sep)
         else:
             return ""
