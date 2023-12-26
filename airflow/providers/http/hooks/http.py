@@ -56,6 +56,8 @@ class HttpHook(BaseHook):
     conn_type = "http"
     hook_name = "HTTP"
 
+    _retry_obj: Callable[..., Any]
+
     def __init__(
         self,
         method: str = "POST",
@@ -70,7 +72,6 @@ class HttpHook(BaseHook):
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
-        self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
