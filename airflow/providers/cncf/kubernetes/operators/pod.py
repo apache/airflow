@@ -200,6 +200,9 @@ class KubernetesPodOperator(BaseOperator):
     :param progress_callback: Callback function for receiving k8s container logs.
     """
 
+    # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
+    #  - airflow/decorators/__init__.pyi  (by a separate PR)
+
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
     ISTIO_CONTAINER_NAME = "istio-proxy"
