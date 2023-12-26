@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.0
+.....
+
+Latest change: 2023-12-22
+
+=================================================================================================  ===========  ==========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================
+`5fe5d31a46 <https://github.com/apache/airflow/commit/5fe5d31a46885fbb2fb6ba9c0bd551a6b57d129a>`_  2023-12-22   ``Return common data structure in DBApi derived classes``
+`f84eb2ab6f <https://github.com/apache/airflow/commit/f84eb2ab6fe777938f85a5fbb2a0b8a6dc07b9bc>`_  2023-12-21   ``Make "placeholder" of ODBC configurable in UI (#36000)``
+=================================================================================================  ===========  ==========================================================
+
 4.3.0
 .....
 
-Latest change: 2023-12-11
+Latest change: 2023-12-12
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`64931b1a65 <https://github.com/apache/airflow/commit/64931b1a65a22cb5c6fa6921ed5f4d00f011abd9>`_  2023-12-12   ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
 `36010f6d0e <https://github.com/apache/airflow/commit/36010f6d0e3231081dbae095baff5a5b5c5b34eb>`_  2023-12-11   ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
 `999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``

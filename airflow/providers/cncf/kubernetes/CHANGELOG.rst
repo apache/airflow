@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add _request_timeout to KPO log fetch calls (#36297)``
+* ``Add 'pod_template_dict' field to 'KubernetesPodOperator' (#33174)``
+* ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
+* ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kubernetes executor running slots leak fix (#36240)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``list pods performance optimization (#36092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.11.0
 ......
 

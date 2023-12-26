@@ -22,7 +22,7 @@ description: |
     `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 suspended: false
-source-date-epoch: 1701983403
+source-date-epoch: 1703288156
 versions:
   - 5.4.0
   - 5.3.0

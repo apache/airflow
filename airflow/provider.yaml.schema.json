@@ -29,6 +29,10 @@
             "description": "If set to true, the provider is also removed and will be soon removed from the code",
             "type:": "boolean"
         },
+        "not-ready": {
+            "description": "If set to true, the provider is not included by default in release commands - for example when provider release or documentation is being prepared (not-ready providers are enabled in CI by default)",
+            "type:": "boolean"
+        },
         "dependencies": {
             "description": "Dependencies that should be added to the provider",
             "type": "array",

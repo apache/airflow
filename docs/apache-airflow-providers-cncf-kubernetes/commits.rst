@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.12.0
+......
+
+Latest change: 2023-12-22
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`33ee0b98b2 <https://github.com/apache/airflow/commit/33ee0b98b2731ecdb27fc67d33e121948dd63c68>`_  2023-12-22   ``Add _request_timeout to KPO log fetch calls (#36297)``
+`381922f7c0 <https://github.com/apache/airflow/commit/381922f7c02ebd4c2ad8bb1147e99e932ea800ff>`_  2023-12-21   ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
+`49108e15eb <https://github.com/apache/airflow/commit/49108e15eb2eb30e2ccb95c9332db7b38d35f2de>`_  2023-12-20   ``Kubernetes executor running slots leak fix (#36240)``
+`5ab43d5541 <https://github.com/apache/airflow/commit/5ab43d5541a68c5c90fe849f19e344bcdeddd44f>`_  2023-12-19   ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+`f81dfd731f <https://github.com/apache/airflow/commit/f81dfd731f576121c0219c2601e06ecfa4ccc765>`_  2023-12-17   ``Add 'pod_template_dict' field to 'KubernetesPodOperator' (#33174)``
+`a398d9d4fa <https://github.com/apache/airflow/commit/a398d9d4fa38479155058b95abdcb96f9b918646>`_  2023-12-16   ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+`b9c574c61a <https://github.com/apache/airflow/commit/b9c574c61ae42481b9d2c9ce7c42c93dc44b9507>`_  2023-12-10   ``list pods performance optimization (#36092)``
+=================================================================================================  ===========  ================================================================================
+
 7.11.0
 ......
 
-Latest change: 2023-12-07
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `1264316fe7 <https://github.com/apache/airflow/commit/1264316fe7ab15eba3be6c985a28bb573c85c92b>`_  2023-12-05   ``Drive-by improvements to convert_env_vars (#36062)``
 `de71a62848 <https://github.com/apache/airflow/commit/de71a62848bd91e56bdc675246ab51bc6affa629>`_  2023-12-05   ``fix: KPO typing env_vars (#36048)``

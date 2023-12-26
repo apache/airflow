@@ -145,3 +145,6 @@ doap_airflow.rdf
 
 # PKG-INFO file
 PKG-INFO
+
+# checksum files
+.*\.md5sum

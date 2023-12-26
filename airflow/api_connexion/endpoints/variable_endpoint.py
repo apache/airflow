@@ -57,7 +57,7 @@ def delete_variable(*, variable_key: str) -> Response:
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
-@security.requires_access_variable("DELETE")
+@security.requires_access_variable("GET")
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
     """Get a variable by key."""

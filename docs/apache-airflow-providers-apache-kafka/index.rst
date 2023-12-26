@@ -82,7 +82,7 @@ Package apache-airflow-providers-apache-kafka
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.3.0
+Release: 1.3.1
 
 Provider package
 ----------------

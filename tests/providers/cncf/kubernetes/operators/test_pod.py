@@ -1347,7 +1347,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj({})
         assert (
             re.match(
-                r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9]{8}",
+                r"a{54}-[a-z0-9]{8}",
                 pod.metadata.name,
             )
             is not None
@@ -1363,25 +1363,33 @@ class TestKubernetesPodOperator:
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc",
+        "kwargs, actual_exit_code, expected_exc",
         [
-            (None, 99, AirflowException),
+            ({}, 0, None),
+            ({}, 100, AirflowException),
+            ({}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": None}, 101, AirflowException),
+            ({"skip_on_exit_code": 100}, 0, None),
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_on_exit_code": 100}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 0}, 0, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 0, None),
             ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100]}, 101, AirflowException),
             ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100,)}, 101, AirflowException),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     def test_task_skip_when_pod_exit_with_certain_code(
-        self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
+        self, remote_pod, kwargs, actual_exit_code, expected_exc
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
-        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **(extra_kwargs or {}))
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **kwargs)
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
@@ -1619,13 +1627,22 @@ class TestKubernetesPodOperatorAsync:
             )
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc, pod_status, event_status",
+        "kwargs, actual_exit_code, expected_exc, pod_status, event_status",
         [
-            (None, 0, None, "Succeeded", "success"),
-            (None, 99, AirflowException, "Failed", "error"),
+            ({}, 0, None, "Succeeded", "success"),
+            ({}, 100, AirflowException, "Failed", "error"),
+            ({}, 101, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": None}, 0, None, "Succeeded", "success"),
+            ({"skip_on_exit_code": None}, 100, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": None}, 101, AirflowException, "Failed", "error"),
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
             ({"skip_on_exit_code": 100}, 101, AirflowException, "Failed", "error"),
-            ({"skip_on_exit_code": None}, 100, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": 0}, 0, AirflowSkipException, "Failed", "error"),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException, "Failed", "error"),
+            ({"skip_on_exit_code": [100]}, 101, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException, "Failed", "error"),
+            ({"skip_on_exit_code": (100,)}, 101, AirflowException, "Failed", "error"),
         ],
     )
     @patch(KUB_OP_PATH.format("pod_manager"))
@@ -1634,7 +1651,7 @@ class TestKubernetesPodOperatorAsync:
         self,
         mocked_hook,
         mock_manager,
-        extra_kwargs,
+        kwargs,
         actual_exit_code,
         expected_exc,
         pod_status,
@@ -1654,7 +1671,7 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            **(extra_kwargs or {}),
+            **kwargs,
         )
 
         base_container = MagicMock()

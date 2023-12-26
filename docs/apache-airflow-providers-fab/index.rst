@@ -90,3 +90,40 @@ PIP package           Version required
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-fab
+------------------------------------------------------
+
+`Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``fab`` provider. All classes for this provider package
+are in ``airflow.providers.fab`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
+``pip install apache-airflow-providers-fab``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+
+====================  ==================
+PIP package           Version required
+====================  ==================
+``apache-airflow``    ``>=2.9.0``
+``flask``             ``>=2.2,<2.3``
+``flask-appbuilder``  ``==4.3.10``
+``flask-login``       ``>=0.6.2``
+``google-re2``        ``>=1.0``
+====================  ==================

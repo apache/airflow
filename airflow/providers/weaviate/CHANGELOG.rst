@@ -20,6 +20,23 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add helper function for CRUD operations on weaviate's schema and class objects (#35919)``
+* ``Add retry mechanism and dataframe support for WeaviateIngestOperator (#36085)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing template_fields for WeaviateIngestOperator (#36359)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.1.0
 .....
 

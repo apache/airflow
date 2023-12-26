@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+.. note::
+
+  Mark plexus provider as removed according to `consensus on the dev@airflow.apache.org <https://lists.apache.org/thread/6so1qh8kf088spd2y4nl0o5tpbyn0x3b>`_
+
+Misc
+~~~~
+
+* ``Schedule plexus and apache.sqoop providers for removal (#36208)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.4.0
 .....
 

@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.14.0
+......
+
+Latest change: 2023-12-21
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`0b32613480 <https://github.com/apache/airflow/commit/0b326134801c8f6e1e9ad685ffb20b899c85c9ec>`_  2023-12-21   ``Increase ConflictException retries to 4 total (#36337)``
+`30afa46e90 <https://github.com/apache/airflow/commit/30afa46e90cd1ee17d03e6fa9fa3022223374ccf>`_  2023-12-21   ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
+`2b31f373ef <https://github.com/apache/airflow/commit/2b31f373ef92c2b793f3f484192aa7b7fc88a7b6>`_  2023-12-20   ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
+`e9ba37bb58 <https://github.com/apache/airflow/commit/e9ba37bb58da0e3d6739ec063f7160f50487d3b8>`_  2023-12-17   ``Add code snippet formatting in docstrings via Ruff (#36262)``
+`357355ac09 <https://github.com/apache/airflow/commit/357355ac09b4741d621a5408d859b697a07b3ceb>`_  2023-12-11   ``Remove 'is_authorized_cluster_activity' from auth manager (#36175)``
+`e37fe8f576 <https://github.com/apache/airflow/commit/e37fe8f5769ec6509b82774493b0b3dd6316c03b>`_  2023-12-11   ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+`aba58adb83 <https://github.com/apache/airflow/commit/aba58adb83435e96e66027de5163756301a6ddf5>`_  2023-12-08   ``Allow storage options to be passed (#35820)``
+=================================================================================================  ===========  ================================================================================
+
 8.13.0
 ......
 
-Latest change: 2023-12-07
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `7329e9eed9 <https://github.com/apache/airflow/commit/7329e9eed91cc34a03c275dfc9a0fd4c9a0bba6f>`_  2023-12-07   ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `ef5eebdb26 <https://github.com/apache/airflow/commit/ef5eebdb26ca9ddb49c529625660b72b6c9b55b4>`_  2023-12-06   ``Fix AWS system tests (#36091)``
