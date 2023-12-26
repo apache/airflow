@@ -243,7 +243,9 @@ class HttpHook(BaseHook):
             hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 
         """
-        self._retry_obj = tenacity.Retrying(**_retry_args)
+        # Work around "Never not callable" error in Mypy 1.8.
+        # This is probably an annotation issue in tenacity? Not entirely sure.
+        self._retry_obj: Any = tenacity.Retrying(**_retry_args)
 
         return self._retry_obj(self.run, *args, **kwargs)
 
