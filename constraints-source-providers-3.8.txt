@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-23T01:25:45.859741
+# This constraints file was automatically generated on 2023-12-26T23:08:25.386800
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -25,7 +25,7 @@ Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
 GitPython==3.1.40
-JPype1==1.4.1
+JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
 Js2Py==0.74
@@ -117,7 +117,7 @@ backports.zoneinfo==0.2.1
 bcrypt==4.1.2
 beautifulsoup4==4.12.2
 billiard==4.2.0
-bitarray==2.9.0
+bitarray==2.9.1
 black==24.1a1
 blinker==1.7.0
 boto3==1.33.13
@@ -165,7 +165,7 @@ deltalake==0.14.0
 deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.8
-distro==1.8.0
+distro==1.9.0
 dnspython==2.4.2
 docker==7.0.0
 docopt==0.6.2
@@ -280,7 +280,7 @@ inflection==0.5.1
 influxdb-client==1.39.0
 iniconfig==2.0.0
 ipdb==0.13.13
-ipykernel==6.27.1
+ipykernel==6.28.0
 ipython==8.12.3
 isodate==0.6.1
 itsdangerous==2.1.2
@@ -296,11 +296,11 @@ jsonpath-ng==1.6.0
 jsonpickle==3.0.2
 jsonpointer==2.4
 jsonschema-path==0.3.2
-jsonschema-specifications==2023.11.2
+jsonschema-specifications==2023.12.1
 jsonschema==4.20.0
 junit-xml==1.9
 jupyter_client==8.6.0
-jupyter_core==5.5.1
+jupyter_core==5.6.0
 keyring==24.3.0
 kombu==5.3.4
 krb5==0.5.1
@@ -472,7 +472,7 @@ readme-renderer==42.0
 redis==4.6.0
 redshift-connector==2.0.918
 referencing==0.31.1
-regex==2023.10.3
+regex==2023.12.25
 requests-file==1.5.1
 requests-kerberos==0.14.0
 requests-mock==1.11.0
