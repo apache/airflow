@@ -245,9 +245,9 @@ class HttpHook(BaseHook):
         """
         # Work around "Never not callable" error in Mypy 1.8.
         # This is probably an annotation issue in tenacity? Not entirely sure.
-        self._retry_obj: Any = tenacity.Retrying(**_retry_args)
-
-        return self._retry_obj(self.run, *args, **kwargs)
+        retrying = tenacity.Retrying(**_retry_args)
+        self._retry_obj = retrying
+        return retrying(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
