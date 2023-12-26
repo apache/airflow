@@ -30,12 +30,20 @@ from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesR
 
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 if TYPE_CHECKING:
+    from contextvars import ContextVar
+
     from google.auth.credentials import Credentials
 
     from airflow.models import TaskInstance
+
+try:
+    # todo: remove this conditional import when min airflow version >= 2.6
+    ctx_indiv_trigger: ContextVar | None
+    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
+except ImportError:
+    ctx_indiv_trigger = None
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -166,7 +174,8 @@ class StackdriverTaskHandler(logging.Handler):
         """
         message = self.format(record)
         ti = None
-        if getattr(record, ctx_indiv_trigger.name, None):
+        # todo: remove ctx_indiv_trigger is not None check when min airflow version >= 2.6
+        if ctx_indiv_trigger is not None and getattr(record, ctx_indiv_trigger.name, None):
             ti = getattr(record, "task_instance", None)  # trigger context
         labels = self._get_labels(ti)
         self._transport.send(record, message, resource=self.resource, labels=labels)
