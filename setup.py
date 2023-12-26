@@ -382,9 +382,9 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
-    # when you upgrade it here !!!!
-    "mypy==1.2.0",
+    #  Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
+    #  when you upgrade it here !!!!
+    "mypy==1.8.0",
     "types-aiofiles",
     "types-certifi",
     "types-croniter",
