@@ -19,7 +19,7 @@
 
 .. _howto/connection:spark-sql:
 
-Apache Spark Sql Connection
+Apache Spark SQL Connection
 ===========================
 
 The Apache Spark SQL connection type enables connection to Apache Spark via the ``spark-sql`` command.
