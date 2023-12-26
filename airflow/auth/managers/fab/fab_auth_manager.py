@@ -339,7 +339,7 @@ class FabAuthManager(BaseAuthManager):
 
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
-            if not issubclass(sm_from_config, AirflowSecurityManager):
+            if issubclass(sm_from_config, AirflowSecurityManager):
                 raise Exception(
                     """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
                      not FAB's own security manager."""
