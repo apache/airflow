@@ -41,10 +41,8 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         self._hook = None
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"]
-            if "delete_local_copy" in kwargs
-            else conf.getboolean("logging", "delete_local_logs", fallback=False)
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
