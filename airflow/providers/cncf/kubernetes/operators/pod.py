@@ -292,20 +292,6 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # container_resources parameter.
-        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
-            raise AirflowException(
-                "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead."
-            )
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # node_selector parameter.
-        if "node_selectors" in kwargs:
-            raise ValueError(
-                "Param `node_selectors` supplied. This param is no longer supported. "
-                "Use `node_selector` instead."
-            )
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
