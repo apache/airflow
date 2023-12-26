@@ -385,7 +385,6 @@ class WeaviateHook(BaseHook):
         self,
         class_name: str,
         data: list[dict[str, Any]] | pd.DataFrame,
-        insertion_errors: list,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
@@ -397,7 +396,6 @@ class WeaviateHook(BaseHook):
 
         :param class_name: The name of the class that objects belongs to.
         :param data: list or dataframe of objects we want to add.
-        :param insertion_errors: list to hold errors while inserting.
         :param batch_config_params: dict of batch configuration option.
             .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
         :param vector_col: name of the column containing the vector.
@@ -408,6 +406,7 @@ class WeaviateHook(BaseHook):
         data = self._convert_dataframe_to_list(data)
         total_results = 0
         error_results = 0
+        insertion_errors: list = []
 
         def _process_batch_errors(
             results: list,
@@ -1070,7 +1069,6 @@ class WeaviateHook(BaseHook):
             insertion_errors = self.batch_data(
                 class_name=class_name,
                 data=data,
-                insertion_errors=insertion_errors,
                 batch_config_params=batch_config_params,
                 vector_col=vector_column,
                 uuid_col=uuid_column,
