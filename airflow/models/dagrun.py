@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-    TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -1220,7 +1219,7 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: TaskCreator,
+        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
         *,
         session: Session,
     ) -> CreatedTasks:
