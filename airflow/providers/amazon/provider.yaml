@@ -711,6 +711,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
 
 extra-links:
+  - airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
   - airflow.providers.amazon.aws.links.batch.BatchJobDetailsLink
   - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
