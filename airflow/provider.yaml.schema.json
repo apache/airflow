@@ -309,6 +309,13 @@
                 "type": "string"
             }
         },
+        "auth-managers": {
+            "type": "array",
+            "description": "Auth managers class names",
+            "items": {
+                "type": "string"
+            }
+        },
         "logging": {
             "type": "array",
             "description": "Logging Task Handlers class names",
