@@ -60,8 +60,7 @@ class JiraHook(BaseHook):
                 # more can be added ex: timeout, cloud, session
 
                 # verify
-                if "verify" in extra_options and extra_options["verify"].lower() == "false":
-                    verify = False
+                verify = bool(extra_options.get("verify", verify))
 
             self.client = Jira(
                 url=conn.host,
@@ -72,3 +71,21 @@ class JiraHook(BaseHook):
             )
 
         return self.client
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField
+
+        return {
+            "verify": BooleanField(lazy_gettext("Verify SSL"), default=True),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "extra"],
+            "relabeling": {},
+        }
