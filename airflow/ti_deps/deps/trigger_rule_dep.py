@@ -346,6 +346,13 @@ class TriggerRuleDep(BaseTIDep):
 
             upstream_done = done >= upstream
 
+            ti_needs_expansion = False
+            try:
+                if ti.map_index == -1 and ti.task.get_mapped_ti_count(ti.run_id, session=session) > 1:
+                    ti_needs_expansion = True
+            except (NotMapped, NotFullyPopulated):
+                ...
+
             changed = False
             new_state = None
             if dep_context.flag_upstream_failed:
@@ -353,7 +360,8 @@ class TriggerRuleDep(BaseTIDep):
                     if upstream_failed or failed:
                         new_state = TaskInstanceState.UPSTREAM_FAILED
                     elif skipped:
-                        new_state = TaskInstanceState.SKIPPED
+                        if not ti_needs_expansion or skipped >= upstream:
+                            new_state = TaskInstanceState.SKIPPED
                     elif removed and success and ti.map_index > -1:
                         if ti.map_index >= success:
                             new_state = TaskInstanceState.REMOVED
@@ -442,6 +450,9 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.ALL_SUCCESS:
+                if ti_needs_expansion and success > 0:
+                    return
+
                 num_failures = upstream - success
                 if ti.map_index > -1:
                     num_failures -= removed
@@ -455,6 +466,9 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.ALL_FAILED:
+                if ti_needs_expansion and failed > 0:
+                    return
+
                 num_success = upstream - failed - upstream_failed
                 if ti.map_index > -1:
                     num_success -= removed
@@ -478,6 +492,9 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.NONE_FAILED or trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
+                if ti_needs_expansion and success > 0:
+                    return
+
                 num_failures = upstream - success - skipped
                 if ti.map_index > -1:
                     num_failures -= removed
@@ -491,6 +508,9 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.NONE_SKIPPED:
+                if ti_needs_expansion and upstream - skipped > 0:
+                    return
+
                 if not upstream_done or (skipped > 0):
                     yield self._failing_status(
                         reason=(
@@ -501,6 +521,9 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.ALL_SKIPPED:
+                if ti_needs_expansion and skipped > 0:
+                    return
+
                 num_non_skipped = upstream - skipped
                 if num_non_skipped > 0:
                     yield self._failing_status(

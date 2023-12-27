@@ -3371,6 +3371,10 @@ class TaskInstance(Base, LoggingMixin):
         ancestor_ti_count = common_ancestor.get_mapped_ti_count(self.run_id, session=session)
         ancestor_map_index = self.map_index * ancestor_ti_count // ti_count
 
+        # The task has not been expanded yet. Let's help it.
+        if self.map_index == -1 and ti_count > 1:
+            return range(0, ancestor_ti_count)
+
         # If the task is NOT further expanded inside the common ancestor, we
         # only want to reference one single ti. We must walk the actual DAG,
         # and "ti_count == ancestor_ti_count" does not work, since the further
