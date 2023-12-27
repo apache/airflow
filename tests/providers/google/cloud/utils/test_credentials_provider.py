@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import re
+from contextlib import contextmanager
 from io import StringIO
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -53,6 +54,31 @@ ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
 CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+
+
+@pytest.fixture
+def assert_no_logs(caplog):
+    """
+    Helper fixture for assert if any log message for the specific logger captured.
+
+    This is workaround for fix issue with asyncio in ``test_disable_logging``, see:
+        - https://github.com/apache/airflow/pull/26871
+        - https://github.com/apache/airflow/pull/26973
+        - https://github.com/apache/airflow/pull/36453
+    """
+
+    @contextmanager
+    def wrapper(level: str, logger: str):
+        with caplog.at_level(level=level, logger=logger):
+            caplog.clear()
+            yield
+        if records := list(filter(lambda lr: lr[0] == logger, caplog.record_tuples)):
+            msg = f"Did not expect any log message from logger={logger!r} but got:"
+            for log_record in records:
+                msg += f"\n * logger name: {log_record[0]!r}, level: {log_record[1]}, msg: {log_record[2]!r}"
+            raise AssertionError(msg)
+
+    return wrapper
 
 
 class TestHelper:
@@ -364,32 +390,26 @@ class TestGetGcpCredentialsAndProjectId:
     @mock.patch(
         "google.oauth2.service_account.Credentials.from_service_account_file",
     )
-    def test_disable_logging(self, mock_default, mock_info, mock_file, caplog):
+    def test_disable_logging(self, mock_default, mock_info, mock_file, assert_no_logs):
         """Test disable logging in ``get_credentials_and_project_id``"""
 
         # assert no logs
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(disable_logging=True)
-            assert not caplog.record_tuples
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(
                 keyfile_dict={"private_key": "PRIVATE_KEY"},
                 disable_logging=True,
             )
-            assert not caplog.record_tuples
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(
                 key_path="KEY.json",
                 disable_logging=True,
             )
-            assert not caplog.record_tuples
 
 
 class TestGetScopes:
