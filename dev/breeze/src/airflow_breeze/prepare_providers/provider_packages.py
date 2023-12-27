@@ -155,19 +155,30 @@ def generate_build_files(provider_id: str, version_suffix: str, target_provider_
     get_console().print(f"\n[info]Generated package build files for {provider_id}[/]\n")
 
 
-def should_skip_the_package(provider_id: str, version_suffix: str) -> bool:
-    """Return True if the package should be skipped.
+def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool, str]:
+    """Return True, version if the package should be skipped and False, good version suffix if not.
 
     For RC and official releases we check if the "officially released" version exists
     and skip the released if it was. This allows to skip packages that have not been
     marked for release in this wave. For "dev" suffixes, we always build all packages.
     """
-    if version_suffix.startswith("rc") or version_suffix == "":
-        current_tag = get_latest_provider_tag(provider_id, version_suffix)
+    if version_suffix != "" and not version_suffix.startswith("rc"):
+        return False, version_suffix
+    if version_suffix == "":
+        current_tag = get_latest_provider_tag(provider_id, "")
         if tag_exists_for_provider(provider_id, current_tag):
-            get_console().print(f"[warning]The tag {current_tag} exists. Skipping the package.[/]")
-            return True
-    return False
+            get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
+            return True, version_suffix
+        return False, version_suffix
+    # version_suffix starts with "rc"
+    current_version = int(version_suffix[2:])
+    while True:
+        current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
+        if tag_exists_for_provider(provider_id, current_tag):
+            current_version += 1
+            get_console().print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
+        else:
+            return False, f"rc{current_version}"
 
 
 def cleanup_build_remnants(target_provider_root_sources_path: Path):

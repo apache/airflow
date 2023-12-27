@@ -206,7 +206,7 @@ are not generated. Release notes are only generated, when the latest version of 
 yet have a corresponding TAG.
 
 The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for example
-``providers-amazon/1.0.0``. During releasing, the RC1/RC2 tags are created (for example
+``providers-amazon/1.0.0``. During releasing, the `rc*` tags are created (for example
 ``providers-amazon/1.0.0rc1``).
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
@@ -372,8 +372,8 @@ so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
-* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
-this will clean up dist folder before generating the packages, so you will only have the right packages there.
+* Generate the packages with the rc1 version (specify the version suffix with PyPI switch). Note that
+you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
@@ -389,13 +389,10 @@ breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
-In case you are ALSO releasing RC2, RC3, etc. for selected packages, they will be skipped automatically because
-the `rc1` tag will be created for them already. In this case you should specify the ``rc*`` that you want to
-build and specify the package id's you want to build.
-
-```shell script
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc2 --package-format both PACKAGE
-```
+In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
+will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
+candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
+increased until the tag is not found.
 
 * Verify the artifacts that would be uploaded:
 
