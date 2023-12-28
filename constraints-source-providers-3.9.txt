@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-28T06:56:12.823081
+# This constraints file was automatically generated on 2023-12-28T08:23:16.047930
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -418,7 +418,7 @@ pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.21
-pycryptodome==3.19.0
+pycryptodome==3.19.1
 pydantic==2.5.3
 pydantic_core==2.14.6
 pydata-google-auth==1.8.2
