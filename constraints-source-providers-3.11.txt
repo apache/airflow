@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-26T23:08:25.260050
+# This constraints file was automatically generated on 2023-12-28T00:03:14.951438
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -146,7 +146,7 @@ colorlog==4.8.0
 comm==0.2.0
 confluent-kafka==2.3.0
 connexion==2.14.2
-coverage==7.3.4
+coverage==7.4.0
 crcmod==1.7
 cron-descriptor==1.4.0
 croniter==2.0.1
