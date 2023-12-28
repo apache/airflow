@@ -30,6 +30,7 @@ import os
 import sys
 import traceback
 import warnings
+import re
 from bisect import insort_left
 from collections import defaultdict
 from functools import cached_property
@@ -2625,6 +2626,9 @@ class Airflow(AirflowBaseView):
 
         if not exactly_one(task_id, group_id):
             raise ValueError("Exactly one of task_id or group_id must be provided")
+            
+        dag_pattern = re.compile(r'[^a-zA-Z0-9_\-]')
+        dag_id = re.sub(dag_pattern, '', dag_id)
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
