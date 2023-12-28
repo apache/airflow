@@ -53,6 +53,7 @@
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
+  - [Remove provider packages scheduled for removal](#remove-provider-packages-scheduled-for-removal)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1234,6 +1235,18 @@ The ASF Security will be notified and will submit to the CVE project and will se
 
 ## Announce about the release in social media
 
+NOTE!
+
+
+As a rule we announce only new providers that were added.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+
+Example for special cases:
+
+* an exciting new capability that the community waited for and should have big impact.
+* big number of providers released at once.
+* bumping min airflow version (which is a special case of the above)
+
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
@@ -1245,10 +1258,6 @@ Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
-
-As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
-Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 
@@ -1263,3 +1272,24 @@ Thank you everyone.
 Providers are released
 I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```
+
+## Remove provider packages scheduled for removal
+
+If there are provider packages scheduler for removal, create PR and merge it to remove them.
+
+The following places should be checked:
+
+* `airflow/providers/PROVIDER`
+* `tests/providers/PROVIDER`
+* `tests/system/providers/PROVIDER`
+* `tests/integration/providers/PROVIDER`
+* `docs/apache-airflow-providers-PROVIDER`
+* `docs/integration-logos/PROVIDER`
+* `.github/boring-cyborg.yml`
+* `airflow/contrib/hooks/__init__.py`
+* `airflow/contrib/operators/__init__.py`
+* `airflow/utils/db.py` (for default connections)
+* `dev/breeze/tests/test_packages.py` (remove the providers from `removed` lists)
+* `generated/provider_metadata.json`
+
+Run `breeze setup regenerate-command-images --force`
