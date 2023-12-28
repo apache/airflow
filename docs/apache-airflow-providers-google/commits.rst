@@ -42,14 +42,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.13.1
+.......
+
+Latest change: 2023-12-28
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`49ce3ed006 <https://github.com/apache/airflow/commit/49ce3ed00677d899e3f7d62ce82577882feeb42e>`_  2023-12-28   ``Remove backcompat code for stackdriver (#36442)``
+`cba3ca7067 <https://github.com/apache/airflow/commit/cba3ca70671a1a6dfc2311c7b00659ab0413f746>`_  2023-12-28   ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
+`127c0725b9 <https://github.com/apache/airflow/commit/127c0725b9eb7c8be015ac10d74f963e3d6383ae>`_  2023-12-27   ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``
+`9e55f51a9f <https://github.com/apache/airflow/commit/9e55f51a9fd0555b910d97dff9482933dd42ed72>`_  2023-12-27   ``Remove unused '_parse_version' function (#36450)``
+`75faf1115d <https://github.com/apache/airflow/commit/75faf1115d990746784e25280c0b326b3b557b86>`_  2023-12-27   ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)``
+`794ce730aa <https://github.com/apache/airflow/commit/794ce730aa18ded08c06134ed311a39818168728>`_  2023-12-26   ``Revert "Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)" (#36440)``
+=================================================================================================  ===========  =================================================================================================
+
 10.13.0
 .......
 
-Latest change: 2023-12-22
+Latest change: 2023-12-23
 
 =================================================================================================  ===========  ============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `2c2763f806 <https://github.com/apache/airflow/commit/2c2763f806517ae514d5614d519966da02ff4371>`_  2023-12-22   ``Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)``
 `10c4c352f9 <https://github.com/apache/airflow/commit/10c4c352f93296ff4434fffe863aa249ad3fea5c>`_  2023-12-20   ``Minor fix to DataprocCreateClusterOperator operator docs. (#36322)``
 `881d88b4da <https://github.com/apache/airflow/commit/881d88b4da90fbc053f9d911b80d1aa015a12e02>`_  2023-12-19   ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
