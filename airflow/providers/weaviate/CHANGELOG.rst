@@ -20,6 +20,41 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add WeaviateDocumentIngestOperator (#36402)``
+* ``Add 'uuid_column', 'tenant' params to WeaviateIngestOperator (#36387)``
+* ``Add create_or_replace_document_objects method to weaviate provider (#36177)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'insertion_errors' as required argument (#36435)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add helper function for CRUD operations on weaviate's schema and class objects (#35919)``
+* ``Add retry mechanism and dataframe support for WeaviateIngestOperator (#36085)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing template_fields for WeaviateIngestOperator (#36359)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.1.0
 .....
 

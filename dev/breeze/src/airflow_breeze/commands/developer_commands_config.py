@@ -291,6 +291,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--clean-build",
                 "--one-pass-only",
                 "--package-filter",
+                "--include-not-ready-providers",
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",

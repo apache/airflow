@@ -607,14 +607,6 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
-            conn_id="sqoop_default",
-            conn_type="sqoop",
-            host="rdbms",
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
             conn_id="ssh_default",
             conn_type="ssh",
             host="localhost",

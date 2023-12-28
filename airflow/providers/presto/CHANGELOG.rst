@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make "placeholder" of ODBC configurable in UI (#36000)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.0
 .....
 

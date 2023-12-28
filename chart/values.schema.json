@@ -5890,7 +5890,7 @@
                 "auth_type": {
                     "description": "Method of authenticating users",
                     "type": "string",
-                    "default": "md5"
+                    "default": "scram-sha-256"
                 },
                 "auth_file": {
                     "description": "The name of the file to load user names and passwords from",
@@ -6964,18 +6964,6 @@
                     "description": "Enable PostgreSQL subchart.",
                     "type": "boolean",
                     "default": true
-                },
-                "images": {
-                    "description": "PostgreSQL image values.",
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "tag": {
-                            "description": "The PostgreSQL image tag.",
-                            "type": "string",
-                            "default": "11"
-                        }
-                    }
                 },
                 "auth": {
                     "description": "PostgreSQL authentication values.",

@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/apache/kylin/index>
@@ -69,7 +76,7 @@ Package apache-airflow-providers-apache-kylin
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 3.4.0
+Release: 3.5.0
 
 Provider package
 ----------------

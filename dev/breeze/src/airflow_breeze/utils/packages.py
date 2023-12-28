@@ -228,6 +228,15 @@ def get_removed_provider_ids() -> list[str]:
     ]
 
 
+@lru_cache
+def get_not_ready_provider_ids() -> list[str]:
+    return [
+        provider_id
+        for provider_id, provider_metadata in get_provider_packages_metadata().items()
+        if provider_metadata.get("not-ready", False)
+    ]
+
+
 def get_provider_requirements(provider_id: str) -> list[str]:
     package_metadata = get_provider_packages_metadata().get(provider_id)
     return package_metadata["dependencies"] if package_metadata else []
@@ -239,6 +248,7 @@ def get_available_packages(
     include_all_providers: bool = False,
     include_suspended: bool = False,
     include_removed: bool = False,
+    include_not_ready: bool = False,
 ) -> list[str]:
     """
     Return provider ids for all packages that are available currently (not suspended).
@@ -246,6 +256,7 @@ def get_available_packages(
     :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
+    :param include_not_ready: whether the not-ready ppackages should be included
     :param include_non_provider_doc_packages: whether the non-provider doc packages should be included
            (packages like apache-airflow, helm-chart, docker-stack)
     :param include_all_providers: whether "all-providers" should be included ni the list.
@@ -253,6 +264,11 @@ def get_available_packages(
     """
     provider_ids: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     available_packages = []
+    not_ready_provider_ids = get_not_ready_provider_ids()
+    if not include_not_ready:
+        provider_ids = [
+            provider_id for provider_id in provider_ids if provider_id not in not_ready_provider_ids
+        ]
     if include_non_provider_doc_packages:
         available_packages.extend(REGULAR_DOC_PACKAGES)
     if include_all_providers:
@@ -266,12 +282,16 @@ def get_available_packages(
 
 
 def expand_all_provider_packages(
-    short_doc_packages: tuple[str, ...], include_removed: bool = False
+    short_doc_packages: tuple[str, ...],
+    include_removed: bool = False,
+    include_not_ready: bool = False,
 ) -> tuple[str, ...]:
     """In case there are "all-providers" in the list, expand the list with all providers."""
     if "all-providers" in short_doc_packages:
         packages = [package for package in short_doc_packages if package != "all-providers"]
-        packages.extend(get_available_packages(include_removed=include_removed))
+        packages.extend(
+            get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
+        )
         short_doc_packages = tuple(set(packages))
     return short_doc_packages
 

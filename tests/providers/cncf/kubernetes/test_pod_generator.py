@@ -572,7 +572,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == "a" * 244 + "-" + self.rand_str
+        assert result.metadata.name == "a" * 54 + "-" + self.rand_str
         for v in result.metadata.labels.values():
             assert len(v) <= 63
 

@@ -44,6 +44,7 @@ from airflow_breeze.commands.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_not_ready_providers,
     option_include_removed_providers,
     option_installation_package_format,
     option_integration,
@@ -583,6 +584,7 @@ def start_airflow(
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @option_dry_run
 @option_github_repository
+@option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
     "--one-pass-only",
@@ -605,6 +607,7 @@ def build_docs(
     clean_build: bool,
     docs_only: bool,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
@@ -633,7 +636,9 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(
-            doc_packages, include_removed=include_removed_providers
+            short_doc_packages=doc_packages,
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
         ),
     )
     cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(

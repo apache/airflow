@@ -23,7 +23,7 @@ description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 suspended: false
-source-date-epoch: 1701983388
+source-date-epoch: 1703288142
 versions:
   - 3.5.0
   - 3.4.0

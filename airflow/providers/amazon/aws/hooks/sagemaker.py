@@ -1138,7 +1138,7 @@ class SageMakerHook(AwsBaseHook):
         if check_interval is None:
             check_interval = 10
 
-        for retries in (2, 1, 0):
+        for retries in reversed(range(5)):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
             except ClientError as ce:

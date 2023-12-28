@@ -22,8 +22,9 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 suspended: false
-source-date-epoch: 1701983377
+source-date-epoch: 1703747600
 versions:
+  - 5.3.1
   - 5.3.0
   - 5.2.0
   - 5.1.1

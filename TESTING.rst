@@ -703,6 +703,36 @@ You can make the code conditional and mock out the Variable to avoid hitting the
       def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
           ...
 
+You can also use fixture to create object that needs database just like this.
+
+
+  .. code-block:: python
+
+      from airflow.models import Connection
+
+      pytestmark = pytest.mark.db_test
+
+
+      @pytest.fixture()
+      def get_connection1():
+          return Connection()
+
+
+      @pytest.fixture()
+      def get_connection2():
+          return Connection(host="apache.org", extra={})
+
+
+      @pytest.mark.parametrize(
+          "conn",
+          [
+              "get_connection1",
+              "get_connection2",
+          ],
+      )
+      def test_as_json_from_connection(self, conn: Connection):
+          conn = request.getfixturevalue(conn)
+          ...
 
 
 Running Unit tests
@@ -830,7 +860,7 @@ This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class, enter:
 

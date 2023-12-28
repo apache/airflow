@@ -601,6 +601,18 @@ AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 
+SMTP_DEFAULT_TEMPLATED_SUBJECT = """
+{% if ti is defined %}
+DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+{% elif slas is defined %}
+SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
+{% endif %}
+"""
+
+SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
+    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
+)
+
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.

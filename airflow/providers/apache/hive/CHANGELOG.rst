@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add param proxy user for hive (#36221)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.3.0
 .....
 

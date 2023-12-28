@@ -22,8 +22,9 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 suspended: false
-source-date-epoch: 1701983360
+source-date-epoch: 1703288115
 versions:
+  - 4.6.0
   - 4.5.0
   - 4.4.0
   - 4.3.0

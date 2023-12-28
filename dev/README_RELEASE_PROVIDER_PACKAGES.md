@@ -25,10 +25,11 @@
 - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
+- [Possible states of provider packages](#possible-states-of-provider-packages)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
-  - [Apply template updates](#apply-template-updates)
+  - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -52,6 +53,7 @@
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
+  - [Remove provider packages scheduled for removal](#remove-provider-packages-scheduled-for-removal)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -122,6 +124,57 @@ packages.
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
+# Possible states of provider packages
+
+The provider packages can be in one of several states.
+
+* The `ready` state the provider package is released as part of the regular release cycle (including the
+  documentation, package building and publishing). This is the default state for all providers.
+* The `not-ready` state is when the provider has `not-ready` field set to `true` in the `provider.yaml` file.
+  This is usually used when the provider has some in-progress changes (usually API changes) that we do not
+  want to release yet as part of the regular release cycle. Providers in this state are excluded from being
+  released as part of the regular release cycle (including documentation building). You can build and prepare
+  such provider when you explicitly specify it as argument of a release command or by passing
+  `--include-not-ready-providers` flag in corresponding command. The `not-ready` providers are treated as
+  regular providers when it comes to running tests and preparing and releasing packages in `CI` - as we want
+  to make sure they are properly releasable any time and we want them to contribute to dependencies and we
+  want to test them.
+* The `suspended` state is when the provider has `suspended` field set to `true` in the `provider.yaml` file.
+  This is used when we have a good reason to suspend such provider, following the devlist discussion and
+  vote or "lazy consensus". The process of suspension is described in [Provider's docs](../PROVIDERS.rst).
+  The `suspended` providers are excluded from being released as part of the regular release cycle (including
+  documentation building) but also they do not contribute dependencies to the CI image and their tests are
+  not run in CI process. You can build and prepare such provider when you explicitly specify it as argument
+  of a release command or by passing `--include-suspended-providers` flag in corresponding command (but it
+  might or might not work at any time as the provider release commands are not regularly run on CI for the
+  suspended providers). The `suspended` providers are not released as part of the regular release cycle.
+* The `removed` state is when the provider is marked as `removed` - usually after some period of time being
+  `suspended`. This is a temporary state after the provider has been voted (or agreed in "lazy consensus") to
+  be removed and it is only used for exactly one release cycle - in order to produce the final version of
+  the package - identical to the previous version with the exception of the removal notice. The process
+  of removal is described in [Provider's docs](../PROVIDERS.rst).  The `removed` providers are included in
+  the regular release cycle (including documentation building) because the `--include-removed-providers`
+  flag is passed to commands that release manager runs (see below). The difference between `suspended`
+  and `removed` providers is that additional information is added to their documentation about the provider
+  not being maintained any more by the community.
+
+This graph shows the possible transitions between the states:
+
+```mermaid
+graph TD;
+    new[/new/]
+    new -- Add to the code -->ready;
+    ready
+    ready-- Mark as not ready -->not-ready;
+    not-ready-- Mark as ready -->ready;
+    ready-- Suspend -->suspended;
+    suspended-- Resume -->ready;
+    ready-- Mark as removed -->removed;
+    suspended-- Mark as removed -->removed;
+    gone[\gone\]
+    removed -- Remove from the code --> gone;
+```
+
 # Prepare Regular Provider packages (RC)
 
 ## Increasing version number
@@ -154,7 +207,7 @@ are not generated. Release notes are only generated, when the latest version of 
 yet have a corresponding TAG.
 
 The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for example
-``providers-amazon/1.0.0``. During releasing, the RC1/RC2 tags are created (for example
+``providers-amazon/1.0.0``. During releasing, the `rc*` tags are created (for example
 ``providers-amazon/1.0.0rc1``).
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
@@ -209,9 +262,10 @@ breeze release-management prepare-provider-documentation --include-removed-provi
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
-## Apply template updates
+## (Optional) Apply template updates
 
-(This step can also be executed independently when needed)
+This step should only be executed if we want to change template files for the providers - i.e. change
+security information, commit/index/README content that is automatically generated.
 
 Regenerate the documentation templates by running the command with
 `--reapply-templates` flag to the command above. This refreshes the content of:
@@ -320,8 +374,8 @@ so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
-* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
-this will clean up dist folder before generating the packages, so you will only have the right packages there.
+* Generate the packages with the rc1 version (specify the version suffix with PyPI switch). Note that
+you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
@@ -330,12 +384,17 @@ breeze release-management prepare-provider-packages  --include-removed-providers
  --version-suffix-for-pypi rc1 --package-format both
 ```
 
-if you only build few packages, run:
+If you only build few packages, run:
 
 ```shell script
 breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
+
+In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
+will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
+candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
+increased until the tag is not found.
 
 * Verify the artifacts that would be uploaded:
 
@@ -343,31 +402,13 @@ breeze release-management prepare-provider-packages \
 twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
-```
-
-If you see
-> WARNING  Error during upload. Retry with the --verbose option for more details.
-ERROR   HTTPError: 403 Forbidden from https://test.pypi.org/legacy/
-     The user [user_name] isn't allowed to upload to project [provider_name]
-
-It means that you don't have permission to upload providers.
-Please ask one of the Admins to grant you permissions on the packages you wish to release.
-
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
+* Upload the package to PyPi:
 
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
-* Again, confirm that the packages are available under the links printed.
+* Confirm that the packages are available under the links printed and look good.
 
 
 ## Add tags in git
@@ -416,7 +457,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers all-providers
+breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -461,12 +502,6 @@ breeze release-management publish-docs apache-airflow-providers all-providers --
 breeze release-management add-back-references all-providers
 ```
 
-If you see `ModuleNotFoundError: No module named 'docs'`, set:
-
-```
-export PYTHONPATH=.:${PYTHONPATH}
-```
-
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
@@ -476,8 +511,11 @@ breeze release-management publish-docs amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
 
-- If you publish a new package, you must add it to
-  [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+Review the state of removed, suspended, new packages in
+[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+
+- If you publish a new package, you must add it to the list of packages in the index.
+- If there are changes to suspension or removal status of a package  you must move it appropriate section.
 
 - Create the commit and push changes.
 
@@ -492,25 +530,59 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create a GitHub issue with the content generated via manual
-execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
-set as your environment variable.
-
-You can also pass the token as `--github-token` option in the script.
-You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
+Create a GitHub issue with the content generated via manual execution of the command below. You will use
+link to that issue in the next step.
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
-You can also generate the token by following
-[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
-
-If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+GitHub API uses rate limiting that is based on the public IP address of client if you do not authenticate
+with GitHub, so when you retrieve bigger number of PRs or when you are behind NAT and share your public
+IP address with many other Anonymous GitHub API users, issue retrieval will be halted and your API calls
+might slow down to a crawl, you will need then a GITHUB_TOKEN set as your
+environment variable or pass  the token as `--github-token` option in the script.
 
 ```shell script
-breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN
 ```
+
+or
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+export GITHUB_TOKEN=TOKEN
+breeze release-management generate-issue-content-providers --only-available-in-dist
+```
+
+You can generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status). Since it is easy to generate such token, by following the link, it is recommended to
+generate a new token for each release and delete it once you've generated the issue.
+
+If you see in the output that some of the PRs are just "noise" (i.e. there is no need to verify them
+as they are misc/documentation kind of changes that have no impact on the actual installation of
+the provider or the code of the provider, can optionally pass list of PR to be excluded from
+the issue with `--excluded-pr-list`. This might limit the scope of verification. Some providers
+might disappear from the list and list of authors that will be pinged in the generated issue.
+
+You can repeat that and regenerate the issue content until you are happy with the generated issue.
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
+
+It's also OK to manually modify the content of such generated issue before actually creating the
+issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in the issue content.
+Hit Preview button on "create issue" screen before creating it to verify how it will look like
+for the contributors.
+
 
 
 ## Prepare voting email for Providers release candidate
@@ -1057,22 +1129,15 @@ This is expected, the RC tag is most likely behind the main branch.
 twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
-```
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-  Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
+* Upload the package to PyPi:
 
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
+* Verify that the packages are available under the links printed.
+
+Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -1115,9 +1180,9 @@ git checkout main
 git pull
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata
+breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
+git commit -m "Update providers metadata ${branch}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -1178,6 +1243,18 @@ The ASF Security will be notified and will submit to the CVE project and will se
 
 ## Announce about the release in social media
 
+NOTE!
+
+
+As a rule we announce only new providers that were added.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+
+Example for special cases:
+
+* an exciting new capability that the community waited for and should have big impact.
+* big number of providers released at once.
+* bumping min airflow version (which is a special case of the above)
+
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
@@ -1189,10 +1266,6 @@ Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
-
-As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
-Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 
@@ -1207,3 +1280,24 @@ Thank you everyone.
 Providers are released
 I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```
+
+## Remove provider packages scheduled for removal
+
+If there are provider packages scheduler for removal, create PR and merge it to remove them.
+
+The following places should be checked:
+
+* `airflow/providers/PROVIDER`
+* `tests/providers/PROVIDER`
+* `tests/system/providers/PROVIDER`
+* `tests/integration/providers/PROVIDER`
+* `docs/apache-airflow-providers-PROVIDER`
+* `docs/integration-logos/PROVIDER`
+* `.github/boring-cyborg.yml`
+* `airflow/contrib/hooks/__init__.py`
+* `airflow/contrib/operators/__init__.py`
+* `airflow/utils/db.py` (for default connections)
+* `dev/breeze/tests/test_packages.py` (remove the providers from `removed` lists)
+* `generated/provider_metadata.json`
+
+Run `breeze setup regenerate-command-images --force`

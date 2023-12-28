@@ -169,7 +169,7 @@ Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``world`` and
 ``mount_point`` is ``airflow``.
 
 Storing and Retrieving Config
-""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""
 
 If you have set ``config_path`` as ``config`` and ``mount_point`` as ``airflow``, then for config ``sql_alchemy_conn_secret`` with
 ``sql_alchemy_conn_value`` as value, you would want to store your secret as:
@@ -206,7 +206,9 @@ Then you can use above secret for ``sql_alchemy_conn_secret`` in your configurat
 Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``postgres://user:pass@host:5432/db?ssl_mode=disable`` and
 ``mount_point`` is ``airflow``.
 
-## For Vault running with self signed certificates
+Vault running with self signed certificates
+"""""""""""""""""""""""""""""""""""""""""""
+
 Add "verify": "absolute path to ca-certificate file"
 
 .. code-block:: ini
@@ -214,3 +216,32 @@ Add "verify": "absolute path to ca-certificate file"
     [secrets]
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "verify": "/etc/ssl/certs/ca-certificates"}
+
+Using multiple mount points
+"""""""""""""""""""""""""""
+
+You can use multiple mount points to store your secrets. For example, you might want to store the Airflow instance configurations
+in one Vault KV engine only accessible by your Airflow deployment tools, while storing the variables and connections in another KV engine
+available to your DAGs, in order to grant them more specific Vault ACLs.
+
+In order to do this, you will need to setup you configuration this way:
+
+* leave ``mount_point`` as JSON ``null``
+* if you use ``variables_path`` and/or ``connections_path``, set them as ``"mount_point/path/to/the/secrets"``
+  (the string will be split using the separator ``/``, the first element will be the mount point, the remaining
+  elements will be the path to the secrets)
+* leave ``config_path`` as the empty string ``""``
+* if you use ``config_path``, each configuration item will need to be prefixed with the ``mount_point`` used for configs,
+  as ``"mount_point/path/to/the/config"`` (here again, the string will be split using the separator ``/``,
+  the first element will be the mount point, the remaining elements will be the path to the configuration parameter)
+
+For example:
+
+.. code-block:: ini
+
+    [core]
+    sql_alchemy_conn_secret: "deployment_mount_point/airflow/configs/sql_alchemy_conn_value"
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "dags_mount_point/airflow/connections", "variables_path": "dags_mount_point/airflow/variables", "config_path": "", mount_point": null, "url": "http://127.0.0.1:8200", "verify": "/etc/ssl/certs/ca-certificates"}

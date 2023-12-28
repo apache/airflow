@@ -75,7 +75,10 @@ except ImportError:
     raise
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+    POD_EXECUTOR_DONE_KEY,
+)
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.utils.event_scheduler import EventScheduler
@@ -463,13 +466,22 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         key: TaskInstanceKey,
-        state: TaskInstanceState | None,
+        state: TaskInstanceState | str | None,
         pod_name: str,
         namespace: str,
         session: Session = NEW_SESSION,
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+
+        if state == ADOPTED:
+            # When the task pod is adopted by another executor,
+            # then remove the task from the current executor running queue.
+            try:
+                self.running.remove(key)
+            except KeyError:
+                self.log.debug("TI key not in running: %s", key)
+            return
 
         if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None

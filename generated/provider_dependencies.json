@@ -291,7 +291,7 @@
   "databricks": {
     "deps": [
       "aiohttp>=3.6.3, <4",
-      "apache-airflow-providers-common-sql>=1.8.1",
+      "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
       "requests>=2.27,<3"
@@ -364,7 +364,7 @@
   },
   "exasol": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
+      "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "pandas>=0.17.1",
       "pyexasol>=0.5.1"
@@ -653,7 +653,7 @@
   },
   "odbc": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.8.1",
+      "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "pyodbc"
     ],
@@ -864,7 +864,7 @@
   },
   "snowflake": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
+      "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "snowflake-connector-python>=2.7.8",
       "snowflake-sqlalchemy>=1.1.0"
