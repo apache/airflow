@@ -530,12 +530,8 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create a GitHub issue with the content generated via manual
-execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
-set as your environment variable.
-
-You can also pass the token as `--github-token` option in the script.
-You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
+Create a GitHub issue with the content generated via manual execution of the command below. You will use
+link to that issue in the next step.
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -543,14 +539,50 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
-You can also generate the token by following
-[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
-
-If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+GitHub API uses rate limiting that is based on the public IP address of client if you do not authenticate
+with GitHub, so when you retrieve bigger number of PRs or when you are behind NAT and share your public
+IP address with many other Anonymous GitHub API users, issue retrieval will be halted and your API calls
+might slow down to a crawl, you will need then a GITHUB_TOKEN set as your
+environment variable or pass  the token as `--github-token` option in the script.
 
 ```shell script
-breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN
 ```
+
+or
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+export GITHUB_TOKEN=TOKEN
+breeze release-management generate-issue-content-providers --only-available-in-dist
+```
+
+You can generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status). Since it is easy to generate such token, by following the link, it is recommended to
+generate a new token for each release and delete it once you've generated the issue.
+
+If you see in the output that some of the PRs are just "noise" (i.e. there is no need to verify them
+as they are misc/documentation kind of changes that have no impact on the actual installation of
+the provider or the code of the provider, can optionally pass list of PR to be excluded from
+the issue with `--excluded-pr-list`. This might limit the scope of verification. Some providers
+might disappear from the list and list of authors that will be pinged in the generated issue.
+
+You can repeat that and regenerate the issue content until you are happy with the generated issue.
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
+
+It's also OK to manually modify the content of such generated issue before actually creating the
+issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in the issue content.
+Hit Preview button on "create issue" screen before creating it to verify how it will look like
+for the contributors.
+
 
 
 ## Prepare voting email for Providers release candidate
