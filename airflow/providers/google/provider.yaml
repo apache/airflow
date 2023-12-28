@@ -29,8 +29,9 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 suspended: false
-source-date-epoch: 1703288137
+source-date-epoch: 1703747618
 versions:
+  - 10.13.1
   - 10.13.0
   - 10.12.0
   - 10.11.1

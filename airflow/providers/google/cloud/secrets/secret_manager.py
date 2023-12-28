@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import warnings
 from typing import Sequence
 
@@ -36,11 +35,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
-
-
-def _parse_version(val):
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
-    return tuple(int(x) for x in match.groups())
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):

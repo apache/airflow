@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import secrets
 import shlex
 import string
 import warnings
@@ -32,7 +31,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
-from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -51,7 +49,11 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import POD_NAME_MAX_LENGTH
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
+    add_pod_suffix,
+    create_pod_id,
+)
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
@@ -81,61 +83,6 @@ if TYPE_CHECKING:
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-
-
-def _rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :meta private:
-    """
-    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
-
-
-def _add_pod_suffix(*, pod_name, rand_len=8, max_len=POD_NAME_MAX_LENGTH):
-    """Add random string to pod name while staying under max len.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :meta private:
-    """
-    suffix = "-" + _rand_str(rand_len)
-    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
-
-
-def _create_pod_id(
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    *,
-    max_length: int = POD_NAME_MAX_LENGTH,
-    unique: bool = True,
-) -> str:
-    """
-    Generate unique pod ID given a dag_id and / or task_id.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :param dag_id: DAG ID
-    :param task_id: Task ID
-    :param max_length: max number of characters
-    :param unique: whether a random string suffix should be added
-    :return: A valid identifier for a kubernetes pod name
-    """
-    if not (dag_id or task_id):
-        raise ValueError("Must supply either dag_id or task_id.")
-    name = ""
-    if dag_id:
-        name += dag_id
-    if task_id:
-        if name:
-            name += "-"
-        name += task_id
-    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
-    if unique:
-        return _add_pod_suffix(pod_name=base_name, max_len=max_length)
-    else:
-        return base_name
 
 
 class PodReattachFailure(AirflowException):
@@ -253,6 +200,9 @@ class KubernetesPodOperator(BaseOperator):
     :param progress_callback: Callback function for receiving k8s container logs.
     """
 
+    # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
+    #  - airflow/decorators/__init__.pyi  (by a separate PR)
+
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
     ISTIO_CONTAINER_NAME = "istio-proxy"
@@ -342,20 +292,6 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # container_resources parameter.
-        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
-            raise AirflowException(
-                "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead."
-            )
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # node_selector parameter.
-        if "node_selectors" in kwargs:
-            raise ValueError(
-                "Param `node_selectors` supplied. This param is no longer supported. "
-                "Use `node_selector` instead."
-            )
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
@@ -963,12 +899,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = _create_pod_id(
+            pod.metadata.name = create_pod_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
+            pod.metadata.name = add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

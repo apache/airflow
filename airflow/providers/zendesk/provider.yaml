@@ -22,8 +22,9 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 suspended: false
-source-date-epoch: 1703288183
+source-date-epoch: 1703747680
 versions:
+  - 4.6.0
   - 4.5.0
   - 4.4.0
   - 4.3.2

@@ -20,8 +20,9 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
-source-date-epoch: 1703288146
+source-date-epoch: 1703747626
 versions:
+  - 8.5.1
   - 8.5.0
   - 8.4.0
   - 8.3.0

@@ -623,7 +623,6 @@ class EmrContainerOperator(BaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
-        self.log.info("%s", event["message"])
         return event["job_id"]
 
     def on_kill(self) -> None:

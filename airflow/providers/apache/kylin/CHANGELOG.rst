@@ -30,6 +30,18 @@ Changelog
 ---------
 
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add apache kylin conn type and kylin connection docs (#36413)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
 3.4.0
 .....
 

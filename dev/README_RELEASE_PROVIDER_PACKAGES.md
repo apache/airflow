@@ -29,7 +29,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
-  - [Apply template updates](#apply-template-updates)
+  - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -53,6 +53,7 @@
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
+  - [Remove provider packages scheduled for removal](#remove-provider-packages-scheduled-for-removal)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -206,7 +207,7 @@ are not generated. Release notes are only generated, when the latest version of 
 yet have a corresponding TAG.
 
 The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for example
-``providers-amazon/1.0.0``. During releasing, the RC1/RC2 tags are created (for example
+``providers-amazon/1.0.0``. During releasing, the `rc*` tags are created (for example
 ``providers-amazon/1.0.0rc1``).
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
@@ -261,9 +262,10 @@ breeze release-management prepare-provider-documentation --include-removed-provi
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
-## Apply template updates
+## (Optional) Apply template updates
 
-(This step can also be executed independently when needed)
+This step should only be executed if we want to change template files for the providers - i.e. change
+security information, commit/index/README content that is automatically generated.
 
 Regenerate the documentation templates by running the command with
 `--reapply-templates` flag to the command above. This refreshes the content of:
@@ -372,8 +374,8 @@ so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
-* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
-this will clean up dist folder before generating the packages, so you will only have the right packages there.
+* Generate the packages with the rc1 version (specify the version suffix with PyPI switch). Note that
+you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
@@ -389,13 +391,10 @@ breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
-In case you are ALSO releasing RC2, RC3, etc. for selected packages, they will be skipped automatically because
-the `rc1` tag will be created for them already. In this case you should specify the ``rc*`` that you want to
-build and specify the package id's you want to build.
-
-```shell script
-breeze release-management prepare-provider-packages --version-suffix-for-pypi rc2 --package-format both PACKAGE
-```
+In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
+will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
+candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
+increased until the tag is not found.
 
 * Verify the artifacts that would be uploaded:
 
@@ -403,31 +402,13 @@ breeze release-management prepare-provider-packages --version-suffix-for-pypi rc
 twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
-```
-
-If you see
-> WARNING  Error during upload. Retry with the --verbose option for more details.
-ERROR   HTTPError: 403 Forbidden from https://test.pypi.org/legacy/
-     The user [user_name] isn't allowed to upload to project [provider_name]
-
-It means that you don't have permission to upload providers.
-Please ask one of the Admins to grant you permissions on the packages you wish to release.
-
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
+* Upload the package to PyPi:
 
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
-* Again, confirm that the packages are available under the links printed.
+* Confirm that the packages are available under the links printed and look good.
 
 
 ## Add tags in git
@@ -1116,22 +1097,15 @@ This is expected, the RC tag is most likely behind the main branch.
 twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
-```
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-  Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
+* Upload the package to PyPi:
 
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
+* Verify that the packages are available under the links printed.
+
+Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -1174,9 +1148,9 @@ git checkout main
 git pull
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata
+breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
+git commit -m "Update providers metadata ${branch}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -1237,6 +1211,18 @@ The ASF Security will be notified and will submit to the CVE project and will se
 
 ## Announce about the release in social media
 
+NOTE!
+
+
+As a rule we announce only new providers that were added.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+
+Example for special cases:
+
+* an exciting new capability that the community waited for and should have big impact.
+* big number of providers released at once.
+* bumping min airflow version (which is a special case of the above)
+
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
@@ -1248,10 +1234,6 @@ Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
-
-As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
-Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 
@@ -1266,3 +1248,24 @@ Thank you everyone.
 Providers are released
 I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```
+
+## Remove provider packages scheduled for removal
+
+If there are provider packages scheduler for removal, create PR and merge it to remove them.
+
+The following places should be checked:
+
+* `airflow/providers/PROVIDER`
+* `tests/providers/PROVIDER`
+* `tests/system/providers/PROVIDER`
+* `tests/integration/providers/PROVIDER`
+* `docs/apache-airflow-providers-PROVIDER`
+* `docs/integration-logos/PROVIDER`
+* `.github/boring-cyborg.yml`
+* `airflow/contrib/hooks/__init__.py`
+* `airflow/contrib/operators/__init__.py`
+* `airflow/utils/db.py` (for default connections)
+* `dev/breeze/tests/test_packages.py` (remove the providers from `removed` lists)
+* `generated/provider_metadata.json`
+
+Run `breeze setup regenerate-command-images --force`

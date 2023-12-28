@@ -99,7 +99,6 @@ class WeaviateIngestOperator(BaseOperator):
             data=self.input_data,
             batch_config_params=self.batch_params,
             vector_col=self.vector_col,
-            insertion_errors=insertion_errors,
             uuid_col=self.uuid_column,
             tenant=self.tenant,
         )
