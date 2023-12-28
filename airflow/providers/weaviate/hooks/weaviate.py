@@ -21,7 +21,7 @@ import contextlib
 import json
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
 import weaviate.exceptions
@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Callable, Collection, Literal, Sequence
+    from typing import Callable, Collection, Literal
 
     import pandas as pd
     from weaviate.types import UUID
@@ -974,10 +974,10 @@ class WeaviateHook(BaseHook):
         if len(data) == 0:
             return []
 
-        if isinstance(data, list) and isinstance(data[0], dict):
+        if isinstance(data, Sequence) and isinstance(data[0], dict):
             # This is done to narrow the type to List[Dict[str, Any].
             data = pd.json_normalize(cast(List[Dict[str, Any]], data))
-        elif isinstance(data, list) and isinstance(data[0], pd.DataFrame):
+        elif isinstance(data, Sequence) and isinstance(data[0], pd.DataFrame):
             # This is done to narrow the type to List[pd.DataFrame].
             data = pd.concat(cast(List[pd.DataFrame], data), ignore_index=True)
         else:
