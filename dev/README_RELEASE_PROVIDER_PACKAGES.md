@@ -29,7 +29,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
-  - [Apply template updates](#apply-template-updates)
+  - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -261,9 +261,10 @@ breeze release-management prepare-provider-documentation --include-removed-provi
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
-## Apply template updates
+## (Optional) Apply template updates
 
-(This step can also be executed independently when needed)
+This step should only be executed if we want to change template files for the providers - i.e. change
+security information, commit/index/README content that is automatically generated.
 
 Regenerate the documentation templates by running the command with
 `--reapply-templates` flag to the command above. This refreshes the content of:
