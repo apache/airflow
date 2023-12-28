@@ -172,6 +172,10 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
         return False, version_suffix
     # version_suffix starts with "rc"
     current_version = int(version_suffix[2:])
+    release_tag = get_latest_provider_tag(provider_id, "")
+    if tag_exists_for_provider(provider_id, release_tag):
+        get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
+        return True, ""
     while True:
         current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
         if tag_exists_for_provider(provider_id, current_tag):
