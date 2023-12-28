@@ -1172,9 +1172,9 @@ git checkout main
 git pull
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata
+breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
+git commit -m "Update providers metadata ${branch}"
 git push --set-upstream origin "${branch}"
 ```
 
