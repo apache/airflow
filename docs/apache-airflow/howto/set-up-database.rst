@@ -383,6 +383,69 @@ After configuring the database and connecting to it in Airflow configuration, yo
 
     airflow db migrate
 
+Monitoring your database and logging queries
+--------------------------------------------
+
+Airflow uses the relational metadata DB a LOT. When scheduling and executing tasks, database is the central
+and crucial part of all the calculations and synchronization and it is important to monitor your database
+and make sure it is configured properly and that there are no excessive and long-running queries that impact
+Airflow performance. Such long or excessive queries might occur due to bugs in the code, missing optimizations,
+there is also a possibility that database optimization engine makes wrong decisions based on statistics of
+data - for example when the statistics of data in your database gets outdated.
+
+This is a responsibility of the Deployment Manager to setup monitoring and configuring the database properly.
+
+Those kind of issues are not specific to Airflow and they can happen in any application that uses database
+as a backend. There are a number of ways you can do it and we do not provide an opinionated answer on how
+you should monitor your database, we leave it to discretion of the Deployment Manager who should take care
+about the database configuration and monitoring, but typical parameters that should be monitored regularly are:
+
+* CPU usage of your DB
+* I/O usage of your DB
+* Memory usage of your DB
+* Number and frequency of queries handled by your DB
+* Detecting and logging slow/long running queries in your DB
+* Detecting cases where execution plan of queries lead to full table scans for huge tables
+* Using disk swap vs. memory by the DB and frequent swapping out of the cache
+
+It's something that can only be done by configuring and monitoring your DB - Airflow does not provide any
+tooling for that - this is usually specific to your database and you can enable server-side monitoring or
+logging in your DB. It can also give you some extra metrics and you can selectively enable (usually)
+tracking of longest running queries by some thresholds you define that might indicate excessive resource usage.
+
+It is strongly recommended for the Deployment Manager to configure such monitoring and tracking in the
+DB they chose and and learn how to make use of it, it should be used to monitor regular DB performance and issues
+such as misuse of indexes. Often database also have tools that allow to fix some of those issues
+by regularly running house-keeping that cannot be done by Airflow on its own. The Databases supported as
+meta-data DB have dedicated ways of doing it (most often a variant of ``ANALYZE`` SQL command that you
+can run periodically on your database to update statistics to let the optimization engine make better
+decisions about execution plans of queries).
+
+When configured well and monitored properly, you can set such monitoring and logging enabled even in your
+production system and it will not impact the performance of your database significantly.
+
+Consult documentation of the database you chose as meta-data backend for details on how this should
+be setup for your database. Many of managed databases already run the maintenance tasks automatically but
+it very much depends on the choice of both the database and the provider of the managed database.
+
+If you suspect that excessive or long running database queries are the reason for slow performance of Airflow,
+there is also an option to enable SQLAlchemy client to log all queries send to the database,
+however this one is less selective and it will impact Airflow on the client side much more than properly
+configured server side monitoring. It is also likely going to interfere with Airflow stuff -
+it will drastically slow down the performance and might induce some race conditions and possibly
+even deadlocks, so it should be used carefully, possibly on a staging system of yours where you
+replicate your production system and the usage patterns you want to check.
+
+This can be done with setting ``echo=True`` as sqlalchemy engine configuration as explained in the
+`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`_.
+
+In case of Airflow, it can be set via :ref:`config:database__sql_alchemy_engine_args` configuration parameter.
+However, again - this one will impact airflow processing heavily and introduce a lot of I/O contention
+to write to log files and extra CPU needed to format and print the log messages, and you need a lot of
+space to store the logs, so it should be used carefully on production systems. Consider that a
+"poor-man`s" version of proper server-side monitoring of your DB as it provides a very limited
+and production-interfering setup.
+
 What's next?
 ------------
 
