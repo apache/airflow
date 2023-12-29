@@ -313,7 +313,7 @@ For example, this code will *not* work:
 
 
         @task_group
-        def my_group(value):
+        def my_task_group(value):
             if not value:  # DOES NOT work as you'd expect!
                 task_a = EmptyOperator(...)
             else:
@@ -321,9 +321,9 @@ For example, this code will *not* work:
             task_a << my_task(value)
 
 
-        my_group.expand(value=[0, 1, 2])
+        my_task_group.expand(value=[0, 1, 2])
 
-When code in ``my_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
+When code in ``my_task_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
 
 It is, therefore, important to remember that, if you intend to perform any logic to a value passed into a task group function, you must always use a task to run the logic, such as  ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and task mapping methods for loops.
 
@@ -384,16 +384,17 @@ While it's not possible to implement branching logic (for example using ``@task.
 
     inputs = ["a", "b", "c"]
 
-    @task_group(group_id="my_group")
-    def my_group(input):
+
+    @task_group(group_id="my_task_group")
+    def my_task_group(input):
         @task.branch
         def branch(element):
             if "a" in element:
-                return "my_group.a"
+                return "my_task_group.a"
             elif "b" in element:
-                return "my_group.b"
+                return "my_task_group.b"
             else:
-                return "my_group.c"
+                return "my_task_group.c"
 
         @task
         def a():
@@ -409,7 +410,8 @@ While it's not possible to implement branching logic (for example using ``@task.
 
         branch(input) >> [a(), b(), c()]
 
-    my_group.expand(input=inputs)
+
+    my_task_group.expand(input=inputs)
 
 Filtering items from a mapped task
 ==================================
