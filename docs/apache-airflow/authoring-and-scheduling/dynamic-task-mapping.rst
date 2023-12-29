@@ -375,6 +375,42 @@ Similar to a mapped task group, depending on a mapped task group's output would 
 
 It is also possible to perform any operations as results from a normal mapped task.
 
+Branching on a mapped task group's output
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While it's not possible to implement branching logic (for example using ``@task.branch``) on the results of a mapped task, it is possible to branch based on the *input* of a task group. The following example demonstrates executing one of three tasks based on the input to a mapped task group.
+
+.. code-block:: python
+
+    inputs = ["a", "b", "c"]
+
+    @task_group(group_id="my_group")
+    def my_group(input):
+        @task.branch
+        def branch(element):
+            if "a" in element:
+                return "my_group.a"
+            elif "b" in element:
+                return "my_group.b"
+            else:
+                return "my_group.c"
+
+        @task
+        def a():
+            print("a")
+
+        @task
+        def b():
+            print("b")
+
+        @task
+        def c():
+            print("c")
+
+        branch(input) >> [a(), b(), c()]
+
+    my_group.expand(input=inputs)
+
 Filtering items from a mapped task
 ==================================
 
