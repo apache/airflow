@@ -245,7 +245,7 @@ def create_app(config=None, testing=False):
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
-    return flask_app
+    return connexion_app
 
 
 def cached_app(config=None, testing=False):
