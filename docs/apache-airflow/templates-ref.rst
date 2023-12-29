@@ -100,9 +100,9 @@ Deprecated variables
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 
-=====================================   ====================================
+=====================================   ==========================================================================
 Deprecated Variable                     Description
-=====================================   ====================================
+=====================================   ==========================================================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
 ``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
                                         you may be able to use ``data_interval_end`` instead
@@ -115,9 +115,11 @@ Deprecated Variable                     Description
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful DAG run
-
-=====================================   ====================================
+``{{ prev_execution_date_success }}``   execution date from prior successful DAG run;
+                                        you may be able to use ``prev_data_interval_start_success``instead if
+                                        the timetable/schedule you use for the DAG defines ``data_interval_start``
+                                        compatible with the legacy ``execution_date``.
+=====================================   ==========================================================================
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:
