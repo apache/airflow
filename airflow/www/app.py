@@ -21,8 +21,6 @@ import warnings
 from datetime import timedelta
 
 import connexion
-from connexion.exceptions import ConnexionException
-from flask import jsonify
 from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
@@ -71,22 +69,6 @@ app: connexion.FlaskApp | None = None
 csrf = CSRFProtect()
 
 
-def custom_jsonify(obj, **kwargs):
-    # Check if cls key is already present
-    if "cls" in kwargs:
-        cls = kwargs.get("cls")
-        if cls != AirflowJsonProvider:
-            raise Exception(f"Conflict: cls: {cls} already set")
-
-    # Set cls to our custom provider
-    kwargs["cls"] = AirflowJsonProvider
-
-    try:
-        return jsonify(obj, **kwargs)
-    except ConnexionException:
-        raise ConnexionException("Unable to serialize data")
-
-
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
     connexion_app = connexion.FlaskApp(__name__)
@@ -100,7 +82,6 @@ def create_app(config=None, testing=False):
         allow_headers=conf.get("api", "access_control_allow_headers"),
     )
 
-    connexion_app.jsonify = custom_jsonify
     flask_app = connexion_app.app
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
