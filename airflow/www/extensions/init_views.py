@@ -35,9 +35,9 @@ from airflow.utils.yaml import safe_load
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
-    from flask import Flask
     import starlette.exceptions
     from connexion.lifecycle import ConnexionRequest, ConnexionResponse
+    from flask import Flask
 
 log = logging.getLogger(__name__)
 
@@ -261,9 +261,6 @@ def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
         validate_responses=True,
     )
 
-    # flask_app = connexion_app.app
-    # flask_app.extensions["csrf"].exempt(api_bp)
-
 
 def init_api_internal(connexion_app: connexion.FlaskApp, standalone_api: bool = False) -> None:
     """Initialize Internal API."""
@@ -284,9 +281,6 @@ def init_api_internal(connexion_app: connexion.FlaskApp, standalone_api: bool = 
         strict_validation=True,
         validate_responses=True,
     )
-
-    # flask_app = connexion_app.app
-    # flask_app.extensions["csrf"].exempt(api_bp)
 
 
 def init_api_experimental(app):
@@ -309,9 +303,8 @@ def init_api_experimental(app):
 def init_api_auth_provider(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
-    api = auth_mgr.get_api_endpoints(connexion_app)
-    if api:
-        blueprint = api.blueprint
-        base_paths.append(blueprint.url_prefix)
+    blueprint = auth_mgr.get_api_endpoints(connexion_app)
+    if blueprint:
+        base_paths.append(blueprint.url_prefix if blueprint.url_prefix else "")
         flask_app = connexion_app.app
         flask_app.extensions["csrf"].exempt(blueprint)
