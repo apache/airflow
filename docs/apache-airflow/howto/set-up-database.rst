@@ -386,12 +386,14 @@ After configuring the database and connecting to it in Airflow configuration, yo
 Monitoring your database and logging queries
 --------------------------------------------
 
-Airflow uses the relational metadata DB a LOT. When scheduling and executing tasks, database is the central
-and crucial part of all the calculations and synchronization and it is important to monitor your database
-and make sure it is configured properly and that there are no excessive and long-running queries that impact
-Airflow performance. Such long or excessive queries might occur due to bugs in the code, missing optimizations,
-there is also a possibility that database optimization engine makes wrong decisions based on statistics of
-data - for example when the statistics of data in your database gets outdated.
+Airflow uses the relational metadata DB a lot. When scheduling and executing tasks, database is the central
+and crucial part of all the calculations and synchronization. It is important to monitor your database
+and make sure it is configured properly. Excessive and long-running queries will most probably impact
+Airflow performance. Such long or excessive queries might occur due to specific cases in your workflow, 
+missing optimizations or even due to bugs in the code (which maintainers try to take care for but glitches
+can appear). There is also a possibility that database optimization engine makes wrong decisions based
+on (outdated) statistics of data - for example when the set of data in your database changes and database
+statistics gets outdated.
 
 This is a responsibility of the Deployment Manager to setup monitoring and configuring the database properly.
 
