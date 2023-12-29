@@ -37,7 +37,8 @@ class AirflowJsonProvider(JSONProvider):
     def dumps(self, obj, **kwargs):
         kwargs.setdefault("ensure_ascii", self.ensure_ascii)
         kwargs.setdefault("sort_keys", self.sort_keys)
-        return json.dumps(obj, cls=WebEncoder)
+        kwargs.setdefault("cls", WebEncoder)
+        return json.dumps(obj, **kwargs)
 
     def loads(self, s: str | bytes, **kwargs):
         return json.loads(s, **kwargs)
