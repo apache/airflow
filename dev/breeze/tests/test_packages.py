@@ -341,7 +341,12 @@ def test_get_provider_info_dict():
     assert provider_info_dict["package-name"] == "apache-airflow-providers-amazon"
     assert "Amazon" in provider_info_dict["description"]
     assert provider_info_dict["suspended"] is False
-    assert provider_info_dict["filesystems"] == ["airflow.providers.amazon.aws.fs.s3"]
+    assert provider_info_dict["filesystems"] == [
+        {
+            "python-module": "airflow.providers.amazon.aws.fs.s3",
+            "uri-schemes": ["s3", "s3a", "s3n"],
+        },
+    ]
     assert len(provider_info_dict["versions"]) > 45
     assert len(provider_info_dict["dependencies"]) > 10
     assert len(provider_info_dict["integrations"]) > 35

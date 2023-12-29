@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import logging
 import re
 import sys
@@ -440,3 +441,31 @@ def test_lazy_cache_dict_raises_error():
     lazy_cache_dict["key"] = raise_method
     with pytest.raises(Exception, match="test"):
         _ = lazy_cache_dict["key"]
+
+
+@dataclasses.dataclass()
+class _FakeProvidersManager:
+    _provider_dict: dict[str, ProviderInfo]
+    _fs_dict: dict[str, list[str]]
+
+
+def test_discover_filesystems():
+    provider = ProviderInfo(
+        version="0",
+        data={
+            "filesystems": [
+                "tests.always.fake_filesystems.legacy",
+                {
+                    "python-module": "tests.always.fake_filesystems.modern",
+                    "uri-schemes": ["foo"],
+                },
+            ],
+        },
+        package_or_source="source",
+    )
+    fake_manager = _FakeProvidersManager({"tests.always": provider}, {})
+    ProvidersManager._discover_filesystems(fake_manager)
+    assert fake_manager._fs_dict == {
+        "tests.always.fake_filesystems.modern": ["foo"],
+        "tests.always.fake_filesystems.legacy": ["bar"],
+    }

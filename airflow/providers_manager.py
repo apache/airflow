@@ -30,7 +30,7 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, MutableMapping, NamedTuple, TypeVar, cast
 
 from packaging.utils import canonicalize_name
 
@@ -417,7 +417,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._provider_dict: dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
-        self._fs_set: set[str] = set()
+        self._fs_dict: dict[str, list[str]] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -850,11 +850,33 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_filesystems(self) -> None:
         """Retrieve all filesystems defined in the providers."""
-        for provider_package, provider in self._provider_dict.items():
-            for fs_module_name in provider.data.get("filesystems", []):
-                if _correctness_check(provider_package, fs_module_name + ".get_fs", provider):
-                    self._fs_set.add(fs_module_name)
-        self._fs_set = set(sorted(self._fs_set))
+
+        def _iter_filesystems() -> Iterator[tuple[str, list[str]]]:
+            fs_uri_schemes: Any
+            for provider_package, provider in self._provider_dict.items():
+                for fs_entry in provider.data.get("filesystems", ()):
+                    # Compatibility: There's a brief period where "filesystems"
+                    # contains a simple list of strings (Python module paths)
+                    # and all filesystem details are defined in that module. The
+                    # information has been moved into YAML, but we still support
+                    # the old format since it is easy enough.
+                    if isinstance(fs_entry, str):
+                        fs_module_name = fs_entry
+                        fs_uri_schemes = _correctness_check(
+                            provider_package,
+                            f"{fs_module_name}.schemes",
+                            provider,
+                        )
+                    else:
+                        fs_module_name = fs_entry.get("python-module")
+                        fs_uri_schemes = fs_entry.get("uri-schemes")
+                    if not _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
+                        continue
+                    if not isinstance(fs_uri_schemes, list):
+                        continue
+                    yield fs_module_name, fs_uri_schemes
+
+        self._fs_dict = dict(sorted(_iter_filesystems()))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1225,15 +1247,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._executor_class_name_set)
 
     @property
-    def filesystem_module_names(self) -> list[str]:
+    def filesystem_infos(self) -> list[tuple[str, list[str]]]:
         self.initialize_providers_filesystems()
-        return sorted(self._fs_set)
+        return sorted(self._fs_dict.items())
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_providers_configuration()
-        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+        return sorted(self._provider_configs.items())
 
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
-        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+        return sorted(self._provider_configs.items())

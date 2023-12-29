@@ -38,8 +38,6 @@ S3_PROXY_URI = "proxy-uri"
 
 log = logging.getLogger(__name__)
 
-schemes = ["s3", "s3a", "s3n"]
-
 
 class SignError(Exception):
     """Raises when unable to sign a S3 request."""
