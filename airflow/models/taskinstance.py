@@ -85,7 +85,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -3401,16 +3401,20 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
+        tables: list[type[TaskInstanceDependencies]] = [
+            TaskFail,
+            TaskInstanceNote,
+            TaskReschedule,
+            XCom,
+            RenderedTaskInstanceFields,
+        ]
         for table in tables:
             session.execute(
                 delete(table).where(
-                    # Note: Need to add some type ignores, mypy does not understand that all tables
-                    #       are actually containing the referenced attribute.
-                    table.dag_id == self.dag_id,  # type: ignore[attr-defined]
-                    table.task_id == self.task_id,  # type: ignore[attr-defined]
-                    table.run_id == self.run_id,  # type: ignore[attr-defined]
-                    table.map_index == self.map_index,  # type: ignore[attr-defined]
+                    table.dag_id == self.dag_id,
+                    table.task_id == self.task_id,
+                    table.run_id == self.run_id,
+                    table.map_index == self.map_index,
                 )
             )
 
@@ -3538,7 +3542,7 @@ class SimpleTaskInstance:
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
-class TaskInstanceNote(Base):
+class TaskInstanceNote(TaskInstanceDependencies):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
