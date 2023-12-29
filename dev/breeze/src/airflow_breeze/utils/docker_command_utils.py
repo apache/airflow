@@ -486,12 +486,12 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
     """
-    for volume in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
+    for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
-            get_console().print(f"[info]Checking executable permissions on {volume.as_posix()}[/]")
-        if not os.access(volume.as_posix(), os.X_OK):
+            get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
+        if not os.access(entrypoint.as_posix(), os.X_OK):
             get_console().print(
-                f"[error]You do not have executable permissions on {volume[0]}[/]\n"
+                f"[error]You do not have executable permissions on {entrypoint}[/]\n"
                 f"You likely checked out airflow repo on a filesystem that does not support executable "
                 f"permissions (for example on a Windows filesystem that is mapped to Linux VM). Airflow "
                 f"repository should only be checked out on a filesystem that is POSIX compliant."
