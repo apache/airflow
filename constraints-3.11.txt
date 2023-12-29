@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-28T16:13:50.529092
+# This constraints file was automatically generated on 2023-12-29T12:21:13.284602
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -180,7 +180,7 @@ apache-airflow-providers-yandex==3.7.1
 apache-airflow-providers-zendesk==4.5.0
 apache-beam==2.52.0
 apispec==6.3.1
-apprise==1.7.0
+apprise==1.7.1
 argcomplete==3.2.1
 asana==3.2.2
 asgiref==3.7.2
@@ -494,7 +494,7 @@ pgvector==0.2.4
 pinecone-client==2.2.4
 pinotdb==5.1.2
 pipdeptree==2.13.1
-pipx==1.3.3
+pipx==1.4.0
 pkginfo==1.9.6
 platformdirs==3.11.0
 pluggy==1.3.0
@@ -588,7 +588,7 @@ rfc3986==1.5.0
 rich-argparse==1.4.0
 rich-click==1.7.2
 rich==13.7.0
-rpds-py==0.15.2
+rpds-py==0.16.2
 rsa==4.9
 ruff==0.1.9
 s3fs==2023.12.2
@@ -699,7 +699,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.249.0
+yandexcloud==0.250.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.45
