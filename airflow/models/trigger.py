@@ -90,8 +90,17 @@ class Trigger(Base):
     @internal_api_call
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
+        from airflow.models.crypto import get_fernet
+
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        secure_kwargs = {}
+        fernet = get_fernet()
+        for k, v in kwargs.items():
+            if k.startswith("encrypted__"):
+                secure_kwargs[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
+            else:
+                secure_kwargs[k] = v
+        return cls(classpath=classpath, kwargs=secure_kwargs)
 
     @classmethod
     @internal_api_call

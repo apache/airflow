@@ -17,18 +17,22 @@
 from __future__ import annotations
 
 import datetime
+from typing import Any, AsyncIterator
 
 import pytest
 import pytz
+from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
-from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner
 from airflow.models import TaskInstance, Trigger
+from airflow.models.crypto import get_fernet
 from airflow.operators.empty import EmptyOperator
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -337,3 +341,47 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
     assert trigger_ids_query == [(2,), (1,)]
+
+
+class SensitiveKwargsTrigger(BaseTrigger):
+    """
+    A trigger that has sensitive kwargs.
+    """
+
+    def __init__(self, param1: str, param2: str):
+        super().__init__()
+        self.param1 = param1
+        self.param2 = param2
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.models.test_trigger.SensitiveKwargsTrigger",
+            {
+                "param1": self.param1,
+                "encrypted__param2": self.param2,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent({})
+
+
+@conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+def test_serialize_sensitive_kwargs():
+    """
+    Tests that sensitive kwargs are encrypted.
+    """
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.kwargs["param1"] == "value1"
+    assert (
+        get_fernet().decrypt(trigger_row.kwargs["encrypted__param2"].encode("utf-8")).decode("utf-8")
+        == "value2"
+    )
+
+    loaded_trigger: SensitiveKwargsTrigger = TriggerRunner().trigger_row_to_trigger_instance(
+        trigger_row, SensitiveKwargsTrigger
+    )
+    assert loaded_trigger.param1 == "value1"
+    assert loaded_trigger.param2 == "value2"
