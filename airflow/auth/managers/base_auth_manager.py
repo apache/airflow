@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from flask import Blueprint
     from flask_appbuilder.menu import MenuItem
     import connexion
+    from flask import Blueprint
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -82,7 +83,7 @@ class BaseAuthManager(LoggingMixin):
         """
         return []
 
-    def get_api_endpoints(self, connexion_app: connexion.FlaskApp) -> connexion.apps.flask.FlaskApi:
+    def get_api_endpoints(self, connexion_app: connexion.FlaskApp) -> None | Blueprint:
         """Return API endpoint(s) definition for the auth manager."""
         return None
 
