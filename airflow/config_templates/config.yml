@@ -1855,7 +1855,7 @@ webserver:
       type: boolean
       example: "False"
       default: "False"
-    allowed_payload:
+    allowed_payload_size:
       description: |
         The maximum size of the request payload (in MB) that can be sent.
       version_added: 2.9.0
