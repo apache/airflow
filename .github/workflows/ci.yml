@@ -1712,7 +1712,7 @@ jobs:
   build-prod-images-mysql-client:
     timeout-minutes: 80
     name: >
-      Build MysQL Client PROD images (main)
+      Build MySQL Client PROD images (main)
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
@@ -1746,7 +1746,7 @@ jobs:
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
       - name: >
-          Build Bullseye PROD Images
+          Build MySQL Client PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
         if: >
