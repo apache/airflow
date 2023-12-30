@@ -298,12 +298,12 @@ connection-types:
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook
+    connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
-    connection-type: azure_synapse_pipeline
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
