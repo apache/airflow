@@ -46,18 +46,6 @@ with DAG(
     )
     # [END howto_operator_azure_synapse_run_pipeline]
     begin >> run_pipeline1
-    
-    begin = EmptyOperator(task_id="begin")
-
-    run_pipeline1 = AzureSynapseRunPipelineOperator(
-        task_id="run_pipeline1",
-        azure_synapse_conn_id="azure_synapse_connection",
-        pipeline_name="Pipeline 1",
-        azure_synapse_workspace_dev_endpoint="azure_synapse_workspace_dev_endpoint",
-    )
-
-    begin >> run_pipeline1
-
 
     from tests.system.utils.watcher import watcher
 
