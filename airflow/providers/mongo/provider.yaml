@@ -48,6 +48,9 @@ dependencies:
   - dnspython>=1.13.0
   - pymongo>=3.6.0
 
+devel-dependencies:
+  - mongomock
+
 integrations:
   - integration-name: MongoDB
     external-doc-url: https://www.mongodb.com/

@@ -102,7 +102,7 @@ Documentation for dependent projects like provider packages, Docker image, Helm 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open, and
 applications usually pin them, but we should do neither and both simultaneously. We decided to keep
-our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
+our dependencies as open as possible (in `pyproject.toml`) so users can install different versions of libraries
 if needed. This means that `pip install apache-airflow` will not work from time to time or will
 produce unusable Airflow installation.
 

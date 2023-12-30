@@ -419,7 +419,7 @@ option_executor_start_airflow = click.option(
 
 @main.command(name="start-airflow")
 @click.option(
-    "--skip-asset-compilation",
+    "--skip-assets-compilation",
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
@@ -427,7 +427,7 @@ option_executor_start_airflow = click.option(
 @click.option(
     "--dev-mode",
     help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-asset-compilation).",
+    "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -506,7 +506,7 @@ def start_airflow(
     providers_skip_constraints: bool,
     python: str,
     restart: bool,
-    skip_asset_compilation: bool,
+    skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
@@ -515,12 +515,12 @@ def start_airflow(
     Enter breeze environment and starts all Airflow components in the tmux session.
     Compile assets if contents of www directory changed.
     """
-    if dev_mode and skip_asset_compilation:
+    if dev_mode and skip_assets_compilation:
         get_console().print(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
-        skip_asset_compilation = True
-    if use_airflow_version is None and not skip_asset_compilation:
+        skip_assets_compilation = True
+    if use_airflow_version is None and not skip_assets_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version

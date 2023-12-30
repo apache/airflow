@@ -93,6 +93,36 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - asgiref
 
+additional-extras:
+  - name: pandas
+    dependencies:
+      - pandas>=1.2.5
+  # There is conflict between boto3 and aiobotocore dependency botocore.
+  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+  # boto3 have native async support and we move away from aio aiobotocore
+  - name: aiobotocore
+    dependencies:
+      - aiobotocore[boto3]>=2.5.3
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs>=2023.10.0
+  - name: python3-saml
+    dependencies:
+      - python3-saml>=1.16.0
+
+devel-dependencies:
+  - aiobotocore>=2.7.0
+  - aws_xray_sdk>=2.12.0
+  - moto[cloudformation,glue]>=4.2.12
+  - mypy-boto3-appflow>=1.33.0
+  - mypy-boto3-rds>=1.33.0
+  - mypy-boto3-redshift-data>=1.33.0
+  - mypy-boto3-s3>=1.33.0
+  - s3fs>=2023.10.0
+
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
@@ -738,26 +768,6 @@ secrets-backends:
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
-
-additional-extras:
-  - name: pandas
-    dependencies:
-      - pandas>=1.2.5
-  # There is conflict between boto3 and aiobotocore dependency botocore.
-  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-  # boto3 have native async support and we move away from aio aiobotocore
-  - name: aiobotocore
-    dependencies:
-      - aiobotocore[boto3]>=2.5.3
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.2.0
-  - name: s3fs
-    dependencies:
-      - s3fs>=2023.10.0
-  - name: python3-saml
-    dependencies:
-      - python3-saml>=1.16.0
 
 config:
   aws:
