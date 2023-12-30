@@ -2087,9 +2087,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             @appbuilder.sm.oauth_user_info_getter
             def my_oauth_user_info(sm, provider, response=None):
-                if provider == 'github':
-                    me = sm.oauth_remotes[provider].get('user')
-                    return {'username': me.data.get('login')}
+                if provider == "github":
+                    me = sm.oauth_remotes[provider].get("user")
+                    return {"username": me.data.get("login")}
                 return {}
         """
 
