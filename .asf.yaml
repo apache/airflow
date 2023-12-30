@@ -44,37 +44,47 @@ github:
     main:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
+        required_conversation_resolution: true
     v1-10-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
     v2-0-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
     v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
     v2-2-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
     v2-3-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
     v2-4-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+        required_linear_history: true
     v2-5-stable:
       required_pull_request_reviews:
-        required_approving_review_count: 1
+      required_approving_review_count: 1
+      required_linear_history: true
     v2-6-stable:
       required_pull_request_reviews:
-        required_approving_review_count: 1
+      required_approving_review_count: 1
+      required_linear_history: true
     v2-7-stable:
       required_pull_request_reviews:
-        required_approving_review_count: 1
+      required_approving_review_count: 1
+      required_linear_history: true
     v2-8-stable:
       required_pull_request_reviews:
-        required_approving_review_count: 1
-
+      required_approving_review_count: 1
+      required_linear_history: true
   collaborators:
     - mhenc
     - utkarsharma2
