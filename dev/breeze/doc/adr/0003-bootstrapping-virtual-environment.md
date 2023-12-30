@@ -101,7 +101,7 @@ version of Breeze will remain as part of the Airflow's source code.
 The decision is to implement Breeze in a subfolder (`dev/breeze2/`) of
 Apache Airflow as a Python project following the standard setuptools
 enabled project. The project contains setup.py and dependencies described
-in setup.cfg and contains both source code and tests for Breeze code.
+in pyproject.toml and contains both source code and tests for Breeze code.
 
 The sub-project could be used in the future to produce a  PyPI package
 (we reserved such package in PyPI), however its main purpose is

@@ -195,11 +195,16 @@ Documentation
 An important part of building a new provider is the documentation.
 Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/main/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
 
+Those are important files in the airflow source tree that affect providers. The ``pyproject.toml`` in root
+Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
+when ``pre-commit`` is run. Files such as ``extra-packages-ref.rst`` should be manually updated because
+they are manually formatted for better layout and ``pre-commit`` will just verify if the information
+about provider is updated there. Files like ``commit.rst`` and ``CHANGELOG`` are automatically updated
+by ``breeze release-management`` command by release manager when providers are released.
+
   .. code-block:: bash
 
-     ├── INSTALL
-     ├── CONTRIBUTING.rst
-     ├── setup.py
+     ├── pyproject.toml
      ├── airflow/
      │   └── providers/
      │       └── <NEW_PROVIDER>/
@@ -207,7 +212,6 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
      │           └── CHANGELOG.rst
      │
      └── docs/
-         ├── spelling_wordlist.txt
          ├── apache-airflow/
          │   └── extra-packages-ref.rst
          ├── integration-logos/<NEW_PROVIDER>/
@@ -220,36 +224,8 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
                  └── <NEW_PROVIDER>.rst
 
 
-Files automatically updated by pre-commit:
-
-- ``INSTALL`` in provider
-
-Files automatically created when the provider is released:
-
-- ``docs/apache-airflow-providers-<NEW_PROVIDER>/commits.rst``
-- ``/airflow/providers/<NEW_PROVIDER>/CHANGELOG``
-
 There is a chance that your provider's name is not a common English word.
-In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``. This file begin with capitalized words and
-lowercase in the second block.
-
-  .. code-block:: bash
-
-    Namespace
-    Neo4j
-    Nextdoor
-    <NEW_PROVIDER> (new line)
-    Nones
-    NotFound
-    Nullable
-    ...
-    neo4j
-    neq
-    networkUri
-    <NEW_PROVIDER> (new line)
-    nginx
-    nobr
-    nodash
+In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``.
 
 Add your provider dependencies into ``provider.yaml`` under ``dependencies`` key..
 If your provider doesn't have any dependency add a empty list.
@@ -258,9 +234,9 @@ In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
 
 - add information how to configure connection for your provider.
 
-In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst``:
-
-- add information how to use the Operator. It's important to add examples and additional information if your Operator has extra-parameters.
+In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst`` add information
+how to use the Operator. It's important to add examples and additional information if your
+Operator has extra-parameters.
 
   .. code-block:: RST
 
@@ -284,7 +260,7 @@ In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.r
           :end-before: [END howto_operator_<NEW_PROVIDER>]
 
 
-Copy from another, similar provider the docs: ``docs/apache-airflow-providers-new_provider/*.rst``:
+Copy from another, similar provider the docs: ``docs/apache-airflow-providers-<NEW_PROVIDER>/*.rst``:
 
 At least those docs should be present
 
@@ -335,20 +311,6 @@ In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of you
       connection-types:
         - hook-class-name: airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
         - connection-type: provider-connection-type
-
-      hook-class-names:  # deprecated in Airflow 2.2.0
-        - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
-
-.. note:: Defining your own connection types
-
-    You only need to add ``connection-types`` in case you have some hooks that have customized UI behavior. However,
-    it is only supported for Airflow 2.2.0. If your providers are also targeting Airflow below 2.2.0 you should
-    provide the deprecated ``hook-class-names`` array. The ``connection-types`` array allows for optimization
-    of importing of individual connections and while Airflow 2.2.0 is able to handle both definition, the
-    ``connection-types`` is recommended.
-
-    For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
-
 
 After changing and creating these files you can build the documentation locally. The two commands below will
 serve to accomplish this. The first will build your provider's documentation. The second will ensure that the
@@ -488,13 +450,12 @@ to do.
 
 * You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
 * you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -
-  ``setup.py`` to remove the provider from list of dependencies.
+  ``pyproject.toml`` to remove the provider from list of dependencies.
 
-What happens under-the-hood as a result, is that ``generated/providers.json`` file is updated with
+What happens under-the-hood as a result, is that ``pyproject.toml`` file is updated with
 the information about available providers and their dependencies and it is used by our tooling to
 exclude suspended providers from all relevant parts of the build and CI system (such as building CI image
 with dependencies, building documentation, running tests, etc.)
-
 
 Resuming providers
 ==================
@@ -502,7 +463,6 @@ Resuming providers
 Resuming providers is done by reverting the original change that suspended it. In case there are changes
 needed to fix problems in the reverted provider, our CI will detect them and you will have to fix them
 as part of the PR reverting the suspension.
-
 
 Removing providers
 ==================

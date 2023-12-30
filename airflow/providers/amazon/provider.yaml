@@ -86,7 +86,8 @@ dependencies:
   # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
   # that supported boto3 1.28.
   # NOTE!!! BEFORE botocore 1.33 BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
-  # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
+  # TODO(potiuk) update it to pyproject.toml generation
+  # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in pyproject.toml when you update it here
   - boto3>=1.28.0
   # NOTE!!! BEFORE botocore 1.33 version is always shifted by 3 MINOR VERSIONS from boto3, see:
   # - https://github.com/boto/boto3/issues/2702

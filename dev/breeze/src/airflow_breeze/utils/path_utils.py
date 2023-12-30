@@ -34,15 +34,15 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
-AIRFLOW_CFG_FILE = "setup.cfg"
+PYPROJECT_TOML = "pyproject.toml"
 
 
 def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
     root = Path(start_from.root)
     d = start_from
     while d != root:
-        attempt = d / AIRFLOW_CFG_FILE
-        if attempt.exists() and "name = apache-airflow\n" in attempt.read_text():
+        attempt = d / PYPROJECT_TOML
+        if attempt.exists() and 'name = "apache-airflow"\n' in attempt.read_text():
             return attempt.parent
         d = d.parent
     return None
@@ -97,7 +97,7 @@ def get_package_setup_metadata_hash() -> str:
     return "NOT FOUND"
 
 
-def get_sources_setup_metadata_hash(sources: Path) -> str:
+def get_pyproject_toml_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
         the_hash.update((sources / "dev" / "breeze" / "pyproject.toml").read_bytes())
@@ -108,7 +108,7 @@ def get_sources_setup_metadata_hash(sources: Path) -> str:
 
 def get_installation_sources_config_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the source of installation of Breeze.
+    Retrieves hash of pyproject.toml from the source of installation of Breeze.
 
     This is used in order to determine if we need to upgrade Breeze, because some
     setup files changed. Blake2b algorithm will not be flagged by security checkers
@@ -118,14 +118,14 @@ def get_installation_sources_config_metadata_hash() -> str:
     installation_sources = get_installation_airflow_sources()
     if installation_sources is None:
         return "NOT FOUND"
-    return get_sources_setup_metadata_hash(installation_sources)
+    return get_pyproject_toml_hash(installation_sources)
 
 
 def get_used_sources_setup_metadata_hash() -> str:
     """
     Retrieves hash of setup files from the currently used sources.
     """
-    return get_sources_setup_metadata_hash(get_used_airflow_sources())
+    return get_pyproject_toml_hash(get_used_airflow_sources())
 
 
 def set_forced_answer_for_upgrade_check():

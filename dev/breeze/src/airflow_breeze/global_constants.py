@@ -387,8 +387,7 @@ with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open(
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "setup.py",
-    "setup.cfg",
+    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
     "generated/provider_dependencies.json",

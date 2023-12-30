@@ -193,7 +193,7 @@ jobs:
 
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
-  # cache using the current constraints. This will speed up cache refresh in cases when setup.py
+  # cache using the current constraints. This will speed up cache refresh in cases when pyproject.toml
   # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
@@ -629,9 +629,9 @@ jobs:
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
         run: >
@@ -693,9 +693,9 @@ jobs:
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Spellcheck docs"
         run: >
@@ -881,8 +881,9 @@ jobs:
           path: old-airflow
       - name: "Prepare airflow package: wheel"
         run: |
-          pip install pip==23.3.2 wheel==0.36.2 gitpython==3.1.40
-          python setup.py egg_info --tag-build ".dev0" bdist_wheel -d ../dist
+          pip install pip==23.3.2 hatch==1.9.1
+          # TODO(potiuk) make sure dev0 version is used
+          hatch --tag-build ".dev0" -t wheel
         working-directory: ./old-airflow
       - name: >
           Install and verify all provider packages and airflow on
@@ -2072,8 +2073,7 @@ jobs:
           path: ".build/.k8s-env"
           key: "\
             k8s-env-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
-            'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','pyproject.toml') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
         env:

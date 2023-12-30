@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Test for an order of dependencies in setup.py
+Test for an order of dependencies in pyproject.toml
+TODO(potiuk) fix this test to use pyproject.toml
 """
 from __future__ import annotations
 

@@ -74,8 +74,14 @@ IMPORTANT NOTE ABOUT EXTRAS !!!
 
 You can specify extras as single coma-separated parameter to install. For example
 
-* google,amazon,microsoft.azure
-* devel_all
+* devel - to have all development dependencies required to test core.
+* devel_devscripts, devel_tests, devel_mypy - to selectively install tools that we use
+  to run scripts and tests
+* editable_google,editable_amazon,editable_microsoft_azure - to install dependencies
+  needed at runtime by specified providers
+* devel_azure, devel_deltalake - to install development tools needed by specific providers
+  to run some of their tests (those are dependencies that are not needed at runtime)
+* devel_all - ti have all development dependencies required for all providers
 
 Note that "devel_all" installs all possible dependencies and we have > 600 of them,
 which might not be possible to install cleanly on your host because of lack of

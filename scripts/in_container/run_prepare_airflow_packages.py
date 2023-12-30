@@ -79,31 +79,34 @@ rich.print(f"[green]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git comm
 rich.print("[bright_blue]Checking airflow version\n")
 
 airflow_version = subprocess.check_output(
-    [sys.executable, "setup.py", "--version"], text=True, cwd=AIRFLOW_SOURCES_ROOT
+    [sys.executable, "-m", "hatch", "version"], text=True, cwd=AIRFLOW_SOURCES_ROOT
 ).strip()
 
 rich.print(f"[green]Airflow version: {airflow_version}\n")
 
 RELEASED_VERSION_MATCHER = re.compile(r"^\d+\.\d+\.\d+$")
 
-command = [sys.executable, "setup.py"]
+build_command = [sys.executable, "hatch", "build"]
 
 if version_suffix:
     if RELEASED_VERSION_MATCHER.match(airflow_version):
         rich.print(f"[warning]Adding {version_suffix} suffix to the {airflow_version}")
-        command.extend(["egg_info", "--tag-build", version_suffix])
+        sys.exit(2)
     elif not airflow_version.endswith(version_suffix):
-        rich.print(f"[red]Version {airflow_version} does not end with {version_suffix}. Using !")
+        rich.print(
+            f"[red]Version {airflow_version} does not end with {version_suffix} "
+            f"but with another one. Exiting!"
+        )
         sys.exit(1)
 
 if package_format in ["both", "wheel"]:
-    command.append("bdist_wheel")
+    build_command.extend(["-t", "wheel"])
 if package_format in ["both", "sdist"]:
-    command.append("sdist")
+    build_command.extend(["-t", "sdist"])
 
 rich.print(f"[bright_blue]Building packages: {package_format}\n")
 
-process = subprocess.run(command, capture_output=True, text=True, cwd=AIRFLOW_SOURCES_ROOT)
+process = subprocess.run(build_command, capture_output=True, text=True, cwd=AIRFLOW_SOURCES_ROOT)
 
 process_summary("Airflow packages built successfully", "Error building Airflow packages", process)
 

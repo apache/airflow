@@ -18,17 +18,24 @@
 Reference for package extras
 ''''''''''''''''''''''''''''
 
+Airflow has a number of optional "extras" that you can use to add features to your installation when you
+are installing Airflow. Those extras are a good way for the users to manage their installation, but also
+they are useful for contributors to airflow when they want to contribute some of the featuers - including
+optional integrations of Airflow - via providers.
+
+,, warning::
+
+    Traditionally in Airflow some of the extras used `.` and `_` to separate the parts of the extra name.
+    This was not PEP-685 normalized name and we opted to change it to to `-` for all our extras, Expecting that
+    PEP-685 will be implemented in full by `pip` and other tools. Currently the normalization is happening
+    anyway, but `pip` shows warning when `_` or `-` are used, due to old packaging version used (January 2023).
+    The work is in progress to change it in `this issue <https://github.com/pypa/pip/issues/11445>` so this
+    is anticipated that it will be fixed soon.
+
+    TODO(potiuk): decide whether to do it. In the current proposal we changed everything to `_`.
+
+
 Here's the list of all the extra dependencies of Apache Airflow.
-
-The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
-pre-installed when Airflow is installed.
-
-.. note::
-  You can disable automated installation of the providers with extras when installing Airflow. You need to
-  have ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true`` before running ``pip install``
-  command. Contributors need to set it, if they are installing Airflow locally, and want to develop
-  providers directly via Airflow sources. This variable is automatically set in ``Breeze``
-  development environment. Setting this variable is not needed in editable mode (``pip install -e``).
 
 Core Airflow extras
 -------------------
@@ -51,6 +58,8 @@ python dependencies for the provided package.
 | github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphvis]'``          | Enables exporting DAGs to .dot graphical output                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -97,7 +106,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
 .. code-block:: bash
     :substitutions:
 
-    pip install apache-airflow[google,amazon,apache.spark]==|version| \
+    pip install apache-airflow[google,amazon,apache-spark]==|version| \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
@@ -114,39 +123,38 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | extra               | install command                                     | enables                                        |
 +=====================+=====================================================+================================================+
-| apache.atlas        | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas                                   |
+| apache_atlas        | ``pip install 'apache-airflow[apache_atlas]'``      | Apache Atlas                                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.beam         | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                  |
+| apache_beam         | ``pip install 'apache-airflow[apache_beam]'``       | Apache Beam operators & hooks                  |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.cassandra    | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks            |
+| apache_cassandra    | ``pip install 'apache-airflow[apache_cassandra]'``  | Cassandra related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.drill        | ``pip install 'apache-airflow[apache.drill]'``      | Drill related operators & hooks                |
+| apache_drill        | ``pip install 'apache-airflow[apache_drill]'``      | Drill related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |
+| apache_druid        | ``pip install 'apache-airflow[apache_druid]'``      | Druid related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.flink        | ``pip install 'apache-airflow[apache.flink]'``      | Flink related operators & hooks                |
+| apache_flink        | ``pip install 'apache-airflow[apache_flink]'``      | Flink related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.hdfs         | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                       |
+| apache_hdfs         | ``pip install 'apache-airflow[apache_hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |
+| apache_hive         | ``pip install 'apache-airflow[apache_hive]'``       | All Hive related operators                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
+| apache_impala       | ``pip install 'apache-airflow[apache_impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.kafka        | ``pip install 'apache-airflow[apache.kafka]'``      | All Kafka related operators & hooks            |
+| apache_kafka        | ``pip install 'apache-airflow[apache_kafka]'``      | All Kafka related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
+| apache_kylin        | ``pip install 'apache-airflow[apache_kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.livy         | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors    |
+| apache_livy         | ``pip install 'apache-airflow[apache_livy]'``       | All Livy related operators, hooks & sensors    |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.pig          | ``pip install 'apache-airflow[apache.pig]'``        | All Pig related operators & hooks              |
+| apache_pig          | ``pip install 'apache-airflow[apache_pig]'``        | All Pig related operators & hooks              |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.pinot        | ``pip install 'apache-airflow[apache.pinot]'``      | All Pinot related hooks                        |
+| apache_pinot        | ``pip install 'apache-airflow[apache_pinot]'``      | All Pinot related hooks                        |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.spark        | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks            |
+| apache_spark        | ``pip install 'apache-airflow[apache_spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.webhdfs      | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                       |
+| apache_webhdfs      | ``pip install 'apache-airflow[apache_webhdfs]'``    | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-
 
 External Services extras
 ========================
@@ -166,9 +174,9 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| atlassian.jira      | ``pip install 'apache-airflow[atlassian.jira]'``    | Jira hooks and operators                            |
+| atlassian_jira      | ``pip install 'apache-airflow[atlassian_jira]'``    | Jira hooks and operators                            |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
+| microsoft_azure     | ``pip install 'apache-airflow[microsoft_azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -178,7 +186,7 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| dbt.cloud           | ``pip install 'apache-airflow[dbt.cloud]'``         | dbt Cloud hooks and operators                       |
+| dbt_cloud           | ``pip install 'apache-airflow[dbt_cloud]'``         | dbt Cloud hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -241,7 +249,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | celery              | ``pip install 'apache-airflow[celery]'``            | Celery dependencies and sensor                                  | CeleryExecutor, CeleryKubernetesExecutor     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes client libraries, KubernetesPodOperator & friends    | KubernetesExecutor, LocalKubernetesExecutor  |
+| cncf_kubernetes     | ``pip install 'apache-airflow[cncf_kubernetes]'``   | Kubernetes client libraries, KubernetesPodOperator & friends    | KubernetesExecutor, LocalKubernetesExecutor  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                      |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
@@ -259,7 +267,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                       |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| microsoft.mssql     | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook.                        |                                              |
+| microsoft_mssql     | ``pip install 'apache-airflow[microsoft_mssql]'``   | Microsoft SQL Server operators and hook.                        |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | mysql               | ``pip install 'apache-airflow[mysql]'``             | MySQL operators and hook                                        |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
@@ -290,12 +298,16 @@ Other extras
 
 These are extras that provide support for integration with external systems via some - usually - standard protocols.
 
+The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
+pre-installed when Airflow is installed.
+
+
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
-| common.io           | ``pip install 'apache-airflow[common.io]'``         | Core IO Operators                    |              |
+| common_io           | ``pip install 'apache-airflow[common_io]'``         | Core IO Operators                    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Core SQL Operators                   |      *       |
+| common_sql          | ``pip install 'apache-airflow[common_sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
@@ -307,9 +319,9 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
+| microsoft_psrp      | ``pip install 'apache-airflow[microsoft_psrp]'``    | PSRP hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
+| microsoft_winrm     | ``pip install 'apache-airflow[microsoft_winrm]'``   | WinRM hooks and operators            |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
@@ -326,15 +338,10 @@ These are extras that provide support for integration with external systems via 
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
-Bundle extras
--------------
+Production Bundle extras
+-------------------------
 
-These are extras that install one or more extras as a bundle. Note that these extras should only be used for "development" version
-of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
-work when airflow is installed from 'PyPI`.
-
-If you want to install Airflow from PyPI with "all" extras (which should basically be never needed - you almost never need all extras from Airflow),
-you need to list explicitly all the non-bundle extras that you want to install.
+These are extras that install one or more extras as a bundle.
 
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                                |
@@ -343,27 +350,278 @@ you need to list explicitly all the non-bundle extras that you want to install.
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All database integrations                                              |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum development dependencies (without Hadoop, Kerberos, providers) |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Adds Hadoop stack libraries to ``devel`` dependencies                  |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development including Hadoop and providers       |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests (same as ``devel_all``)         |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+
+Development extras
+------------------
+
+Generally none of the ``devel`` extras install providers - they expect the providers to be used from sources
+and those extras only make sense in editable mode. Users of Airflow should not be using them, unless they
+start contributing back and install airflow from sources.
+
+Those extras are only available in Airflow when it is installed in editable mode from sources
+(``pip install -e .``).
+
+Devel extras
+============
+
+The devel extras do not install dependencies for features of Airflow, but add functionality that is needed to
+develop Airflow, such as running tests, static checks. They do not install provider packages - even if they might be related
+to some providers (like ``devel_amazon``) but they might be needed if you want to test code of thoe corresponding
+provider.
+
+Even if some ``devel`` extras relate to providers - they do not install provider packages - for example
+``devel_amazon`` does not install amazon provider) but they might be needed if you want to test code of
+the corresponding provider (for example running mypy checks or running tests).
+
++---------------------+-----------------------------------------+------------------------------------------------------+
+| extra               | install command                         | enables                                              |
++=====================+=========================================+======================================================+
+| devel_amazon        | pip install -e '.[devel_amazon]'        | Adds all test libraries needed to test amazon        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_azure         | pip install -e '.[devel_azure]'         | Adds all test libraries needed to test azure         |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_breeze        | pip install -e '.[devel_breeze]'        | Adds all test libraries needed to test breeze        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_debuggers     | pip install -e '.[devel_debuggers]'     | Adds all test libraries needed to test debuggers     |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_deltalake     | pip install -e '.[devel_deltalake]'     | Adds all test libraries needed to test deltalake     |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_devscripts    | pip install -e '.[devel_devscripts]'    | Adds all test libraries needed to test devscripts    |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_duckdb        | pip install -e '.[devel_duckdb]'        | Adds all test libraries needed to test duckdb        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_iceberg       | pip install -e '.[devel_iceberg]'       | Adds all test libraries needed to test iceberg       |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_mongo         | pip install -e '.[devel_mongo]'         | Adds all test libraries needed to test mongo         |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_mypy          | pip install -e '.[devel_mypy]'          | Adds all test libraries needed to test mypy          |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_sentry        | pip install -e '.[devel_sentry]'        | Adds all test libraries needed to test sentry        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_static_checks | pip install -e '.[devel_static_checks]' | Adds all test libraries needed to test static_checks |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel_tests         | pip install -e '.[devel_tests]'         | Adds all test libraries needed to test tests         |
++---------------------+-----------------------------------------+------------------------------------------------------+
+
+Editable provider extras
+========================
+
+In order to test providers when installing Airflow in editable, development mode, you need to install
+dependencies of the providers. This is done by installing the ``editable`` extra with ``pip install -e``.
+Those extras are not available in the released PyPI wheel packages, they are only available when Airflow
+is installed locally in editable mode.
+
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| extra                           | install command                                     | enables                                                    |
++=================================+=====================================================+============================================================+
+| editable_airbyte                | pip install -e '.[editable_airbyte]'                | Adds all libraries needed by the airbyte provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_alibaba                | pip install -e '.[editable_alibaba]'                | Adds all libraries needed by the alibaba provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_amazon                 | pip install -e '.[editable_amazon]'                 | Adds all libraries needed by the amazon provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_beam            | pip install -e '.[editable_apache_beam]'            | Adds all libraries needed by the apache_beam provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_cassandra       | pip install -e '.[editable_apache_cassandra]'       | Adds all libraries needed by the apache_cassandra provider |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_drill           | pip install -e '.[editable_apache_drill]'           | Adds all libraries needed by the apache_drill provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_druid           | pip install -e '.[editable_apache_druid]'           | Adds all libraries needed by the apache_druid provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_flink           | pip install -e '.[editable_apache_flink]'           | Adds all libraries needed by the apache_flink provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_hdfs            | pip install -e '.[editable_apache_hdfs]'            | Adds all libraries needed by the apache_hdfs provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_hive            | pip install -e '.[editable_apache_hive]'            | Adds all libraries needed by the apache_hive provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_impala          | pip install -e '.[editable_apache_impala]'          | Adds all libraries needed by the apache_impala provider    |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_kafka           | pip install -e '.[editable_apache_kafka]'           | Adds all libraries needed by the apache_kafka provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_kylin           | pip install -e '.[editable_apache_kylin]'           | Adds all libraries needed by the apache_kylin provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_livy            | pip install -e '.[editable_apache_livy]'            | Adds all libraries needed by the apache_livy provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_pig             | pip install -e '.[editable_apache_pig]'             | Adds all libraries needed by the apache_pig provider       |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_pinot           | pip install -e '.[editable_apache_pinot]'           | Adds all libraries needed by the apache_pinot provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apache_spark           | pip install -e '.[editable_apache_spark]'           | Adds all libraries needed by the apache_spark provider     |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_apprise                | pip install -e '.[editable_apprise]'                | Adds all libraries needed by the apprise provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_arangodb               | pip install -e '.[editable_arangodb]'               | Adds all libraries needed by the arangodb provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_asana                  | pip install -e '.[editable_asana]'                  | Adds all libraries needed by the asana provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_atlassian_jira         | pip install -e '.[editable_atlassian_jira]'         | Adds all libraries needed by the atlassian_jira provider   |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_celery                 | pip install -e '.[editable_celery]'                 | Adds all libraries needed by the celery provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_cloudant               | pip install -e '.[editable_cloudant]'               | Adds all libraries needed by the cloudant provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_cncf_kubernetes        | pip install -e '.[editable_cncf_kubernetes]'        | Adds all libraries needed by the cncf_kubernetes provider  |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_cohere                 | pip install -e '.[editable_cohere]'                 | Adds all libraries needed by the cohere provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_common_io              | pip install -e '.[editable_common_io]'              | Adds all libraries needed by the common_io provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_common_sql             | pip install -e '.[editable_common_sql]'             | Adds all libraries needed by the common_sql provider       |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_databricks             | pip install -e '.[editable_databricks]'             | Adds all libraries needed by the databricks provider       |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_datadog                | pip install -e '.[editable_datadog]'                | Adds all libraries needed by the datadog provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_dbt_cloud              | pip install -e '.[editable_dbt_cloud]'              | Adds all libraries needed by the dbt_cloud provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_dingding               | pip install -e '.[editable_dingding]'               | Adds all libraries needed by the dingding provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_discord                | pip install -e '.[editable_discord]'                | Adds all libraries needed by the discord provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_docker                 | pip install -e '.[editable_docker]'                 | Adds all libraries needed by the docker provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_elasticsearch          | pip install -e '.[editable_elasticsearch]'          | Adds all libraries needed by the elasticsearch provider    |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_exasol                 | pip install -e '.[editable_exasol]'                 | Adds all libraries needed by the exasol provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_fab                    | pip install -e '.[editable_fab]'                    | Adds all libraries needed by the fab provider              |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_facebook               | pip install -e '.[editable_facebook]'               | Adds all libraries needed by the facebook provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_ftp                    | pip install -e '.[editable_ftp]'                    | Adds all libraries needed by the ftp provider              |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_github                 | pip install -e '.[editable_github]'                 | Adds all libraries needed by the github provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_google                 | pip install -e '.[editable_google]'                 | Adds all libraries needed by the google provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_grpc                   | pip install -e '.[editable_grpc]'                   | Adds all libraries needed by the grpc provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_hashicorp              | pip install -e '.[editable_hashicorp]'              | Adds all libraries needed by the hashicorp provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_http                   | pip install -e '.[editable_http]'                   | Adds all libraries needed by the http provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_imap                   | pip install -e '.[editable_imap]'                   | Adds all libraries needed by the imap provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_influxdb               | pip install -e '.[editable_influxdb]'               | Adds all libraries needed by the influxdb provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_jdbc                   | pip install -e '.[editable_jdbc]'                   | Adds all libraries needed by the jdbc provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_jenkins                | pip install -e '.[editable_jenkins]'                | Adds all libraries needed by the jenkins provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_microsoft_azure        | pip install -e '.[editable_microsoft_azure]'        | Adds all libraries needed by the microsoft_azure provider  |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_microsoft_mssql        | pip install -e '.[editable_microsoft_mssql]'        | Adds all libraries needed by the microsoft_mssql provider  |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_microsoft_psrp         | pip install -e '.[editable_microsoft_psrp]'         | Adds all libraries needed by the microsoft_psrp provider   |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_microsoft_winrm        | pip install -e '.[editable_microsoft_winrm]'        | Adds all libraries needed by the microsoft_winrm provider  |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_mongo                  | pip install -e '.[editable_mongo]'                  | Adds all libraries needed by the mongo provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_mysql                  | pip install -e '.[editable_mysql]'                  | Adds all libraries needed by the mysql provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_neo4j                  | pip install -e '.[editable_neo4j]'                  | Adds all libraries needed by the neo4j provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_odbc                   | pip install -e '.[editable_odbc]'                   | Adds all libraries needed by the odbc provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_openai                 | pip install -e '.[editable_openai]'                 | Adds all libraries needed by the openai provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_openfaas               | pip install -e '.[editable_openfaas]'               | Adds all libraries needed by the openfaas provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_openlineage            | pip install -e '.[editable_openlineage]'            | Adds all libraries needed by the openlineage provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_opensearch             | pip install -e '.[editable_opensearch]'             | Adds all libraries needed by the opensearch provider       |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_opsgenie               | pip install -e '.[editable_opsgenie]'               | Adds all libraries needed by the opsgenie provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_oracle                 | pip install -e '.[editable_oracle]'                 | Adds all libraries needed by the oracle provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_pagerduty              | pip install -e '.[editable_pagerduty]'              | Adds all libraries needed by the pagerduty provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_papermill              | pip install -e '.[editable_papermill]'              | Adds all libraries needed by the papermill provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_pgvector               | pip install -e '.[editable_pgvector]'               | Adds all libraries needed by the pgvector provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_pinecone               | pip install -e '.[editable_pinecone]'               | Adds all libraries needed by the pinecone provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_postgres               | pip install -e '.[editable_postgres]'               | Adds all libraries needed by the postgres provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_presto                 | pip install -e '.[editable_presto]'                 | Adds all libraries needed by the presto provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_redis                  | pip install -e '.[editable_redis]'                  | Adds all libraries needed by the redis provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_salesforce             | pip install -e '.[editable_salesforce]'             | Adds all libraries needed by the salesforce provider       |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_samba                  | pip install -e '.[editable_samba]'                  | Adds all libraries needed by the samba provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_segment                | pip install -e '.[editable_segment]'                | Adds all libraries needed by the segment provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_sendgrid               | pip install -e '.[editable_sendgrid]'               | Adds all libraries needed by the sendgrid provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_sftp                   | pip install -e '.[editable_sftp]'                   | Adds all libraries needed by the sftp provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_singularity            | pip install -e '.[editable_singularity]'            | Adds all libraries needed by the singularity provider      |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_slack                  | pip install -e '.[editable_slack]'                  | Adds all libraries needed by the slack provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_smtp                   | pip install -e '.[editable_smtp]'                   | Adds all libraries needed by the smtp provider             |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_snowflake              | pip install -e '.[editable_snowflake]'              | Adds all libraries needed by the snowflake provider        |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_sqlite                 | pip install -e '.[editable_sqlite]'                 | Adds all libraries needed by the sqlite provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_ssh                    | pip install -e '.[editable_ssh]'                    | Adds all libraries needed by the ssh provider              |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_tableau                | pip install -e '.[editable_tableau]'                | Adds all libraries needed by the tableau provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_tabular                | pip install -e '.[editable_tabular]'                | Adds all libraries needed by the tabular provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_telegram               | pip install -e '.[editable_telegram]'               | Adds all libraries needed by the telegram provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_trino                  | pip install -e '.[editable_trino]'                  | Adds all libraries needed by the trino provider            |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_vertica                | pip install -e '.[editable_vertica]'                | Adds all libraries needed by the vertica provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_weaviate               | pip install -e '.[editable_weaviate]'               | Adds all libraries needed by the weaviate provider         |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_yandex                 | pip install -e '.[editable_yandex]'                 | Adds all libraries needed by the yandex provider           |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
+| editable_zendesk                | pip install -e '.[editable_zendesk]'                | Adds all libraries needed by the zendesk provider          |
++---------------------------------+-----------------------------------------------------+------------------------------------------------------------+
 
 Doc extras
-----------
+==========
 
 Those are the extras that are needed to generated documentation for Airflow. This is used for development time only
 
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                              |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| doc_gen             | ``pip install 'apache-airflow[doc_gen]'``           | Packages needed to generate er diagrams (included in ``devel_all``)  |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| extra               | install command                                     | enables                                                                |
++=====================+=====================================================+========================================================================+
+| doc                 | ``pip install -e '.[doc]'``                         | Packages needed to build docs (included in ``devel``)                  |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| doc_gen             | ``pip install -e '.[doc_gen]'``                     | Packages needed to generate er diagrams (included in ``devel_all``)    |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+
+Bundle devel extras
+===================
+
+Those are extras that bundle devel, editable and doc extras together to make it easy to install them together in a single installation. Some of the
+extras are more difficult to install on certain systems (such as ARM MacBooks) because they require system level dependencies to be installed.
+
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| extra               | install command                                     | enables                                                                |
++=====================+=====================================================+========================================================================+
+| devel               | ``pip install -e '.[devel]'``                       | Minimum development dependencies (without Hadoop, Kerberos, providers) |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_hadoop        | ``pip install -e '.[devel_hadoop]'``                | Adds Hadoop stack libraries ``devel`` dependencies                     |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_all_dbs       | ``pip install -e '.[devel_all_dbs]'``               | Adds all libraries (editable extras) needed to test database providers |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_all           | ``pip install -e '.[devel_all]'``                   | Everything needed for development including Hadoop, all devel extras,  |
+|                     |                                                     | all doc extras, all editable extras. Generally: all dependencies       |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_ci            | ``pip install -e '.[devel_ci]'``                    | All dependencies required for CI tests (same as ``devel_all``)         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 
 
 Deprecated 1.10 extras
@@ -378,37 +636,37 @@ so there is no replacement for ``crypto`` extra.
 +---------------------+-----------------------------+
 | Deprecated extra    | Extra to be used instead    |
 +=====================+=============================+
-| atlas               | apache.atlas                |
+| atlas               | apache_atlas                |
 +---------------------+-----------------------------+
 | aws                 | amazon                      |
 +---------------------+-----------------------------+
-| azure               | microsoft.azure             |
+| azure               | microsoft_azure             |
 +---------------------+-----------------------------+
-| cassandra           | apache.cassandra            |
+| cassandra           | apache_cassandra            |
 +---------------------+-----------------------------+
 | crypto              |                             |
 +---------------------+-----------------------------+
-| druid               | apache.druid                |
+| druid               | apache_druid                |
 +---------------------+-----------------------------+
 | gcp                 | google                      |
 +---------------------+-----------------------------+
 | gcp_api             | google                      |
 +---------------------+-----------------------------+
-| hdfs                | apache.hdfs                 |
+| hdfs                | apache_hdfs                 |
 +---------------------+-----------------------------+
-| hive                | apache.hive                 |
+| hive                | apache_hive                 |
 +---------------------+-----------------------------+
-| kubernetes          | cncf.kubernetes             |
+| kubernetes          | cncf_kubernetes             |
 +---------------------+-----------------------------+
-| mssql               | microsoft.mssql             |
+| mssql               | microsoft_mssql             |
 +---------------------+-----------------------------+
-| pinot               | apache.pinot                |
+| pinot               | apache_pinot                |
 +---------------------+-----------------------------+
 | s3                  | amazon                      |
 +---------------------+-----------------------------+
-| spark               | apache.spark                |
+| spark               | apache_spark                |
 +---------------------+-----------------------------+
-| webhdfs             | apache.webhdfs              |
+| webhdfs             | apache_webhdfs              |
 +---------------------+-----------------------------+
-| winrm               | microsoft.winrm             |
+| winrm               | microsoft_winrm             |
 +---------------------+-----------------------------+

@@ -700,7 +700,7 @@ def run_generate_constraints_in_parallel(
 
 @release_management.command(
     name="generate-constraints",
-    help="Generates pinned constraint files with all extras from setup.py in parallel.",
+    help="Generates pinned constraint files with all extras from pyproject.toml in parallel.",
 )
 @option_python
 @option_run_in_parallel

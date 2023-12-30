@@ -293,7 +293,6 @@ def _install_packages_in_k8s_virtualenv():
         str(K8S_REQUIREMENTS.resolve()),
     ]
     env = os.environ.copy()
-    env["INSTALL_PROVIDERS_FROM_SOURCES"] = "true"
     capture_output = True
     if get_verbose():
         capture_output = False

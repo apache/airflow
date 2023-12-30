@@ -53,8 +53,8 @@ HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 
-# TODO: use single source of truth for those
-# for now we need to keep them in sync with the ones in setup.py
+# TODO(potiuk): use single source of truth for those
+# for now we need to keep them in sync with the ones in pyproject.toml
 PREINSTALLED_PROVIDERS = [
     "common.sql",
     "ftp",

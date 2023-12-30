@@ -331,20 +331,12 @@ packages, so learning how to build your package is handy.
 
 Here is how to create your package:
 
-1. Before starting, install the following packages:
+1. Before starting, choose and install the build/packaging tool that you will use, ideally it should be
+PEP-621 compliant to be able to switch to a different tool easily.
+The popular choices are setuptools, poetry, hatch, flit.
 
-``setuptools``: setuptools is a package development process library designed
-for creating and distributing Python packages.
-
-``wheel``: The wheel package provides a bdist_wheel command for setuptools. It
-creates .whl file which is directly installable through the ``pip install``
-command. We can then upload the same file to `PyPI <https://pypi.org>`_.
-
-.. code-block:: bash
-
-    pip install --upgrade pip setuptools wheel
-
-2. Create the package directory - in our case, we will call it ``airflow_operators``.
+2. Decide when you create your own package. create the package directory - in our case,
+   we will call it ``airflow_operators``.
 
 .. code-block:: bash
 
@@ -358,42 +350,16 @@ command. We can then upload the same file to `PyPI <https://pypi.org>`_.
 
 When we import this package, it should print the above message.
 
-4. Create ``setup.py``:
+4. Create ``pyproject.toml`` and fill it with build tool configuration of your choice
+See `The pyproject.toml specification <https://packaging.python.org/en/latest/specifications/pyproject-toml/#pyproject-toml-spec>`__
 
-.. code-block:: python
-
-    import setuptools
-
-    setuptools.setup(
-        name="airflow_operators",
-        packages=setuptools.find_packages(),
-    )
-
-5. Build the wheel:
+5. Build your project using the tool of your choice. For example for hatch it can be:
 
 .. code-block:: bash
 
-    python setup.py bdist_wheel
+    hatch build -t wheel
 
-This will create a few directories in the project and the overall structure will
-look like following:
-
-.. code-block:: bash
-
-    .
-    ├── airflow_operators
-    │   ├── __init__.py
-    ├── airflow_operators.egg-info
-    │   ├── PKG-INFO
-    │   ├── SOURCES.txt
-    │   ├── dependency_links.txt
-    │   └── top_level.txt
-    ├── build
-    │   └── bdist.macosx-10.15-x86_64
-    ├── dist
-    │   └── airflow_operators-0.0.0-py3-none-any.whl
-    └── setup.py
-
+This will create .whl file in your ``dist`` folder
 
 6. Install the .whl file using pip:
 

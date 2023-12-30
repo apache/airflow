@@ -14,19 +14,1471 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+[build-system]
+requires = [
+    "hatchling",
+    "gitpython",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "apache-airflow"
+dynamic = ["version"]
+
+description = " Programmatically author, schedule and monitor data pipelines"
+readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
+license = { file = "LICENSE", content-type = "text/plain" }
+requires-python = "~=3.8,<3.12"
+authors = [
+    { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
+]
+maintainers = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+keywords = [ "airflow", "orchestration", "workflow", "dag", "pipelines", "automation", "data" ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: Apache Airflow",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    # Alembic is important to handle our migrations in predictable and performant way. It is developed
+    # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
+    "alembic>=1.6.3, <2.0",
+    "argcomplete>=1.10",
+    "asgiref",
+    "attrs>=22.1.0",
+    "blinker",
+    # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
+    # Update CustomTTYColoredFormatter to remove
+    "colorlog>=4.0.2, <5.0",
+    "configupdater>=3.1.1",
+    # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
+    # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
+    # Specifically, RequestBodyValidator was removed in: /spec-first/connexion/pull/1595
+    # The usage was added in #30596, seemingly only to override and improve the default error message.
+    # Either revert that change or find another way, preferably without using connexion internals.
+    # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
+    "connexion[flask]>=2.10.0,<3.0",
+    "cron-descriptor>=1.2.24",
+    "croniter>=0.3.17",
+    "cryptography>=0.9.3",
+    "deprecated>=1.2.13",
+    "dill>=0.2.2",
+    "flask-caching>=1.5.0",
+    "flask-session>=0.4.0",
+    "flask-wtf>=0.15",
+    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
+    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
+    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
+    "flask>=2.2,<2.3",
+    "fsspec>=2023.10.0",
+    "google-re2>=1.0",
+    "gunicorn>=20.1.0",
+    "httpx",
+    "importlib_metadata>=1.7;python_version<\"3.9\"",
+    "importlib_resources>=5.2;python_version<\"3.9\"",
+    "itsdangerous>=2.0",
+    "jinja2>=3.0.0",
+    "jsonschema>=4.18.0",
+    "lazy-object-proxy",
+    "linkify-it-py>=2.0.0",
+    "lockfile>=0.12.2",
+    "markdown-it-py>=2.1.0",
+    "markdown>=3.0",
+    "markupsafe>=1.1.1",
+    "marshmallow-oneofschema>=2.0.1",
+    "mdit-py-plugins>=0.3.0",
+    "opentelemetry-api>=1.15.0",
+    "opentelemetry-exporter-otlp",
+    "packaging>=14.0",
+    "pathspec>=0.9.0",
+    # When (if) pendulum 3 released it would introduce changes in module/objects imports,
+    # since we are tightly coupled with pendulum library internally it will breaks Airflow functionality.
+    "pendulum>=2.0,<3.0",
+    "pluggy>=1.0",
+    "psutil>=4.2.0",
+    "pydantic>=2.3.0",
+    "pygments>=2.0.1",
+    "pyjwt>=2.0.0",
+    "python-daemon>=3.0.0",
+    "python-dateutil>=2.3",
+    "python-nvd3>=0.15.0",
+    "python-slugify>=5.0",
+    "rfc3339-validator>=0.1.4",
+    "rich-argparse>=1.0.0",
+    "rich>=12.4.4",
+    "setproctitle>=1.1.8",
+    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
+    # See https://sqlalche.me/e/b8d9 for details of deprecated features
+    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
+    # The issue tracking it is https://github.com/apache/airflow/issues/28723
+    "sqlalchemy>=1.4.28,<2.0",
+    "sqlalchemy-jsonfield>=1.0",
+    "tabulate>=0.7.5",
+    "tenacity>=6.2.0,!=8.2.0",
+    "termcolor>=1.1.0",
+    # We should remove this dependency when Providers are limited to Airflow 2.7+
+    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
+    # See https://github.com/apache/airflow/pull/31693
+    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
+    "unicodecsv>=0.14.1",
+    "universal-pathlib>=0.1.4",
+    # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
+    # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
+    "werkzeug>=2.0,<3",
+]
+
+[project.optional-dependencies]
+# Here manually managed extras start
+# Those extras are manually managed and should be updated when needed
+#
+# START OF core extras
+#
+# This required for AWS deferrable operators.
+# There is conflict between boto3 and aiobotocore dependency botocore.
+# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+# boto3 have native aync support and we move away from aio aiobotocore
+#
+aiobotocore = [
+    "aiobotocore>=2.1.1",
+]
+async = [
+    "eventlet>=0.33.3",
+    "gevent>=0.13",
+    "greenlet>=0.4.9",
+]
+cgroups = [
+    # Cgroupspy 0.2.2 added Python 3.10 compatibility
+    "cgroupspy>=0.2.2",
+]
+deprecated_api = [
+    "requests>=2.26.0",
+]
+github_enterprise = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+google_auth = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+graphviz = [
+    "graphviz>=0.12",
+]
+kerberos = [
+    "pykerberos>=1.1.13",
+    "requests-kerberos>=0.10.0",
+    "thrift-sasl>=0.2.0",
+]
+ldap = [
+    "ldap3>=2.5.1",
+    "python-ldap",
+]
+leveldb = [
+    "plyvel",
+]
+otel = [
+    "opentelemetry-exporter-prometeus",
+]
+pandas = [
+    "pandas>=0.17.1",
+    # Use pyarrow-hotfix to fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
+    # We should remove it once Apache Beam frees us to upgrade to pyarrow 14.0.1
+    "pyarrow-hotfix",
+    "pyarrow>=9.0.0",
+]
+password = [
+    "bcrypt>=2.0.0",
+    "flask-bcrypt>=0.7.1",
+]
+rabbitmq = [
+    "amqp",
+]
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned in aiobotocore extra
+    "s3fs>=2023.10.0",
+]
+saml = [
+    # This is required for support of SAML which might be used by some providers (e.g. Amazon)
+    "python3-saml>=1.16.0",
+]
+sentry = [
+    "blinker>=1.1",
+    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
+    # See https://github.com/getsentry/sentry-python/issues/2473
+    "sentry-sdk>=1.32.0,!=1.33.0",
+]
+statsd = [
+    "statsd>=3.3.0",
+]
+virtualenv = [
+    "virtualenv",
+]
+# END OF core extras
+# START OF Apache no provider extras
+apache_atlas = [
+    "atlasclient>=0.1.2",
+]
+apache_webhdfs = [
+    "hdfs[avro,dataframe,kerberos]>=2.0.4",
+]
+# END OF Apache no provider extras
+#############################################################################################################
+# The provider devel extras are for now manaaged here - but as a next step we should move them to be coming
+# from provider.yaml fo provider-specific devel dependencies. This should be rather easy to do.
+# TODO(potiuk): Move devel_amazon/azure/mongo/deltalake/iceberg to corresponding provider.yaml files
+#############################################################################################################
+# START OF devel extras
+devel_amazon = [
+    "aws_xray_sdk",
+    "moto[cloudformation,glue]>=4.2.9",
+    "mypy-boto3-appflow>=1.28.0",
+    "mypy-boto3-rds>=1.28.0",
+    "mypy-boto3-redshift-data>=1.28.0",
+    "mypy-boto3-s3>=1.28.0",
+]
+devel_azure = [
+    "pywinrm",
+]
+devel_breeze = [
+    "filelock",
+]
+devel_debuggers = [
+    "ipdb",
+]
+devel_deltalake = [
+    "deltalake>=0.12.0",
+]
+devel_devscripts = [
+    "click>=8.0",
+    "gitpython",
+    "pipdeptree",
+    "pygithub",
+    "restructuredtext-lint",
+    "rich-click>=1.7.0",
+    "semver",
+    "towncrier",
+    "twine",
+    "wheel",
+]
+devel_duckdb = [
+    "duckdb>=0.9.0",
+]
+devel_iceberg = [
+    "pyiceberg>=0.5.0",
+]
+devel_mongo = [
+    "mongomock",
+]
+# Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
+# manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+# for details. We want to install them explicitly because we want to eventually move to
+# mypyd which does not support installing the types dynamically with --install-types
+devel_mypy = [
+    # TODO: upgrade to newer versions of MyPy continuously as they are released
+    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
+    # when you upgrade it here !!!!
+    "mypy==1.2.0",
+    "types-Deprecated",
+    "types-Markdown",
+    "types-PyMySQL",
+    "types-PyYAML",
+    "types-aiofiles",
+    "types-certifi",
+    "types-croniter",
+    "types-docutils",
+    "types-paramiko",
+    "types-protobuf",
+    "types-python-dateutil",
+    "types-python-slugify",
+    "types-pytz",
+    "types-redis",
+    "types-requests",
+    "types-setuptools",
+    "types-tabulate",
+    "types-termcolor",
+    "types-toml",
+]
+devel_sentry = [
+    "blinker",
+]
+devel_static_checks = [
+    "black",
+    "pre-commit",
+    "ruff>=0.0.219",
+    "yamllint",
+]
+devel_tests = [
+    "aioresponses",
+    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
+    "beautifulsoup4>=4.7.1",
+    "coverage>=7.2",
+    # We should be able to remove flask-login. It is still used in core Airflow but in tests. Looks feasible.
+    "flask-login>=0.6.2",
+    # Pytest-asyncio 0.23.0 and 0.23.1 break test collection
+    # See https://github.com/pytest-dev/pytest-asyncio/issues/703 for details.
+    "pytest-asyncio!=0.23.0,!=0.23.1",
+    "pytest-cov",
+    "pytest-httpx",
+    "pytest-icdiff",
+    "pytest-instafail",
+    "pytest-mock",
+    "pytest-rerunfailures",
+    "pytest-timeouts",
+    "pytest-xdist",
+    "pytest>=7.1",
+    "requests_mock",
+    "time-machine",
+]
+# END OF devel extras
+# START OF doc extras
+doc = [
+    "astroid>=2.12.3, <3.0",
+    "checksumdir",
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
+    # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.1.4,!=8.1.5",
+    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
+    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
+    # <section> tags for sections
+    "docutils<0.17.0",
+    "sphinx-airflow-theme",
+    "sphinx-argparse>=0.1.13",
+    # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
+    # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
+    "sphinx-autoapi>=2.0.0",
+    "sphinx-copybutton",
+    "sphinx-design>=0.5.0",
+    "sphinx-jinja>=2.0",
+    "sphinx-rtd-theme>=0.1.6",
+    "sphinx>=5.2.0",
+    "sphinxcontrib-httpdomain>=1.7.0",
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-spelling>=7.3",
+]
+doc_gen = [
+    "apache-airflow[doc]",
+    "eralchemy2",
+]
+# END OF doc extras
+# START OF bundle extras
+all_dbs = [
+    "apache-airflow[apache_cassandra]",
+    "apache-airflow[apache_drill]",
+    "apache-airflow[apache_druid]",
+    "apache-airflow[apache_hdfs]",
+    "apache-airflow[apache_hive]",
+    "apache-airflow[apache_impala]",
+    "apache-airflow[apache_pinot]",
+    "apache-airflow[arangodb]",
+    "apache-airflow[cloudant]",
+    "apache-airflow[databricks]",
+    "apache-airflow[exasol]",
+    "apache-airflow[influxdb]",
+    "apache-airflow[microsoft_mssql]",
+    "apache-airflow[mongo]",
+    "apache-airflow[mysql]",
+    "apache-airflow[neo4j]",
+    "apache-airflow[postgres]",
+    "apache-airflow[presto]",
+    "apache-airflow[trino]",
+    "apache-airflow[vertica]",
+]
+devel = [
+    "apache-airflow[aiobotocore]",
+    "apache-airflow[devel_mypy]",
+    "apache-airflow[doc]",
+    "apache-airflow[editable_cncf_kubernetes]",
+    "apache-airflow[pandas]",
+    "apache-airflow[password]",
+    "apache-airflow[s3fs]",
+]
+devel_all_dbs = [
+    "apache-airflow[editable_apache_cassandra]",
+    "apache-airflow[editable_apache_drill]",
+    "apache-airflow[editable_apache_druid]",
+    "apache-airflow[editable_apache_hdfs]",
+    "apache-airflow[editable_apache_hive]",
+    "apache-airflow[editable_apache_impala]",
+    "apache-airflow[editable_apache_pinot]",
+    "apache-airflow[editable_arangodb]",
+    "apache-airflow[editable_cloudant]",
+    "apache-airflow[editable_databricks]",
+    "apache-airflow[editable_exasol]",
+    "apache-airflow[editable_influxdb]",
+    "apache-airflow[editable_microsoft_mssql]",
+    "apache-airflow[editable_mongo]",
+    "apache-airflow[editable_mysql]",
+    "apache-airflow[editable_neo4j]",
+    "apache-airflow[editable_postgres]",
+    "apache-airflow[editable_presto]",
+    "apache-airflow[editable_trino]",
+    "apache-airflow[editable_vertica]",
+]
+devel_ci = [
+    "apache-airflow[devel_all]",
+]
+devel_hadoop = [
+    "apache-airflow[devel]",
+    "apache-airflow[editable_apache_hdfs]",
+    "apache-airflow[editable_apache_hive]",
+    "apache-airflow[editable_apache_impala]",
+    "apache-airflow[editable_hdfs]",
+    "apache-airflow[editable_presto]",
+    "apache-airflow[kerberos]",
+]
+# END OF bundle extras
+#############################################################################################################
+#  The whole section can be removed in Airflow 3.0 as those old aliases are deprecated in 2.* series
+#############################################################################################################
+# START OF deprecated extras
+atlas = [
+    "apache-airflow[apache_atlas]",
+]
+aws = [
+    "apache-airflow[amazon]",
+]
+azure = [
+    "apache-airflow[microsoft_azure]",
+]
+cassandra = [
+    "apache-airflow[apache_cassandra]",
+]
+# Empty alias extra just for backward compatibility with Airflow 1.10
+crypto = [
+]
+druid = [
+    "pache-airflow[apache_druid]",
+]
+gcp = [
+    "apache-airflow[google]",
+]
+gcp_api = [
+    "apache-airflow[google]",
+]
+hdfs = [
+    "apache-airflow[apache_hdfs]",
+]
+hive = [
+    "apache-airflow[apache_hive]",
+]
+kubernetes = [
+    "apache-airflow[cncf_kubernetes]",
+]
+mssql = [
+    "apache-airflow[microsoft_mssql]",
+]
+pinot = [
+    "apache-airflow[apache_pinot]",
+]
+s3 = [
+    "apache-airflow[amazon]",
+]
+spark = [
+    "apache-airflow[apache_spark]",
+]
+webhdfs = [
+    "apache-airflow[apache_webhdfs]",
+]
+winrm = [
+    "apache-airflow[microsoft_winrm]",
+]
+# END OF deprecated extras
+#############################################################################################################
+#  The whole section below is automatically generated by `update-providers-dependencies` pre-commit based
+#  on `provider.yaml` files present in the `providers` subdirectories. The `provider.yaml` files are
+#  A single source of truth for provider dependencies,
+#
+# PLEASE DO NOT MODIFY THIS SECTION MANUALLY. IT WILL BE OVERWRITTEN BY PRE-COMMIT !!
+# If you want to modify these - modify the corresponding provider.yaml instead.
+#############################################################################################################
+# START OF GENERATED DEPENDENCIES
+airbyte = [
+    "apache-airflow-providers-airbyte",
+]
+alibaba = [
+    "apache-airflow-providers-alibaba",
+]
+amazon = [
+    "apache-airflow-providers-amazon",
+]
+apache_beam = [
+    "apache-airflow-providers-apache-beam",
+]
+apache_cassandra = [
+    "apache-airflow-providers-apache-cassandra",
+]
+apache_drill = [
+    "apache-airflow-providers-apache-drill",
+]
+apache_druid = [
+    "apache-airflow-providers-apache-druid",
+]
+apache_flink = [
+    "apache-airflow-providers-apache-flink",
+]
+apache_hdfs = [
+    "apache-airflow-providers-apache-hdfs",
+]
+apache_hive = [
+    "apache-airflow-providers-apache-hive",
+]
+apache_impala = [
+    "apache-airflow-providers-apache-impala",
+]
+apache_kafka = [
+    "apache-airflow-providers-apache-kafka",
+]
+apache_kylin = [
+    "apache-airflow-providers-apache-kylin",
+]
+apache_livy = [
+    "apache-airflow-providers-apache-livy",
+]
+apache_pig = [
+    "apache-airflow-providers-apache-pig",
+]
+apache_pinot = [
+    "apache-airflow-providers-apache-pinot",
+]
+apache_spark = [
+    "apache-airflow-providers-apache-spark",
+]
+apprise = [
+    "apache-airflow-providers-apprise",
+]
+arangodb = [
+    "apache-airflow-providers-arangodb",
+]
+asana = [
+    "apache-airflow-providers-asana",
+]
+atlassian_jira = [
+    "apache-airflow-providers-atlassian-jira",
+]
+celery = [
+    "apache-airflow-providers-celery",
+]
+cloudant = [
+    "apache-airflow-providers-cloudant",
+]
+cncf_kubernetes = [
+    "apache-airflow-providers-cncf-kubernetes",
+]
+cohere = [
+    "apache-airflow-providers-cohere",
+]
+common_io = [
+    "apache-airflow-providers-common-io",
+]
+common_sql = [
+    "apache-airflow-providers-common-sql",
+]
+databricks = [
+    "apache-airflow-providers-databricks",
+]
+datadog = [
+    "apache-airflow-providers-datadog",
+]
+dbt_cloud = [
+    "apache-airflow-providers-dbt-cloud",
+]
+dingding = [
+    "apache-airflow-providers-dingding",
+]
+discord = [
+    "apache-airflow-providers-discord",
+]
+docker = [
+    "apache-airflow-providers-docker",
+]
+elasticsearch = [
+    "apache-airflow-providers-elasticsearch",
+]
+exasol = [
+    "apache-airflow-providers-exasol",
+]
+fab = [
+    "apache-airflow-providers-fab",
+]
+facebook = [
+    "apache-airflow-providers-facebook",
+]
+ftp = [
+    "apache-airflow-providers-ftp",
+]
+github = [
+    "apache-airflow-providers-github",
+]
+google = [
+    "apache-airflow-providers-google",
+]
+grpc = [
+    "apache-airflow-providers-grpc",
+]
+hashicorp = [
+    "apache-airflow-providers-hashicorp",
+]
+http = [
+    "apache-airflow-providers-http",
+]
+imap = [
+    "apache-airflow-providers-imap",
+]
+influxdb = [
+    "apache-airflow-providers-influxdb",
+]
+jdbc = [
+    "apache-airflow-providers-jdbc",
+]
+jenkins = [
+    "apache-airflow-providers-jenkins",
+]
+microsoft_azure = [
+    "apache-airflow-providers-microsoft-azure",
+]
+microsoft_mssql = [
+    "apache-airflow-providers-microsoft-mssql",
+]
+microsoft_psrp = [
+    "apache-airflow-providers-microsoft-psrp",
+]
+microsoft_winrm = [
+    "apache-airflow-providers-microsoft-winrm",
+]
+mongo = [
+    "apache-airflow-providers-mongo",
+]
+mysql = [
+    "apache-airflow-providers-mysql",
+]
+neo4j = [
+    "apache-airflow-providers-neo4j",
+]
+odbc = [
+    "apache-airflow-providers-odbc",
+]
+openai = [
+    "apache-airflow-providers-openai",
+]
+openfaas = [
+    "apache-airflow-providers-openfaas",
+]
+openlineage = [
+    "apache-airflow-providers-openlineage",
+]
+opensearch = [
+    "apache-airflow-providers-opensearch",
+]
+opsgenie = [
+    "apache-airflow-providers-opsgenie",
+]
+oracle = [
+    "apache-airflow-providers-oracle",
+]
+pagerduty = [
+    "apache-airflow-providers-pagerduty",
+]
+papermill = [
+    "apache-airflow-providers-papermill",
+]
+pgvector = [
+    "apache-airflow-providers-pgvector",
+]
+pinecone = [
+    "apache-airflow-providers-pinecone",
+]
+postgres = [
+    "apache-airflow-providers-postgres",
+]
+presto = [
+    "apache-airflow-providers-presto",
+]
+redis = [
+    "apache-airflow-providers-redis",
+]
+salesforce = [
+    "apache-airflow-providers-salesforce",
+]
+samba = [
+    "apache-airflow-providers-samba",
+]
+segment = [
+    "apache-airflow-providers-segment",
+]
+sendgrid = [
+    "apache-airflow-providers-sendgrid",
+]
+sftp = [
+    "apache-airflow-providers-sftp",
+]
+singularity = [
+    "apache-airflow-providers-singularity",
+]
+slack = [
+    "apache-airflow-providers-slack",
+]
+smtp = [
+    "apache-airflow-providers-smtp",
+]
+snowflake = [
+    "apache-airflow-providers-snowflake",
+]
+sqlite = [
+    "apache-airflow-providers-sqlite",
+]
+ssh = [
+    "apache-airflow-providers-ssh",
+]
+tableau = [
+    "apache-airflow-providers-tableau",
+]
+tabular = [
+    "apache-airflow-providers-tabular",
+]
+telegram = [
+    "apache-airflow-providers-telegram",
+]
+trino = [
+    "apache-airflow-providers-trino",
+]
+vertica = [
+    "apache-airflow-providers-vertica",
+]
+weaviate = [
+    "apache-airflow-providers-weaviate",
+]
+yandex = [
+    "apache-airflow-providers-yandex",
+]
+zendesk = [
+    "apache-airflow-providers-zendesk",
+]
+all = [
+    # core extras
+    "apache-airflow[aiobotocore]",
+    "apache-airflow[async]",
+    "apache-airflow[cgroups]",
+    "apache-airflow[deprecated_api]",
+    "apache-airflow[github_enterprise]",
+    "apache-airflow[google_auth]",
+    "apache-airflow[graphviz]",
+    "apache-airflow[kerberos]",
+    "apache-airflow[ldap]",
+    "apache-airflow[leveldb]",
+    "apache-airflow[otel]",
+    "apache-airflow[pandas]",
+    "apache-airflow[password]",
+    "apache-airflow[rabbitmq]",
+    "apache-airflow[s3fs]",
+    "apache-airflow[saml]",
+    "apache-airflow[sentry]",
+    "apache-airflow[statsd]",
+    "apache-airflow[virtualenv]",
+    # Apache no provider extras
+    "apache-airflow[apache_atlas]",
+    "apache-airflow[apache_webhdfs]",
+    # Provider extras
+    "apache-airflow[airbyte]",
+    "apache-airflow[alibaba]",
+    "apache-airflow[amazon]",
+    "apache-airflow[apache_beam]",
+    "apache-airflow[apache_cassandra]",
+    "apache-airflow[apache_drill]",
+    "apache-airflow[apache_druid]",
+    "apache-airflow[apache_flink]",
+    "apache-airflow[apache_hdfs]",
+    "apache-airflow[apache_hive]",
+    "apache-airflow[apache_impala]",
+    "apache-airflow[apache_kafka]",
+    "apache-airflow[apache_kylin]",
+    "apache-airflow[apache_livy]",
+    "apache-airflow[apache_pig]",
+    "apache-airflow[apache_pinot]",
+    "apache-airflow[apache_spark]",
+    "apache-airflow[apprise]",
+    "apache-airflow[arangodb]",
+    "apache-airflow[asana]",
+    "apache-airflow[atlassian_jira]",
+    "apache-airflow[celery]",
+    "apache-airflow[cloudant]",
+    "apache-airflow[cncf_kubernetes]",
+    "apache-airflow[cohere]",
+    "apache-airflow[common_io]",
+    "apache-airflow[common_sql]",
+    "apache-airflow[databricks]",
+    "apache-airflow[datadog]",
+    "apache-airflow[dbt_cloud]",
+    "apache-airflow[dingding]",
+    "apache-airflow[discord]",
+    "apache-airflow[docker]",
+    "apache-airflow[elasticsearch]",
+    "apache-airflow[exasol]",
+    "apache-airflow[fab]",
+    "apache-airflow[facebook]",
+    "apache-airflow[ftp]",
+    "apache-airflow[github]",
+    "apache-airflow[google]",
+    "apache-airflow[grpc]",
+    "apache-airflow[hashicorp]",
+    "apache-airflow[http]",
+    "apache-airflow[imap]",
+    "apache-airflow[influxdb]",
+    "apache-airflow[jdbc]",
+    "apache-airflow[jenkins]",
+    "apache-airflow[microsoft_azure]",
+    "apache-airflow[microsoft_mssql]",
+    "apache-airflow[microsoft_psrp]",
+    "apache-airflow[microsoft_winrm]",
+    "apache-airflow[mongo]",
+    "apache-airflow[mysql]",
+    "apache-airflow[neo4j]",
+    "apache-airflow[odbc]",
+    "apache-airflow[openai]",
+    "apache-airflow[openfaas]",
+    "apache-airflow[openlineage]",
+    "apache-airflow[opensearch]",
+    "apache-airflow[opsgenie]",
+    "apache-airflow[oracle]",
+    "apache-airflow[pagerduty]",
+    "apache-airflow[papermill]",
+    "apache-airflow[pgvector]",
+    "apache-airflow[pinecone]",
+    "apache-airflow[postgres]",
+    "apache-airflow[presto]",
+    "apache-airflow[redis]",
+    "apache-airflow[salesforce]",
+    "apache-airflow[samba]",
+    "apache-airflow[segment]",
+    "apache-airflow[sendgrid]",
+    "apache-airflow[sftp]",
+    "apache-airflow[singularity]",
+    "apache-airflow[slack]",
+    "apache-airflow[smtp]",
+    "apache-airflow[snowflake]",
+    "apache-airflow[sqlite]",
+    "apache-airflow[ssh]",
+    "apache-airflow[tableau]",
+    "apache-airflow[tabular]",
+    "apache-airflow[telegram]",
+    "apache-airflow[trino]",
+    "apache-airflow[vertica]",
+    "apache-airflow[weaviate]",
+    "apache-airflow[yandex]",
+    "apache-airflow[zendesk]",
+]
+editable_airbyte = [
+  "apache-airflow[editable_http]",
+]
+editable_alibaba = [
+  "alibabacloud_adb20211201>=1.0.0",
+  "alibabacloud_tea_openapi>=0.3.7",
+  "oss2>=2.14.0",
+]
+editable_amazon = [
+  "apache-airflow[editable_common_sql]",
+  "apache-airflow[editable_http]",
+  "asgiref",
+  "boto3>=1.28.0",
+  "botocore>=1.31.0",
+  "inflection>=0.5.1",
+  "jsonpath_ng>=1.5.3",
+  "redshift_connector>=2.0.888",
+  "sqlalchemy_redshift>=0.8.6",
+  "watchtower>=2.0.1,<4",
+]
+editable_apache_beam = [
+  "apache-beam>=2.47.0",
+]
+editable_apache_cassandra = [
+  "cassandra-driver>=3.13.0",
+]
+editable_apache_drill = [
+  "apache-airflow[editable_common_sql]",
+  "sqlalchemy-drill>=1.1.0",
+]
+editable_apache_druid = [
+  "apache-airflow[editable_common_sql]",
+  "pydruid>=0.4.1",
+]
+editable_apache_flink = [
+  "apache-airflow[editable_cncf_kubernetes]",
+  "cryptography>=2.0.0",
+]
+editable_apache_hdfs = [
+  "hdfs[avro,dataframe,kerberos]>=2.0.4",
+]
+editable_apache_hive = [
+  "apache-airflow[editable_common_sql]",
+  "hmsclient>=0.1.0",
+  "pandas>=0.17.1",
+  "pyhive[hive_pure_sasl]>=0.7.0",
+  "thrift>=0.9.2",
+]
+editable_apache_impala = [
+  "impyla>=0.18.0,<1.0",
+]
+editable_apache_kafka = [
+  "asgiref",
+  "confluent-kafka>=1.8.2",
+]
+editable_apache_kylin = [
+  "kylinpy>=2.6",
+]
+editable_apache_livy = [
+  "aiohttp",
+  "apache-airflow[editable_http]",
+  "asgiref",
+]
+editable_apache_pig = [
+]
+editable_apache_pinot = [
+  "apache-airflow[editable_common_sql]",
+  "pinotdb>0.4.7",
+]
+editable_apache_spark = [
+  "grpcio-status",
+  "pyspark",
+]
+editable_apprise = [
+  "apprise",
+]
+editable_arangodb = [
+  "python-arango>=7.3.2",
+]
+editable_asana = [
+  "asana>=0.10,<4.0.0",
+]
+editable_atlassian_jira = [
+  "atlassian-python-api>=1.14.2",
+]
+editable_celery = [
+  "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+  "flower>=1.0.0",
+  "google-re2>=1.0",
+]
+editable_cloudant = [
+  "cloudant>=2.0",
+]
+editable_cncf_kubernetes = [
+  "aiofiles>=23.2.0",
+  "asgiref>=3.5.2",
+  "cryptography>=2.0.0",
+  "google-re2>=1.0",
+  "kubernetes>=21.7.0,<24",
+  "kubernetes_asyncio>=18.20.1,<25",
+]
+editable_cohere = [
+  "cohere>=4.27",
+]
+editable_common_io = [
+]
+editable_common_sql = [
+  "sqlparse>=0.4.2",
+]
+editable_databricks = [
+  "aiohttp>=3.6.3, <4",
+  "apache-airflow[editable_common_sql]",
+  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
+  "requests>=2.27,<3",
+]
+editable_datadog = [
+  "datadog>=0.14.0",
+]
+editable_dbt_cloud = [
+  "aiohttp",
+  "apache-airflow[editable_http]",
+  "asgiref",
+]
+editable_dingding = [
+  "apache-airflow[editable_http]",
+]
+editable_discord = [
+  "apache-airflow[editable_http]",
+]
+editable_docker = [
+  "docker>=5.0.3",
+  "python-dotenv>=0.21.0",
+]
+editable_elasticsearch = [
+  "apache-airflow[editable_common_sql]",
+  "elasticsearch>=8.10,<9",
+]
+editable_exasol = [
+  "apache-airflow[editable_common_sql]",
+  "pandas>=0.17.1",
+  "pyexasol>=0.5.1",
+]
+editable_fab = [
+  "flask-appbuilder==4.3.10",
+  "flask-login>=0.6.2",
+  "flask>=2.2,<2.3",
+  "google-re2>=1.0",
+]
+editable_facebook = [
+  "facebook-business>=6.0.2",
+]
+editable_ftp = [
+]
+editable_github = [
+  "PyGithub!=1.58",
+]
+editable_google = [
+  "PyOpenSSL",
+  "apache-airflow[editable_common_sql]",
+  "asgiref>=3.5.2",
+  "gcloud-aio-auth>=4.0.0,<5.0.0",
+  "gcloud-aio-bigquery>=6.1.2",
+  "gcloud-aio-storage>=9.0.0",
+  "gcsfs>=2023.10.0",
+  "google-ads>=22.1.0",
+  "google-api-core>=2.11.0",
+  "google-api-python-client>=1.6.0",
+  "google-auth-httplib2>=0.0.1",
+  "google-auth>=1.0.0",
+  "google-cloud-aiplatform>=1.22.1",
+  "google-cloud-automl>=2.12.0",
+  "google-cloud-batch>=0.13.0",
+  "google-cloud-bigquery-datatransfer>=3.13.0",
+  "google-cloud-bigtable>=2.17.0",
+  "google-cloud-build>=3.22.0",
+  "google-cloud-compute>=1.10.0",
+  "google-cloud-container>=2.17.4",
+  "google-cloud-datacatalog>=3.11.1",
+  "google-cloud-dataflow-client>=0.8.6",
+  "google-cloud-dataform>=0.5.0",
+  "google-cloud-dataplex>=1.10.0",
+  "google-cloud-dataproc-metastore>=1.12.0",
+  "google-cloud-dataproc>=5.8.0",
+  "google-cloud-dlp>=3.12.0",
+  "google-cloud-kms>=2.15.0",
+  "google-cloud-language>=2.9.0",
+  "google-cloud-logging>=3.5.0",
+  "google-cloud-memcache>=1.7.0",
+  "google-cloud-monitoring>=2.18.0",
+  "google-cloud-orchestration-airflow>=1.10.0",
+  "google-cloud-os-login>=2.9.1",
+  "google-cloud-pubsub>=2.19.0",
+  "google-cloud-redis>=2.12.0",
+  "google-cloud-run>=0.9.0",
+  "google-cloud-secret-manager>=2.16.0",
+  "google-cloud-spanner>=3.11.1",
+  "google-cloud-speech>=2.18.0",
+  "google-cloud-storage-transfer>=1.4.1",
+  "google-cloud-storage>=2.7.0",
+  "google-cloud-tasks>=2.13.0",
+  "google-cloud-texttospeech>=2.14.1",
+  "google-cloud-translate>=3.11.0",
+  "google-cloud-videointelligence>=2.11.0",
+  "google-cloud-vision>=3.4.0",
+  "google-cloud-workflows>=1.10.0",
+  "grpcio-gcp>=0.2.2",
+  "httpx",
+  "json-merge-patch>=0.2",
+  "looker-sdk>=22.2.0",
+  "pandas-gbq",
+  "pandas>=0.17.1",
+  "proto-plus>=1.19.6",
+  "sqlalchemy-bigquery>=1.2.1",
+  "sqlalchemy-spanner>=1.6.2",
+]
+editable_grpc = [
+  "google-auth-httplib2>=0.0.1",
+  "google-auth>=1.0.0, <3.0.0",
+  "grpcio>=1.15.0",
+]
+editable_hashicorp = [
+  "hvac>=0.10",
+]
+editable_http = [
+  "aiohttp",
+  "asgiref",
+  "requests>=2.26.0",
+  "requests_toolbelt",
+]
+editable_imap = [
+]
+editable_influxdb = [
+  "influxdb-client>=1.19.0",
+  "requests>=2.26.0",
+]
+editable_jdbc = [
+  "apache-airflow[editable_common_sql]",
+  "jaydebeapi>=1.1.1",
+]
+editable_jenkins = [
+  "python-jenkins>=1.0.0",
+]
+editable_microsoft_azure = [
+  "adal>=1.2.7",
+  "adlfs>=2023.10.0",
+  "azure-batch>=8.0.0",
+  "azure-cosmos>=4.0.0",
+  "azure-datalake-store>=0.0.45",
+  "azure-identity>=1.3.1",
+  "azure-keyvault-secrets>=4.1.0",
+  "azure-kusto-data>=4.1.0",
+  "azure-mgmt-containerinstance>=9.0.0",
+  "azure-mgmt-containerregistry>=8.0.0",
+  "azure-mgmt-cosmosdb",
+  "azure-mgmt-datafactory>=2.0.0",
+  "azure-mgmt-datalake-store>=0.5.0",
+  "azure-mgmt-resource>=2.2.0",
+  "azure-mgmt-storage>=16.0.0",
+  "azure-servicebus>=7.6.1",
+  "azure-storage-blob>=12.14.0",
+  "azure-storage-file-datalake>=12.9.1",
+  "azure-storage-file-share",
+  "azure-synapse-artifacts>=0.17.0",
+  "azure-synapse-spark",
+]
+editable_microsoft_mssql = [
+  "apache-airflow[editable_common_sql]",
+  "pymssql>=2.1.8",
+]
+editable_microsoft_psrp = [
+  "pypsrp>=0.8.0",
+]
+editable_microsoft_winrm = [
+  "pywinrm>=0.4",
+]
+editable_mongo = [
+  "dnspython>=1.13.0",
+  "pymongo>=3.6.0",
+]
+editable_mysql = [
+  "apache-airflow[editable_common_sql]",
+  "mysql-connector-python>=8.0.11",
+  "mysqlclient>=1.3.6",
+]
+editable_neo4j = [
+  "neo4j>=4.2.1",
+]
+editable_odbc = [
+  "apache-airflow[editable_common_sql]",
+  "pyodbc",
+]
+editable_openai = [
+  "openai[datalib]>=1.0",
+]
+editable_openfaas = [
+]
+editable_openlineage = [
+  "apache-airflow[editable_common_sql]",
+  "attrs>=22.2",
+  "openlineage-integration-common>=0.28.0",
+  "openlineage-python>=0.28.0",
+]
+editable_opensearch = [
+  "opensearch-py>=2.2.0",
+]
+editable_opsgenie = [
+  "opsgenie-sdk>=2.1.5",
+]
+editable_oracle = [
+  "apache-airflow[editable_common_sql]",
+  "oracledb>=1.0.0",
+]
+editable_pagerduty = [
+  "pdpyras>=4.1.2",
+]
+editable_papermill = [
+  "ipykernel",
+  "papermill[all]>=1.2.1",
+  "scrapbook[all]",
+]
+editable_pgvector = [
+  "apache-airflow[editable_postgres]",
+  "pgvector>=0.2.3",
+]
+editable_pinecone = [
+  "pinecone-client>=2.2.4",
+]
+editable_postgres = [
+  "apache-airflow[editable_common_sql]",
+  "psycopg2-binary>=2.8.0",
+]
+editable_presto = [
+  "apache-airflow[editable_common_sql]",
+  "pandas>=0.17.1",
+  "presto-python-client>=0.8.4",
+]
+editable_redis = [
+  "redis>=4.5.2,<5.0.0,!=4.5.5",
+]
+editable_salesforce = [
+  "pandas>=0.17.1",
+  "simple-salesforce>=1.0.0",
+]
+editable_samba = [
+  "smbprotocol>=1.5.0",
+]
+editable_segment = [
+  "analytics-python>=1.2.9",
+]
+editable_sendgrid = [
+  "sendgrid>=6.0.0",
+]
+editable_sftp = [
+  "apache-airflow[editable_ssh]",
+  "paramiko>=2.8.0",
+]
+editable_singularity = [
+  "spython>=0.0.56",
+]
+editable_slack = [
+  "apache-airflow[editable_common_sql]",
+  "slack_sdk>=3.0.0",
+]
+editable_smtp = [
+]
+editable_snowflake = [
+  "apache-airflow[editable_common_sql]",
+  "snowflake-connector-python>=2.7.8",
+  "snowflake-sqlalchemy>=1.1.0",
+]
+editable_sqlite = [
+  "apache-airflow[editable_common_sql]",
+]
+editable_ssh = [
+  "paramiko>=2.6.0",
+  "sshtunnel>=0.3.2",
+]
+editable_tableau = [
+  "tableauserverclient",
+]
+editable_tabular = [
+]
+editable_telegram = [
+  "python-telegram-bot>=20.0.0",
+]
+editable_trino = [
+  "apache-airflow[editable_common_sql]",
+  "pandas>=0.17.1",
+  "trino>=0.318.0",
+]
+editable_vertica = [
+  "apache-airflow[editable_common_sql]",
+  "vertica-python>=0.5.1",
+]
+editable_weaviate = [
+  "pandas>=0.17.1",
+  "weaviate-client>=3.24.2",
+]
+editable_yandex = [
+  "yandexcloud>=0.228.0",
+]
+editable_zendesk = [
+  "zenpy>=2.0.24",
+]
+devel_all = [
+    "apache-airflow[devel]",
+    "apache-airflow[doc]",
+    "apache-airflow[doc_gen]",
+    "apache-airflow[saml]",
+    # Apache no provider extras
+    "apache-airflow[apache_atlas]",
+    "apache-airflow[apache_webhdfs]",
+    # Include all manually added devel extras
+    # Include all provider deps
+    "apache-airflow[devel_amazon]",
+    "apache-airflow[devel_azure]",
+    "apache-airflow[devel_breeze]",
+    "apache-airflow[devel_debuggers]",
+    "apache-airflow[devel_deltalake]",
+    "apache-airflow[devel_devscripts]",
+    "apache-airflow[devel_duckdb]",
+    "apache-airflow[devel_iceberg]",
+    "apache-airflow[devel_mongo]",
+    "apache-airflow[devel_mypy]",
+    "apache-airflow[devel_sentry]",
+    "apache-airflow[devel_static_checks]",
+    "apache-airflow[devel_tests]",
+    "apache-airflow[devel_all_dbs]",
+    "apache-airflow[editable_airbyte]",
+    "apache-airflow[editable_alibaba]",
+    "apache-airflow[editable_amazon]",
+    "apache-airflow[editable_apache_beam]",
+    "apache-airflow[editable_apache_cassandra]",
+    "apache-airflow[editable_apache_drill]",
+    "apache-airflow[editable_apache_druid]",
+    "apache-airflow[editable_apache_flink]",
+    "apache-airflow[editable_apache_hdfs]",
+    "apache-airflow[editable_apache_hive]",
+    "apache-airflow[editable_apache_impala]",
+    "apache-airflow[editable_apache_kafka]",
+    "apache-airflow[editable_apache_kylin]",
+    "apache-airflow[editable_apache_livy]",
+    "apache-airflow[editable_apache_pig]",
+    "apache-airflow[editable_apache_pinot]",
+    "apache-airflow[editable_apache_spark]",
+    "apache-airflow[editable_apprise]",
+    "apache-airflow[editable_arangodb]",
+    "apache-airflow[editable_asana]",
+    "apache-airflow[editable_atlassian_jira]",
+    "apache-airflow[editable_celery]",
+    "apache-airflow[editable_cloudant]",
+    "apache-airflow[editable_cncf_kubernetes]",
+    "apache-airflow[editable_cohere]",
+    "apache-airflow[editable_common_io]",
+    "apache-airflow[editable_common_sql]",
+    "apache-airflow[editable_databricks]",
+    "apache-airflow[editable_datadog]",
+    "apache-airflow[editable_dbt_cloud]",
+    "apache-airflow[editable_dingding]",
+    "apache-airflow[editable_discord]",
+    "apache-airflow[editable_docker]",
+    "apache-airflow[editable_elasticsearch]",
+    "apache-airflow[editable_exasol]",
+    "apache-airflow[editable_fab]",
+    "apache-airflow[editable_facebook]",
+    "apache-airflow[editable_ftp]",
+    "apache-airflow[editable_github]",
+    "apache-airflow[editable_google]",
+    "apache-airflow[editable_grpc]",
+    "apache-airflow[editable_hashicorp]",
+    "apache-airflow[editable_http]",
+    "apache-airflow[editable_imap]",
+    "apache-airflow[editable_influxdb]",
+    "apache-airflow[editable_jdbc]",
+    "apache-airflow[editable_jenkins]",
+    "apache-airflow[editable_microsoft_azure]",
+    "apache-airflow[editable_microsoft_mssql]",
+    "apache-airflow[editable_microsoft_psrp]",
+    "apache-airflow[editable_microsoft_winrm]",
+    "apache-airflow[editable_mongo]",
+    "apache-airflow[editable_mysql]",
+    "apache-airflow[editable_neo4j]",
+    "apache-airflow[editable_odbc]",
+    "apache-airflow[editable_openai]",
+    "apache-airflow[editable_openfaas]",
+    "apache-airflow[editable_openlineage]",
+    "apache-airflow[editable_opensearch]",
+    "apache-airflow[editable_opsgenie]",
+    "apache-airflow[editable_oracle]",
+    "apache-airflow[editable_pagerduty]",
+    "apache-airflow[editable_papermill]",
+    "apache-airflow[editable_pgvector]",
+    "apache-airflow[editable_pinecone]",
+    "apache-airflow[editable_postgres]",
+    "apache-airflow[editable_presto]",
+    "apache-airflow[editable_redis]",
+    "apache-airflow[editable_salesforce]",
+    "apache-airflow[editable_samba]",
+    "apache-airflow[editable_segment]",
+    "apache-airflow[editable_sendgrid]",
+    "apache-airflow[editable_sftp]",
+    "apache-airflow[editable_singularity]",
+    "apache-airflow[editable_slack]",
+    "apache-airflow[editable_smtp]",
+    "apache-airflow[editable_snowflake]",
+    "apache-airflow[editable_sqlite]",
+    "apache-airflow[editable_ssh]",
+    "apache-airflow[editable_tableau]",
+    "apache-airflow[editable_tabular]",
+    "apache-airflow[editable_telegram]",
+    "apache-airflow[editable_trino]",
+    "apache-airflow[editable_vertica]",
+    "apache-airflow[editable_weaviate]",
+    "apache-airflow[editable_yandex]",
+    "apache-airflow[editable_zendesk]",
+]
+# END OF GENERATED DEPENDENCIES
+#############################################################################################################
+#  The rest of the pyproject.toml file should be manually maintained
+#############################################################################################################
+[project.scripts]
+airflow = "airflow.__main__:main"
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/"
+Downloads = "https://archive.apache.org/dist/airflow/"
+Homepage = "https://airflow.apache.org/"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+Twitter = "https://twitter.com/ApacheAirflow"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[tool.hatch.envs.default]
+python = "3.8"
+platforms = ["linux", "macos"]
+description = "Default environment with Python 3.8 for maximum compatibility"
+extra-dependencies = [
+    "apache-airflow[devel]",
+]
+
+[tool.hatch.envs.airflow-38]
+python = "3.8"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.8"
+extra-dependencies = [
+    "apache-airflow[devel]",
+]
+
+[tool.hatch.envs.airflow-39]
+python = "3.9"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.9"
+extra-dependencies = [
+    "apache-airflow[devel]",
+]
+
+[tool.hatch.envs.airflow-310]
+python = "3.10"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.10"
+extra-dependencies = [
+    "apache-airflow[devel]",
+]
+
+[tool.hatch.envs.airflow-311]
+python = "3.11"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.11"
+extra-dependencies = [
+    "apache-airflow[devel]",
+]
+
+[tool.hatch.version]
+path = "airflow/__init__.py"
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/airflow",
+]
+exclude = [
+    "/airflow/providers/",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "/airflow",
+]
+exclude = [
+    "/airflow/providers/",
+]
+artifacts = [
+    "/airflow/www/static/dist/"
+]
+
 [tool.black]
 line-length = 110
 target-version = ['py38', 'py39', 'py310', 'py311']
-
-# Editable installs are currently broken using setuptools 64.0.0 and above. The problem is tracked in
-# https://github.com/pypa/setuptools/issues/3548. We're also discussing how we could potentially fix
-# this problem on our end in issue https://github.com/apache/airflow/issues/30764. Until then we need
-# to use one of the following workarounds locally for editable installs:
-# 1) Pin setuptools <= 63.4.3 below in the [build-system] section.
-# 2) Include your airflow source code directory in PYTHONPATH.
-[build-system]
-requires = ['setuptools==67.2.0']
-build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 target-version = "py38"
@@ -47,7 +1499,6 @@ extend-select = [
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
     "RUF100", # Unused noqa (auto-fixable)
-
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
     "D106",
@@ -188,3 +1639,35 @@ exclude_also = [
     "@(typing(_extensions)?\\.)?overload",
     "if (typing(_extensions)?\\.)?TYPE_CHECKING:"
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+plugins = [
+    "dev.mypy.plugin.decorators",
+    "dev.mypy.plugin.outputs",
+]
+pretty = true
+show_error_codes = true
+disable_error_code = [
+    "annotation-unchecked",
+]
+
+[tool.mypy."airflow.config_templates.default_webserver_config"]
+disable_error_code = [
+    "var-annotated",
+]
+
+[tool.mypy."airflow.migrations.*"]
+ignore_errors = true
+
+[tool.mypy."google.cloud.*"]
+no_implicit_optional = false
+
+[tool.mypy."azure.*"]
+no_implicit_optional = false
+
+[tool.mypy."referencing.*"]
+ignore_errors = true

@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -53,14 +54,21 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
-    WWW_HASH_FILE.parent.mkdir(exist_ok=True)
-    old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
-    new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
-    if new_hash == old_hash:
-        print("The WWW directory has not changed! Skip regeneration.")
-        sys.exit(0)
+    node_modules_directory = www_directory / "node_modules"
+    dist_directory = www_directory / "static" / "dist"
+    if node_modules_directory.exists() and dist_directory.exists():
+        WWW_HASH_FILE.parent.mkdir(exist_ok=True)
+        old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
+        new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
+        if new_hash == old_hash:
+            print("The WWW directory has not changed! Skip regeneration.")
+            sys.exit(0)
+    else:
+        shutil.rmtree(node_modules_directory, ignore_errors=True)
+        shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
     subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
+    new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
     WWW_HASH_FILE.write_text(new_hash)

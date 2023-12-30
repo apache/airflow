@@ -1,0 +1,29 @@
+license_files =
+   LICENSE
+   NOTICE
+   licenses/*.txt
+
+setup_requires =
+    gitpython
+    wheel
+
+[options.package_data]
+airflow=
+    py.typed
+    alembic.ini
+    git_version
+    customized_form_field_behaviours.schema.json
+    provider_info.schema.json
+
+airflow.api_connexion.openapi=*.yaml
+airflow.providers.fab.auth_manager.openapi=*.yaml
+airflow.serialization=*.json
+airflow.utils=
+    context.pyi
+
+[options.data_files]
+generated=
+    generated/provider_dependencies.json
+
+[files]
+packages = airflow

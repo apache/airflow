@@ -17,16 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
 from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
+from enum import Enum
 from pathlib import Path
 from typing import Any, List
 
 import yaml
 from rich.console import Console
+
+# tomllib is available in Python 3.11+ and before that tomli offers same interface for parsing TOML files
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+
 
 console = Console(color_system="standard", width=200)
 
@@ -39,6 +48,12 @@ AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "system" / "tests" / "providers"
 
 DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+
+PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
+
+MY_FILE = Path(__file__).resolve()
+MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
+
 
 sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported from Airflow
 
@@ -175,6 +190,156 @@ def check_if_different_provider_used(file_path: Path) -> None:
 
 STATES: dict[str, str] = {}
 
+FOUND_EXTRAS: dict[str, list[str]] = defaultdict(list)
+
+
+class ParsedDependencyTypes(Enum):
+    CORE_EXTRAS = "core extras"
+    APACHE_NO_PROVIDER_EXTRAS = "Apache no provider extras"
+    DEVEL_EXTRAS = "devel extras"
+    DOC_EXTRAS = "doc extras"
+    BUNDLE_EXTRAS = "bundle extras"
+    DEPRECATED_EXTRAS = "deprecated extras"
+    MANUAL_EXTRAS = "manual extras"
+
+
+GENERATED_DEPENDENCIES_START = "# START OF GENERATED DEPENDENCIES"
+GENERATED_DEPENDENCIES_END = "# END OF GENERATED DEPENDENCIES"
+
+
+def normalize_extra(dependency: str) -> str:
+    return dependency.replace(".", "_").replace("-", "_")
+
+
+def normalize_package_name(dependency: str) -> str:
+    return f"apache-airflow-providers-" f"{dependency.replace('.', '-').replace('_', '-')}"
+
+
+def convert_provider_dependency_to_devel(dep):
+    provider_reminder = dep.replace("apache-airflow-providers-", "")
+    if ">=" in provider_reminder:
+        provider_reminder = provider_reminder.split(">=")[0]
+    dep = provider_reminder.replace("-", "_").replace(".", "_")
+    dep = f"apache-airflow[editable_{dep}]"
+    return dep
+
+
+def generate_dependencies(
+    result_content: list[str],
+    pyproject_toml_content: dict[str, Any],
+    dependencies: dict[str, dict[str, list[str] | str]],
+):
+    def generate_parsed_extras(type: ParsedDependencyTypes):
+        result_content.append(f"    # {type.value}")
+        for extra in FOUND_EXTRAS[type.value]:
+            result_content.append(f'    "apache-airflow[{extra}]",')
+
+    def get_python_exclusion(dependency_info: dict[str, list[str] | str]):
+        excluded_python_versions = dependency_info.get("excluded-python-versions")
+        exclusion = ""
+        if excluded_python_versions:
+            separator = ";"
+            for version in excluded_python_versions:
+                exclusion += f'{separator}python_version != \\"{version}\\"'
+                separator = " and "
+        return exclusion
+
+    for dependency, dependency_info in dependencies.items():
+        if dependency_info["state"] in ["suspended", "removed"]:
+            continue
+        result_content.append(f"{normalize_extra(dependency)} = [")
+        result_content.append(
+            f'    "{normalize_package_name(dependency)}' f'{get_python_exclusion(dependency_info)}",'
+        )
+        result_content.append("]")
+    result_content.append("all = [")
+    generate_parsed_extras(ParsedDependencyTypes.CORE_EXTRAS)
+    generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
+    result_content.append("    # Provider extras")
+    for dependency, dependency_info in dependencies.items():
+        result_content.append(f'    "apache-airflow[{normalize_extra(dependency)}]",')
+    result_content.append("]")
+    for dependency, dependency_info in dependencies.items():
+        result_content.append(f"editable_{normalize_extra(dependency)} = [")
+        for dep in dependency_info["deps"]:
+            if dep.startswith("apache-airflow-providers-"):
+                dep = convert_provider_dependency_to_devel(dep)
+            elif dep.startswith("apache-airflow>="):
+                continue
+            result_content.append(f'  "{dep}{get_python_exclusion(dependency_info)}",')
+        result_content.append("]")
+    result_content.append("devel_all = [")
+    result_content.append('    "apache-airflow[devel]",')
+    result_content.append('    "apache-airflow[doc]",')
+    result_content.append('    "apache-airflow[doc_gen]",')
+    result_content.append('    "apache-airflow[saml]",')
+    generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
+    result_content.append("    # Include all manually added devel extras")
+    all_devel_deps = [
+        dep
+        for dep in pyproject_toml_content["project"]["optional-dependencies"].keys()
+        if dep.startswith("devel_") and dep not in ["devel_all", "devel_ci", "devel_hadoop"]
+    ]
+    result_content.append("    # Include all provider deps")
+    for devel_dep in all_devel_deps:
+        result_content.append(f'    "apache-airflow[{devel_dep}]",')
+    for dependency, dependency_info in dependencies.items():
+        result_content.append(f'    "apache-airflow[editable_{normalize_extra(dependency)}]",')
+    result_content.append("]")
+
+
+def get_dependency_type(dependency_type: str) -> ParsedDependencyTypes | None:
+    for dep_type in ParsedDependencyTypes:
+        if dep_type.value == dependency_type:
+            return dep_type
+    return None
+
+
+def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]):
+    file_content = PYPROJECT_TOML_FILE_PATH.read_text()
+    pyproject_toml_content = tomllib.loads(file_content)
+    result_content: list[str] = []
+    copying = True
+    current_type: str | None = None
+    line_count: int = 0
+    for line in file_content.splitlines():
+        if copying:
+            result_content.append(line)
+        if line.strip().startswith(GENERATED_DEPENDENCIES_START):
+            copying = False
+            generate_dependencies(result_content, pyproject_toml_content, dependencies)
+        elif line.strip().startswith(GENERATED_DEPENDENCIES_END):
+            copying = True
+            result_content.append(line)
+        elif line.strip().startswith("# START OF "):
+            current_type = line.strip().replace("# START OF ", "")
+            type_enum = get_dependency_type(current_type)
+            if type_enum is None:
+                console.print(
+                    f"[red]Wrong start of section '{current_type}' in {PYPROJECT_TOML_FILE_PATH} "
+                    f"at line {line_count}: Unknown section type"
+                )
+                sys.exit(1)
+        elif line.strip().startswith("# END OF "):
+            end_type = line.strip().replace("# END OF ", "")
+            if end_type != current_type:
+                console.print(
+                    f"[red]Wrong end of section {end_type} in {PYPROJECT_TOML_FILE_PATH} at line {line_count}"
+                )
+                sys.exit(1)
+        if current_type:
+            if line.strip().endswith(" = ["):
+                FOUND_EXTRAS[current_type].append(line.split(" = [")[0].strip())
+        line_count += 1
+    PYPROJECT_TOML_FILE_PATH.write_text("\n".join(result_content) + "\n")
+
+
+def calculate_my_hash():
+    my_file = MY_FILE.resolve()
+    hash_md5 = hashlib.md5()
+    hash_md5.update(my_file.read_bytes())
+    return hash_md5.hexdigest()
+
 
 if __name__ == "__main__":
     find_all_providers_and_provider_files()
@@ -210,9 +375,13 @@ if __name__ == "__main__":
         console.print("[red]Errors found during verification. Exiting!")
         console.print()
         sys.exit(1)
-    old_dependencies = DEPENDENCIES_JSON_FILE_PATH.read_text()
+    old_dependencies = (
+        DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else "{}"
+    )
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    if new_dependencies != old_dependencies:
+    old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
+    new_md5sum = calculate_my_hash()
+    if new_dependencies != old_dependencies or new_md5sum != old_md5sum:
         DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
         if os.environ.get("CI"):
             console.print()
@@ -231,6 +400,8 @@ if __name__ == "__main__":
             )
             console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
+            update_pyproject_toml(unique_sorted_dependencies)
+            MY_MD5SUM_FILE.write_text(new_md5sum + "\n")
         sys.exit(1)
     else:
         console.print(

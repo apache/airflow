@@ -74,7 +74,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 ## Selective check decision rules
 
 * `Full tests` case is enabled when the event is PUSH, or SCHEDULE or we miss commit info or any of the
-  important environment files (setup.py, setup.cfg, provider.yaml, Dockerfile, build scripts) changed or
+  important environment files (pyproject.toml, Dockerfile, build scripts) changed or
   when `full tests needed` label is set.  That enables all matrix combinations of variables (representative)
   and all possible test type. No further checks are performed.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode

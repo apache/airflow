@@ -231,7 +231,7 @@ function check_download_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "sqlalchemy>=" setup.cfg | sed "s/.*>=\([0-9\.]*\).*/\1/")
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/")
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo

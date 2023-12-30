@@ -57,7 +57,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--python-image",
                 "--commit-sha",
                 "--additional-pip-install-flags",
-                "--install-providers-from-sources",
             ],
         },
         {

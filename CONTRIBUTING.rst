@@ -841,29 +841,106 @@ Extras
 ------
 
 There are a number of extras that can be specified when installing Airflow. Those
-extras can be specified after the usual pip install - for example
-``pip install -e .[ssh]``. For development purpose there is a ``devel`` extra that
-installs all development dependencies. There is also ``devel_ci`` that installs
-all dependencies needed in the CI environment.
+extras can be specified after the usual pip install - for example ``pip install -e.[editable_ssh]`` for editable
+installation. Note that there are two kinds of those extras - ``standard`` extras (used when you install
+Airflow as a user and ``editable`` extras when you install airflow in editable installation as contributor.
+There are also ``devel`` extras that allow to install development tools and libraries (such as ``pytest`` and
+``mypy``) and ``doc`` extras - that allow to install tools needed to build the documentation.
 
 This is the full list of those extras:
 
-  .. START EXTRAS HERE
-aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
-apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
-apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.webhdfs, apprise,
-arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant,
-cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
-druid, elasticsearch, exasol, fab, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty,
-pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs,
-salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, weaviate,
-webhdfs, winrm, yandex, zendesk
-  .. END EXTRAS HERE
+Devel extras
+.............
+
+The ``devel`` extras are not available in the released packages. They are only available when you install
+Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing, also
+some providers have their own development-related extras tbat allow to install tools necessary to run tests,
+where the tools are specific for the provider.
+
+  .. START DEVEL EXTRAS HERE
+devel, devel_all, devel_all_dbs, devel_amazon, devel_azure, devel_breeze, devel_ci, devel_debuggers,
+devel_deltalake, devel_devscripts, devel_duckdb, devel_hadoop, devel_iceberg, devel_mongo,
+devel_mypy, devel_sentry, devel_static_checks, devel_tests
+  .. END DEVEL EXTRAS HERE
+
+Doc extras
+...........
+
+The ``doc`` extras are not available in the released packages. They are only available when you install
+Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
+``devel`` extras installed for airflow and providers in order to build documentation for airflow and
+provider packages respectively). The ``doc`` package is enough to build regular documentation, where
+``doc_gen`` is needed to generate ER diagram we have describing our database.
+
+  .. START DEVEL EXTRAS HERE
+devel, devel_all, devel_all_dbs, devel_amazon, devel_azure, devel_breeze, devel_ci, devel_debuggers,
+devel_deltalake, devel_devscripts, devel_duckdb, devel_hadoop, devel_iceberg, devel_mongo,
+devel_mypy, devel_sentry, devel_static_checks, devel_tests
+  .. END DEVEL EXTRAS HERE
+
+
+Editable extras
+...............
+
+Those are extras that you use to install dependencies that are needed for optional Airflow features -
+including when you want to develop providers
+
+The editable extras are not available in the released packages. They are only available when you install
+Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+Airflow. You can install any of those extras in your editable install when you want to test optional
+feature or provider of Airflow. When installing those extras in editable installation of Airflow, they
+will only install provider dependencies, not the providers themselves - which allows to iterate and
+develop Airflow Providers within the checked out Airflow source tree - provider sources from the ``main``
+branch are directly used for provider tests and you can modify them and see the changes immediately.
+
+  .. START EDITABLE EXTRAS HERE
+editable_airbyte, editable_alibaba, editable_amazon, editable_apache_beam,
+editable_apache_cassandra, editable_apache_drill, editable_apache_druid, editable_apache_flink,
+editable_apache_hdfs, editable_apache_hive, editable_apache_impala, editable_apache_kafka,
+editable_apache_kylin, editable_apache_livy, editable_apache_pig, editable_apache_pinot,
+editable_apache_spark, editable_apprise, editable_arangodb, editable_asana, editable_atlassian_jira,
+editable_celery, editable_cloudant, editable_cncf_kubernetes, editable_cohere, editable_common_io,
+editable_common_sql, editable_databricks, editable_datadog, editable_dbt_cloud, editable_dingding,
+editable_discord, editable_docker, editable_elasticsearch, editable_exasol, editable_fab,
+editable_facebook, editable_ftp, editable_github, editable_google, editable_grpc,
+editable_hashicorp, editable_http, editable_imap, editable_influxdb, editable_jdbc,
+editable_jenkins, editable_microsoft_azure, editable_microsoft_mssql, editable_microsoft_psrp,
+editable_microsoft_winrm, editable_mongo, editable_mysql, editable_neo4j, editable_odbc,
+editable_openai, editable_openfaas, editable_openlineage, editable_opensearch, editable_opsgenie,
+editable_oracle, editable_pagerduty, editable_papermill, editable_pgvector, editable_pinecone,
+editable_postgres, editable_presto, editable_redis, editable_salesforce, editable_samba,
+editable_segment, editable_sendgrid, editable_sftp, editable_singularity, editable_slack,
+editable_smtp, editable_snowflake, editable_sqlite, editable_ssh, editable_tableau,
+editable_tabular, editable_telegram, editable_trino, editable_vertica, editable_weaviate,
+editable_yandex, editable_zendesk
+  .. END EDITABLE EXTRAS HERE
+
+
+Standard extras
+...............
+
+Those extras are available in released Airflow packages and are targeted to be used by Airflow users
+to select features of Airflow they want to use They might install additional providers or just install
+dependencies that are necessary to enable the feature.
+
+  .. START STANDARD EXTRAS HERE
+aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache_atlas, apache_beam, apache_cassandra,
+apache_drill, apache_druid, apache_flink, apache_hdfs, apache_hive, apache_impala, apache_kafka,
+apache_kylin, apache_livy, apache_pig, apache_pinot, apache_spark, apache_webhdfs, apprise,
+arangodb, asana, async, atlas, atlassian_jira, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf_kubernetes, cohere, common_io, common_sql, crypto, databricks, datadog, dbt_cloud,
+deprecated_api, dingding, discord, docker, druid, elasticsearch, exasol, fab, facebook, ftp, gcp,
+gcp_api, github, github_enterprise, google, google_auth, graphviz, grpc, hashicorp, hdfs, hive,
+http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft_azure,
+microsoft_mssql, microsoft_psrp, microsoft_winrm, mongo, mssql, mysql, neo4j, odbc, openai,
+openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
+pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, saml,
+segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
+tableau, tabular, telegram, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+  .. END STANDARD EXTRAS HERE
+
 
 Provider packages
 -----------------
@@ -885,29 +962,24 @@ of ``airflow\providers``. This file contains:
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
 * list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
   register them as they are needed by Airflow and to include them in documentation automatically).
+* and more ...
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
 and Airflow pre-commits and package generation commands will use them when preparing package information.
 
 In Airflow 1.10 all those providers were installed together within one single package and when you installed
 airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
-and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
-variable to ``true``.
+and not packaged together with the core when you build "apache-airflow" package, however when you install
+airflow project locally with ``pip install .`` or ``pip install -e .`` they are installed together.
 
-In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--install-providers-from-sources=false`` flag to Breeze to install providers from PyPI instead of source files when
-building the images.
-
-One watch-out - providers are still always installed (or rather available) if you install airflow from
-sources using ``-e`` (or ``--editable``) flag. In such case airflow is read directly from the sources
-without copying airflow packages to the usual installation location, and since 'providers' folder is
-in this airflow folder - the providers package is importable.
+You should only update dependencies for the provider in the corresponding ``provider.yaml`` which is the
+source of truth for all information about the provider.
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
-data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``generated/provider_dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during PyPI packages generation.
+data between the providers. The list of dependencies is maintained (automatically with the
+``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
+Same pre-commit also updates generate dependencies in ``pyproject.toml``.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -916,8 +988,9 @@ the other provider package you can install it adding [extra] after the
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` so that
-the package extra dependencies are properly handled when package is installed.
+and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
+``pyproject.toml`` so that the package extra dependencies are properly handled when package
+might be installed when breeze is restarted or by your IDE or by running ``pip install -e .``.
 
 Developing community managed provider packages
 ----------------------------------------------
@@ -927,33 +1000,33 @@ They are part of the same repository as Apache Airflow (we use ``monorepo`` appr
 parts of the system are developed in the same repository but then they are packaged and released separately).
 All the community-managed providers are in 'airflow/providers' folder and they are all sub-packages of
 'airflow.providers' package. All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
-packages.
+packages when installed by users, but when you contribute to providers you can work on airflow main
+and install provider dependencies via ``editable`` extras - without having to manage and install providers
+separately, you can easily run tests for the providers and when you run airflow from the ``main``
+sources, all community providers are automatically available for you.
 
 The capabilities of the community-managed providers are the same as the third-party ones. When
 the providers are installed from PyPI, they provide the entry-point containing the metadata as described
 in the previous chapter. However when they are locally developed, together with Airflow, the mechanism
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
-the provider. Similarly as in case of the ``provider.yaml`` file is compliant with the
+the provider. The ``provider.yaml`` is the single source of truth for the provider metadata and it is
+there where you should add and remove dependencies for providers (following by running
+``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
+of Airflow).
+
+The ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
+
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
-Airflow sources, without preparing and releasing them as packages. This is achieved by:
-
-* When Airflow is installed locally in editable mode (``pip install -e``) the provider packages installed
-  from PyPI are uninstalled and the provider discovery mechanism finds the providers in the Airflow
-  sources by searching for provider.yaml files.
-
-* When you want to install Airflow from sources you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` variable
-  to ``true`` and then the providers will not be installed from PyPI packages, but they will be installed
-  from local sources as part of the ``apache-airflow`` package, but additionally the ``provider.yaml`` files
-  are copied together with the sources, so that capabilities and names of the providers can be discovered.
-  This mode is especially useful when you are developing a new provider, that cannot be installed from
-  PyPI and you want to check if it installs cleanly.
+Airflow sources, without preparing and releasing them as packages separately, which would be rather
+complicated.
 
 Regardless if you plan to contribute your provider, when you are developing your own, custom providers,
 you can use the above functionality to make your development easier. You can add your provider
 as a sub-folder of the ``airflow.providers`` package, add the ``provider.yaml`` file and install airflow
 in development mode - then capabilities of your provider will be discovered by airflow and you will see
 the provider among other providers in ``airflow providers`` command output.
+
 
 Documentation for the community managed providers
 -------------------------------------------------
@@ -980,12 +1053,13 @@ You can see for example ``google`` provider which has very comprehensive documen
 * `Documentation <docs/apache-airflow-providers-google>`_
 * `Example DAGs <airflow/providers/google/cloud/example_dags>`_
 
-Part of the documentation are example dags. We are using the example dags for various purposes in
-providers:
+Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
+they are in ``tests/system`` is because we are using the example dags for various purposes:
 
 * showing real examples of how your provider classes (Operators/Sensors/Transfers) can be used
 * snippets of the examples are embedded in the documentation via ``exampleinclude::`` directive
-* examples are executable as system tests
+* examples are executable as system tests and some of our stakeholders run them regularly to
+  check if ``system`` level instagration is still working, before releasing a new version of the provider.
 
 Testing the community managed providers
 ---------------------------------------
@@ -1022,8 +1096,7 @@ be open to allow several different libraries with the same requirements to be in
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
 you are developing your own operators and DAGs.
 
-This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
-as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
+This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 
 Pinned constraint files
 =======================
@@ -1112,7 +1185,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
-will be automatically regenerated by CI job every time after the ``setup.py`` is updated and pushed
+will be automatically regenerated by CI job every time after the ``pyproject.toml`` is updated and pushed
 if the tests are successful.
 
 

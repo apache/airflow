@@ -50,6 +50,7 @@ dependencies = [
     "filelock>=3.13.0",
     "flit>=3.5.0",
     "gitpython>=3.1.40",
+    "hatch>=1.9.1",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",

@@ -108,7 +108,9 @@ You are STRONGLY encouraged to also install and use `pre-commit hooks <STATIC_CO
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
-The full list of extras is available in `<setup.py>`_.
+The full list of extras is available in `<pyproject.toml>`_ and can be easily retrieved using hatch via
+
+
 
 Creating a Local virtualenv
 ===========================
@@ -169,38 +171,31 @@ for different python versions). For development on current main source:
    .. code-block:: bash
 
     # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
-    pip install -e ".[devel,<OTHER EXTRAS>]" \
+    pip install -e ".[devel,devel_tests,editable_amazon,...<OTHER DEVEL_EXTRAS>]" \
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
-code rather than moved to the installation directory. During the installation airflow will install - but then
-automatically remove all provider packages installed from PyPI - instead it will automatically use the
-provider packages available in your local sources.
+code rather than moved to the installation directory.
+
+TODO(potiuk): Clarify preinstalled
 
 You can also install Airflow in non-editable mode:
 
    .. code-block:: bash
 
     # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
-    pip install ".[devel,<OTHER EXTRAS>]" \
+    pip install ".[devel,devel_tests,editable_amazon,...<OTHER DEVEL_EXTRAS>]" \
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
-of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
-sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true``
-
-   .. code-block:: bash
-
-    # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
-    INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
-
+of directories via ``python -m site`` command.
 
 Note: when you first initialize database (the next step), you may encounter some problems.
-This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.
-You can solve the problem by:
 
-- installing the extras i.e. ``[devel,google,postgres]`` or
+This is because airflow by default will try to load in example dags where some of them requires
+dependencies ``google`` and ``postgres``. You can solve the problem by:
+
+- installing the extras i.e. ``[devel,devel_google,devel_postgres]`` or
 - disable the example dags with environment variable: ``export AIRFLOW__CORE__LOAD_EXAMPLES=False`` or
 - simply ignore the error messages and proceed
 
@@ -240,19 +235,7 @@ In Airflow 2.0 we introduced split of Apache Airflow into separate packages - th
 apache-airflow package with core of Airflow and 70+ packages for all providers (external services
 and software Airflow can communicate with).
 
-Developing providers is part of Airflow development, but when you install airflow as editable in your local
-development environment, the corresponding provider packages will be also installed from PyPI. However, the
-providers will also be present in your "airflow/providers" folder. This might lead to confusion,
-which sources of providers are imported during development. It will depend on your
-environment's PYTHONPATH setting in general.
-
-In order to avoid the confusion, you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment to ``true``
-before running ``pip install`` command:
-
-.. code-block:: bash
-
-  INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+TODO(potiuk): Clarify
 
 This way no providers packages will be installed and they will always be imported from the "airflow/providers"
 folder.

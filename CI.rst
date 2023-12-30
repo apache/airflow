@@ -617,7 +617,7 @@ those via corresponding command line flags passed to ``breeze shell`` command.
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false     |   false\*  | Determines whether the build should             |
 |                                         |             |              |            | attempt to upgrade Python base image and all    |
 |                                         |             |              |            | PIP dependencies to latest ones matching        |
-|                                         |             |              |            | ``setup.py`` limits. This tries to replicate    |
+|                                         |             |              |            | ``pyproject.toml`` limits. Tries to replicate   |
 |                                         |             |              |            | the situation of "fresh" user who just installs |
 |                                         |             |              |            | airflow and uses latest version of matching     |
 |                                         |             |              |            | dependencies. By default we are using a         |
@@ -638,7 +638,7 @@ those via corresponding command line flags passed to ``breeze shell`` command.
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | Setting the value to random value is best way   |
 |                                         |             |              |            | to assure that constraints are upgraded even if |
-|                                         |             |              |            | there is no change to setup.py                  |
+|                                         |             |              |            | there is no change to ``pyproject.toml``        |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | This way our constraints are automatically      |
 |                                         |             |              |            | tested and updated whenever new versions        |
