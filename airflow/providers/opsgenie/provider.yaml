@@ -21,7 +21,7 @@ name: Opsgenie
 description: |
     `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288156
 versions:
   - 5.4.0

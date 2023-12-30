@@ -21,7 +21,7 @@ name: Pagerduty
 description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288158
 versions:
   - 3.5.1

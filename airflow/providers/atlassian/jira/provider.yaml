@@ -21,7 +21,7 @@ name: Atlassian Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288118
 versions:
   - 2.4.0

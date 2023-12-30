@@ -21,7 +21,7 @@ name: dbt Cloud
 description: |
     `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288127
 versions:
   - 3.5.1

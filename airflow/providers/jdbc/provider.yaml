@@ -21,7 +21,7 @@ name: Java Database Connectivity (JDBC)
 description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288143
 versions:
   - 4.2.1

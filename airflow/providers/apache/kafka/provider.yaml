@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
-suspended: false
+state: ready
 source-date-epoch: 1703288110
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
