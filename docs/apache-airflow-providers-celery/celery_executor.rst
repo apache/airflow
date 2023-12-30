@@ -15,9 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-
-.. _executor:CeleryExecutor:
-
 Celery Executor
 ===============
 
@@ -36,7 +33,7 @@ change your ``airflow.cfg`` to point the executor parameter to
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
 
-The configuration parameters of the Celery Executor can be found in :doc:`apache-airflow-providers-celery:configurations-ref`.
+The configuration parameters of the Celery Executor can be found in :doc:`configurations-ref`.
 
 Here are a few imperative requirements for your workers:
 
@@ -97,7 +94,7 @@ Some caveats:
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
-See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
+See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 Architecture
 ------------
@@ -173,7 +170,7 @@ The components communicate with each other in many places
 Task execution process
 ----------------------
 
-.. figure:: ../../img/run_task_on_celery_executor.png
+.. figure:: img/run_task_on_celery_executor.png
     :scale: 50 %
 
     Sequence diagram - task execution process

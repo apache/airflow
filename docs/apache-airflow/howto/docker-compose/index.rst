@@ -20,7 +20,7 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </core-concepts/executor/celery>` in Docker.
+This quick-start guide will allow you to quickly get Airflow up and running with the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>` in Docker.
 
 .. caution::
     This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
@@ -99,7 +99,7 @@ Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``
 
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </core-concepts/executor/celery>`. For more information, see :doc:`/core-concepts/overview`.
+All these services allow you to run Airflow with the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`. For more information, see :doc:`/core-concepts/overview`.
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 

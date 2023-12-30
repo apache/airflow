@@ -52,19 +52,19 @@ There are two types of executors - those that run tasks *locally* (inside the ``
 .. toctree::
     :maxdepth: 1
 
-    debug
     local
     sequential
 
+The DebugExecutor also exists but has been deprecated in favor of using the ``dag.test()`` command for :doc:`debugging <../debug>`.
+
+
 **Remote Executors**
 
-.. toctree::
-    :maxdepth: 1
-
-    celery
-    celery_kubernetes
-    kubernetes
-    local_kubernetes
+* :doc:`CeleryExecutor apache-airflow-providers-celery:celery_executor`
+* :doc:`CeleryKubernetesExecutor apache-airflow-providers-celery:celery_kubernetes_executor`
+* :doc:`DaskExecutor apache-airflow-providers-daskexecutor:dask_executor`
+* :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`
+* :doc:`KubernetesLocalExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>`
 
 
 .. note::
