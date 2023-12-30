@@ -21,7 +21,7 @@ name: SQLite
 description: |
     `SQLite <https://www.sqlite.org/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288175
 versions:
   - 3.7.0

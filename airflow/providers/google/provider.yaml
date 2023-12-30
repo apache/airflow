@@ -28,7 +28,7 @@ description: |
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
-suspended: false
+state: ready
 source-date-epoch: 1703747618
 versions:
   - 10.13.1

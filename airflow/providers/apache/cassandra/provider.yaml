@@ -21,7 +21,7 @@ name: Apache Cassandra
 description: |
     `Apache Cassandra <https://cassandra.apache.org/>`__.
 
-suspended: false
+state: ready
 source-date-epoch: 1703288104
 versions:
   - 3.4.1

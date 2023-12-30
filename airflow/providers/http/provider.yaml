@@ -21,7 +21,7 @@ name: Hypertext Transfer Protocol (HTTP)
 description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288141
 versions:
   - 4.8.0
