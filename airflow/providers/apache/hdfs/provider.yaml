@@ -72,7 +72,3 @@ hooks:
   - integration-name: WebHDFS
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
-
-connection-types:
-  - hook-class-name: airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook
-    connection-type: webhdfs

@@ -58,7 +58,3 @@ hooks:
   - integration-name: Apache Kylin
     python-modules:
       - airflow.providers.apache.kylin.hooks.kylin
-
-connection-types:
-  - hook-class-name: airflow.providers.apache.kylin.hooks.kylin.KylinHook
-    connection-type: kylin
