@@ -557,7 +557,7 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
                 op["how-to-guide"] for op in provider["transfers"] if "how-to-guide" in op
             )
     if suspended_providers:
-        console.print("[yellow]Suspended providers:[/]")
+        console.print("[yellow]Suspended/Removed providers:[/]")
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(
