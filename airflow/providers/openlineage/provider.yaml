@@ -21,7 +21,7 @@ name: OpenLineage Airflow
 description: |
   `OpenLineage <https://openlineage.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288155
 versions:
   - 1.3.1

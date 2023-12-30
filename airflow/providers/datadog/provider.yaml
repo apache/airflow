@@ -21,7 +21,7 @@ name: Datadog
 description: |
     `Datadog <https://www.datadoghq.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288126
 versions:
   - 3.5.1

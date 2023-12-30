@@ -28,7 +28,7 @@ dependencies:
   - influxdb-client>=1.19.0
   - requests>=2.26.0
 
-suspended: false
+state: ready
 source-date-epoch: 1703288143
 versions:
   - 2.4.0
