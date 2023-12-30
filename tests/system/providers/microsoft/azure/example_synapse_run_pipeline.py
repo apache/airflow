@@ -36,6 +36,14 @@ with DAG(
     catchup=False,
     tags=["synapse", "example"],
 ) as dag:
+    # [START howto_operator_azure_synapse_run_pipeline]
+    run_spark_job = AzureSynapseRunPipelineOperator(
+        task_id="run_pipeline_job",
+        spark_pool="provpipelinepool",
+        payload=PIPELINE_JOB_PAYLOAD,  # type: ignore
+    )
+    # [END howto_operator_azure_synapse_run_pipeline]
+    
     begin = EmptyOperator(task_id="begin")
 
     run_pipeline1 = AzureSynapseRunPipelineOperator(
