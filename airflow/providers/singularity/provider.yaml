@@ -21,9 +21,10 @@ name: Singularity
 description: |
     `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
-suspended: false
-source-date-epoch: 1700827496
+state: ready
+source-date-epoch: 1703288170
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1

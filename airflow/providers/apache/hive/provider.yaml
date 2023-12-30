@@ -21,9 +21,11 @@ name: Apache Hive
 description: |
   `Apache Hive <https://hive.apache.org/>`__
 
-suspended: false
-source-date-epoch: 1700827437
+state: ready
+source-date-epoch: 1703288109
 versions:
+  - 6.4.0
+  - 6.3.0
   - 6.2.0
   - 6.1.6
   - 6.1.5

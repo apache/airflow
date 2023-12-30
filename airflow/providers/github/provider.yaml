@@ -28,9 +28,11 @@ dependencies:
   # See https://github.com/PyGithub/PyGithub/issues/2436.
   - PyGithub!=1.58
 
-suspended: false
-source-date-epoch: 1700827464
+state: ready
+source-date-epoch: 1703288136
 versions:
+  - 2.5.1
+  - 2.5.0
   - 2.4.0
   - 2.3.2
   - 2.3.1

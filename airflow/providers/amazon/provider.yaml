@@ -21,9 +21,12 @@ name: Amazon
 description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
-suspended: false
-source-date-epoch: 1700827430
+state: ready
+source-date-epoch: 1703747484
 versions:
+  - 8.15.0
+  - 8.14.0
+  - 8.13.0
   - 8.12.0
   - 8.11.0
   - 8.10.0
@@ -81,11 +84,13 @@ dependencies:
   # same minimum version specified. Boto3 1.28.0 has been released on July 6 2023. We should also make sure we
   # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
   # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
-  # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  # that supported boto3 1.28.
+  # NOTE!!! BEFORE botocore 1.33 BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
   # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
   - boto3>=1.28.0
-  # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
-  # See https://github.com/boto/boto3/issues/2702
+  # NOTE!!! BEFORE botocore 1.33 version is always shifted by 3 MINOR VERSIONS from boto3, see:
+  # - https://github.com/boto/boto3/issues/2702
+  # - https://github.com/boto/boto3/blob/a3e710df58676c2567b8023dbe09025ad5e0e50f/.changes/1.33.0.json#L13-L15
   - botocore>=1.31.0
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users

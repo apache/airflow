@@ -21,9 +21,10 @@ name: Apache Drill
 description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
-suspended: false
-source-date-epoch: 1700827433
+state: ready
+source-date-epoch: 1703288105
 versions:
+  - 2.6.0
   - 2.5.0
   - 2.4.4
   - 2.4.3

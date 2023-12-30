@@ -21,8 +21,7 @@ name: Apache Sqoop
 description: |
   `Apache Sqoop <https://sqoop.apache.org/>`__
 
-removed: true
-suspended: true
+state: suspended
 source-date-epoch: 1701983361
 versions:
   - 4.2.0

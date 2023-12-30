@@ -109,7 +109,7 @@ def test_get_provider_requirements():
 
 def test_get_removed_providers():
     # Modify it every time we schedule provider for removal or remove it
-    assert ["apache.sqoop", "daskexecutor", "plexus"] == get_removed_provider_ids()
+    assert [] == get_removed_provider_ids()
 
 
 def test_get_suspended_provider_ids():
@@ -340,7 +340,7 @@ def test_get_provider_info_dict():
     assert provider_info_dict["name"] == "Amazon"
     assert provider_info_dict["package-name"] == "apache-airflow-providers-amazon"
     assert "Amazon" in provider_info_dict["description"]
-    assert provider_info_dict["suspended"] is False
+    assert provider_info_dict["state"] == "ready"
     assert provider_info_dict["filesystems"] == ["airflow.providers.amazon.aws.fs.s3"]
     assert len(provider_info_dict["versions"]) > 45
     assert len(provider_info_dict["dependencies"]) > 10

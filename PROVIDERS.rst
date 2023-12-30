@@ -254,7 +254,7 @@ process can be suspended.
 
 This means:
 
-* The provider's status is set to "suspended"
+* The provider's state in ``provider.yaml`` is set to "suspended"
 * No new releases of the provider will be made until the problem with dependencies is solved
 * Sources of the provider remain in the repository for now (in the future we might add process to remove them)
 * No new changes will be accepted for the provider (other than the ones that fix the dependencies)

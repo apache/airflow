@@ -450,7 +450,7 @@ def prepare_provider_documentation(
         except PrepareReleaseDocsUserQuitException:
             break
         else:
-            if provider_metadata.get("removed"):
+            if provider_metadata["state"] == "removed":
                 removed_packages.append(provider_id)
             else:
                 success_packages.append(provider_id)
@@ -481,12 +481,12 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     if not provider_metadata:
         get_console().print(f"[error]The package {provider_package_id} is not a provider package. Exiting[/]")
         sys.exit(1)
-    if provider_metadata.get("removed", False):
+    if provider_metadata["state"] == "removed":
         get_console().print(
             f"[warning]The package: {provider_package_id} is scheduled for removal, but "
             f"since you asked for it, it will be built [/]\n"
         )
-    elif provider_metadata.get("suspended"):
+    elif provider_metadata.get("state") == "suspended":
         get_console().print(f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n")
         raise PackageSuspendedException()
     return provider_metadata

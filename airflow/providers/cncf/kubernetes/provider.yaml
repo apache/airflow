@@ -21,9 +21,12 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
-suspended: false
-source-date-epoch: 1700827450
+state: ready
+source-date-epoch: 1703747586
 versions:
+  - 7.13.0
+  - 7.12.0
+  - 7.11.0
   - 7.10.0
   - 7.9.0
   - 7.8.0

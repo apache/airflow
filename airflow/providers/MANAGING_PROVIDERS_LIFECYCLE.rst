@@ -55,51 +55,51 @@ If you still have doubts about building your provider, we recommend that you rea
 open a issue on GitHub so the community can help you.
 
 The folders are optional: example_dags, hooks, links, logs, notifications, operators, secrets, sensors, transfers,
-triggers, waiters (and the list changes continuously).
+triggers (and the list changes continuously).
 
   .. code-block:: bash
 
       airflow/
-      ├── providers/<NEW_PROVIDER>/
-      │   ├── __init__.py
-      │   ├── example_dags/
-      │   │   ├── __init__.py
-      │   │   └── example_<NEW_PROVIDER>.py
-      │   ├── executors/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── hooks/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── operators/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      ....
-      │   ├── transfers/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   └── triggers/
-      │       ├── __init__.py
-      │       └── <NEW_PROVIDER>.py
-      └── tests/providers/<NEW_PROVIDER>/
-          ├── __init__.py
-          ├── executors/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── hooks/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── operators/
-          │   ├── __init__.py
-          │   ├── test_<NEW_PROVIDER>.py
-          │   └── test_<NEW_PROVIDER>_system.py
-          ...
-          ├── transfers/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          └── triggers/
-              ├── __init__.py
-              └── test_<NEW_PROVIDER>.py
+             ├── providers/<NEW_PROVIDER>/
+             │              ├── __init__.py
+             │              ├── executors/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── hooks/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── operators/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── transfers/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              └── triggers/
+             │                  ├── __init__.py
+             │                  └── *.py
+             └── tests
+                     ├── providers/<NEW_PROVIDER>/
+                     │              ├── __init__.py
+                     │              ├── executors/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              ├── hooks/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*>.py
+                     │              ├── operators/
+                     │              │   ├── __init__.py
+                     │              │   ├── test_*.py
+                     │              ...
+                     │              ├── transfers/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              └── triggers/
+                     │                  ├── __init__.py
+                     │                  └── test_*.py
+                     └── system/providers/<NEW_PROVIDER>/
+                                           ├── __init__.py
+                                           └── example_*.py
+
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -107,7 +107,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
+      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/test_*.py
 
 Adding chicken-egg providers
 ----------------------------
@@ -467,7 +467,7 @@ As of April 2023, we have the possibility to suspend individual providers, so th
 back dependencies for Airflow and other providers. The process of suspending providers is described
 in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
 
-Technically, suspending a provider is done by setting ``suspended : true``, in the provider.yaml of the
+Technically, suspending a provider is done by setting ``state: suspended``, in the provider.yaml of the
 provider. This should be followed by committing the change and either automatically or manually running
 pre-commit checks that will either update derived configuration files or ask you to update them manually.
 Note that you might need to run pre-commit several times until all the static checks pass,
@@ -509,10 +509,10 @@ Removing providers
 
 When removing providers from Airflow code, we need to make one last release where we mark the provider as
 removed - in documentation and in description of the PyPI package. In order to that release manager has to
-add "removed: true" flag in the provider yaml file and include the provider in the next wave of the
+add "state: removed" flag in the provider yaml file and include the provider in the next wave of the
 providers (and then remove all the code and documentation related to the provider).
 
-The "removed: true" flag will cause the provider to be available for the following commands (note that such
+The "removed: removed" flag will cause the provider to be available for the following commands (note that such
 provider has to be explicitly added as selected to the package - such provider will not be included in
 the available list of providers or when documentation is built unless --include-removed-providers
 flag is used):

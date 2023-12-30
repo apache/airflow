@@ -41,6 +41,7 @@ from airflow_breeze.commands.sbom_commands import sbom  # noqa
 from airflow_breeze.commands.setup_commands import setup  # noqa
 from airflow_breeze.commands.testing_commands import group_for_testing  # noqa
 
+
 main.add_command(group_for_testing)
 main.add_command(kubernetes_group)
 main.add_command(ci_group)
@@ -49,6 +50,7 @@ main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
 main.add_command(sbom)
+
 
 if __name__ == "__main__":
     main()

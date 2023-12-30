@@ -25,9 +25,11 @@ dependencies:
   - apache-airflow>=2.6.0
   - python-arango>=7.3.2
 
-suspended: false
-source-date-epoch: 1700827446
+state: ready
+source-date-epoch: 1703288117
 versions:
+  - 2.4.1
+  - 2.4.0
   - 2.3.0
   - 2.2.2
   - 2.2.1

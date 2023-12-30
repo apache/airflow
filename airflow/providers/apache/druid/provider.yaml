@@ -21,9 +21,10 @@ name: Apache Druid
 description: |
   `Apache Druid <https://druid.apache.org/>`__.
 
-suspended: false
-source-date-epoch: 1700827434
+state: ready
+source-date-epoch: 1703288106
 versions:
+  - 3.7.0
   - 3.6.0
   - 3.5.0
   - 3.4.2

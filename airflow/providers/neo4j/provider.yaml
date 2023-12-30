@@ -21,9 +21,10 @@ name: Neo4j
 description: |
     `Neo4j <https://neo4j.com/>`__
 
-suspended: false
-source-date-epoch: 1700827480
+state: ready
+source-date-epoch: 1703288152
 versions:
+  - 3.5.0
   - 3.4.0
   - 3.3.3
   - 3.3.2
