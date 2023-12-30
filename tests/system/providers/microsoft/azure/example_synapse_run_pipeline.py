@@ -58,6 +58,7 @@ with DAG(
 
     begin >> run_pipeline1
 
+
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
