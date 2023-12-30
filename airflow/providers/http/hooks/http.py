@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
@@ -29,7 +30,7 @@ from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.compat.functools import cache
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.module_loading import import_string
 
@@ -126,7 +127,7 @@ class HttpHook(BaseHook):
                 widget=Select2Widget(),
             ),
             "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
-            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget()),
+            "headers": TextAreaField(lazy_gettext("Headers"), widget=BS3TextAreaFieldWidget()),
         }
 
     @classmethod
@@ -168,8 +169,18 @@ class HttpHook(BaseHook):
                 session.auth = auth_type()
 
             if conn_extra:
+                headers_params: dict = conn_extra.pop("headers", {})
+                if conn_extra:
+                    warnings.warn(
+                        "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                        "will be removed in a future version of the Http provider. Use the 'Headers' "
+                        "field instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    headers_params = {**conn_extra, **headers_params}
                 try:
-                    session.headers.update(conn_extra)
+                    session.headers.update(headers_params)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:

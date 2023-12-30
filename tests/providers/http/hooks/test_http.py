@@ -47,7 +47,12 @@ def aioresponse():
 
 
 def get_airflow_connection(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
+    return Connection(
+        conn_id="http_default",
+        conn_type="http",
+        host="test:8080/",
+        extra='{"bearer":"test","headers":{"some":"header"}}',
+    )
 
 
 def get_airflow_connection_with_port(unused_conn_id=None):
@@ -124,8 +129,12 @@ class TestHttpHook:
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
+
+            conn_extra: dict = json.loads(expected_conn.extra)
+            headers = dict(conn.headers, **conn_extra.pop("headers", {}), **conn_extra)
+            assert headers == conn.headers
             assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("some") == "header"
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
