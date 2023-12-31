@@ -44,7 +44,7 @@ Below is an example of using this operator to execute a Spark application on Azu
 AzureSynapseRunPipelineOperator
 -----------------------------------
 Use the :class:`~airflow.providers.microsoft.azure.operators.synapse.AzureSynapseRunPipelineOperator` to execute a pipeline application within Synapse Analytics.
-By default, the operator will periodically check on the status of the executed pipeline to terminate with a "Succeeded" status.
+The operator will Executes a Synapse Pipeline.
 
 .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_synapse.py
       :language: python
