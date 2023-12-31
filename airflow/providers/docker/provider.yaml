@@ -21,7 +21,7 @@ name: Docker
 description: |
     `Docker <https://www.docker.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288130
 versions:
   - 3.9.1

@@ -21,7 +21,7 @@ name: Apache Spark
 description: |
     `Apache Spark <https://spark.apache.org/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288115
 versions:
   - 4.6.0

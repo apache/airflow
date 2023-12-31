@@ -21,7 +21,7 @@ name: Apache Livy
 description: |
   `Apache Livy <https://livy.apache.org/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288112
 versions:
   - 3.7.0

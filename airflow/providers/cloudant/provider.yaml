@@ -21,7 +21,7 @@ name: IBM Cloudant
 description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288120
 versions:
   - 3.4.1

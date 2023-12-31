@@ -1855,6 +1855,13 @@ webserver:
       type: boolean
       example: "False"
       default: "False"
+    allowed_payload_size:
+      description: |
+        The maximum size of the request payload (in MB) that can be sent.
+      version_added: 2.8.1
+      type: float
+      example: ~
+      default: "1.0"
 email:
   description: |
     Configuration email backend and whether to

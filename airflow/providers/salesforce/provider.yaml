@@ -21,7 +21,7 @@ name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288165
 versions:
   - 5.6.1

@@ -23,7 +23,7 @@ name: Apprise
 description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288116
 
 versions:

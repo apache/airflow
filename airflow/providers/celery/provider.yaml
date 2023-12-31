@@ -21,7 +21,7 @@ name: Celery
 description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288119
 versions:
   - 3.5.1
