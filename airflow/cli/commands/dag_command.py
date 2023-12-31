@@ -515,7 +515,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
     dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
@@ -535,6 +535,9 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+    if args.fail_on_dagrun_failure and dr and dr.state == DagRunState.FAILED:
+        raise SystemExit("DagRun failed")
 
 
 @cli_utils.action_cli

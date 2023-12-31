@@ -405,6 +405,14 @@ ARG_IMGCAT_DAGRUN = Arg(
     ),
     action="store_true",
 )
+ARG_FAIL_ON_DAGRUN_FAILURE = Arg(
+    (
+        "-f",
+        "--fail-on-dagrun-failure",
+    ),
+    help="Exit with code 1 if the DagRun completes with a failed state.\n",
+    action="store_true",
+)
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
     help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
@@ -1248,6 +1256,7 @@ DAGS_COMMANDS = (
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
+            ARG_FAIL_ON_DAGRUN_FAILURE,
             ARG_VERBOSE,
         ),
     ),

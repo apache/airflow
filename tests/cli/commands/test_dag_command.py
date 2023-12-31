@@ -43,6 +43,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
@@ -746,6 +747,18 @@ class TestCliDags:
                 ),
             ]
         )
+
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_fail_raise_error(self, mock_get_dag):
+        execution_date_str = DEFAULT_DATE.isoformat()
+        mock_get_dag.return_value.test.return_value = DagRun(
+            dag_id="example_bash_operator", execution_date=DEFAULT_DATE, state=DagRunState.FAILED
+        )
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "example_bash_operator", execution_date_str, "--fail-on-dagrun-failure"]
+        )
+        with pytest.raises(SystemExit, match=r"DagRun failed"):
+            dag_command.dag_test(cli_args)
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
