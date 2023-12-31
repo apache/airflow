@@ -36,7 +36,7 @@ with DAG(
     catchup=False,
     tags=["synapse", "example"],
 ) as dag:
-   begin = EmptyOperator(task_id="begin")
+    begin = EmptyOperator(task_id="begin")
     # [START howto_operator_azure_synapse_run_pipeline]
     run_pipeline1 = AzureSynapseRunPipelineOperator(
         task_id="run_pipeline1",
