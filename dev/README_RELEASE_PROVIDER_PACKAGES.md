@@ -1178,11 +1178,12 @@ cd ${AIRFLOW_REPO_ROOT}
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
 git pull
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
+current_date=$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata ${branch}"
+git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"
 ```
 
