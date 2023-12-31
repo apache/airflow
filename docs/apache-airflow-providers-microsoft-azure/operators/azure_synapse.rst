@@ -46,7 +46,7 @@ AzureSynapseRunPipelineOperator
 Use the: class:`~airflow.providers.microsoft.azure.operators.synapse.AzureSynapseRunPipelineOperator` to execute a pipeline application within Synapse Analytics.
 The operator will Execute a Synapse Pipeline.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_synapse.py
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_synapse_run_pipeline.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_azure_synapse_run_pipeline]
