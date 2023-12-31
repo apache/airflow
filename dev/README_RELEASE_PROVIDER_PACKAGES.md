@@ -1174,11 +1174,14 @@ Make sure you create the following branch from the git tag (steps before) and no
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
+git checkout main
+git pull
+current_date=$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata ${branch}"
+git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"
 ```
 
