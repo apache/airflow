@@ -648,7 +648,7 @@ the artifact checksums when we actually release.
 The status of testing the providers by the community is kept here:
 <TODO COPY LINK TO THE ISSUE CREATED>
 
-The issue is also the easiest way to see which code affecting PRs are included in the RC candidates.
+The issue is also the easiest way to see important PRs included in the RC candidates.
 Detailed changelog for the providers will be published in the documentation after the
 RC candidates are released.
 
