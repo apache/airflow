@@ -34,7 +34,6 @@ Airflow supports the following database engine versions, so make sure which vers
 
 * PostgreSQL: 12, 13, 14, 15, 16
 * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
-* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -315,8 +314,8 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
     Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
     See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
 
-Setting up a MsSQL Database
----------------------------
+MsSQL Database
+--------------
 
 .. warning::
 
@@ -324,39 +323,8 @@ Setting up a MsSQL Database
     and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
     the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
 
-    For new Airflow installations, it is advised against using MsSQL as the database backend.
-
-You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.
-Note, that in case of MsSQL, Airflow uses ``READ COMMITTED`` transaction isolation and it must have
-``READ_COMMITTED_SNAPSHOT`` feature enabled, otherwise read transactions might generate deadlocks
-(especially in case of backfill). Airflow will refuse to use database that has the feature turned off.
-You can read more about transaction isolation and snapshot features at
-`Transaction isolation level <https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql>`_
-
-.. code-block:: sql
-
-   CREATE DATABASE airflow;
-   ALTER DATABASE airflow SET READ_COMMITTED_SNAPSHOT ON;
-   CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
-   USE airflow;
-   CREATE USER airflow_user FROM LOGIN airflow_user;
-   GRANT ALL PRIVILEGES ON DATABASE::airflow TO airflow_user;
-
-
-We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
-
-.. code-block:: text
-
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>?[driver=<driver>]
-
-
-You do not need to specify the Driver if you have default driver configured in your system. For the
-Official Docker image we have ODBC driver installed, so you need to specify the ODBC driver to use:
-
-.. code-block:: text
-
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
+    As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
+    This does not affect the existing provider packages (operators and hooks), DAGs can still access and process data from MsSQL.
 
 
 Other configuration options

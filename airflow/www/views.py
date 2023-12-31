@@ -72,7 +72,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -2890,14 +2890,6 @@ class Airflow(AirflowBaseView):
     @provide_session
     def calendar(self, dag_id: str, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
-
-        def _convert_to_date(session, column):
-            """Convert column to date."""
-            if session.bind.dialect.name == "mssql":
-                return column.cast(Date)
-            else:
-                return func.date(column)
-
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -2913,15 +2905,15 @@ class Airflow(AirflowBaseView):
 
         dag_states = session.execute(
             select(
-                _convert_to_date(session, DagRun.execution_date).label("date"),
+                func.date(DagRun.execution_date).label("date"),
                 DagRun.state,
                 func.max(DagRun.data_interval_start).label("data_interval_start"),
                 func.max(DagRun.data_interval_end).label("data_interval_end"),
                 func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag.dag_id)
-            .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
-            .order_by(_convert_to_date(session, DagRun.execution_date).asc())
+            .group_by(func.date(DagRun.execution_date), DagRun.state)
+            .order_by(func.date(DagRun.execution_date).asc())
         ).all()
 
         data_dag_states = [

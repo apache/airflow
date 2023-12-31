@@ -1290,6 +1290,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             .exists()
         )
         # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
+        # Note: We need to keep MSSQL compatibility as long as this provider package
+        #       might still be updated by Airflow prior 2.9.0 users with MSSQL
         if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
             return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
