@@ -638,7 +638,6 @@ Please vote accordingly:
 [ ] +0 no opinion
 [ ] -1 disapprove with the reason
 
-
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
@@ -649,7 +648,11 @@ the artifact checksums when we actually release.
 The status of testing the providers by the community is kept here:
 <TODO COPY LINK TO THE ISSUE CREATED>
 
-You can find packages as well as detailed changelog following the below links:
+The issue is also the easiest way to see important PRs included in the RC candidates.
+Detailed changelog for the providers will be published in the documentation after the
+RC candidates are released.
+
+You can find the RC packages in PyPI following these links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
