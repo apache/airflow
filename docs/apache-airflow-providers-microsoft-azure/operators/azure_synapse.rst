@@ -50,7 +50,7 @@ The operator will Execute a Synapse Pipeline.
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_azure_synapse_run_pipeline]
-      :end-before: [END howto_operator_azure_synapse]
+      :end-before: [END howto_operator_azure_synapse_run_pipeline]
 
 Reference
 ---------
