@@ -3407,6 +3407,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskReschedule,
             XCom,
             RenderedTaskInstanceFields,
+            TaskMap,
         ]
         for table in tables:
             session.execute(
