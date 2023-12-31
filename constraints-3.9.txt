@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-30T13:53:02.911935
+# This constraints file was automatically generated on 2023-12-31T13:32:30.172537
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -93,18 +93,18 @@ annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.2.0
 apache-airflow-providers-airbyte==3.5.1
-apache-airflow-providers-alibaba==2.7.0
-apache-airflow-providers-amazon==8.14.0
+apache-airflow-providers-alibaba==2.7.1
+apache-airflow-providers-amazon==8.15.0
 apache-airflow-providers-apache-beam==5.5.0
 apache-airflow-providers-apache-cassandra==3.4.1
 apache-airflow-providers-apache-drill==2.6.0
 apache-airflow-providers-apache-druid==3.7.0
 apache-airflow-providers-apache-flink==1.3.0
-apache-airflow-providers-apache-hdfs==4.3.1
+apache-airflow-providers-apache-hdfs==4.3.2
 apache-airflow-providers-apache-hive==6.4.0
 apache-airflow-providers-apache-impala==1.3.0
 apache-airflow-providers-apache-kafka==1.3.1
-apache-airflow-providers-apache-kylin==3.4.0
+apache-airflow-providers-apache-kylin==3.5.0
 apache-airflow-providers-apache-livy==3.7.0
 apache-airflow-providers-apache-pig==4.3.0
 apache-airflow-providers-apache-pinot==4.3.0
@@ -115,7 +115,7 @@ apache-airflow-providers-asana==2.4.1
 apache-airflow-providers-atlassian-jira==2.4.0
 apache-airflow-providers-celery==3.5.1
 apache-airflow-providers-cloudant==3.4.1
-apache-airflow-providers-cncf-kubernetes==7.12.0
+apache-airflow-providers-cncf-kubernetes==7.13.0
 apache-airflow-providers-cohere==1.1.1
 apache-airflow-providers-common-io==1.1.0
 apache-airflow-providers-common-sql==1.10.0
@@ -125,12 +125,12 @@ apache-airflow-providers-dbt-cloud==3.5.1
 apache-airflow-providers-dingding==3.4.0
 apache-airflow-providers-discord==3.5.0
 apache-airflow-providers-docker==3.9.1
-apache-airflow-providers-elasticsearch==5.3.0
+apache-airflow-providers-elasticsearch==5.3.1
 apache-airflow-providers-exasol==4.4.1
 apache-airflow-providers-facebook==3.4.0
 apache-airflow-providers-ftp==3.7.0
 apache-airflow-providers-github==2.5.1
-apache-airflow-providers-google==10.13.0
+apache-airflow-providers-google==10.13.1
 apache-airflow-providers-grpc==3.4.1
 apache-airflow-providers-hashicorp==3.6.1
 apache-airflow-providers-http==4.8.0
@@ -138,7 +138,7 @@ apache-airflow-providers-imap==3.5.0
 apache-airflow-providers-influxdb==2.4.0
 apache-airflow-providers-jdbc==4.2.1
 apache-airflow-providers-jenkins==3.5.1
-apache-airflow-providers-microsoft-azure==8.5.0
+apache-airflow-providers-microsoft-azure==8.5.1
 apache-airflow-providers-microsoft-mssql==3.6.0
 apache-airflow-providers-microsoft-psrp==2.5.0
 apache-airflow-providers-microsoft-winrm==3.4.0
@@ -177,7 +177,7 @@ apache-airflow-providers-trino==5.6.0
 apache-airflow-providers-vertica==3.7.0
 apache-airflow-providers-weaviate==1.2.0
 apache-airflow-providers-yandex==3.7.1
-apache-airflow-providers-zendesk==4.5.0
+apache-airflow-providers-zendesk==4.6.0
 apache-beam==2.52.0
 apispec==6.3.1
 apprise==1.7.1
@@ -190,7 +190,7 @@ asttokens==2.4.1
 async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.4
-attrs==23.1.0
+attrs==23.2.0
 aws-sam-translator==1.82.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
@@ -553,7 +553,7 @@ pytest-mock==3.12.0
 pytest-rerunfailures==13.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
-pytest==7.4.3
+pytest==7.4.4
 python-arango==7.8.1
 python-daemon==3.0.1
 python-dateutil==2.8.2

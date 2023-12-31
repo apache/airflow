@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-30T13:48:01.728528
+# This constraints file was automatically generated on 2023-12-31T13:27:34.786642
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -47,7 +47,7 @@ anyio==4.2.0
 apispec==6.3.1
 argcomplete==3.2.1
 asgiref==3.7.2
-attrs==23.1.0
+attrs==23.2.0
 backoff==2.2.1
 bcrypt==4.1.2
 billiard==4.2.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-30T13:47:54.762103
+# This constraints file was automatically generated on 2023-12-31T13:27:29.489301
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -83,7 +83,7 @@ asttokens==2.4.1
 async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.4
-attrs==23.1.0
+attrs==23.2.0
 aws-sam-translator==1.82.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
@@ -446,7 +446,7 @@ pytest-mock==3.12.0
 pytest-rerunfailures==13.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
-pytest==7.4.3
+pytest==7.4.4
 python-arango==7.8.1
 python-daemon==3.0.1
 python-dateutil==2.8.2
