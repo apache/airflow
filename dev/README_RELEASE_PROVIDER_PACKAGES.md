@@ -1024,7 +1024,6 @@ Apache Airflow Providers prepared on DATE OF RELEASE have been accepted.
 - FIRST LAST NAME (binding)
 
 2 "+1" non-binding votes received:
-
 - FIRST LAST NAME
 - FIRST LAST NAME
 
