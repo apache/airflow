@@ -59,7 +59,7 @@ Apache Airflow is tested with:
 
 \* Experimental
 
-\*\* **Discontinued soon**, not recommended for the new installation
+\*\* **Discontinued in 2.9.0**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).

@@ -34,7 +34,7 @@ Airflow supports the following database engine versions, so make sure which vers
 
 * PostgreSQL: 12, 13, 14, 15, 16
 * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
-* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
+* MSSQL (was experimental, **will be discontinued in 2.9.0**): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -323,6 +323,7 @@ Setting up a MsSQL Database
     After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
     and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
     the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+    Support for MsSQL will be removed from the codebase in Airflow 2.9.0.
 
     For new Airflow installations, it is advised against using MsSQL as the database backend.
 
@@ -357,6 +358,16 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 .. code-block:: text
 
     mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
+
+
+Migrating off MsSQL Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As with Airflow 2.9.0 the support of MSSQL has will end, a migration script can help migrating with
+Airflow version 2.7.x or 2.8.x off the database. The migration script is available in
+`airflow-mssql-migration repo on Github<https://github.com/apache/airflow-mssql-migration>`_.
+
+Note that the migration script is provided without support.
 
 
 Other configuration options
