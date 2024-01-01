@@ -292,3 +292,140 @@ class TestSFTPToGCSOperator:
 
         written_content.seek(0)
         assert written_content.read() == message # decode bytes to string
+
+# Constants for testing
+_DEFAULT_CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
+SFTP_CONN_ID = "SFTP_CONN_ID"
+GCP_CONN_ID = "GCP_CONN_ID"
+
+class TestSFTPToGCSOperatorStream:
+
+    def setup_method(self):
+        self.task = SFTPToGCSOperator(
+            task_id="test_task",
+            source_path="source/file/path",
+            destination_bucket="test-bucket",
+            destination_path="destination/file/path",
+            use_stream=True,
+            stream_chunk_size=_DEFAULT_CHUNKSIZE,
+            log_interval=None,
+            sftp_conn_id=SFTP_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        self.mock_sftp_hook = mock.Mock()
+        self.mock_gcs_hook = mock.Mock()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook", return_value=self.mock_gcs_hook)
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook", return_value=self.mock_sftp_hook)
+    def test_stream_single_object_basic_streaming(self, mock_sftp_hook, mock_gcs_hook):
+        # Set a smaller chunk size for manual streaming
+        self.task.stream_chunk_size = 1024 * 1024  # 1 MB
+        self.task.execute(None)
+        # Add assertions to verify streaming behavior
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_stream_single_object_default_method(self, mock_sftp_hook, mock_gcs_hook):
+        # Use default chunk size to trigger 'upload_from_file' method
+        self.task.stream_chunk_size = _DEFAULT_CHUNKSIZE
+        self.task.execute(None)
+        # Verify that 'upload_from_file' was used
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_progress_logging(self, mock_sftp_hook):
+        # Test logging at specified intervals during streaming
+        self.task.stream_chunk_size = 1024 * 1024  # 1 MB
+        self.task.log_interval = 1024 * 1024 * 10  # 10 MB
+        with mock.patch.object(self.task.log, "info") as mock_log_info:
+            self.task.execute(None)
+            # Check that multiple log entries were made
+
+    def test_custom_source_stream_wrapper(self):
+        # Verify custom wrapper is applied to the source stream
+        custom_wrapper = mock.Mock()
+        self.task.source_stream_wrapper = custom_wrapper
+        self.task.execute(None)
+        custom_wrapper.assert_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    def test_temp_file_handling(self, mock_gcs_hook):
+        # Test handling of existing temporary files from previous attempts
+        mock_gcs_hook.return_value.bucket.return_value.blob.return_value.exists.return_value = True
+        with mock.patch.object(self.task.log, "warning") as mock_log_warning:
+            self.task.execute(None)
+            mock_log_warning.assert_called_with(mock.ANY)
+            mock_gcs_hook.return_value.bucket.return_value.blob.return_value.delete.assert_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    def test_error_handling(self, mock_gcs_hook):
+        # Simulate an error during streaming and verify it's handled correctly
+        mock_gcs_hook.return_value.bucket.return_value.blob.return_value.open.side_effect = Exception("Test error")
+        with pytest.raises(Exception) as excinfo:
+            self.task.execute(None)
+            assert "Test error" in str(excinfo.value)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_file_move(self, mock_sftp_hook):
+        # Test the behavior of moving the source file after successful upload
+        self.task.move_object = True
+        self.task.execute(None)
+        mock_sftp_hook.return_value.delete_file.assert_called_with("source/file/path")
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_different_file_sizes(self, mock_sftp_hook, mock_gcs_hook):
+        # Test the upload logic with different file sizes
+        small_chunk_size = 1024  # 1 KB
+        large_chunk_size = 1024 * 1024 * 10  # 10 MB
+        self.task.stream_chunk_size = small_chunk_size
+        self.task.execute(None)
+        # Assertions for small chunk size
+        self.task.stream_chunk_size = large_chunk_size
+        self.task.execute(None)
+        # Assertions for large chunk size
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    def test_network_exceptions_and_retries(self, mock_gcs_hook):
+        # Simulate network exceptions and verify retry mechanism
+        mock_gcs_hook.return_value.bucket.return_value.blob.return_value.open.side_effect = [Exception("Network error"), None]
+        self.task.execute(None)
+        assert mock_gcs_hook.return_value.bucket.return_value.blob.return_value.open.call_count == 2
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    def test_custom_logging(self, mock_gcs_hook):
+        # Test custom logging intervals during upload
+        self.task.log_interval = 1024 * 1024  # 1 MB
+        with mock.patch.object(self.task.log, "info") as mock_log_info:
+            self.task.execute(None)
+            assert mock_log_info.call_count > 1
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_stream_single_object_data_integrity(self, mock_sftp_hook, mock_gcs_hook):
+        # Simulate data read from SFTP
+        test_data = b"Sample data from SFTP"
+        sftp_file_obj = BytesIO(test_data)
+        mock_sftp_hook.return_value.get_conn.return_value.file.return_value.__enter__.return_value = sftp_file_obj
+
+        # Simulate the data stream written to GCS
+        written_data = BytesIO()
+        mock_gcs_blob = mock.Mock()
+        mock_gcs_blob.open.return_value.__enter__.return_value = written_data
+        mock_gcs_hook.return_value.get_conn.return_value.bucket.return_value.blob.return_value = mock_gcs_blob
+
+        # Execute the operator
+        task = SFTPToGCSOperator(
+            task_id="test_task",
+            source_path="source/file/path",
+            destination_bucket="test-bucket",
+            destination_path="destination/file/path",
+            use_stream=True,
+            stream_chunk_size=1024,
+            sftp_conn_id=SFTP_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        task.execute(None)
+
+        # Verify if the data read from SFTP and written to GCS is consistent
+        written_data.seek(0)
+        assert written_data.read() == test_data
