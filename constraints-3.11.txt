@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-31T12:29:50.642212
+# This constraints file was automatically generated on 2024-01-01T14:32:45.924512
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -542,7 +542,7 @@ pyparsing==3.1.1
 pypsrp==0.8.1
 pyspark==3.5.0
 pyspnego==0.10.2
-pytest-asyncio==0.23.2
+pytest-asyncio==0.23.3
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
 pytest-icdiff==0.9
