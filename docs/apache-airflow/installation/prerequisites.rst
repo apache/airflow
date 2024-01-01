@@ -50,10 +50,11 @@ wildly on the deployment options you have
 .. warning::
 
   Airflow™ currently can be run on POSIX-compliant Operating Systems. For development it is regularly
-  tested on fairly modern Linux Distros and recent versions of MacOS.
+  tested on fairly modern Linux Distros that our contributors use and recent versions of MacOS.
   On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
   The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__
   but it is not a high priority. You should only use Linux-based distros as "Production" execution environment
   as this is the only environment that is supported. The only distro that is used in our CI tests and that
   is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-  ``Debian Bullseye``.
+  ``Debian Bookworm``. We also build ``Debian Bullseye`` images in Airflow 2.8 but we do not use them for
+  CI tests and they will be dropped in Airflow 2.9.
