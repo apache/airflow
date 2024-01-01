@@ -164,7 +164,10 @@ class SFTPToGCSOperator(BaseOperator):
             destination_object = (
                 self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
             )
-            self._copy_single_object(sftp_hook, gcs_hook, self.source_path, destination_object)
+            if self.use_stream:
+                self._stream_single_object(sftp_hook, gcs_hook, self.source_path, destination_object)
+            else:
+                self._copy_single_object(sftp_hook, gcs_hook, self.source_path, destination_object)
 
     def _copy_single_object(
         self,
