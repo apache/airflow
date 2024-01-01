@@ -70,7 +70,8 @@ class TestPodTemplateFile:
                     "gitSync": {
                         "enabled": True,
                         "containerName": "git-sync-test",
-                        "wait": 66,
+                        "wait": None,
+                        "period": "66s",
                         "maxFailures": 70,
                         "subPath": "path1/path2",
                         "rev": "HEAD",
@@ -108,7 +109,6 @@ class TestPodTemplateFile:
                 {"name": "GITSYNC_LINK", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GITSYNC_ADD_USER", "value": "true"},
-                {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},

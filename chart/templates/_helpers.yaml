@@ -271,10 +271,12 @@ If release name contains chart name it will be used as a full name.
       value: "true"
     - name: GITSYNC_ADD_USER
       value: "true"
+    {{- if .Values.dags.gitSync.wait }}
     - name: GIT_SYNC_WAIT
       value: {{ .Values.dags.gitSync.wait | quote }}
+    {{- end }}
     - name: GITSYNC_PERIOD
-      value: {{ printf "%ss" (toString .Values.dags.gitSync.wait) | quote }}
+      value: {{ .Values.dags.gitSync.period | quote }}
     - name: GIT_SYNC_MAX_SYNC_FAILURES
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
     - name: GITSYNC_MAX_FAILURES
