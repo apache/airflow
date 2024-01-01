@@ -34,7 +34,7 @@ Airflow supports the following database engine versions, so make sure which vers
 
 * PostgreSQL: 12, 13, 14, 15, 16
 * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
-* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
+* MSSQL (was experimental, **will be discontinued in 2.9.0**): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -323,6 +323,7 @@ Setting up a MsSQL Database
     After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
     and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
     the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+    Support for MsSQL will be removed from the codebase in Airflow 2.9.0.
 
     For new Airflow installations, it is advised against using MsSQL as the database backend.
 
@@ -359,6 +360,16 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
     mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
 
 
+Migrating off MsSQL Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As with Airflow 2.9.0 the support of MSSQL has will end, a migration script can help migrating with
+Airflow version 2.7.x or 2.8.x off the database. The migration script is available in
+`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
+
+Note that the migration script is provided without support.
+
+
 Other configuration options
 ---------------------------
 
@@ -390,14 +401,15 @@ Airflow extensively utilizes a relational metadata database for task scheduling 
 Monitoring and proper configuration of this database are crucial for optimal Airflow performance.
 
 Key Concerns
-............
+~~~~~~~~~~~~
+
 1. **Performance Impact**: Long or excessive queries can significantly affect Airflow's functionality.
    These may arise due to workflow specifics, lack of optimizations, or code bugs.
 2. **Database Statistics**: Incorrect optimization decisions by the database engine,
    often due to outdated data statistics, can degrade performance.
 
 Responsibilities
-................
+~~~~~~~~~~~~~~~~
 
 The responsibilities for database monitoring and maintenance in Airflow environments vary depending on
 whether you're using self-managed databases and Airflow instances or opting for managed services.
@@ -421,7 +433,7 @@ its performance, managing backups, periodic cleanups and ensuring its optimal op
   are matching the sizing and configuration of the managed service.
 
 Monitoring Aspects
-..................
+~~~~~~~~~~~~~~~~~~
 
 Regular monitoring should include:
 
@@ -432,7 +444,7 @@ Regular monitoring should include:
 - Analysis of disk swap versus memory usage and cache swapping frequency.
 
 Tools and Strategies
-....................
+~~~~~~~~~~~~~~~~~~~~
 
 - Airflow doesn't provide direct tooling for database monitoring.
 - Use server-side monitoring and logging to obtain metrics.
@@ -440,7 +452,7 @@ Tools and Strategies
 - Regularly run house-keeping tasks (like ``ANALYZE`` SQL command) for maintenance.
 
 Database Cleaning Tools
-.......................
+~~~~~~~~~~~~~~~~~~~~~~~
 
 - **Airflow DB Clean Command**: Utilize the ``airflow db clean`` command to help manage and clean
   up your database.
@@ -448,7 +460,7 @@ Database Cleaning Tools
   database cleanup and maintenance, offering more fine-grained control and customization for specific needs.
 
 Recommendations
-...............
+~~~~~~~~~~~~~~~
 
 - **Proactive Monitoring**: Implement monitoring and logging in production without significantly
   impacting performance.
@@ -458,7 +470,7 @@ Recommendations
   database provider.
 
 SQLAlchemy Logging
-..................
+~~~~~~~~~~~~~~~~~~
 
 For detailed query analysis, enable SQLAlchemy client logging (``echo=True`` in SQLAlchemy
 engine configuration).
@@ -473,7 +485,7 @@ You can do it with ``echo=True`` as sqlalchemy engine configuration as explained
 Use :ref:`config:database__sql_alchemy_engine_args` configuration parameter to set echo arg to True.
 
 Caution
-.......
+~~~~~~~
 
 - Be mindful of the impact on Airflow's performance and system resources when enabling extensive logging.
 - Prefer server-side monitoring over client-side logging for production environments to minimize
