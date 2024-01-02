@@ -259,7 +259,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
    .. code-block:: text
 
-      sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+      sql_alchemy_connect_args = airflow.config_templates.airflow_local_settings.keepalive_kwargs
 
 
 
