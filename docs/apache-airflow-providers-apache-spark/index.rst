@@ -33,7 +33,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/spark>
+    Connection types <connections/index>
     Decorators <decorators/pyspark>
     Operators <operators>
 

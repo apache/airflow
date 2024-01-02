@@ -21,7 +21,7 @@ name: Tabular
 description: |
     `Tabular <https://tabular.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288178
 versions:
   - 1.4.1

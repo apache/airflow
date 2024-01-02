@@ -15,4 +15,30 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../exts/includes/security.rst
+Jira Connection
+===============
+
+The Jira connection type enables connection to Atlassian Jira.
+
+Default Connection IDs
+----------------------
+
+Jira Hook uses parameter ``jira_conn_id`` for Connection IDs and the value of the
+parameter as ``jira_default`` by default.
+
+Configuring the Connection
+--------------------------
+Host
+    The Jira host (should be with scheme).
+
+Port
+    Specify the port to use for connecting to Jira.
+
+Login
+    The user that will be used for authentication against the Jira API.
+
+Password
+    The password of the user that will be used for authentication against the Jira API.
+
+Verify SSL
+    Whether to verify SSL when connecting to the Jira API (this is ``True`` by default).

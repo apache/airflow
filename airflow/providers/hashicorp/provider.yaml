@@ -21,7 +21,7 @@ name: Hashicorp
 description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288140
 versions:
   - 3.6.1

@@ -166,7 +166,8 @@ class StackdriverTaskHandler(logging.Handler):
         """
         message = self.format(record)
         ti = None
-        if getattr(record, ctx_indiv_trigger.name, None):
+        # todo: remove ctx_indiv_trigger is not None check when min airflow version >= 2.6
+        if ctx_indiv_trigger is not None and getattr(record, ctx_indiv_trigger.name, None):
             ti = getattr(record, "task_instance", None)  # trigger context
         labels = self._get_labels(ti)
         self._transport.send(record, message, resource=self.resource, labels=labels)

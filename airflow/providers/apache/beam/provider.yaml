@@ -21,7 +21,7 @@ name: Apache Beam
 description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
-suspended: false
+state: ready
 source-date-epoch: 1703288103
 versions:
   - 5.5.0

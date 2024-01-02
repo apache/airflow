@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+
+
+class AthenaQueryResultsLink(BaseAwsLink):
+    """Helper class for constructing Amazon Athena query results."""
+
+    name = "Query Results"
+    key = "_athena_query_results"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK + "/athena/home?region={region_name}#"
+        "/query-editor/history/{query_execution_id}"
+    )

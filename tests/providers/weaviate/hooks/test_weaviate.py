@@ -428,7 +428,7 @@ def test_batch_data(data, expected_length, weaviate_hook):
     test_class_name = "TestClass"
 
     # Test the batch_data method
-    weaviate_hook.batch_data(test_class_name, data, insertion_errors=[])
+    weaviate_hook.batch_data(test_class_name, data)
 
     # Assert that the batch_data method was called with the correct arguments
     mock_client.batch.configure.assert_called_once()
@@ -446,7 +446,7 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     error.response = response
     side_effect = [None, error, None, error, None]
     get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
-    weaviate_hook.batch_data("TestClass", data, insertion_errors=[])
+    weaviate_hook.batch_data("TestClass", data)
     assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
 
 

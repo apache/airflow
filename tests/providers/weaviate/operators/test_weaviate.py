@@ -20,7 +20,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
+from airflow.providers.weaviate.operators.weaviate import (
+    WeaviateDocumentIngestOperator,
+    WeaviateIngestOperator,
+)
 
 
 class TestWeaviateIngestOperator:
@@ -51,7 +54,6 @@ class TestWeaviateIngestOperator:
             data=[{"data": "sample_data"}],
             batch_config_params={},
             vector_col="Vector",
-            insertion_errors=[],
             uuid_col="id",
             tenant=None,
         )
@@ -73,3 +75,49 @@ class TestWeaviateIngestOperator:
 
         assert dag_id == ti.task.input_json
         assert dag_id == ti.task.input_data
+
+
+class TestWeaviateDocumentIngestOperator:
+    @pytest.fixture
+    def operator(self):
+        return WeaviateDocumentIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            input_data=[{"data": "sample_data"}],
+            class_name="my_class",
+            document_column="docLink",
+            existing="skip",
+            uuid_column="id",
+            vector_col="vector",
+            batch_config_params={"size": 1000},
+        )
+
+    def test_constructor(self, operator):
+        assert operator.conn_id == "weaviate_conn"
+        assert operator.input_data == [{"data": "sample_data"}]
+        assert operator.class_name == "my_class"
+        assert operator.document_column == "docLink"
+        assert operator.existing == "skip"
+        assert operator.uuid_column == "id"
+        assert operator.vector_col == "vector"
+        assert operator.batch_config_params == {"size": 1000}
+        assert operator.hook_params == {}
+
+    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateDocumentIngestOperator.log")
+    def test_execute_with_input_json(self, mock_log, operator):
+        operator.hook.create_or_replace_document_objects = MagicMock()
+
+        operator.execute(context=None)
+
+        operator.hook.create_or_replace_document_objects.assert_called_once_with(
+            data=[{"data": "sample_data"}],
+            class_name="my_class",
+            document_column="docLink",
+            existing="skip",
+            uuid_column="id",
+            vector_column="vector",
+            batch_config_params={"size": 1000},
+            tenant=None,
+            verbose=False,
+        )
+        mock_log.debug.assert_called_once_with("Total input objects : %s", len([{"data": "sample_data"}]))

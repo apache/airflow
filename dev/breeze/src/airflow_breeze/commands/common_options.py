@@ -74,7 +74,10 @@ argument_doc_packages = click.argument(
     required=False,
     type=NotVerifiedBetterChoice(
         get_available_packages(
-            include_non_provider_doc_packages=True, include_all_providers=True, include_removed=True
+            include_non_provider_doc_packages=True,
+            include_all_providers=True,
+            include_removed=True,
+            include_not_ready=True,
         )
     ),
 )
@@ -188,6 +191,12 @@ option_include_removed_providers = click.option(
     help="Whether to include providers that are removed.",
     is_flag=True,
     envvar="INCLUDE_REMOVED_PROVIDERS",
+)
+option_include_not_ready_providers = click.option(
+    "--include-not-ready-providers",
+    help="Whether to include providers that are not yet ready to be released.",
+    is_flag=True,
+    envvar="INCLUDE_NOT_READY_PROVIDERS",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
