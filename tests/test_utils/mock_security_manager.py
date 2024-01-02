@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class MockSecurityManager(FabAirflowSecurityManagerOverride):

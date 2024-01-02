@@ -87,8 +87,11 @@ class TrinoHook(DbApiHook):
     conn_type = "trino"
     hook_name = "Trino"
     query_id = ""
-    placeholder = "?"
     _test_connection_sql = "select 1"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
         """Returns a connection object."""
@@ -156,6 +159,7 @@ class TrinoHook(DbApiHook):
             verify=_boolify(extra.get("verify", True)),
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
+            timezone=extra.get("timezone") or None,
         )
 
         return trino_conn

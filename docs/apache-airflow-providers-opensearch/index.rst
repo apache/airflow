@@ -73,10 +73,10 @@
 Package apache-airflow-providers-opensearch
 ------------------------------------------------------
 
-`Opensearch <https://opensearch.org/>`__
+`OpenSearch <https://opensearch.org/>`__
 
 
-Release: 1.0.0
+Release: 1.1.1
 
 Provider package
 ----------------
@@ -94,11 +94,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``opensearch-py``   ``>=2.2.0``
 ==================  ==================

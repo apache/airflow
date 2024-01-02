@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 from functools import lru_cache
 from typing import Any
@@ -23,7 +24,12 @@ from typing import Any
 import pytest
 from rich.console import Console
 
-from airflow_breeze.global_constants import COMMITTERS, GithubEvents
+from airflow_breeze.global_constants import (
+    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
+    COMMITTERS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    GithubEvents,
+)
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES, SelectiveChecks
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -153,6 +159,53 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "Always Operators",
                 },
                 id="Only Operator tests and DOCS should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow/operators/python.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
+                    "ExternalPython Operators PythonVenv",
+                },
+                id="Only Python tests",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow/serialization/python.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Always Serialization",
+                },
+                id="Only Serialization tests",
             )
         ),
         (
@@ -1490,3 +1543,37 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         )
     )
     assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "labels, expected_outputs,",
+    [
+        pytest.param(
+            (),
+            {
+                "providers-compatibility-checks": json.dumps(
+                    [
+                        check
+                        for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                        if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+                    ]
+                ),
+            },
+            id="Regular tests",
+        ),
+        pytest.param(
+            ("full tests needed",),
+            {"providers-compatibility-checks": json.dumps(BASE_PROVIDERS_COMPATIBILITY_CHECKS)},
+            id="full tests",
+        ),
+    ],
+)
+def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=labels,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))

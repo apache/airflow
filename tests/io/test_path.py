@@ -26,6 +26,7 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
 
+from airflow.io import _register_filesystems, get_fs
 from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
 from airflow.utils.module_loading import qualname
@@ -51,7 +52,18 @@ class FakeRemoteFileSystem(LocalFileSystem):
         return path[i + 3 :] if i > 0 else path
 
 
+def get_fs_no_storage_options(_: str):
+    return LocalFileSystem()
+
+
 class TestFs:
+    def setup_class(self):
+        self._store_cache = _STORE_CACHE.copy()
+
+    def teardown(self):
+        _STORE_CACHE.clear()
+        _STORE_CACHE.update(self._store_cache)
+
     def test_alias(self):
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
@@ -100,6 +112,19 @@ class TestFs:
 
         assert not o.exists()
 
+    @pytest.fixture()
+    def fake_fs(self):
+        fs = mock.Mock()
+        fs._strip_protocol.return_value = "/"
+        fs.conn_id = "fake"
+        return fs
+
+    def test_objectstoragepath_init_conn_id_in_uri(self, fake_fs):
+        fake_fs.stat.return_value = {"stat": "result"}
+        attach(protocol="fake", conn_id="fake", fs=fake_fs)
+        p = ObjectStoragePath("fake://fake@bucket/path")
+        assert p.stat() == {"stat": "result", "conn_id": "fake", "protocol": "fake"}
+
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
@@ -124,13 +149,9 @@ class TestFs:
             ),
         ],
     )
-    def test_standard_extended_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
-        _fs = mock.Mock()
-        _fs._strip_protocol.return_value = "/"
-        _fs.conn_id = "fake"
-
-        store = attach(protocol="mock", fs=_fs)
-        o = ObjectStoragePath(path, store=store)
+    def test_standard_extended_api(self, fake_fs, fn, args, fn2, path, expected_args, expected_kwargs):
+        store = attach(protocol="file", conn_id="fake", fs=fake_fs)
+        o = ObjectStoragePath(path, conn_id="fake")
 
         getattr(o, fn)(**args)
         getattr(store.fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)
@@ -239,12 +260,17 @@ class TestFs:
 
         o = ObjectStoragePath(path, my_setting="foo")
         s = o.serialize()
-        assert s["my_setting"] == "foo"
+        assert "my_setting" in s["kwargs"]
+        d = ObjectStoragePath.deserialize(s, 1)
+        assert o == d
 
         store = attach("filex", conn_id="mock")
         o = ObjectStoragePath(path, store=store)
         s = o.serialize()
-        assert s["store"] == store
+        assert s["kwargs"]["store"] == store
+
+        d = ObjectStoragePath.deserialize(s, 1)
+        assert o == d
 
     def test_serde_store(self):
         store = attach("file", conn_id="mock")
@@ -264,3 +290,19 @@ class TestFs:
         assert s["conn_id"] is None
         assert s["filesystem"] == qualname(LocalFileSystem)
         assert store == d
+
+    def test_backwards_compat(self):
+        _register_filesystems.cache_clear()
+        from airflow.io import _BUILTIN_SCHEME_TO_FS as SCHEMES
+
+        try:
+            SCHEMES["file"] = get_fs_no_storage_options  # type: ignore[call-arg]
+
+            assert get_fs("file")
+
+            with pytest.raises(AttributeError):
+                get_fs("file", storage_options={"foo": "bar"})
+
+        finally:
+            # Reset the cache to avoid side effects
+            _register_filesystems.cache_clear()

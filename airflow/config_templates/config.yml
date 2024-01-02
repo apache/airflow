@@ -63,7 +63,7 @@ core:
     executor:
       description: |
         The executor class that airflow should use. Choices include
-        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``DaskExecutor``,
+        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
         ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
         full import path to the class when using a custom executor.
       version_added: ~
@@ -76,7 +76,7 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
+      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -1855,6 +1855,13 @@ webserver:
       type: boolean
       example: "False"
       default: "False"
+    allowed_payload_size:
+      description: |
+        The maximum size of the request payload (in MB) that can be sent.
+      version_added: 2.8.1
+      type: float
+      example: ~
+      default: "1.0"
 email:
   description: |
     Configuration email backend and whether to
@@ -2142,6 +2149,14 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    scheduler_health_check_server_host:
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check on this host
+      version_added: 2.8.0
+      type: string
+      example: ~
+      default: "0.0.0.0"
     scheduler_health_check_server_port:
       description: |
         When you start a scheduler, airflow starts a tiny web server

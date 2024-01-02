@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import warnings
 from functools import cached_property
 
@@ -38,11 +37,6 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-
-def _parse_version(val):
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
-    return tuple(int(x) for x in match.groups())
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):

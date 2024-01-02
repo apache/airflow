@@ -122,7 +122,6 @@ class TestPythonPackages:
         ],
         "celery": ["celery", "flower", "vine"],
         "cncf.kubernetes": ["kubernetes", "cryptography"],
-        "dask": ["cloudpickle", "distributed"],
         "docker": ["docker"],
         "elasticsearch": ["elasticsearch"],
         "google": [

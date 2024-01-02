@@ -24,7 +24,6 @@ from airflow.serialization.serializers.timezone import (
     serialize as serialize_timezone,
 )
 from airflow.utils.module_loading import qualname
-from airflow.utils.timezone import convert_to_utc, is_naive
 
 if TYPE_CHECKING:
     import datetime
@@ -45,10 +44,8 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
     if isinstance(o, datetime):
         qn = qualname(o)
-        if is_naive(o):
-            o = convert_to_utc(o)
 
-        tz = serialize_timezone(o.tzinfo)
+        tz = serialize_timezone(o.tzinfo) if o.tzinfo else None
 
         return {TIMESTAMP: o.timestamp(), TIMEZONE: tz}, qn, __version__, True
 
@@ -83,7 +80,11 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
             else:
                 tz = timezone(data[TIMEZONE])
         else:
-            tz = deserialize_timezone(data[TIMEZONE][1], data[TIMEZONE][2], data[TIMEZONE][0])
+            tz = (
+                deserialize_timezone(data[TIMEZONE][1], data[TIMEZONE][2], data[TIMEZONE][0])
+                if data[TIMEZONE]
+                else None
+            )
 
     if classname == qualname(datetime.datetime) and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)

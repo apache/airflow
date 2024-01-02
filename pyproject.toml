@@ -75,6 +75,9 @@ extend-ignore = [
 
 namespace-packages = ["airflow/providers"]
 
+[tool.ruff.format]
+docstring-code-format = true
+
 [tool.pytest.ini_options]
 # * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
 # * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
@@ -140,6 +143,7 @@ combine-as-imports = true
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
+"scripts/ci/pre_commit/*.py" = ["E402"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]

@@ -21,9 +21,11 @@ name: Apache Beam
 description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
-suspended: false
-source-date-epoch: 1700148046
+state: ready
+source-date-epoch: 1703288103
 versions:
+  - 5.5.0
+  - 5.4.0
   - 5.3.0
   - 5.2.3
   - 5.2.2
@@ -49,7 +51,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-beam>=2.47.0
 
 integrations:

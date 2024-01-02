@@ -188,8 +188,8 @@ class GoogleBaseHook(BaseHook):
     conn_type = "google_cloud_platform"
     hook_name = "Google Cloud"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -221,8 +221,8 @@ class GoogleBaseHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -267,6 +267,8 @@ class GoogleBaseHook(BaseHook):
 
         if not self.impersonation_chain:
             self.impersonation_chain = self._get_field("impersonation_chain", None)
+            if isinstance(self.impersonation_chain, str) and "," in self.impersonation_chain:
+                self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
