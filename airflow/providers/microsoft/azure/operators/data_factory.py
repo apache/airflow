@@ -29,7 +29,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
-    PipelineRunInfo,
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
@@ -132,9 +131,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         *,
         pipeline_name: str,
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
+        resource_group_name: str,
+        factory_name: str,
         wait_for_termination: bool = True,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
         reference_pipeline_run_id: str | None = None,
         is_recovery: bool | None = None,
         start_activity_name: str | None = None,
@@ -168,9 +167,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
-            pipeline_name=self.pipeline_name,
-            resource_group_name=self.resource_group_name,
-            factory_name=self.factory_name,
+            self.pipeline_name,
+            self.resource_group_name,
+            self.factory_name,
             reference_pipeline_run_id=self.reference_pipeline_run_id,
             is_recovery=self.is_recovery,
             start_activity_name=self.start_activity_name,
@@ -188,12 +187,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
 
                 if self.hook.wait_for_pipeline_run_status(
-                    run_id=self.run_id,
-                    expected_statuses=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+                    self.run_id,
+                    AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+                    self.resource_group_name,
+                    self.factory_name,
                     check_interval=self.check_interval,
                     timeout=self.timeout,
-                    resource_group_name=self.resource_group_name,
-                    factory_name=self.factory_name,
                 ):
                     self.log.info("Pipeline run %s has completed successfully.", self.run_id)
                 else:
@@ -202,12 +201,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     )
             else:
                 end_time = time.time() + self.timeout
-                pipeline_run_info = PipelineRunInfo(
-                    run_id=self.run_id,
-                    factory_name=self.factory_name,
-                    resource_group_name=self.resource_group_name,
+                pipeline_run_status = self.hook.get_pipeline_run_status(
+                    self.run_id, self.resource_group_name, self.factory_name
                 )
-                pipeline_run_status = self.hook.get_pipeline_run_status(**pipeline_run_info)
                 if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
                     self.defer(
                         timeout=self.execution_timeout,

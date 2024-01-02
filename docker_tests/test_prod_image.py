@@ -19,9 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import tempfile
 from importlib.util import find_spec
-from pathlib import Path
 
 import pytest
 
@@ -38,7 +36,7 @@ from docker_tests.docker_tests_utils import (
 # isort:on (needed to workaround isort bug)
 from setup import PREINSTALLED_PROVIDERS
 
-INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
+INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "airflow" / "providers" / "installed_providers.txt"
 
 
 class TestCommands:
@@ -124,7 +122,6 @@ class TestPythonPackages:
         ],
         "celery": ["celery", "flower", "vine"],
         "cncf.kubernetes": ["kubernetes", "cryptography"],
-        "dask": ["cloudpickle", "distributed"],
         "docker": ["docker"],
         "elasticsearch": ["elasticsearch"],
         "google": [
@@ -196,27 +193,26 @@ class TestExecuteAsRoot:
             ]
         )
 
-    def test_run_custom_python_packages_as_root(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            (Path(tmp_dir) / "__init__.py").write_text("")
-            (Path(tmp_dir) / "awesome.py").write_text('print("Awesome")')
+    def test_run_custom_python_packages_as_root(self, tmp_path):
+        (tmp_path / "__init__.py").write_text("")
+        (tmp_path / "awesome.py").write_text('print("Awesome")')
 
-            run_command(
-                [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "-e",
-                    f"PYTHONPATH={tmp_dir}",
-                    "-e",
-                    "PYTHONDONTWRITEBYTECODE=true",
-                    "-v",
-                    f"{tmp_dir}:{tmp_dir}",
-                    "--user",
-                    "0",
-                    docker_image,
-                    "python",
-                    "-c",
-                    "import awesome",
-                ]
-            )
+        run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-e",
+                f"PYTHONPATH={tmp_path}",
+                "-e",
+                "PYTHONDONTWRITEBYTECODE=true",
+                "-v",
+                f"{tmp_path}:{tmp_path}",
+                "--user",
+                "0",
+                docker_image,
+                "python",
+                "-c",
+                "import awesome",
+            ]
+        )

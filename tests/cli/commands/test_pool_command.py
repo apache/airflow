@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 
@@ -29,6 +29,8 @@ from airflow.cli.commands import pool_command
 from airflow.models import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliPools:
@@ -54,7 +56,7 @@ class TestCliPools:
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
         assert "foo" in stdout.getvalue()

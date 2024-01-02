@@ -30,13 +30,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
-    from databricks.sql.types import Row
-
     from airflow.utils.context import Context
-
-
-def make_serializable(val: Row):
-    return tuple(val)
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -119,6 +113,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             "catalog": self.catalog,
             "schema": self.schema,
             "caller": "DatabricksSqlOperator",
+            "return_tuple": True,
             **self.client_parameters,
             **self.hook_params,
         }
@@ -129,7 +124,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:
-            return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
+            return list(zip(descriptions, results))
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
         # Output to a file only the result of last query
@@ -162,7 +157,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
+        return list(zip(descriptions, results))
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]
@@ -244,7 +239,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         validate: bool | int | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksSqlOperator``."""
+        """Create a new ``DatabricksSqlOperator``."""
         super().__init__(**kwargs)
         if files is not None and pattern is not None:
             raise AirflowException("Only one of 'pattern' or 'files' should be specified")
@@ -339,13 +334,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
             elif isinstance(self._validate, int):
                 if self._validate < 0:
                     raise AirflowException(
-                        "Number of rows for validation should be positive, got: " + str(self._validate)
+                        f"Number of rows for validation should be positive, got: {self._validate}"
                     )
                 validation = f"VALIDATE {self._validate} ROWS\n"
             else:
-                raise AirflowException(
-                    "Incorrect data type for validate parameter: " + str(type(self._validate))
-                )
+                raise AirflowException(f"Incorrect data type for validate parameter: {type(self._validate)}")
         # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
         sql = f"""COPY INTO {self._table_name}{storage_cred}
 FROM {location}

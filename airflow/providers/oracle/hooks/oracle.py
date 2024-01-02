@@ -193,9 +193,9 @@ class OracleHook(DbApiHook):
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
-                    dsn += ":" + str(conn.port)
+                    dsn += f":{conn.port}"
                 if service_name:
-                    dsn += "/" + service_name
+                    dsn += f"/{service_name}"
                 elif conn.schema:
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
@@ -203,7 +203,7 @@ class OracleHook(DbApiHook):
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    dsn += "/" + conn.schema
+                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
@@ -275,9 +275,9 @@ class OracleHook(DbApiHook):
         :param replace: Whether to replace instead of insert
         """
         try:
-            import numpy
+            import numpy as np
         except ImportError:
-            numpy = None  # type: ignore
+            np = None  # type: ignore
 
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -295,12 +295,10 @@ class OracleHook(DbApiHook):
             for cell in row:
                 if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
-                elif cell is None:
+                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append("NULL")
-                elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
-                    lst.append("NULL")
-                elif numpy and isinstance(cell, numpy.datetime64):
-                    lst.append("'" + str(cell) + "'")
+                elif np and isinstance(cell, np.datetime64):
+                    lst.append(f"'{cell}'")
                 elif isinstance(cell, datetime):
                     lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
                 else:
@@ -342,7 +340,7 @@ class OracleHook(DbApiHook):
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
-        values_base = target_fields if target_fields else rows[0]
+        values_base = target_fields or rows[0]
         prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
             columns="({})".format(", ".join(target_fields)) if target_fields else "",
@@ -374,7 +372,7 @@ class OracleHook(DbApiHook):
         identifier: str,
         autocommit: bool = False,
         parameters: list | dict | None = None,
-    ) -> list | dict | None:
+    ) -> list | dict | tuple | None:
         """
         Call the stored procedure identified by the provided string.
 

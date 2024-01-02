@@ -34,6 +34,8 @@ log = logging.getLogger(__name__)
 
 alphanum_lower = string.ascii_lowercase + string.digits
 
+POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value minus 1.
+
 
 def rand_str(num):
     """Generate random lowercase alphanumeric string of length num.
@@ -43,7 +45,7 @@ def rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
+def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
     """Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
@@ -59,15 +61,11 @@ def create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = POD_NAME_MAX_LENGTH,
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
-
-    The default of 80 for max length is somewhat arbitrary, mainly a balance between
-    content and not overwhelming terminal windows of reasonable width. The true
-    upper limit is 253, and this is enforced in construct_pod.
+    Generate unique pod ID given a dag_id and / or task_id.
 
     :param dag_id: DAG ID
     :param task_id: Task ID

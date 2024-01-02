@@ -21,7 +21,7 @@ import datetime
 
 import pendulum
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor

@@ -27,7 +27,7 @@ from google.cloud.orchestration.airflow.service_v1 import (
     ImageVersionsClient,
 )
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.operation_async import AsyncOperation
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.orchestration.airflow.service_v1.services.environments.pagers import (
         ListEnvironmentsPager,
     )
@@ -332,7 +333,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment: Environment | dict,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -361,7 +362,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -389,7 +390,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         environment_id: str,
         environment: Environment | dict,
         update_mask: dict | FieldMask,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:

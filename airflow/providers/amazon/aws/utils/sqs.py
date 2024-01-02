@@ -20,15 +20,19 @@ import json
 import logging
 from typing import Any
 
-from jsonpath_ng import parse
+import jsonpath_ng
+import jsonpath_ng.ext
 from typing_extensions import Literal
 
 log = logging.getLogger(__name__)
 
 
+MessageFilteringType = Literal["literal", "jsonpath", "jsonpath-ext"]
+
+
 def process_response(
     response: Any,
-    message_filtering: Literal["literal", "jsonpath"] | None = None,
+    message_filtering: MessageFilteringType | None = None,
     message_filtering_match_values: Any = None,
     message_filtering_config: Any = None,
 ) -> Any:
@@ -38,9 +42,7 @@ def process_response(
     :param response: The response from SQS
     :return: The processed response
     """
-    if not isinstance(response, dict):
-        return []
-    elif "Messages" not in response:
+    if not isinstance(response, dict) or "Messages" not in response:
         return []
 
     messages = response["Messages"]
@@ -62,7 +64,13 @@ def filter_messages(
     if message_filtering == "literal":
         return filter_messages_literal(messages, message_filtering_match_values)
     if message_filtering == "jsonpath":
-        return filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config)
+        return filter_messages_jsonpath(
+            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.parse
+        )
+    if message_filtering == "jsonpath-ext":
+        return filter_messages_jsonpath(
+            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.ext.parse
+        )
     else:
         raise NotImplementedError("Override this method to define custom filters")
 
@@ -71,7 +79,9 @@ def filter_messages_literal(messages, message_filtering_match_values) -> list[An
     return [message for message in messages if message["Body"] in message_filtering_match_values]
 
 
-def filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config) -> list[Any]:
+def filter_messages_jsonpath(
+    messages, message_filtering_match_values, message_filtering_config, parse
+) -> list[Any]:
     jsonpath_expr = parse(message_filtering_config)
     filtered_messages = []
     for message in messages:

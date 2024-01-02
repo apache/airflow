@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -74,15 +74,15 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
 
     def __init__(
         self,
-        job: Job | JobPydantic,
-        task_instance: TaskInstance,  # TODO add TaskInstancePydantic
+        job: Job,
+        task_instance: TaskInstance | TaskInstancePydantic,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -233,7 +233,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         else:
             self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode and not is_deferral:
+        if not (self.task_instance.test_mode or is_deferral):
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
@@ -285,7 +285,9 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
-                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                execution_time = (dagrun.end_date or timezone.utcnow()) - (
+                    dagrun.start_date or timezone.utcnow()
+                )
                 if ti.task.dag is not None:
                     dagrun_timeout = ti.task.dag.dagrun_timeout
                 else:

@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import functools
-import io
 import itertools
 import json
 import logging
@@ -34,6 +34,7 @@ from base64 import b64encode
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from io import StringIO
 from json.decoder import JSONDecodeError
 from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
@@ -309,7 +310,11 @@ class AirflowConfigParser(ConfigParser):
             for s, s_c in self.configuration_description.items()
             for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
-        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        sensitive = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("sensitive") is True
+        }
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
             (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
@@ -463,7 +468,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
-        ("logging", "celery_logging_level"): _available_logging_levels + [""],
+        ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
     }
 
@@ -712,7 +717,6 @@ class AirflowConfigParser(ConfigParser):
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
-        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -733,26 +737,6 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _validate_max_tis_per_query(self) -> None:
-        """
-        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-
-        If not met, a warning message is printed to guide the user to correct it.
-
-        More info: https://github.com/apache/airflow/pull/32572
-        """
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
-
-        if max_tis_per_query > parallelism:
-            warnings.warn(
-                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
-                f"should NOT be greater than core.parallelism (value: {parallelism}). "
-                "Will now use core.parallelism as the max task instances per query "
-                "instead of specified value.",
-                UserWarning,
-            )
 
     def _upgrade_auth_backends(self):
         """
@@ -1472,14 +1456,13 @@ class AirflowConfigParser(ConfigParser):
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
             for section, key in self.sensitive_config_values:
-                if not config_sources.get(section):
-                    continue
-                if config_sources[section].get(key, None):
-                    if display_source:
-                        source = config_sources[section][key][1]
-                        config_sources[section][key] = (hidden, source)
-                    else:
-                        config_sources[section][key] = hidden
+                if config_sources.get(section):
+                    if config_sources[section].get(key, None):
+                        if display_source:
+                            source = config_sources[section][key][1]
+                            config_sources[section][key] = (hidden, source)
+                        else:
+                            config_sources[section][key] = hidden
 
         return config_sources
 
@@ -1649,16 +1632,13 @@ class AirflowConfigParser(ConfigParser):
         configs: Iterable[tuple[str, ConfigParser]],
     ) -> bool:
         for config_type, config in configs:
-            if config_type == "default":
-                continue
-            try:
-                deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for key_candidate, _ in deprecated_section_array:
-                    if key_candidate == deprecated_key:
+            if config_type != "default":
+                with contextlib.suppress(NoSectionError):
+                    deprecated_section_array = config.items(section=deprecated_section, raw=True)
+                    if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-            except NoSectionError:
-                pass
-        return False
+        else:
+            return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
@@ -1791,7 +1771,7 @@ class AirflowConfigParser(ConfigParser):
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
-        with io.StringIO(unit_test_config) as test_config_file:
+        with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
         # set fernet key to a random value
         global FERNET_KEY
@@ -1854,8 +1834,8 @@ class AirflowConfigParser(ConfigParser):
                     raise AirflowConfigException(
                         f"The provider {provider} is attempting to contribute "
                         f"configuration section {provider_section} that "
-                        f"has already been added before. The source of it: {section_source}."
-                        "This is forbidden. A provider can only add new sections. It"
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
                         "cannot contribute options to existing sections or override other "
                         "provider's configuration.",
                         UserWarning,
@@ -1975,9 +1955,29 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    if not os.path.isfile(AIRFLOW_CONFIG):
-        log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+    airflow_config = pathlib.Path(AIRFLOW_CONFIG)
+    if airflow_config.is_dir():
+        msg = (
+            "Airflow config expected to be a path to the configuration file, "
+            f"but got a directory {airflow_config.__fspath__()!r}."
+        )
+        raise IsADirectoryError(msg)
+    elif not airflow_config.exists():
+        log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
+        config_directory = airflow_config.parent
+        if not config_directory.exists():
+            # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
+            try:
+                config_directory.relative_to(AIRFLOW_HOME)
+            except ValueError:
+                msg = (
+                    f"Config directory {config_directory.__fspath__()!r} not exists "
+                    f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
+                    "Please create this directory first."
+                )
+                raise FileNotFoundError(msg) from None
+            log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
+            config_directory.mkdir(parents=True, exist_ok=True)
         if conf.get("core", "fernet_key", fallback=None) is None:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
@@ -1985,7 +1985,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
-        with open(AIRFLOW_CONFIG, "w") as file:
+        with open(airflow_config, "w") as file:
             conf.write(
                 file,
                 include_sources=False,
@@ -1994,7 +1994,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(AIRFLOW_CONFIG)
+        make_group_other_inaccessible(airflow_config.__fspath__())
     return conf
 
 
@@ -2076,19 +2076,6 @@ def make_group_other_inaccessible(file_path: str):
             "Continuing with original permissions: %s",
             e,
         )
-
-
-# Historical convenience functions to access config entries
-def load_test_config():
-    """Historical load_test_config."""
-    warnings.warn(
-        "Accessing configuration method 'load_test_config' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.load_test_config'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.load_test_config()
 
 
 def get(*args, **kwargs) -> ConfigType | None:

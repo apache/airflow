@@ -199,7 +199,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             else:
                 message = (
                     "FlushAction not found in the data. Please check the FlushAction in "
-                    "the operator. Converted Rows with Action: " + str(converted_rows_with_action)
+                    f"the operator. Converted Rows with Action: {converted_rows_with_action}"
                 )
                 raise AirflowException(message)
         return total_data_count
@@ -226,7 +226,5 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _transform_object_name_with_account_id(self, account_id: str):
         directory_parts = self.object_name.split("/")
-        directory_parts[len(directory_parts) - 1] = (
-            account_id + "_" + directory_parts[len(directory_parts) - 1]
-        )
+        directory_parts[-1] = f"{account_id}_{directory_parts[-1]}"
         return "/".join(directory_parts)

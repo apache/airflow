@@ -20,8 +20,8 @@ import inspect
 import json
 import logging
 import os
-from os.path import basename, splitext
-from time import sleep
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -40,7 +40,7 @@ ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
 DEFAULT_ENV_ID_PREFIX: str = "env"
 DEFAULT_ENV_ID_LEN: int = 8
-DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}"
+DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain this string.
@@ -70,7 +70,7 @@ def _get_test_name() -> str:
     test_filename: str = next(
         frame.filename for frame in inspect.stack() if TEST_FILE_IDENTIFIER in frame.filename
     )
-    return splitext(basename(test_filename))[0]
+    return Path(test_filename).stem
 
 
 def _validate_env_id(env_id: str) -> str:
@@ -97,7 +97,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    _test_name: str = test_name if test_name else _get_test_name()
+    _test_name: str = test_name or _get_test_name()
     hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
@@ -106,6 +106,8 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
+    except ClientError as e:
+        log.info("Client error when connecting to SSM: %s", e)
     except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
@@ -129,6 +131,7 @@ class Variable:
         to_split: bool = False,
         delimiter: str | None = None,
         test_name: str | None = None,
+        optional: bool = False,
     ):
         self.name = name
         self.test_name = test_name
@@ -138,6 +141,8 @@ class Variable:
         elif delimiter:
             raise ValueError(f"Variable {name} has a delimiter but split_string is set to False.")
 
+        self.optional = optional
+
     def get_value(self):
         if hasattr(self, "default_value"):
             return self._format_value(
@@ -145,10 +150,13 @@ class Variable:
                     key=self.name,
                     default_value=self.default_value,
                     test_name=self.test_name,
+                    optional=self.optional,
                 )
             )
 
-        return self._format_value(fetch_variable(key=self.name, test_name=self.test_name))
+        return self._format_value(
+            fetch_variable(key=self.name, test_name=self.test_name, optional=self.optional)
+        )
 
     def set_default(self, default):
         # Since 'None' is a potentially valid "default" value, we are only creating this
@@ -157,7 +165,7 @@ class Variable:
 
     def _format_value(self, value):
         if self.to_split:
-            if type(value) is not str:
+            if not isinstance(value, str):
                 raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
             return value.split(self.delimiter)
         return value
@@ -180,6 +188,7 @@ class SystemTestContextBuilder:
         variable_name: str,
         split_string: bool = False,
         delimiter: str | None = None,
+        optional: bool = False,
         **kwargs,
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
@@ -191,6 +200,7 @@ class SystemTestContextBuilder:
             to_split=split_string,
             delimiter=delimiter,
             test_name=self.test_name,
+            optional=optional,
         )
 
         # default_value is accepted via kwargs so that it is completely optional and no
@@ -218,7 +228,12 @@ class SystemTestContextBuilder:
         return variable_fetcher
 
 
-def fetch_variable(key: str, default_value: str | None = None, test_name: str | None = None) -> str:
+def fetch_variable(
+    key: str,
+    default_value: str | None = None,
+    test_name: str | None = None,
+    optional: bool = False,
+) -> str | None:
     """
     Given a Parameter name: first check for an existing Environment Variable,
     then check SSM for a value. If neither are available, fall back on the
@@ -227,11 +242,13 @@ def fetch_variable(key: str, default_value: str | None = None, test_name: str | 
     :param key: The name of the Parameter to fetch a value for.
     :param default_value: The default value to use if no value can be found.
     :param test_name: The system test name.
+    :param optional: Whether the variable is optional. If True, does not raise `ValueError` if variable
+        does not exist
     :return: The value of the parameter.
     """
 
     value: str | None = os.getenv(key, _fetch_from_ssm(key, test_name)) or default_value
-    if not value:
+    if not optional and not value:
         raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
 
@@ -247,7 +264,7 @@ def set_env_id() -> str:
 
     :return: A valid System Test Environment ID.
     """
-    env_id: str = fetch_variable(ENV_ID_ENVIRON_KEY, DEFAULT_ENV_ID)
+    env_id: str = str(fetch_variable(ENV_ID_ENVIRON_KEY, DEFAULT_ENV_ID))
     env_id = _validate_env_id(env_id)
 
     os.environ[ENV_ID_ENVIRON_KEY] = env_id
@@ -331,7 +348,7 @@ def _purge_logs(
             if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise e
 
-            sleep(PURGE_LOGS_INTERVAL_PERIOD)
+            time.sleep(PURGE_LOGS_INTERVAL_PERIOD)
             _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,

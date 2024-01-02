@@ -19,9 +19,9 @@ from __future__ import annotations
 import contextlib
 import os
 
-import pytest as pytest
+import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator
@@ -36,6 +36,9 @@ from tests.listeners import (
     throwing_listener,
 )
 from tests.utils.test_helpers import MockJobRunner
+
+pytestmark = pytest.mark.db_test
+
 
 LISTENERS = [
     class_listener,

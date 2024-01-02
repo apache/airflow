@@ -260,7 +260,10 @@ class TestInternalApiCall:
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
                 "fake_class_method_with_serialized_params",
-                "params": json.dumps(BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True)),
+                "params": json.dumps(
+                    BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
+                    default=BaseSerialization.serialize,
+                ),
             }
         )
         mock_requests.post.assert_called_once_with(

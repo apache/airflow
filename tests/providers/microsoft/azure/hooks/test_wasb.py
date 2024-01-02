@@ -20,12 +20,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient
 from azure.storage.blob._models import BlobProperties
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+pytestmark = pytest.mark.db_test
+
 
 # connection_string has a format
 CONN_STRING = (
@@ -44,7 +48,7 @@ def mocked_blob_service_client():
 
 @pytest.fixture
 def mocked_default_azure_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.DefaultAzureCredential") as m:
+    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_sync_default_azure_credential") as m:
         yield m
 
 
@@ -184,6 +188,7 @@ class TestWasbHook:
         )
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
+        assert mocked_default_azure_credential.called_with(None, None)
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
         mocked_blob_service_client.assert_called_once_with(
@@ -196,9 +201,9 @@ class TestWasbHook:
         mocked_client_secret_credential.return_value = "spam-egg"
         WasbHook(wasb_conn_id=self.ad_conn_id).get_conn()
         mocked_client_secret_credential.assert_called_once_with(
-            "token",
-            "appID",
-            "appsecret",
+            tenant_id="token",
+            client_id="appID",
+            client_secret="appsecret",
             proxies=self.client_secret_auth_config["proxies"],
             connection_verify=self.client_secret_auth_config["connection_verify"],
             authority=self.client_secret_auth_config["authority"],
@@ -513,6 +518,26 @@ class TestWasbHook:
         mocked_container_client = mocked_blob_service_client.return_value.get_container_client
         mocked_container_client.assert_called_once_with("mycontainer")
         mocked_container_client.return_value.delete_container.assert_called()
+
+    @pytest.mark.parametrize("exc", [ValueError, RuntimeError])
+    def test_delete_container_generic_exception(self, exc: type[Exception], caplog):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with mock.patch.object(WasbHook, "_get_container_client") as m:
+            m.return_value.delete_container.side_effect = exc("FakeException")
+            caplog.clear()
+            caplog.set_level("ERROR")
+            with pytest.raises(exc, match="FakeException"):
+                hook.delete_container("mycontainer")
+            assert "Error deleting container: mycontainer" in caplog.text
+
+    def test_delete_container_resource_not_found(self, caplog):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with mock.patch.object(WasbHook, "_get_container_client") as m:
+            m.return_value.delete_container.side_effect = ResourceNotFoundError("FakeException")
+            caplog.clear()
+            caplog.set_level("WARNING")
+            hook.delete_container("mycontainer")
+            assert "Unable to delete container mycontainer (not found)" in caplog.text
 
     @mock.patch.object(WasbHook, "delete_blobs")
     def test_delete_single_blob(self, delete_blobs, mocked_blob_service_client):

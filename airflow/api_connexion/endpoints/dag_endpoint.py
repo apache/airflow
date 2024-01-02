@@ -36,10 +36,10 @@ from airflow.api_connexion.schemas.dag_schema import (
 )
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+@security.requires_access_dag("GET")
 @provide_session
 def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
@@ -60,16 +60,22 @@ def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     return dag_schema.dump(dag)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-def get_dag_details(*, dag_id: str) -> APIResponse:
+@security.requires_access_dag("GET")
+@provide_session
+def get_dag_details(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    return dag_detail_schema.dump(dag)
+    dag_model: DagModel = session.get(DagModel, dag_id)
+    for key, value in dag.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag_model, key):
+            setattr(dag_model, key, value)
+
+    return dag_detail_schema.dump(dag_model)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+@security.requires_access_dag("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_dags(
@@ -96,7 +102,7 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
-    readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+    readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
@@ -110,7 +116,7 @@ def get_dags(
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
+@security.requires_access_dag("PUT")
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG."""
@@ -132,7 +138,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     return dag_schema.dump(dag)
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
+@security.requires_access_dag("PUT")
 @format_parameters({"limit": check_limit})
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
@@ -156,7 +162,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
     dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
-    editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
+    editable_dags = get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:
@@ -180,7 +186,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
+@security.requires_access_dag("DELETE")
 @provide_session
 def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete the specific DAG."""

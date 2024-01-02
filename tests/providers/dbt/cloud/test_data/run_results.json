@@ -1,0 +1,154 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/run-results/v4.json",
+    "dbt_version": "1.6.1"
+  },
+  "results": [
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.061318Z",
+          "completed_at": "2022-11-10T20:23:55.066469Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.067332Z",
+          "completed_at": "2022-11-10T20:23:55.067368Z"
+        }
+      ],
+      "thread_id": "Thread-16",
+      "execution_time": 0.007695436477661133,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.test_project.my_first_dbt_model"
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.075404Z",
+          "completed_at": "2022-11-10T20:23:55.102157Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.103605Z",
+          "completed_at": "2022-11-10T20:23:55.103618Z"
+        }
+      ],
+      "thread_id": "Thread-18",
+      "execution_time": 0.03279566764831543,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.test_project.my_second_dbt_model"
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.075681Z",
+          "completed_at": "2022-11-10T20:23:55.102916Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.105501Z",
+          "completed_at": "2022-11-10T20:23:55.105512Z"
+        }
+      ],
+      "thread_id": "Thread-19",
+      "execution_time": 0.03431868553161621,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710"
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.075951Z",
+          "completed_at": "2022-11-10T20:23:55.103289Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.105848Z",
+          "completed_at": "2022-11-10T20:23:55.105858Z"
+        }
+      ],
+      "thread_id": "Thread-17",
+      "execution_time": 0.034601449966430664,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.test_project.unique_my_first_dbt_model_id.16e066b321"
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.111466Z",
+          "completed_at": "2022-11-10T20:23:55.123722Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.124982Z",
+          "completed_at": "2022-11-10T20:23:55.124996Z"
+        }
+      ],
+      "thread_id": "Thread-16",
+      "execution_time": 0.017064332962036133,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.test_project.not_null_my_second_dbt_model_id.151b76d778"
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2022-11-10T20:23:55.111892Z",
+          "completed_at": "2022-11-10T20:23:55.124020Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2022-11-10T20:23:55.125291Z",
+          "completed_at": "2022-11-10T20:23:55.125302Z"
+        }
+      ],
+      "thread_id": "Thread-18",
+      "execution_time": 0.016690731048583984,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.test_project.unique_my_second_dbt_model_id.57a0f8c493"
+    }
+  ],
+  "elapsed_time": 0.8126888275146484,
+  "args": {
+    "write_json": true,
+    "use_colors": true,
+    "printer_width": 80,
+    "version_check": true,
+    "partial_parse": true,
+    "static_parser": true,
+    "profiles_dir": "/tmp/jobs/96031646/.dbt",
+    "send_anonymous_usage_stats": true,
+    "event_buffer_size": 100000,
+    "quiet": false,
+    "no_print": false,
+    "profile": "user",
+    "target": "test",
+    "compile": true,
+    "which": "run",
+    "rpc_method": "docs.generate",
+    "indirect_selection": "eager"
+  }
+}

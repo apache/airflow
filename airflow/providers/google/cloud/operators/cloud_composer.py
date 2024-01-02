@@ -24,8 +24,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -112,7 +112,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
     :param metadata: Strings which should be sent along with the request as metadata.
     :param deferrable: Run operator in the deferrable mode
     :param pooling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
-        By default the trigger will poll every 30 seconds.
+        By default, the trigger will poll every 30 seconds.
     """
 
     template_fields = (

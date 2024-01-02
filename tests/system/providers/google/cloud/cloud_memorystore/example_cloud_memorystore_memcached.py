@@ -17,6 +17,11 @@
 # under the License.
 """
 Example Airflow DAG for Google Cloud Memorystore Memcached service.
+
+This DAG relies on the following OS environment variables
+
+* AIRFLOW__API__GOOGLE_KEY_PATH - Path to service account key file. Note, you can skip this variable if you
+  run this DAG in a Composer environment.
 """
 from __future__ import annotations
 
@@ -25,7 +30,8 @@ from datetime import datetime
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
+from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreMemcachedApplyParametersOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
@@ -54,14 +60,64 @@ MEMCACHED_INSTANCE = {
 }
 # [END howto_operator_memcached_instance]
 
+IP_RANGE_NAME = f"ip-range-{DAG_ID}-{ENV_ID}".replace("_", "-")
+NETWORK = "default"
+CREATE_PRIVATE_CONNECTION_CMD = f"""
+if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
+ gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
+fi;
+if [[ $(gcloud compute addresses list --project={PROJECT_ID} --filter="name=('{IP_RANGE_NAME}')") ]]; then \
+  echo "The IP range '{IP_RANGE_NAME}' already exists in the project '{PROJECT_ID}'."; \
+else \
+  echo "  Creating IP range..."; \
+  gcloud compute addresses create "{IP_RANGE_NAME}" \
+    --global \
+    --purpose=VPC_PEERING \
+    --prefix-length=16 \
+    --description="IP range for Memorystore system tests" \
+    --network={NETWORK} \
+    --project={PROJECT_ID}; \
+  echo "Done."; \
+fi;
+if [[ $(gcloud services vpc-peerings list --network={NETWORK} --project={PROJECT_ID}) ]]; then \
+  echo "The private connection already exists in the project '{PROJECT_ID}'."; \
+else \
+  echo "  Creating private connection..."; \
+  gcloud services vpc-peerings connect \
+    --service=servicenetworking.googleapis.com \
+    --ranges={IP_RANGE_NAME} \
+    --network={NETWORK} \
+    --project={PROJECT_ID}; \
+  echo "Done."; \
+fi;
+if [[ $(gcloud services vpc-peerings list \
+        --network={NETWORK} \
+        --project={PROJECT_ID} \
+        --format="value(reservedPeeringRanges)" | grep {IP_RANGE_NAME}) ]]; then \
+  echo "Private service connection configured."; \
+else \
+  echo "  Updating service private connection..."; \
+  gcloud services vpc-peerings update \
+    --service=servicenetworking.googleapis.com \
+    --ranges={IP_RANGE_NAME} \
+    --network={NETWORK} \
+    --project={PROJECT_ID} \
+    --force; \
+fi;
+"""
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
+    create_private_service_connection = BashOperator(
+        task_id="create_private_service_connection",
+        bash_command=CREATE_PRIVATE_CONNECTION_CMD,
+    )
+
     # [START howto_operator_create_instance_memcached]
     create_memcached_instance = CloudMemorystoreMemcachedCreateInstanceOperator(
         task_id="create-instance",
@@ -129,7 +185,8 @@ with models.DAG(
     # [END howto_operator_update_and_apply_parameters_memcached]
 
     (
-        create_memcached_instance
+        create_private_service_connection
+        >> create_memcached_instance
         >> get_memcached_instance
         >> list_memcached_instances
         >> update_memcached_instance

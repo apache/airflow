@@ -53,7 +53,6 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         rel_path = Path(item.fspath).relative_to(rootdir)
         match = re.match(".+/system/providers/([^/]+)", str(rel_path))
-        if not match:
-            continue
-        provider = match.group(1)
-        item.add_marker(pytest.mark.system(provider))
+        if match:
+            provider = match.group(1)
+            item.add_marker(pytest.mark.system(provider))

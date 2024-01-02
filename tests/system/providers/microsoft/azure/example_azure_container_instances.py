@@ -28,6 +28,9 @@ from airflow.providers.microsoft.azure.operators.container_instances import Azur
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "aci_example"
+CONTAINER_REGISTRY_SERVER = os.environ.get("CONTAINER_REGISTRY_SERVER")
+AZURE_VOLUME_SHARE_NAME = os.environ.get("AZURE_VOLUME_SHARE_NAME")
+AZURE_STORAGE_ACOOUNT = os.environ.get("AZURE_STORAGE_ACOOUNT")
 
 with DAG(
     dag_id=DAG_ID,
@@ -37,7 +40,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     t1 = AzureContainerInstancesOperator(
         ci_conn_id="azure_default",
         registry_conn_id=None,
@@ -52,7 +54,41 @@ with DAG(
         task_id="start_container",
     )
 
+    t2 = AzureContainerInstancesOperator(
+        ci_conn_id="azure_default",
+        registry_conn_id=None,
+        resource_group="resource-group",
+        name="aci-test-{{ ds }}",
+        image=f"{CONTAINER_REGISTRY_SERVER}:hello-world",
+        region="WestUS2",
+        environment_variables={},
+        volumes=[],
+        memory_in_gb=4.0,
+        cpu=1.0,
+        task_id="start_container_with_custom_container_registry",
+    )
 
+    t3 = AzureContainerInstancesOperator(
+        ci_conn_id="azure_default",
+        registry_conn_id=None,
+        resource_group="resource-group",
+        name="aci-test-{{ ds }}",
+        image="hello-world",
+        region="WestUS2",
+        environment_variables={},
+        volumes=[
+            (
+                "azure_container_volume_default",
+                AZURE_STORAGE_ACOOUNT,
+                AZURE_VOLUME_SHARE_NAME,
+                "/home",
+                True,
+            )
+        ],
+        memory_in_gb=4.0,
+        cpu=1.0,
+        task_id="start_container_with_azure_container_volume",
+    )
 from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)

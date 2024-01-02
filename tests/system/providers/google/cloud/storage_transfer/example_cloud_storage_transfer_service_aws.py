@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 
 from pydantic.main import deepcopy
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
@@ -100,7 +100,7 @@ aws_to_gcs_transfer_body = {
 aws_to_gcs_transfer_body_2 = deepcopy(aws_to_gcs_transfer_body)
 aws_to_gcs_transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -113,7 +113,7 @@ with models.DAG(
     upload_file_to_s3 = GCSToS3Operator(
         task_id="upload_file_to_s3",
         gcp_user_project=GCP_PROJECT_ID,
-        bucket=EXAMPLE_BUCKET,
+        gcs_bucket=EXAMPLE_BUCKET,
         prefix=EXAMPLE_FILE,
         dest_s3_key=f"s3://{BUCKET_SOURCE_AWS}",
         replace=True,

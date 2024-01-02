@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
-from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
@@ -40,104 +38,106 @@ NAME = "NAME"
 INPUT = "{}"
 
 
+@pytest.fixture
+def mocked_context():
+    return mock.MagicMock(name="FakeContext")
+
+
 class TestStepFunctionGetExecutionOutputOperator:
     TASK_ID = "step_function_get_execution_output"
 
-    def setup_method(self):
-        self.mock_context = MagicMock()
-
     def test_init(self):
-        # Given / When
-        operator = StepFunctionGetExecutionOutputOperator(
+        op = StepFunctionGetExecutionOutputOperator(
             task_id=self.TASK_ID,
             execution_arn=EXECUTION_ARN,
             aws_conn_id=AWS_CONN_ID,
             region_name=REGION_NAME,
+            verify="/spam/egg.pem",
+            botocore_config={"read_timeout": 42},
         )
+        assert op.execution_arn == EXECUTION_ARN
+        assert op.hook.aws_conn_id == AWS_CONN_ID
+        assert op.hook._region_name == REGION_NAME
+        assert op.hook._verify == "/spam/egg.pem"
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
 
-        # Then
-        assert self.TASK_ID == operator.task_id
-        assert EXECUTION_ARN == operator.execution_arn
-        assert AWS_CONN_ID == operator.aws_conn_id
-        assert REGION_NAME == operator.region_name
+        op = StepFunctionGetExecutionOutputOperator(task_id=self.TASK_ID, execution_arn=EXECUTION_ARN)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
 
-    @mock.patch("airflow.providers.amazon.aws.operators.step_function.StepFunctionHook")
-    @pytest.mark.parametrize("response", ["output", "error"])
-    def test_execute(self, mock_hook, response):
-        # Given
-        hook_response = {response: "{}"}
-
-        hook_instance = mock_hook.return_value
-        hook_instance.describe_execution.return_value = hook_response
-
-        operator = StepFunctionGetExecutionOutputOperator(
+    @mock.patch.object(StepFunctionGetExecutionOutputOperator, "hook")
+    @pytest.mark.parametrize(
+        "response, expected_output",
+        [
+            pytest.param({"output": '{"foo": "bar"}'}, {"foo": "bar"}, id="output"),
+            pytest.param({"error": '{"spam": "egg"}'}, {"spam": "egg"}, id="error"),
+            pytest.param({"other": '{"baz": "qux"}'}, None, id="other"),
+        ],
+    )
+    def test_execute(self, mocked_hook, mocked_context, response, expected_output):
+        mocked_hook.describe_execution.return_value = response
+        op = StepFunctionGetExecutionOutputOperator(
             task_id=self.TASK_ID,
             execution_arn=EXECUTION_ARN,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME,
+            aws_conn_id=None,
         )
-
-        # When
-        result = operator.execute(self.mock_context)
-
-        # Then
-        assert {} == result
+        assert op.execute(mocked_context) == expected_output
+        mocked_hook.describe_execution.assert_called_once_with(EXECUTION_ARN)
 
 
 class TestStepFunctionStartExecutionOperator:
     TASK_ID = "step_function_start_execution_task"
 
-    def setup_method(self):
-        self.mock_context = MagicMock()
-
     def test_init(self):
-        # Given / When
-        operator = StepFunctionStartExecutionOperator(
+        op = StepFunctionStartExecutionOperator(
             task_id=self.TASK_ID,
             state_machine_arn=STATE_MACHINE_ARN,
             name=NAME,
             state_machine_input=INPUT,
             aws_conn_id=AWS_CONN_ID,
             region_name=REGION_NAME,
+            verify=False,
+            botocore_config={"read_timeout": 42},
         )
+        assert op.state_machine_arn == STATE_MACHINE_ARN
+        assert op.state_machine_arn == STATE_MACHINE_ARN
+        assert op.name == NAME
+        assert op.input == INPUT
+        assert op.hook.aws_conn_id == AWS_CONN_ID
+        assert op.hook._region_name == REGION_NAME
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
 
-        # Then
-        assert self.TASK_ID == operator.task_id
-        assert STATE_MACHINE_ARN == operator.state_machine_arn
-        assert NAME == operator.name
-        assert INPUT == operator.input
-        assert AWS_CONN_ID == operator.aws_conn_id
-        assert REGION_NAME == operator.region_name
+        op = StepFunctionStartExecutionOperator(task_id=self.TASK_ID, state_machine_arn=STATE_MACHINE_ARN)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
 
-    @mock.patch("airflow.providers.amazon.aws.operators.step_function.StepFunctionHook")
-    def test_execute(self, mock_hook):
-        # Given
+    @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
+    def test_execute(self, mocked_hook, mocked_context):
         hook_response = (
             "arn:aws:states:us-east-1:123456789012:execution:"
             "pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934"
         )
-
-        hook_instance = mock_hook.return_value
-        hook_instance.start_execution.return_value = hook_response
-
-        operator = StepFunctionStartExecutionOperator(
+        mocked_hook.start_execution.return_value = hook_response
+        op = StepFunctionStartExecutionOperator(
             task_id=self.TASK_ID,
             state_machine_arn=STATE_MACHINE_ARN,
             name=NAME,
             state_machine_input=INPUT,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME,
+            aws_conn_id=None,
         )
+        assert op.execute(mocked_context) == hook_response
+        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT)
 
-        # When
-        result = operator.execute(self.mock_context)
-
-        # Then
-        assert hook_response == result
-
-    @mock.patch.object(StepFunctionHook, "start_execution")
-    def test_step_function_start_execution_deferrable(self, mock_start_execution):
-        mock_start_execution.return_value = "test-execution-arn"
+    @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
+    def test_step_function_start_execution_deferrable(self, mocked_hook):
+        mocked_hook.start_execution.return_value = "test-execution-arn"
         operator = StepFunctionStartExecutionOperator(
             task_id=self.TASK_ID,
             state_machine_arn=STATE_MACHINE_ARN,
@@ -149,3 +149,14 @@ class TestStepFunctionStartExecutionOperator:
         )
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT)
+
+    @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
+    @pytest.mark.parametrize("execution_arn", [pytest.param(None, id="none"), pytest.param("", id="empty")])
+    def test_step_function_no_execution_arn_returns(self, mocked_hook, execution_arn):
+        mocked_hook.start_execution.return_value = execution_arn
+        op = StepFunctionStartExecutionOperator(
+            task_id=self.TASK_ID, state_machine_arn=STATE_MACHINE_ARN, aws_conn_id=None
+        )
+        with pytest.raises(AirflowException, match="Failed to start State Machine execution"):
+            op.execute({})

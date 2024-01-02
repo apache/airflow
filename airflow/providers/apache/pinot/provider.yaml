@@ -21,8 +21,12 @@ name: Apache Pinot
 description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288114
 versions:
+  - 4.3.0
+  - 4.2.0
+  - 4.1.4
   - 4.1.3
   - 4.1.2
   - 4.1.1
@@ -42,7 +46,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.3.1
   - pinotdb>0.4.7
 

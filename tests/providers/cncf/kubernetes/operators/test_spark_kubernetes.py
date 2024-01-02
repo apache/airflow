@@ -22,13 +22,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil import tz
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
 def test_spark_kubernetes_operator(mock_kubernetes_hook):
-    SparkKubernetesOperator(
+    operator = SparkKubernetesOperator(
         task_id="task_id",
         application_file="application_file",
         kubernetes_conn_id="kubernetes_conn_id",
@@ -36,8 +36,23 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook):
         cluster_context="cluster_context",
         config_file="config_file",
     )
+    mock_kubernetes_hook.assert_not_called()  # constructor shouldn't call the hook
 
-    mock_kubernetes_hook.assert_called_once_with(
+    assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_spark_kubernetes_operator_hook(mock_kubernetes_hook):
+    operator = SparkKubernetesOperator(
+        task_id="task_id",
+        application_file="application_file",
+        kubernetes_conn_id="kubernetes_conn_id",
+        in_cluster=True,
+        cluster_context="cluster_context",
+        config_file="config_file",
+    )
+    operator.hook
+    mock_kubernetes_hook.assert_called_with(
         conn_id="kubernetes_conn_id",
         in_cluster=True,
         cluster_context="cluster_context",
@@ -155,4 +170,36 @@ def test_on_kill(mock_kubernetes_hook, mock_load_body_to_dict):
         plural="sparkapplications",
         namespace="default",
         name="spark-app",
+    )
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_execute_with_application_file_dict(mock_kubernetes_hook):
+    op = SparkKubernetesOperator(task_id="task_id", application_file={"metadata": {"name": "spark-app"}})
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    op.execute({})
+
+    mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        body={"metadata": {"name": "spark-app"}},
+        namespace="default",
+    )
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_on_kill_with_application_file_dict(mock_kubernetes_hook):
+    op = SparkKubernetesOperator(task_id="task_id", application_file={"metadata": {"name": "spark-app"}})
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    op.on_kill()
+
+    mock_kubernetes_hook.return_value.delete_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        name="spark-app",
+        namespace="default",
     )

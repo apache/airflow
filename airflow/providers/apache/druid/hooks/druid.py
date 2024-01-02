@@ -61,7 +61,6 @@ class DruidHook(BaseHook):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
-
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
@@ -156,6 +155,10 @@ class DruidDbApiHook(DbApiHook):
 
     This hook is purely for users to query druid broker.
     For ingestion, please use druidHook.
+
+    :param context: Optional query context parameters to pass to the SQL endpoint.
+        Example: ``{"sqlFinalizeOuterSketches": True}``
+        See: https://druid.apache.org/docs/latest/querying/sql-query-context/
     """
 
     conn_name_attr = "druid_broker_conn_id"
@@ -163,6 +166,10 @@ class DruidDbApiHook(DbApiHook):
     conn_type = "druid"
     hook_name = "Druid"
     supports_autocommit = False
+
+    def __init__(self, context: dict | None = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.context = context or {}
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
@@ -174,6 +181,7 @@ class DruidDbApiHook(DbApiHook):
             scheme=conn.extra_dejson.get("schema", "http"),
             user=conn.login,
             password=conn.password,
+            context=self.context,
         )
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn

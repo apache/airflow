@@ -23,7 +23,7 @@ Best Practices
 Creating a new DAG is a three-step process:
 
 - writing Python code to create a DAG object,
-- testing if the code meets our expectations,
+- testing if the code meets your expectations,
 - configuring environment dependencies to run your DAG
 
 This tutorial will introduce you to the best practices for these three steps.
@@ -215,14 +215,13 @@ Imagine this code:
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,
           dag=dag,
       )
 
-What you can do check it, add to your code you want to check some print statements and run
+What you can do to check it is add some print statements to the code you want to check and then run
 ``python <my_dag_file>.py``.
 
 
@@ -250,7 +249,6 @@ What you can do check it, add to your code you want to check some print statemen
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,

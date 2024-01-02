@@ -1049,15 +1049,6 @@ __deprecated_classes = {
             "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator"
         ),
     },
-    "qubole_check_operator": {
-        "QuboleCheckOperator": "airflow.providers.qubole.operators.qubole_check.QuboleCheckOperator",
-        "QuboleValueCheckOperator": (
-            "airflow.providers.qubole.operators.qubole_check.QuboleValueCheckOperator"
-        ),
-    },
-    "qubole_operator": {
-        "QuboleOperator": "airflow.providers.qubole.operators.qubole.QuboleOperator",
-    },
     "redis_publish_operator": {
         "RedisPublishOperator": "airflow.providers.redis.operators.redis_publish.RedisPublishOperator",
     },
@@ -1107,9 +1098,6 @@ __deprecated_classes = {
         "BaseSQLToGoogleCloudStorageOperator": (
             "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator"
         ),
-    },
-    "sqoop_operator": {
-        "SqoopOperator": "airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator",
     },
     "ssh_operator": {
         "SSHOperator": "airflow.providers.ssh.operators.ssh.SSHOperator",

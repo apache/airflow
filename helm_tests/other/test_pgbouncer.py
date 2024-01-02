@@ -116,8 +116,19 @@ class TestPgbouncer:
             values=values,
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -476,7 +487,7 @@ class TestPgbouncerConfig:
         }
         ini = self._get_pgbouncer_ini(values)
 
-        assert "auth_type = md5" in ini
+        assert "auth_type = scram-sha-256" in ini
         assert "auth_file = /etc/pgbouncer/users.txt" in ini
 
     def test_auth_type_file_overrides(self):
@@ -689,7 +700,7 @@ class TestPgBouncerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "pgbouncer": {
@@ -806,7 +817,6 @@ class TestPgbouncerNetworkPolicy:
         ],
     )
     def test_pgbouncer_network_policy_with_keda(self, conf, expected_selector):
-
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},

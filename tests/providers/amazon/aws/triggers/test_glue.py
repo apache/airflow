@@ -21,11 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger, GlueJobCompleteTrigger
-from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 
 class TestGlueJobTrigger:
@@ -46,7 +45,7 @@ class TestGlueJobTrigger:
         ]
 
         generator = trigger.run()
-        event = await generator.asend(None)
+        event = await generator.asend(None)  # type:ignore[attr-defined]
 
         assert get_state_mock.call_count == 3
         assert event.payload["status"] == "success"
@@ -68,49 +67,12 @@ class TestGlueJobTrigger:
         ]
 
         with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+            await trigger.run().asend(None)  # type:ignore[attr-defined]
 
         assert get_state_mock.call_count == 3
 
 
-class TestGlueCrawlerTrigger:
-    def test_serialize_recreate(self):
-        trigger = GlueCrawlerCompleteTrigger(
-            crawler_name="my_crawler", waiter_delay=2, aws_conn_id="my_conn_id"
-        )
-
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
-
-
 class TestGlueCatalogPartitionSensorTrigger:
-    def test_serialize_recreate(self):
-        trigger = GlueCatalogPartitionTrigger(
-            database_name="my_database",
-            table_name="my_table",
-            expression="my_expression",
-            aws_conn_id="my_conn_id",
-        )
-
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
-
     @pytest.mark.asyncio
     @mock.patch.object(GlueCatalogHook, "async_get_partitions")
     async def test_poke(self, mock_async_get_partitions):

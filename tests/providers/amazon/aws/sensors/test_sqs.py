@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 from moto import mock_sqs
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
@@ -62,7 +62,6 @@ class TestSqsSensor:
 
     @mock_sqs
     def test_poke_no_message_failed(self):
-
         self.sqs_hook.create_queue(QUEUE_NAME)
         result = self.sensor.poke(self.mock_context)
         assert not result
@@ -290,8 +289,96 @@ class TestSqsSensor:
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
     @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
-    def test_poke_do_not_delete_message_on_received(self, mock_conn):
+    def test_poke_message_filtering_jsonpath_ext(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": "a", "value": "b"},
+        ]
+        non_matching = [
+            {"id": 14, "key": "a"},
+            {"id": 14, "value": "b"},
+        ]
+        all = matching + non_matching
 
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        "MessageId": message["id"],
+                        "ReceiptHandle": 100 + message["id"],
+                        "Body": json.dumps(message),
+                    }
+                )
+            return {"Messages": messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {"Successful"}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = "jsonpath-ext"
+        self.sensor.message_filtering_config = "$.key + $.value"
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
+    def test_poke_message_filtering_jsonpath_ext_values(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": "a1", "value": "b1"},
+        ]
+        non_matching = [
+            {"id": 22, "key": "a2", "value": "b1"},
+            {"id": 33, "key": "a1", "value": "b2"},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        "MessageId": message["id"],
+                        "ReceiptHandle": 100 + message["id"],
+                        "Body": json.dumps(message),
+                    }
+                )
+            return {"Messages": messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {"Successful"}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = "jsonpath-ext"
+        self.sensor.message_filtering_config = "$.key + ' ' + $.value"
+        self.sensor.message_filtering_match_values = ["a1 b1"]
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl="https://test-queue", Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
+    def test_poke_do_not_delete_message_on_received(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body="hello")
 
@@ -346,3 +433,49 @@ class TestSqsSensor:
         )
         with pytest.raises(TaskDeferred):
             self.sensor.execute(None)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_fail_execute_complete(self, soft_fail, expected_exception):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+            soft_fail=soft_fail,
+        )
+        event = {"status": "failed"}
+        message = f"Trigger error: event is {event}"
+        with pytest.raises(expected_exception, match=message):
+            self.sensor.execute_complete(context={}, event=event)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch("airflow.providers.amazon.aws.sensors.sqs.SqsSensor.poll_sqs")
+    @mock.patch("airflow.providers.amazon.aws.sensors.sqs.process_response")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn")
+    def test_fail_poke(self, conn, process_response, poll_sqs, soft_fail, expected_exception):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+            soft_fail=soft_fail,
+        )
+        response = "error message"
+        messages = [{"MessageId": "1", "ReceiptHandle": "test"}]
+        poll_sqs.return_value = response
+        process_response.return_value = messages
+        conn.delete_message_batch.return_value = response
+        error_message = f"Delete SQS Messages failed {response} for messages"
+        self.sensor.delete_message_on_reception = True
+        with pytest.raises(expected_exception, match=error_message):
+            self.sensor.poke(context={})

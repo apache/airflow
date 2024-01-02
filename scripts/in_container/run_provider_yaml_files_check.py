@@ -114,7 +114,7 @@ def _load_package_data(package_paths: Iterable[str]):
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {rel_path}.")
-        if not provider.get("suspended"):
+        if not provider["state"] == "suspended":
             result[rel_path] = provider
         else:
             suspended_providers.add(provider["package-name"])
@@ -313,7 +313,7 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
 
 @run_check("Checking completeness of list of {sensors, hooks, operators, triggers}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
-    yaml_files: dict[str, dict]
+    yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_modules = 0
@@ -340,7 +340,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
                 f"Currently configured list of {resource_type} modules in {yaml_file_path}",
                 extra_message="[yellow]Additional check[/]: If there are deprecated modules in the list,"
                 "please add them to DEPRECATED_MODULES in "
-                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}[/]",
+                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}",
             )
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), "  ")
@@ -354,7 +354,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
 
 @run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
-    yaml_files: dict[str, dict]
+    yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0
@@ -557,7 +557,7 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
                 op["how-to-guide"] for op in provider["transfers"] if "how-to-guide" in op
             )
     if suspended_providers:
-        console.print("[yellow]Suspended providers:[/]")
+        console.print("[yellow]Suspended/Removed providers:[/]")
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(

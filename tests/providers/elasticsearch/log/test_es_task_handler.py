@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import logging
 import os
 import re
 import shutil
+from io import StringIO
+from pathlib import Path
 from unittest import mock
 from urllib.parse import quote
 
@@ -32,14 +33,26 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
+from airflow.providers.elasticsearch.log.es_task_handler import (
+    VALID_ES_CONFIG_KEYS,
+    ElasticsearchTaskHandler,
+    get_es_kwargs_from_config,
+    getattr_nested,
+)
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
 from .elasticmock.utilities import SearchFailedException
+
+pytestmark = pytest.mark.db_test
+
+
+AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
+ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
 
 
 def get_ti(dag_id, task_id, execution_date, create_task_instance):
@@ -110,10 +123,8 @@ class TestElasticsearchTaskHandler:
         logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
 
         def concat_logs(lines):
-            log_range = (
-                (len(lines) - 1) if lines[-1].message == self.es_task_handler.end_of_log_mark else len(lines)
-            )
-            return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
+            log_range = -1 if lines[-1].message == self.es_task_handler.end_of_log_mark else None
+            return "\n".join(self.es_task_handler._format_msg(line) for line in lines[:log_range])
 
         for hosted_log in logs_by_host.values():
             message = concat_logs(hosted_log)
@@ -144,49 +155,6 @@ class TestElasticsearchTaskHandler:
                 assert ElasticsearchTaskHandler.format_url(host) == expected
         else:
             assert ElasticsearchTaskHandler.format_url(host) == expected
-
-    def test_elasticsearch_constructor_retry_timeout_handling(self):
-        """
-        Test if the ElasticsearchTaskHandler constructor properly handles the retry_timeout argument.
-        """
-        # Mock the Elasticsearch client
-        with mock.patch(
-            "airflow.providers.elasticsearch.log.es_task_handler.elasticsearch.Elasticsearch"
-        ) as mock_es:
-            # Test when 'retry_timeout' is present in es_kwargs
-            es_kwargs = {"retry_timeout": 10}
-            ElasticsearchTaskHandler(
-                base_log_folder="dummy_folder",
-                end_of_log_mark="end_of_log_mark",
-                write_stdout=False,
-                json_format=False,
-                json_fields="fields",
-                host_field="host",
-                offset_field="offset",
-                es_kwargs=es_kwargs,
-            )
-
-            # Check the arguments with which the Elasticsearch client is instantiated
-            mock_es.assert_called_once_with("http://localhost:9200", retry_on_timeout=10)
-
-            # Reset the mock for the next test
-            mock_es.reset_mock()
-
-            # Test when 'retry_timeout' is not present in es_kwargs
-            es_kwargs = {}
-            ElasticsearchTaskHandler(
-                base_log_folder="dummy_folder",
-                end_of_log_mark="end_of_log_mark",
-                write_stdout=False,
-                json_format=False,
-                json_fields="fields",
-                host_field="host",
-                offset_field="offset",
-                es_kwargs=es_kwargs,
-            )
-
-            # Check that the Elasticsearch client is instantiated without the 'retry_on_timeout' argument
-            mock_es.assert_called_once_with("http://localhost:9200")
 
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
@@ -637,7 +605,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.frontend = frontend
         assert self.es_task_handler.supports_external_link == expected
 
-    @mock.patch("sys.__stdout__", new_callable=io.StringIO)
+    @mock.patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):
         # arrange
         handler = ElasticsearchTaskHandler(
@@ -691,3 +659,48 @@ def test_safe_attrgetter():
     assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
     assert getattr_nested(a, "c", "heya") is None  # respects none value
     assert getattr_nested(a, "aa", None) is None  # respects none default
+
+
+def test_retrieve_config_keys():
+    """
+    Tests that the ElasticsearchTaskHandler retrieves the correct configuration keys from the config file.
+    * old_parameters are removed
+    * parameters from config are automatically added
+    * constructor parameters missing from config are also added
+    :return:
+    """
+    with conf_vars(
+        {
+            ("elasticsearch_configs", "http_compress"): "False",
+            ("elasticsearch_configs", "timeout"): "10",
+        }
+    ):
+        args_from_config = get_es_kwargs_from_config().keys()
+        # verify_certs comes from default config value
+        assert "verify_certs" in args_from_config
+        # timeout comes from config provided value
+        assert "timeout" in args_from_config
+        # http_compress comes from config value
+        assert "http_compress" in args_from_config
+        assert "self" not in args_from_config
+
+
+def test_retrieve_retry_on_timeout():
+    """
+    Test if retrieve timeout is converted to retry_on_timeout.
+    """
+    with conf_vars(
+        {
+            ("elasticsearch_configs", "retry_timeout"): "True",
+        }
+    ):
+        args_from_config = get_es_kwargs_from_config().keys()
+        # verify_certs comes from default config value
+        assert "retry_on_timeout" in args_from_config
+
+
+def test_self_not_valid_arg():
+    """
+    Test if self is not a valid argument.
+    """
+    assert "self" not in VALID_ES_CONFIG_KEYS

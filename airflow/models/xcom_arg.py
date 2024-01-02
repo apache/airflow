@@ -21,7 +21,7 @@ import contextlib
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, select
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
@@ -59,8 +59,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
         xcomarg >> op
         xcomarg << op
-        op >> xcomarg   # By BaseOperator code
-        op << xcomarg   # By BaseOperator code
+        op >> xcomarg  # By BaseOperator code
+        op << xcomarg  # By BaseOperator code
 
     **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 
@@ -385,7 +385,7 @@ class PlainXComArg(XComArg):
             )
             if unfinished_ti_exists:
                 return None  # Not all of the expanded tis are done yet.
-            query = session.query(func.count(XCom.map_index)).filter(
+            query = select(func.count(XCom.map_index)).where(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
                 XCom.task_id == task.task_id,
@@ -393,13 +393,13 @@ class PlainXComArg(XComArg):
                 XCom.key == XCOM_RETURN_KEY,
             )
         else:
-            query = session.query(TaskMap.length).filter(
+            query = select(TaskMap.length).where(
                 TaskMap.dag_id == task.dag_id,
                 TaskMap.run_id == run_id,
                 TaskMap.task_id == task.task_id,
                 TaskMap.map_index < 0,
             )
-        return query.scalar()
+        return session.scalar(query)
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:

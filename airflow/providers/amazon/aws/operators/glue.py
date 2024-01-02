@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import os.path
+import os
 import urllib.parse
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook

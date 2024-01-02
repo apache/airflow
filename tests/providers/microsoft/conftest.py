@@ -17,8 +17,8 @@
 
 from __future__ import annotations
 
+import random
 import string
-from random import choices
 from typing import TypeVar
 
 import pytest
@@ -33,7 +33,9 @@ def create_mock_connection(monkeypatch):
     """Helper fixture for create test connection."""
 
     def wrapper(conn: T, conn_id: str | None = None):
-        conn_id = conn_id or "test_conn_" + "".join(choices(string.ascii_lowercase + string.digits, k=6))
+        conn_id = conn_id or "test_conn_" + "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=6)
+        )
         if isinstance(conn, dict):
             conn = Connection.from_json(conn)
         elif isinstance(conn, str):

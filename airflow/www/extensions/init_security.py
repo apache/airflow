@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
-from flask import g, redirect
+from flask import redirect, request
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -48,7 +48,7 @@ def init_xframe_protection(app):
 
 
 def init_api_experimental_auth(app):
-    """Loads authentication backends."""
+    """Load authentication backends."""
     auth_backends = "airflow.api.auth.backend.default"
     try:
         auth_backends = conf.get("api", "auth_backends")
@@ -56,18 +56,21 @@ def init_api_experimental_auth(app):
         pass
 
     app.api_auth = []
-    for backend in auth_backends.split(","):
-        try:
+    try:
+        for backend in auth_backends.split(","):
             auth = import_module(backend.strip())
             auth.init_app(app)
             app.api_auth.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
+        raise AirflowException(err)
 
 
 def init_check_user_active(app):
     @app.before_request
     def check_user_active():
-        if get_auth_manager().is_logged_in() and not g.user.is_active:
-            return redirect(get_auth_manager().get_url_logout())
+        url_logout = get_auth_manager().get_url_logout()
+        if request.path == url_logout:
+            return
+        if get_auth_manager().is_logged_in() and not get_auth_manager().get_user().is_active:
+            return redirect(url_logout)

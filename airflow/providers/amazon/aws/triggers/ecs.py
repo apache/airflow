@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
@@ -52,6 +52,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -66,6 +67,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
@@ -91,6 +93,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -104,6 +107,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
@@ -161,10 +165,11 @@ class TaskDoneTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        # fmt: off
-        async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as ecs_client,\
-                AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client:
-            # fmt: on
+        async with EcsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region
+        ).async_conn as ecs_client, AwsLogsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region
+        ).async_conn as logs_client:
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
             while self.waiter_max_attempts:

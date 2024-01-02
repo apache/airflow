@@ -16,90 +16,55 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import warnings
-from typing import TYPE_CHECKING, Any
-
-from botocore.exceptions import WaiterError
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
-class EmrAddStepsTrigger(BaseTrigger):
+class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
     """
-    Asynchronously poll the boto3 API and wait for the steps to finish executing.
+    Poll for the status of EMR steps until they reach terminal state.
 
-    :param job_flow_id: The id of the job flow.
-    :param step_ids: The id of the steps being waited upon.
-    :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param job_flow_id: job_flow_id which contains the steps to check the state of
+    :param step_ids: steps to check the state of
+    :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+
     """
 
     def __init__(
         self,
         job_flow_id: str,
         step_ids: list[str],
-        aws_conn_id: str,
-        max_attempts: int | None,
-        poll_interval: int | None,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str = "aws_default",
     ):
-        self.job_flow_id = job_flow_id
-        self.step_ids = step_ids
-        self.aws_conn_id = aws_conn_id
-        self.max_attempts = max_attempts
-        self.poll_interval = poll_interval
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            "airflow.providers.amazon.aws.triggers.emr.EmrAddStepsTrigger",
-            {
-                "job_flow_id": str(self.job_flow_id),
-                "step_ids": self.step_ids,
-                "poll_interval": str(self.poll_interval),
-                "max_attempts": str(self.max_attempts),
-                "aws_conn_id": str(self.aws_conn_id),
-            },
+        super().__init__(
+            serialized_fields={"job_flow_id": job_flow_id, "step_ids": step_ids},
+            waiter_name="steps_wait_for_terminal",
+            waiter_args={"ClusterId": job_flow_id, "StepIds": step_ids},
+            failure_message=f"Error while waiting for steps {step_ids} to complete",
+            status_message=f"Step ids: {step_ids}, Steps are still in non-terminal state",
+            status_queries=[
+                "Steps[].Status.State",
+                "Steps[].Status.FailureDetails",
+            ],
+            return_value=step_ids,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
         )
 
-    async def run(self):
-        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
-        async with self.hook.async_conn as client:
-            for step_id in self.step_ids:
-                waiter = client.get_waiter("step_complete")
-                for attempt in range(1, 1 + self.max_attempts):
-                    try:
-                        await waiter.wait(
-                            ClusterId=self.job_flow_id,
-                            StepId=step_id,
-                            WaiterConfig={
-                                "Delay": int(self.poll_interval),
-                                "MaxAttempts": 1,
-                            },
-                        )
-                        break
-                    except WaiterError as error:
-                        if "terminal failure" in str(error):
-                            yield TriggerEvent(
-                                {"status": "failure", "message": f"Step {step_id} failed: {error}"}
-                            )
-                            break
-                        self.log.info(
-                            "Status of step is %s - %s",
-                            error.last_response["Step"]["Status"]["State"],
-                            error.last_response["Step"]["Status"]["StateChangeReason"],
-                        )
-                        await asyncio.sleep(int(self.poll_interval))
-        if attempt >= int(self.max_attempts):
-            yield TriggerEvent({"status": "failure", "message": "Steps failed: max attempts reached"})
-        else:
-            yield TriggerEvent({"status": "success", "message": "Steps completed", "step_ids": self.step_ids})
+    def hook(self) -> AwsGenericHook:
+        return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
 class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
@@ -479,8 +444,7 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
     ) -> None:
-        self.hook_instance = EmrServerlessHook(aws_conn_id)
-        states = list(self.hook_instance.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
+        states = list(EmrServerlessHook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
         super().__init__(
             serialized_fields={"application_id": application_id},
             waiter_name="no_job_running",
@@ -496,4 +460,9 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
         )
 
     def hook(self) -> AwsGenericHook:
-        return self.hook_instance
+        return EmrServerlessHook(self.aws_conn_id)
+
+    @property
+    def hook_instance(self) -> AwsGenericHook:
+        """This property is added for backward compatibility."""
+        return self.hook()

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from jinja2 import TemplateAssertionError, UndefinedError
 from kubernetes.client.api_client import ApiClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_pod_id,

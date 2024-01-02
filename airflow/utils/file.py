@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import ast
-import io
 import logging
 import os
 import zipfile
+from io import TextIOWrapper
 from pathlib import Path
 from typing import Generator, NamedTuple, Pattern, Protocol, overload
 
@@ -189,7 +189,7 @@ def open_maybe_zipped(fileloc, mode="r"):
     """
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
+        return TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
         return open(fileloc, mode=mode)
 

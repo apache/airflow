@@ -63,13 +63,14 @@
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
   <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
-  <meta name="xcom_url" content="{{ url_for('Airflow.xcom', dag_id=dag.dag_id) }}">
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
   <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
   <meta name="tag_index_url" content="{{ url_for('Airflow.index', tags='_TAG_NAME_') }}">
   <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="task_log_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_log_endpoint_get_log', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', task_try_number='-1') }}">
+  <meta name="task_xcom_entries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entries', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
+  <meta name="task_xcom_entry_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entry', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', xcom_key='_XCOM_KEY_') }}">
   <meta name="upstream_dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_dataset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
   <meta name="task_instance_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="set_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_' ) }}">
@@ -110,16 +111,15 @@
         {% if dag.parent_dag is defined and dag.parent_dag %}
           <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
         {% else %}
-          {% set can_edit = appbuilder.sm.can_edit_dag(dag.dag_id) %}
-          {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
+          {% if can_edit_dag %}
             {% set switch_tooltip = 'Pause/Unpause DAG' %}
           {% else %}
             {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
           {% endif %}
-          <label class="switch-label{{' disabled' if not can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
             <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
                    type="checkbox"{{ " checked" if not dag_is_paused else "" }}
-                   {{ " disabled" if not can_edit else "" }}>
+                   {{ " disabled" if not can_edit_dag else "" }}>
             <span class="switch" aria-hidden="true"></span>
           </label>
           <span class="text-muted">DAG:</span> {{ dag.dag_id }}
@@ -255,7 +255,7 @@
           {% else %}
             <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}"
           {% endif %}
-              title="Trigger&nbsp;DAG"
+              onclick="return triggerDag(this, '{{ dag.dag_id }}')" title="Trigger&nbsp;DAG"
               aria-label="Trigger DAG"
               class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
               <span class="material-icons" aria-hidden="true">play_arrow</span>
@@ -288,6 +288,11 @@
         This cannot be undone.`)) {
         postAsForm(link.href, {});
       }
+      return false;
+    }
+
+    function triggerDag(link, dagId) {
+      postAsForm(link.href, {});
       return false;
     }
   </script>

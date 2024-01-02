@@ -352,6 +352,7 @@ class TestProvideGcpCredentialFileAsContext:
         assert CREDENTIALS not in os.environ
 
 
+@pytest.mark.db_test
 class TestGoogleBaseHook:
     def setup_method(self):
         self.instance = hook.GoogleBaseHook()
@@ -524,12 +525,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
@@ -591,12 +587,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
@@ -691,6 +682,20 @@ class TestGoogleBaseHook:
                 "ACCOUNT_4",
                 ["ACCOUNT_2", "ACCOUNT_3"],
                 id="multiple_elements_list_with_override",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1,ACCOUNT_2,ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1, ACCOUNT_2, ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string_with_space",
             ),
         ],
     )
@@ -834,6 +839,7 @@ class TestProvideAuthorizedGcloud:
 
 
 class TestNumRetry:
+    @pytest.mark.db_test
     def test_should_return_int_when_set_int_via_connection(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         instance.extras = {

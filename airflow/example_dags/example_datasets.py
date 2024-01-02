@@ -40,7 +40,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG, Dataset
+from airflow.datasets import Dataset
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 # [START dataset_def]

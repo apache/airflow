@@ -18,48 +18,125 @@
 Documentation
 #############
 
-This directory contains documentation for the Apache Airflow project and other packages that are closely related to it ie. providers packages.  Documentation is built using `Sphinx <https://www.sphinx-doc.org/>`__.
+This directory contains documentation for the `Apache Airflow project <https://airflow.apache.org/docs/>`__ and the providers packages that are closely related to it. You can contribute to the Airflow Docs in the same way and for the same reasons as contributing code; Docs contributions that improve existing content, fix bugs, and create new content are welcomed and encouraged.
+
+This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions for how to make Docs changes locally or with the GitHub UI.
 
 Development documentation preview
 ==================================
 
-Documentation from the development version is built and automatically published: `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_
+You can find documentation for the current development version at `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_, where it is automatically built and published.
+
+Working with Sphinx
+===================
+
+Airflow Documentation uses `Sphinx <https://www.sphinx-doc.org/>`__, a reStructure Text (.rst) markup language that was developed to document Python and Python projects, to build the docs site.
+
+For most Docs writing purposes, the `reStructured Text Primer <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`__ provides a quick reference of common formatting and syntax.
+
+A general docs workflow
+-----------------------
+When you make changes to the docs, it follows roughly the same process as creating and testing code changes. However, for docs, instead of unit tests and integration tests, you run pre-commit checks, spell checks, and visual inspection of your changes in a documentation build.
+
+1. **Decide to edit in GitHub UI or locally** - Depending on the size and type of docs update you want to make, it might be easier to work in the UI or to make your edits in a local fork.
+2. **Find the source files to edit** - While you can access most of the docs source files using the **Suggest a change on this page** button or by searching for a string in the ``/docs/`` file directory, in some cases, the source strings might be located in different provider docs or in the source code itself.
+3. **If editing locally, run spellcheck and the build to identify any blocking errors** - Docs require build, spellcheck, and precommit CI/CD tests to pass before they can merge. This means that if you have a pull request with docs changes, a docs build error can prevent your code merge. Checking the build and spelling locally first can help speed up reviews. If you made formatting changes, checking a local build of your docs allows you to make sure you correctly formatted elements like tables, text styling, and line breaks.
+4. **Make your pull request** - When you make a PR, Github automatically assigns reviewers and runs CI/CD tests.
+5. **Fix any build errors or spelling mistakes** - Your PR can't be merged if there are any spelling or build errors. Check to see which builds are failing and click **Show details**. The output of the tests share the errors, location of the problems, and suggest resolutions. Common Docs failures occur due to incorrect formatting and whitespace.
+
+Editing in GitHub or locally
+----------------------------
+
+You have two options for editing Airflow docs:
+
+1. Through the online GitHub Editor by clicking **Suggest a change on this page** in the `docs <https://airflow.apache.org/docs/>`_, or by selecting a file in `GitHub <https://github.com/apache/airflow/tree/main/docs>`__.
+
+2. Locally with a forked copy of the Airflow repo, where you can run local builds and tests prior to making a pull request.
+
++--------------------------------------+------------------+-------------------------------------------------+
+|  Type of Docs update                 | Suggested Editor | Explanation                                     |
++======================================+==================+=================================================+
+| I need to edit multiple files.       | Local Editor     | It's easier to batch-edit files in an editor,   |
+|                                      |                  | than make multiple PRs or changes to individual |
+|                                      |                  | files in a GitHub editor.                       |
++--------------------------------------+------------------+-------------------------------------------------+
+| I want to fix a quick typo or a      | GitHub Editor    | Allows you to quickly edit without any local    |
+| broken link.                         |                  | installation or build required.                 |
++--------------------------------------+------------------+-------------------------------------------------+
+| My edits contain tables or           | Local Editor     | GitHub can provide Markdown previews, but might |
+| other formatting changes.            |                  | change ``.rst`` styling. Use a local build.     |
++--------------------------------------+------------------+-------------------------------------------------+
+| I want to make a new page/           | Local Editor     | Will need a local build to check navigation and |
+| delete a page.                       |                  | link redirects.                                 |
++--------------------------------------+------------------+-------------------------------------------------+
+| I want to edit autogenerated content | Either, probably | Allows you to easily find the correct file and  |
+| on a page.                           | Local Editor     | generate a preview before creating the PR.      |
++--------------------------------------+------------------+-------------------------------------------------+
+
+Finding source content to edit
+------------------------------
+
+Sphinx has _roles_ and _directives_, where Markdown docs frameworks often do not have similar functionality. This means that Airflow uses directives
+to pull code examples, autogenerate indexes and tables of contents, and reference from resources across the codebase and across documentation provider packages.
+This can make it confusing to find the content source on certain types of reference pages.
+
+For example, in `Command Line Interface and Environment Variables Reference <https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#environment-variables>`__, the CLI reference is `autogenerated <https://github.com/apache/airflow/blob/main/docs/apache-airflow/cli-and-env-variables-ref.rst?plain=1#L44>`__,
+and requires more complex scripting. While the `Environment Variables <https://github.com/apache/airflow/blob/main/docs/apache-airflow/cli-and-env-variables-ref.rst?plain=1#L51>`__ are explicitly written.
+
+To make an edit to an autogenerated doc, you need to make changes to a string in the Python source file. In the previous example, to make edits to the CLI command reference text, you must edit the `cli_config.py <https://github.com/apache/airflow/blob/main/airflow/cli/cli_config.py#L1861>`__ source file.
 
 Building documentation
 ======================
 
-To generate a local version you can use `<../BREEZE.rst>`_.
+To generate a local version of the docs you can use `<../BREEZE.rst>`_.
 
 The documentation build consists of verifying consistency of documentation and two steps:
 
 * spell checking
 * building documentation
 
-You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
+You can choose to run the complete build, to build all the docs and run spellcheck. Or, you can use package names and the optional flags, ``--spellcheck-only`` or ``--docs-only`` to choose the scope of the build.
+
+Build all docs and spell check them:
 
 .. code-block:: bash
 
     breeze build-docs
 
-or just to run spell-check
+Just run spellcheck:
 
 .. code-block:: bash
 
      breeze build-docs --spellcheck-only
 
-or just to run documentation building
+Build docs without checking spelling:
 
 .. code-block:: bash
 
      breeze build-docs --docs-only
 
-Also, you can only build one documentation via ``--package-filter``.
+Build documentation of just one provider package by calling the ``PACKAGE_ID``.
 
 .. code-block:: bash
 
-    breeze build-docs --package-filter <PACKAGE-NAME>
+    breeze build-docs PACKAGE_ID
 
-You can also see all the available arguments via ``--help``.
+So, for example, to build just the ``apache-airflow-providers-apache-beam`` package docs, you would use the following:
+
+.. code-block:: bash
+
+    breeze build-docs apache.beam
+
+Or, build docs for more than one provider package in the same command by listing multiple package IDs:
+
+.. code-block:: bash
+
+    breeze build-docs PACKAGE1_ID PACKAGE2_ID
+
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+
+You can see all the available arguments via ``--help``.
 
 .. code-block:: bash
 
@@ -68,7 +145,9 @@ You can also see all the available arguments via ``--help``.
 Running the Docs Locally
 ------------------------
 
-Once you have built the documentation run the following command from the root directory,
+After you build the documentation, you can check the formatting, style, and documentation build at ``http://localhost:28080/docs/``
+by starting a Breeze environment or by running the following command from the root directory.
+
 You need to have Python installed to run the command:
 
 .. code-block:: bash
@@ -76,31 +155,38 @@ You need to have Python installed to run the command:
     docs/start_doc_server.sh
 
 
-Then, view your docs at ``localhost:8000``, if you are using a virtual machine e.g WSL2,
-you need to find the WSL2 machine IP address and in your browser replace "0.0.0.0" with it
-``http://n.n.n.n:8000``, where n.n.n.n will be the IP of the WSL2.
+Then, view your docs at ``localhost:8000``. If you use a virtual machine, like WSL2,
+you need to find the WSL2 machine IP address and replace "0.0.0.0" in your browser with it. The address looks like
+``http://n.n.n.n:8000``, where n.n.n.n is the IP of the WSL2.
 
-Troubleshooting
----------------
+.. _generating_short_form_names:
 
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
-license or copy another ``__init__.py`` file that contains the necessary license.
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
+
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers`` as the
+short hand operator.
 
 Cross-referencing syntax
 ========================
 
-Cross-references are generated by many semantic interpreted text roles.
+Cross-references are generated by many semantically interpreted text roles.
 Basically, you only need to write:
 
 .. code-block:: rst
 
     :role:`target`
 
-And a link will be
-created to the item named *target* of the type indicated by *role*. The link's
-text will be the same as *target*.
+And Sphinx creates a link to the item named *target* of the type indicated by *role*. The link's
+text is the same as *target*.
 
-You may supply an explicit title and reference target, like in reST direct
+You can supply an explicit title and reference target, like in reST direct
 hyperlinks:
 
 .. code-block:: rst
@@ -122,6 +208,9 @@ Here are practical examples:
     Section title
     ----------------------------------
 
+Creating links between provider package docs
+--------------------------------------------
+
 Role ``:class:`` works well with references between packages. If you want to use other roles, it is a good idea to specify a package:
 
 .. code-block:: rst
@@ -137,7 +226,41 @@ If you still feel confused then you can view more possible roles for our documen
 
 For more information, see: `Cross-referencing syntax <https://www.sphinx-doc.org/en/master/usage/restructuredtext/roles.html>`_ in Sphinx documentation
 
+Docs troubleshooting
+====================
+
+``example_dags`` Apache license
+-------------------------------
+
+If you are creating ``example_dags`` directory, you need to create an ``example_dags/__init__.py`` file. You can leave the file empty and the pre-commit processing
+adds the license automatically. Otherwise, you can add a file with the Apache license or copy another ``__init__.py`` file that contains the necessary license.
+
+Common Docs build errors
+------------------------
+
+.rst syntax is sensitive to whitespace, linebreaks, and indents, and can affect build output. When you write content and either
+skip indentations, forget linebreaks, or leave trailing whitespace, it often produces docs build errors  that block your PR's mergeability.
+
+unexpected unindent
+*******************
+
+Certain Sphinx elements, like lists and code blocks, require a blank line between the element and the next part of the content.
+If you do not add a blank line, it creates a build error.
+
+.. code-block:: text
+
+    WARNING: Enumerated list ends without a blank line; unexpected unindent.
+
+While easy to resolve, there's `a Sphinx bug <https://github.com/sphinx-doc/sphinx/issues/11026>`__ in certain versions that causes the
+warning to report the wrong line in the file for your missing white space. If your PR has the ``unexpected unindent`` warning blocking your build,
+and the line number it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
+list, code block, or other whitespace-sensitive markup element.
+
 Support
 =======
 
-If you need help, write to `#documentation <https://apache-airflow.slack.com/archives/CJ1LVREHX>`__ channel on `Airflow's Slack <https://s.apache.org/airflow-slack>`__
+If you need help, write to `#documentation <https://apache-airflow.slack.com/archives/CJ1LVREHX>`__ channel on `Airflow's Slack <https://s.apache.org/airflow-slack>`__.
+
+For more resources about working with Sphinx or reST markup syntax, see the `Sphinx documentation <https://www.sphinx-doc.org/en/master/usage/quickstart.html>`__.
+
+The `Write the Docs <https://www.writethedocs.org/slack/>`__ community also includes a #Sphinx Slack channel for questions and additional support.

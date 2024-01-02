@@ -26,7 +26,6 @@ import pendulum
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
-from pytest import param
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException
@@ -398,21 +397,33 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "config_image, expected_image",
         [
-            param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
-            param(None, "busybox", id="no_image_in_cfg"),
+            pytest.param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
+            pytest.param(None, "busybox", id="no_image_in_cfg"),
         ],
     )
-    def test_construct_pod(self, config_image, expected_image):
+    @pytest.mark.parametrize(
+        "pod_override_object_namespace, expected_namespace",
+        [
+            ("new_namespace", "new_namespace"),  # pod_override_object namespace should be used
+            (None, "test_namespace"),  # if it is not provided, we use default one
+        ],
+    )
+    def test_construct_pod(
+        self, config_image, expected_image, pod_override_object_namespace, expected_namespace
+    ):
         template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
         executor_config = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=pod_override_object_namespace,
+            ),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
                         name="", resources=k8s.V1ResourceRequirements(limits={"cpu": "1m", "memory": "1G"})
                     )
                 ]
-            )
+            ),
         )
 
         result = PodGenerator.construct_pod(
@@ -433,7 +444,7 @@ class TestPodGenerator:
         expected.metadata.labels["app"] = "myapp"
         expected.metadata.annotations = self.annotations
         expected.metadata.name = "pod_id"
-        expected.metadata.namespace = "test_namespace"
+        expected.metadata.namespace = expected_namespace
         expected.spec.containers[0].args = ["command"]
         expected.spec.containers[0].image = expected_image
         expected.spec.containers[0].resources = {"limits": {"cpu": "1m", "memory": "1G"}}
@@ -561,7 +572,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == "a" * 244 + "-" + self.rand_str
+        assert result.metadata.name == "a" * 54 + "-" + self.rand_str
         for v in result.metadata.labels.values():
             assert len(v) <= 63
 
@@ -721,10 +732,10 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "input",
         (
-            param("a" * 70, id="max_label_length"),
-            param("a" * 253, id="max_subdomain_length"),
-            param("a" * 95, id="close to max"),
-            param("aaa", id="tiny"),
+            pytest.param("a" * 70, id="max_label_length"),
+            pytest.param("a" * 253, id="max_subdomain_length"),
+            pytest.param("a" * 95, id="close to max"),
+            pytest.param("aaa", id="tiny"),
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
@@ -780,16 +791,16 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "extra, extra_expected",
         [
-            param(dict(), {}, id="base"),
-            param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),
-            param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
-            param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
-            param(
+            pytest.param(dict(), {}, id="base"),
+            pytest.param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),
+            pytest.param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
+            pytest.param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
+            pytest.param(
                 dict(execution_date=now),
                 {"execution_date": datetime_to_label_safe_datestring(now)},
                 id="date",
             ),
-            param(
+            pytest.param(
                 dict(airflow_worker=2, map_index=2, run_id="2", execution_date=now),
                 {
                     "airflow-worker": "2",
@@ -818,7 +829,8 @@ class TestPodGenerator:
         )
         labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
         assert labels == {**expected, **extra_expected}
-        exp_selector = ",".join([f"{k}={v}" for k, v in sorted(labels.items())])
+        items = [f"{k}={v}" for k, v in sorted(labels.items())]
         if "airflow_worker" not in extra:
-            exp_selector += ",airflow-worker"
+            items.append("airflow-worker")
+        exp_selector = ",".join(items)
         assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector

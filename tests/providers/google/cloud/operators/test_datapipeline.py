@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest as pytest
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.datapipeline import (

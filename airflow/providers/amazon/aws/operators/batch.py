@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -111,6 +112,7 @@ class BatchOperator(BaseOperator):
         "array_properties",
         "node_overrides",
         "parameters",
+        "retry_strategy",
         "waiters",
         "tags",
         "wait_for_completion",
@@ -121,14 +123,27 @@ class BatchOperator(BaseOperator):
         "container_overrides": "json",
         "parameters": "json",
         "node_overrides": "json",
+        "retry_strategy": "json",
     }
 
     @property
     def operator_extra_links(self):
         op_extra_links = [BatchJobDetailsLink()]
-        if self.wait_for_completion:
+
+        if isinstance(self, MappedOperator):
+            wait_for_completion = self.partial_kwargs.get(
+                "wait_for_completion"
+            ) or self.expand_input.value.get("wait_for_completion")
+            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
+                "array_properties"
+            )
+        else:
+            wait_for_completion = self.wait_for_completion
+            array_properties = self.array_properties
+
+        if wait_for_completion:
             op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
-        if not self.array_properties:
+        if not array_properties:
             # There is no CloudWatch Link to the parent Batch Job available.
             op_extra_links.append(CloudWatchEventsLink())
 
@@ -147,6 +162,7 @@ class BatchOperator(BaseOperator):
         share_identifier: str | None = None,
         scheduling_priority_override: int | None = None,
         parameters: dict | None = None,
+        retry_strategy: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
         max_retries: int = 4200,
@@ -188,6 +204,9 @@ class BatchOperator(BaseOperator):
         self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
+        self.retry_strategy = retry_strategy or {}
+        if not self.retry_strategy.get("attempts", None):
+            self.retry_strategy["attempts"] = 1
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
@@ -274,6 +293,7 @@ class BatchOperator(BaseOperator):
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
             "nodeOverrides": self.node_overrides,
+            "retryStrategy": self.retry_strategy,
             "shareIdentifier": self.share_identifier,
             "schedulingPriorityOverride": self.scheduling_priority_override,
         }
@@ -346,7 +366,12 @@ class BatchOperator(BaseOperator):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        awslogs = []
+        try:
+            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        except AirflowException as ae:
+            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
             link_builder = CloudWatchEventsLink()

@@ -21,11 +21,11 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
-import io
 import logging
 import os
 import re
 import shutil
+import time
 import warnings
 from contextlib import suppress
 from copy import deepcopy
@@ -35,7 +35,6 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -45,7 +44,7 @@ if TYPE_CHECKING:
         from aiobotocore.client import AioBaseClient
 
 from asgiref.sync import sync_to_async
-from boto3.s3.transfer import TransferConfig
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -219,12 +218,12 @@ class S3Hook(AwsBaseHook):
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
-                split_url = format[1].split("/")
-                bucket_name = split_url[1]
-                key = "/".join(split_url[2:])
+                # "https://s3.region-code.amazonaws.com/bucket-name/key-name"
+                _, bucket_name, key = format[1].split("/", 2)
             elif temp_split[1] == "s3":
+                # "https://bucket-name.s3.region-code.amazonaws.com/key-name"
                 bucket_name = temp_split[0]
-                key = "/".join(format[1].split("/")[1:])
+                key = format[1].partition("/")[-1]
             else:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid virtually hosted format which should "
@@ -350,7 +349,8 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy.
         :return: False if the prefix does not exist in the bucket and True if it does.
         """
-        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        if not prefix.endswith(delimiter):
+            prefix += delimiter
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
@@ -468,7 +468,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param key: the path to the key
         """
-        prefix = re.split(r"[\[\*\?]", key, 1)[0]
+        prefix = re.split(r"[\[*?]", key, 1)[0]
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
@@ -518,7 +518,11 @@ class S3Hook(AwsBaseHook):
         wildcard_match: bool,
     ) -> bool:
         """
-        Check for all keys in bucket and returns boolean value.
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
+        is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket
@@ -544,7 +548,8 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy.
         :return: False if the prefix does not exist in the bucket and True if it does.
         """
-        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        if not prefix.endswith(delimiter):
+            prefix += delimiter
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
         plist = await self.list_prefixes_async(client, bucket_name, previous_level, delimiter)
@@ -570,14 +575,13 @@ class S3Hook(AwsBaseHook):
         for key in bucket_keys:
             prefix = key
             if wildcard_match:
-                prefix = re.split(r"[\[\*\?]", key, 1)[0]
+                prefix = re.split(r"[\[*?]", key, 1)[0]
 
             paginator = client.get_paginator("list_objects_v2")
             response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
             async for page in response:
                 if "Contents" in page:
-                    _temp = [k for k in page["Contents"] if isinstance(k.get("Size", None), (int, float))]
-                    keys = keys + _temp
+                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
         return keys
 
     @staticmethod
@@ -709,7 +713,9 @@ class S3Hook(AwsBaseHook):
             }
 
         if last_activity_time:
-            inactivity_seconds = int((datetime.now() - last_activity_time).total_seconds())
+            inactivity_seconds = int(
+                (datetime.now(last_activity_time.tzinfo) - last_activity_time).total_seconds()
+            )
         else:
             # Handles the first poke where last inactivity time is None.
             last_activity_time = datetime.now()
@@ -801,7 +807,7 @@ class S3Hook(AwsBaseHook):
         _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
-        self.object_filter_usr = object_filter
+        object_filter_usr = object_filter
         config = {
             "PageSize": page_size,
             "MaxItems": max_items,
@@ -823,8 +829,8 @@ class S3Hook(AwsBaseHook):
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-        if self.object_filter_usr is not None:
-            return self.object_filter_usr(keys, from_datetime, to_datetime)
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
@@ -912,6 +918,15 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
         """
+
+        def sanitize_extra_args() -> dict[str, str]:
+            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
+            return {
+                arg_name: arg_value
+                for (arg_name, arg_value) in self.extra_args.items()
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
+            }
+
         s3_resource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
@@ -919,7 +934,8 @@ class S3Hook(AwsBaseHook):
             verify=self.verify,
         )
         obj = s3_resource.Object(bucket_name, key)
-        obj.load()
+
+        obj.load(**sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key
@@ -1015,7 +1031,7 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy
         :return: the key object from the bucket or None if none has been found.
         """
-        prefix = re.split(r"[\[\*\?]", wildcard_key, 1)[0]
+        prefix = re.split(r"[\[*?]", wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
         if key_matches:
@@ -1119,10 +1135,8 @@ class S3Hook(AwsBaseHook):
         if compression == "gzip":
             bytes_data = gz.compress(bytes_data)
 
-        file_obj = io.BytesIO(bytes_data)
-
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1154,9 +1168,8 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be uploaded
         """
-        file_obj = io.BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1222,6 +1235,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        **kwargs,
     ) -> None:
         """
         Create a copy of an object that is already stored in S3.
@@ -1263,7 +1277,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
         )
         return response
 
@@ -1288,7 +1302,7 @@ class S3Hook(AwsBaseHook):
                 if not bucket_keys:
                     break
                 if retry:  # Avoid first loop
-                    sleep(500)
+                    time.sleep(500)
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
 
@@ -1375,7 +1389,7 @@ class S3Hook(AwsBaseHook):
                 raise e
 
         if preserve_file_name:
-            local_dir = local_path if local_path else gettempdir()
+            local_dir = local_path or gettempdir()
             subdir = f"airflow_tmp_dir_{uuid4().hex[0:8]}" if use_autogenerated_subdir else ""
             filename_in_s3 = s3_obj.key.rsplit("/", 1)[-1]
             file_path = Path(local_dir, subdir, filename_in_s3)

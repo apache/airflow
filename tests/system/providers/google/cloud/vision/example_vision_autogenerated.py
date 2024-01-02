@@ -21,8 +21,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator,
@@ -106,14 +106,13 @@ BUCKET_NAME_SRC = "cloud-samples-data"
 # Path to the data inside the public bucket
 PATH_SRC = "vision/ocr/sign.jpg"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vision"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
     )

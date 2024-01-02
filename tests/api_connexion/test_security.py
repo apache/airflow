@@ -21,6 +21,8 @@ import pytest
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):

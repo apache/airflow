@@ -36,8 +36,8 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip # noqa E402
-from common_precommit_black_utils import black_format  # isort: skip # noqa E402
+from common_precommit_black_utils import black_format
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH
 
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT_PATH / "providers"
 COMMON_SQL_ROOT = PROVIDERS_ROOT / "common" / "sql"
@@ -186,8 +186,7 @@ def read_pyi_file_content(
     for line in lines_no_comments:
         if line.strip().startswith('"""'):
             remove_docstring = not remove_docstring
-            continue
-        if not remove_docstring:
+        elif not remove_docstring:
             lines.append(line)
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")

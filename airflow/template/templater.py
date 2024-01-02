@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
@@ -29,7 +30,25 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.models.operator import Operator
     from airflow.utils.context import Context
+
+
+@dataclass(frozen=True)
+class LiteralValue(ResolveMixin):
+    """
+    A wrapper for a value that should be rendered as-is, without applying jinja templating to its contents.
+
+    :param value: The value to be rendered without templating
+    """
+
+    value: Any
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return ()
+
+    def resolve(self, context: Context) -> Any:
+        return self.value
 
 
 class Templater(LoggingMixin):
@@ -68,9 +87,7 @@ class Templater(LoggingMixin):
         if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and content.endswith(tuple(self.template_ext)):
+                if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore

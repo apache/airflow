@@ -89,7 +89,7 @@ class ImportFinder(NodeVisitor):
 
 
 def find_all_providers_and_provider_files():
-    for (root, _, filenames) in os.walk(AIRFLOW_PROVIDERS_DIR):
+    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_DIR):
         for filename in filenames:
             if filename == "provider.yaml":
                 provider_file = Path(root, filename)
@@ -97,10 +97,9 @@ def find_all_providers_and_provider_files():
                     os.sep, "."
                 )
                 provider_info = yaml.safe_load(provider_file.read_text())
-                if not provider_info["suspended"]:
-                    ALL_PROVIDERS[provider_name] = provider_info
-                else:
+                if provider_info["state"] == "suspended":
                     suspended_paths.append(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix())
+                ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
             if path.is_file() and path.name.endswith(".py"):
                 ALL_PROVIDER_FILES.append(Path(root, filename))
@@ -174,6 +173,9 @@ def check_if_different_provider_used(file_path: Path) -> None:
             ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
+STATES: dict[str, str] = {}
+
+
 if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
@@ -182,8 +184,8 @@ if __name__ == "__main__":
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        if not provider_yaml_content.get("suspended"):
-            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+        ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+        STATES[provider] = provider_yaml_content["state"]
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -194,16 +196,15 @@ if __name__ == "__main__":
         for error in errors:
             console.print(f"[red] {error}")
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
-    unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
+    unique_sorted_dependencies: dict[str, dict[str, list[str] | str]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
             set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
         )
         excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
-        unique_sorted_dependencies[key]["excluded-python-versions"] = (
-            excluded_versions if excluded_versions else []
-        )
+        unique_sorted_dependencies[key]["excluded-python-versions"] = excluded_versions or []
+        unique_sorted_dependencies[key]["state"] = STATES[key]
     if errors:
         console.print()
         console.print("[red]Errors found during verification. Exiting!")
@@ -215,11 +216,12 @@ if __name__ == "__main__":
         DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
         if os.environ.get("CI"):
             console.print()
-            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print(f"[info]There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
             console.print(
-                f"[yellow]You will need to run breeze locally and commit "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+                f"[red]You need to run the following command locally and commit generated "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
             )
+            console.print("breeze static-checks --type update-providers-dependencies --all-files")
             console.print()
         else:
             console.print()
@@ -229,6 +231,7 @@ if __name__ == "__main__":
             )
             console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
+        sys.exit(1)
     else:
         console.print(
             "[green]No need to regenerate dependencies!\n[/]"

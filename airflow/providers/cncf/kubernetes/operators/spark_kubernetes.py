@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import ApiException
 from kubernetes.watch import Watch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
@@ -42,7 +43,7 @@ class SparkKubernetesOperator(BaseOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
-        path to a '.yaml' file, '.json' file, YAML string or JSON string.
+        path to a '.yaml' file, '.json' file, YAML string or python dictionary.
     :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
@@ -58,7 +59,7 @@ class SparkKubernetesOperator(BaseOperator):
     def __init__(
         self,
         *,
-        application_file: str,
+        application_file: str | dict,
         namespace: str | None = None,
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = "sparkoperator.k8s.io",
@@ -81,7 +82,9 @@ class SparkKubernetesOperator(BaseOperator):
         self.config_file = config_file
         self.watch = watch
 
-        self.hook = KubernetesHook(
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
@@ -108,7 +111,10 @@ class SparkKubernetesOperator(BaseOperator):
                 raise
 
     def execute(self, context: Context):
-        body = _load_body_to_dict(self.application_file)
+        if isinstance(self.application_file, str):
+            body = _load_body_to_dict(self.application_file)
+        else:
+            body = self.application_file
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
 
@@ -174,7 +180,10 @@ class SparkKubernetesOperator(BaseOperator):
         return response
 
     def on_kill(self) -> None:
-        body = _load_body_to_dict(self.application_file)
+        if isinstance(self.application_file, str):
+            body = _load_body_to_dict(self.application_file)
+        else:
+            body = self.application_file
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
         self.hook.delete_custom_object(

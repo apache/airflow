@@ -49,8 +49,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-
-TIMEZONE = pendulum.tz.timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
@@ -58,7 +56,8 @@ try:
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
-    pass
+    TIMEZONE = pendulum.tz.timezone("UTC")
+
 log.info("Configured default timezone %s", TIMEZONE)
 
 
@@ -206,13 +205,33 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
+class SkipDBTestsSession:
+    """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
+
+    def __init__(self):
+        raise RuntimeError(
+            "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
+            "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
+            "See https://github.com/apache/airflow/blob/main/TESTING.rst#best-practices-for-db-tests on how "
+            "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
-    global engine
     global Session
+    global engine
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        # Skip DB initialization in unit tests, if DB tests are skipped
+        Session = SkipDBTestsSession
+        engine = None
+        return
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     if conf.has_option("database", "sql_alchemy_connect_args"):
@@ -274,9 +293,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson(
-        "database", "sql_alchemy_engine_args", fallback=default_args
-    )  # type: ignore
+    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)  # type: ignore
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
@@ -312,7 +329,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
-        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(
@@ -579,6 +596,10 @@ IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
     executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
+
+# Executors can set this to true to configure logging correctly for
+# containerized executors.
+IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
 IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
 """Will be True if running in kubernetes executor pod."""
 
@@ -607,6 +628,18 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+SMTP_DEFAULT_TEMPLATED_SUBJECT = """
+{% if ti is defined %}
+DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+{% elif slas is defined %}
+SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
+{% endif %}
+"""
+
+SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
+    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
+)
 
 
 # AIP-44: internal_api (experimental)

@@ -19,7 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   python: python3
   node: 18.6.0
-minimum_pre_commit_version: '2.0.0'
+minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
     hooks:
@@ -33,13 +33,13 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.3.1
+    rev: v1.5.4
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -155,13 +155,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        name: Run black (Python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^.*/.*_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -169,7 +162,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==22.12.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -180,19 +173,20 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
+      # host CPU to it's fullest
       - id: ruff
-        name: ruff
-        language: python
-        require_serial: true
-        pass_filenames: true
-        # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
-        # host CPU to it's fullest
-        entry: ruff --fix --force-exclude
-        additional_dependencies: ['ruff==0.0.282']
-        files: \.pyi?$
+        name: ruff-lint
+        args: [--fix]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+      - id: ruff-format
+        name: ruff-format
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.13.0
+    rev: 1.16.0
     hooks:
       - id: blacken-docs
         name: Run black on Python code blocks in documentation files
@@ -202,10 +196,10 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-        alias: black
-        additional_dependencies: [black==22.12.0]
+        alias: blacken-docs
+        additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -256,7 +250,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.29.0
+    rev: v1.33.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -264,7 +258,7 @@ repos:
         types: [yaml]
         exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.77'
+    rev: '1.0.1'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -278,7 +272,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.2
+    rev: v2.2.6
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -287,11 +281,16 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$
+        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.15
+    hooks:
+      - id: validate-pyproject
+        name: Validate pyproject.toml
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
@@ -341,6 +340,13 @@ repos:
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-providers-bug-report-template
+        name: Check airflow-bug-report provider list is sorted/unique
+        language: python
+        files: ^.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        require_serial: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_bug_report_template.py
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
         language: python
@@ -379,6 +385,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-sql-dependency-common-data-structure
+        name: Check dependency of SQL Providers with common data structure
+        entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
+        language: python
+        files: ^airflow/providers/.*/hooks/.*\.py$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
@@ -400,6 +412,13 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-airflow-diagrams
+        name: Generate airflow diagrams
+        entry: ./scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
+        language: python
+        files: ^docs/.*/diagram_[^/]*\.py$
+        pass_filenames: true
+        additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_supported_versions.py
@@ -422,8 +441,9 @@ repos:
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
         language: python
-        files: ^docs
+        files: ^docs|^airflow/__init__.py$
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -504,8 +524,8 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -514,9 +534,11 @@ repos:
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow/providers/apache/spark/decorators/|
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
+          ^airflow/providers/fab/auth_manager/security_manager/|
           ^airflow/providers/google/cloud/hooks/bigquery.py$|
           ^airflow/providers/google/cloud/operators/cloud_build.py$|
           ^airflow/providers/google/cloud/operators/dataproc.py$|
@@ -525,7 +547,6 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
@@ -542,6 +563,8 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -568,9 +591,24 @@ repos:
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] core imports
-        description: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
-        entry: "from airflow\\.models import.* BaseOperator"
+        name: Check BaseOperator core imports
+        description: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator\\b"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/decorators/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/sensors/.*$|
+          ^dev/provider_packages/.*$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperatorLink core imports
+        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
+        entry: "from airflow\\.models import.* BaseOperatorLink"
         files: \.py$
         pass_filenames: true
         exclude: >
@@ -585,7 +623,7 @@ repos:
         language: pygrep
         name: Check BaseOperator[Link] other imports
         description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -666,7 +704,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^airflow/providers/installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
@@ -735,14 +773,14 @@ repos:
           - --max-length=60
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/setup\.cfg$|^dev/breeze/setup\.py$|^dev/breeze/README\.md$
+        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -774,7 +812,7 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -911,7 +949,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml', 'packaging']
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -970,31 +1008,87 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
         pass_filenames: false
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+      - id: check-provider-docs-valid
+        name: Validate provider doc files
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_docs.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml|^docs/.*
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
+        require_serial: true
+      - id: bandit
+        name: bandit
+        description: "Bandit is a tool for finding common security issues in Python code"
+        entry: bandit
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['bandit==1.7.6']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          - "--skip"
+          - "B301,B324,B403,B404,B603"
+          - "--severity-level"
+          - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-fab-migrations
+        language: pygrep
+        name: Check no migration is done on FAB related table
+        description: >
+          FAB tables are no longer used in core Airflow but in FAB provider.
+          As such, it is forbidden to create migrations related to FAB tables in core Airflow.
+          Such migrations should be in FAB provider. To achieve this, a new capability must be implemented:
+          support migrations for providers. In other words, providers need to be able to specify migrations
+          so that, any FAB related migration (besides the legacy ones) is defined in FAB provider.
+          See https://github.com/apache/airflow/issues/32210
+        entry: >
+          (?ix)
+          \bab_permission\b|
+          \bab_view_menu\b|
+          \bab_role\b|
+          \bab_permission_view\b|
+          \bab_permission_view_role\b|
+          \bab_user\b|
+          \bab_user_role\b|
+          \bab_register_user\b
+        pass_filenames: true
+        files: ^airflow/migrations/versions/.*\.py$
+        # These migrations contain FAB related changes but existed before moving FAB auth manager
+        # to its own provider
+        exclude: >
+          (?ix)
+          ^airflow/migrations/versions/00.*\.py$|
+          ^airflow/migrations/versions/0106.*\.py$|
+          ^airflow/migrations/versions/0118.*\.py$|
+          ^airflow/migrations/versions/0119.*\.py$|
+          ^airflow/migrations/versions/0121.*\.py$|
+          ^airflow/migrations/versions/0124.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
         name: Run mypy for dev
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
-        files: ^dev/.*\.py$
+        files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-core
         name: Run mypy for core
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
@@ -1002,13 +1096,13 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
@@ -1016,7 +1110,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
         language: python

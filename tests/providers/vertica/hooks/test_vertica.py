@@ -127,6 +127,7 @@ class TestVerticaHookConn:
 class TestVerticaHook:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
+        self.cur.nextset.side_effect = [None]
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn

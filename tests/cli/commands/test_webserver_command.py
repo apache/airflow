@@ -226,8 +226,8 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
+@pytest.mark.db_test
 class TestCliWebServer(_ComonCLIGunicornTestClass):
-
     main_process_regexp = r"airflow webserver"
 
     @pytest.mark.execution_timeout(210)

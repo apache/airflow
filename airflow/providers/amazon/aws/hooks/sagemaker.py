@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import os
 import re
 import tarfile
 import tempfile
 import time
 import warnings
-from collections import Counter
+from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Generator, cast
@@ -54,7 +53,7 @@ class LogState:
 
 # Position is a tuple that includes the last read timestamp and the number of items that were read
 # at that time. This is used to figure out which event to start with on the next read.
-Position = collections.namedtuple("Position", ["timestamp", "skip"])
+Position = namedtuple("Position", ["timestamp", "skip"])
 
 
 def argmin(arr, f: Callable) -> int | None:
@@ -979,8 +978,7 @@ class SageMakerHook(AwsBaseHook):
         found_name: str,
         job_name_suffix: str | None = None,
     ) -> bool:
-        pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
-        return pattern.fullmatch(found_name) is not None
+        return re.fullmatch(f"{processing_job_name}({job_name_suffix})?", found_name) is not None
 
     def count_processing_jobs_by_name(
         self,
@@ -1140,7 +1138,7 @@ class SageMakerHook(AwsBaseHook):
         if check_interval is None:
             check_interval = 10
 
-        for retries in (2, 1, 0):
+        for retries in reversed(range(5)):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
             except ClientError as ce:

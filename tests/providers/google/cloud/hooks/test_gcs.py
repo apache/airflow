@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import copy
-import io
 import logging
 import os
 import re
+from collections import namedtuple
 from datetime import datetime, timedelta
+from io import BytesIO
 from unittest import mock
 
 import dateutil
@@ -299,7 +300,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
 
         # Then
@@ -311,13 +314,16 @@ class TestGCSHook:
         test_object = "test_object"
 
         # Given
-        # fmt: off
-        mock_service.return_value.bucket.return_value.get_blob \
-            .return_value.updated = timezone.utcnow() + timedelta(days=2)
-        # fmt: on
+
+        mock_service.return_value.bucket.return_value.get_blob.return_value.updated = (
+            timezone.utcnow() + timedelta(days=2)
+        )
+
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
         # Then
         assert not response
@@ -503,6 +509,7 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
+    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
         mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
@@ -698,7 +705,7 @@ class TestGCSHook:
     def test_download_as_bytes(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
 
         download_method = mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         download_method.return_value = test_object_bytes
@@ -712,7 +719,7 @@ class TestGCSHook:
     def test_download_to_file(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (
@@ -736,7 +743,7 @@ class TestGCSHook:
     def test_provide_file(self, mock_service, mock_temp_file):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (
@@ -752,7 +759,6 @@ class TestGCSHook:
         mock_temp_file.return_value.__enter__.return_value.name = test_file
 
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
-
             assert test_file == response.name
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
@@ -794,14 +800,26 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, result",
+        "prefix, blob_names, returned_prefixes, call_args, result",
         (
             (
                 "prefix",
+                ["prefix"],
+                None,
                 [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+                ["prefix"],
+            ),
+            (
+                "prefix",
+                ["prefix"],
+                {"prefix,"},
+                [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+                ["prefix,"],
             ),
             (
                 ["prefix", "prefix_2"],
+                ["prefix", "prefix2"],
+                None,
                 [
                     mock.call(
                         delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None
@@ -810,19 +828,38 @@ class TestGCSHook:
                         delimiter=",", prefix="prefix_2", versions=None, max_results=None, page_token=None
                     ),
                 ],
+                ["prefix", "prefix2"],
             ),
         ),
     )
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_list__delimiter(self, mock_service, prefix, result):
-        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+    def test_list__delimiter(self, mock_service, prefix, blob_names, returned_prefixes, call_args, result):
+        Blob = namedtuple("Blob", ["name"])
+
+        class BlobsIterator:
+            def __init__(self):
+                self._item_iter = (Blob(name=name) for name in blob_names)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                try:
+                    return next(self._item_iter)
+                except StopIteration:
+                    self.prefixes = returned_prefixes
+                    self.next_page_token = None
+                    raise
+
+        mock_service.return_value.bucket.return_value.list_blobs.return_value = BlobsIterator()
         with pytest.deprecated_call():
-            self.gcs_hook.list(
+            blobs = self.gcs_hook.list(
                 bucket_name="test_bucket",
                 prefix=prefix,
                 delimiter=",",
             )
-        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == call_args
+        assert blobs == result
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     @mock.patch("airflow.providers.google.cloud.hooks.gcs.functools")

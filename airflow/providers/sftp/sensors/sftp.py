@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
+from airflow.exceptions import AirflowSkipException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 from airflow.utils.timezone import convert_to_utc
@@ -84,14 +85,19 @@ class SFTPSensor(BaseSensorOperator):
                 return False
         else:
             actual_files_to_check = [self.path]
+
         for actual_file_to_check in actual_files_to_check:
             try:
                 mod_time = self.hook.get_mod_time(actual_file_to_check)
                 self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
+                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                    if self.soft_fail:
+                        raise AirflowSkipException from e
                     raise e
                 continue
+
             if self.newer_than:
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                 _newer_than = convert_to_utc(self.newer_than)
@@ -99,9 +105,11 @@ class SFTPSensor(BaseSensorOperator):
                     files_found.append(actual_file_to_check)
             else:
                 files_found.append(actual_file_to_check)
+
         self.hook.close_conn()
         if not len(files_found):
             return False
+
         if self.python_callable is not None:
             if self.op_kwargs:
                 self.op_kwargs["files_found"] = files_found

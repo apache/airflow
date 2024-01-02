@@ -27,8 +27,9 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from responses import RequestsMock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake_sql_api import (
     SnowflakeSqlApiHook,
@@ -216,33 +217,24 @@ class TestSnowflakeSqlApiHook:
             hook.check_query_output(query_ids)
         mock_log_info.assert_called_with(GET_RESPONSE)
 
-    @pytest.mark.parametrize(
-        "query_ids",
-        [
-            (["uuid", "uuid1"]),
-        ],
-    )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests.get")
+    @pytest.mark.parametrize("query_ids", [(["uuid", "uuid1"])])
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook."
         "get_request_url_header_params"
     )
-    def test_check_query_output_exception(self, mock_geturl_header_params, mock_requests, query_ids):
+    def test_check_query_output_exception(self, mock_geturl_header_params, query_ids):
         """
         Test check_query_output by passing query ids as params and mock get_request_url_header_params
         to raise airflow exception and mock with http error
         """
         req_id = uuid.uuid4()
         params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
-        mock_geturl_header_params.return_value = HEADERS, params, "/test/airflow/"
-        mock_resp = requests.models.Response()
-        mock_resp.status_code = 404
-        mock_requests.return_value = mock_resp
+        mock_geturl_header_params.return_value = HEADERS, params, "https://test/airflow/"
         hook = SnowflakeSqlApiHook("mock_conn_id")
-        with mock.patch.object(hook.log, "error"):
-            with pytest.raises(AirflowException) as airflow_exception:
+        with mock.patch.object(hook.log, "error"), RequestsMock() as requests_mock:
+            requests_mock.get(url="https://test/airflow/", json={"foo": "bar"}, status=500)
+            with pytest.raises(AirflowException, match='Response: {"foo": "bar"}, Status Code: 500'):
                 hook.check_query_output(query_ids)
-            assert airflow_exception
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")

@@ -61,6 +61,7 @@ class TestSqsNotifier:
             notifier.notify({})
             mock_hook.return_value.send_message.assert_called_once_with(**send_message_kwargs)
 
+    @pytest.mark.db_test
     def test_sqs_notifier_templated(self, dag_maker):
         with dag_maker("test_sns_notifier_templated") as dag:
             EmptyOperator(task_id="task1")

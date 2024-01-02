@@ -58,4 +58,12 @@ global.stateColors = {
 
 global.defaultDagRunDisplayNumber = 245;
 
+global.filtersOptions = {
+  // Must stay in sync with airflow/www/static/js/types/index.ts
+  dagStates: ["success", "running", "queued", "failed"],
+  runTypes: ["manual", "backfill", "scheduled", "dataset_triggered"],
+};
+
 global.moment = moment;
+
+global.standaloneDagProcessor = true;

@@ -92,9 +92,8 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         """
         timeout = self.timeout
         hook = self._get_async_hook()
-        while timeout is None or timeout > 0:
-
-            try:
+        try:
+            while timeout is None or timeout > 0:
                 job: Job = await hook.get_batch_job(job_name=self.job_name)
 
                 status: JobStatus.State = job.status.state
@@ -134,10 +133,10 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                     if timeout is None or timeout > 0:
                         await asyncio.sleep(self.polling_period_seconds)
 
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for job completion.")
-                yield TriggerEvent({"status": "error", "message": str(e)})
-                return
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for job completion.")
+            yield TriggerEvent({"status": "error", "message": str(e)})
+            return
 
         self.log.exception(f"Job with name [{self.job_name}] timed out")
         yield TriggerEvent(
@@ -147,7 +146,6 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                 "message": f"Batch job with name {self.job_name} timed out",
             }
         )
-        return
 
     def _get_async_hook(self) -> CloudBatchAsyncHook:
         return CloudBatchAsyncHook(

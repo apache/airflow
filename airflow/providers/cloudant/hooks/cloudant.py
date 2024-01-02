@@ -40,9 +40,9 @@ class CloudantHook(BaseHook):
     conn_type = "cloudant"
     hook_name = "Cloudant"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "extra"],
             "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},
@@ -54,7 +54,7 @@ class CloudantHook(BaseHook):
 
     def get_conn(self) -> cloudant:
         """
-        Opens a connection to the cloudant service and closes it automatically if used as context manager.
+        Open a connection to the cloudant service and close it automatically if used as context manager.
 
         .. note::
             In the connection form:

@@ -32,6 +32,9 @@ There is one way to connect to Azure Data Lake using Airflow.
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
    i.e. add specific credentials (client_id, secret, tenant) and account name to the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
 Default Connection IDs
 ----------------------
@@ -41,20 +44,23 @@ All hooks and operators related to Microsoft Azure Data Lake use ``azure_data_la
 Configuring the Connection
 --------------------------
 
-Login
+Login (optional)
     Specify the ``client_id`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
-Password
+Password (optional)
     Specify the ``secret`` used for the initial connection.
     This is only needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure Data Lake connection.
     The following parameters are all optional:
 
-    * ``tenant``: Specify the tenant to use.
+    * ``tenant``: (optional) Specify the tenant to use.
       This is needed for *token credentials* authentication mechanism.
+      It can be left out to fall back on ``DefaultAzureCredential``.
     * ``account_name``: Specify the azure data lake account name.
       This is sometimes called the ``store_name``
 

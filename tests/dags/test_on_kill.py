@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 

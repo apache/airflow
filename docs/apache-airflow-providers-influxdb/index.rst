@@ -84,7 +84,7 @@ Package apache-airflow-providers-influxdb
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.2.2
+Release: 2.4.0
 
 Provider package
 ----------------
@@ -102,12 +102,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.4.0``
+``apache-airflow``   ``>=2.6.0``
 ``influxdb-client``  ``>=1.19.0``
 ``requests``         ``>=2.26.0``
 ===================  ==================

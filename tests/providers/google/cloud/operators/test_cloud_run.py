@@ -40,6 +40,12 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+OVERRIDES = {
+    "container_overrides": [{"args": ["python", "main.py"]}],
+    "task_count": 1,
+    "timeout": "60s",
+}
+
 JOB = Job()
 JOB.name = JOB_NAME
 
@@ -78,11 +84,12 @@ class TestCloudRunCreateJobOperator:
 class TestCloudRunExecuteJobOperator:
     def test_template_fields(self):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=OVERRIDES
         )
 
         _assert_common_template_fields(operator.template_fields)
         assert "job_name" in operator.template_fields
+        assert "overrides" in operator.template_fields
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
@@ -96,7 +103,7 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.execute_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -114,7 +121,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_all_failed_tasks(self, hook_mock):
-
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 3)
 
         operator = CloudRunExecuteJobOperator(
@@ -154,7 +160,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
@@ -164,12 +169,11 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
 
         with pytest.raises(AirflowException) as e:
             operator.execute_complete(mock.MagicMock(), event)
@@ -178,7 +182,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
@@ -187,7 +190,7 @@ class TestCloudRunExecuteJobOperator:
         error_message = "error message"
 
         event = {
-            "status": RunJobStatus.FAIL,
+            "status": RunJobStatus.FAIL.value,
             "operation_error_code": error_code,
             "operation_error_message": error_message,
             "job_name": JOB_NAME,
@@ -202,17 +205,82 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
-
         hook_mock.return_value.get_job.return_value = JOB
 
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
 
         result = operator.execute_complete(mock.MagicMock(), event)
         assert result["name"] == JOB_NAME
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_overrides(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
+
+        overrides = {
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60s",
+        }
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.execute_job.assert_called_once_with(
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=overrides
+        )
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_overrides_with_invalid_task_count(self, hook_mock):
+        overrides = {
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": -1,
+            "timeout": "60s",
+        }
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute(context=mock.MagicMock())
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_overrides_with_invalid_timeout(self, hook_mock):
+        overrides = {
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60",
+        }
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute(context=mock.MagicMock())
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_overrides_with_invalid_container_args(self, hook_mock):
+        overrides = {
+            "container_overrides": [{"name": "job", "args": "python main.py"}],
+            "task_count": 1,
+            "timeout": "60s",
+        }
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute(context=mock.MagicMock())
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
         operation = mock.MagicMock()

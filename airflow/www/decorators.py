@@ -22,7 +22,7 @@ import gzip
 import itertools
 import json
 import logging
-from io import BytesIO as IO
+from io import BytesIO
 from typing import Callable, TypeVar, cast
 
 import pendulum
@@ -78,7 +78,7 @@ def _mask_connection_fields(extra_fields):
 
 
 def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
-    """Decorator to log user actions."""
+    """Log user actions."""
 
     def log_action(f: T) -> T:
         @functools.wraps(f)
@@ -88,10 +88,12 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             with create_session() as session:
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
+                    user_display = ""
                 else:
                     user = get_auth_manager().get_user_name()
+                    user_display = get_auth_manager().get_user_display_name()
 
-                fields_skip_logging = {"csrf_token", "_csrf_token"}
+                fields_skip_logging = {"csrf_token", "_csrf_token", "is_paused"}
                 extra_fields = [
                     (k, secrets_masker.redact(v, k))
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
@@ -102,12 +104,15 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
 
-                params = {k: v for k, v in itertools.chain(request.values.items(), request.view_args.items())}
+                params = {**request.values, **request.view_args}
 
+                if params and "is_paused" in params:
+                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
                 log = Log(
                     event=event or f.__name__,
                     task_instance=None,
                     owner=user,
+                    owner_display_name=user_display,
                     extra=str(extra_fields),
                     task_id=params.get("task_id"),
                     dag_id=params.get("dag_id"),
@@ -134,7 +139,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
 
 def gzipped(f: T) -> T:
-    """Decorator to make a view compressed."""
+    """Make a view compressed."""
 
     @functools.wraps(f)
     def view_func(*args, **kwargs):
@@ -153,12 +158,10 @@ def gzipped(f: T) -> T:
                 or "Content-Encoding" in response.headers
             ):
                 return response
-            gzip_buffer = IO()
-            gzip_file = gzip.GzipFile(mode="wb", fileobj=gzip_buffer)
-            gzip_file.write(response.data)
-            gzip_file.close()
-
-            response.data = gzip_buffer.getvalue()
+            with BytesIO() as gzip_buffer:
+                with gzip.GzipFile(mode="wb", fileobj=gzip_buffer) as gzip_file:
+                    gzip_file.write(response.data)
+                response.data = gzip_buffer.getvalue()
             response.headers["Content-Encoding"] = "gzip"
             response.headers["Vary"] = "Accept-Encoding"
             response.headers["Content-Length"] = len(response.data)

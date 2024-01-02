@@ -404,14 +404,14 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         If you need to create a SageMaker endpoint based on an existed
         SageMaker model and an existed SageMaker endpoint config::
 
-            config = endpoint_configuration;
+            config = endpoint_configuration
 
         If you need to create all of SageMaker model, SageMaker endpoint-config and SageMaker endpoint::
 
             config = {
-                'Model': model_configuration,
-                'EndpointConfig': endpoint_config_configuration,
-                'Endpoint': endpoint_configuration
+                "Model": model_configuration,
+                "EndpointConfig": endpoint_config_configuration,
+                "Endpoint": endpoint_configuration,
             }
 
         For details of the configuration parameter of model_configuration see
@@ -579,10 +579,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
         If you need to create both SageMaker model and SageMaker Transform job::
 
-            config = {
-                'Model': model_config,
-                'Transform': transform_config
-            }
+            config = {"Model": model_config, "Transform": transform_config}
 
         For details of the configuration parameter of transform_config see
         :py:meth:`SageMaker.Client.create_transform_job`
@@ -643,7 +640,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             )
         self.deferrable = deferrable
         self.serialized_model: dict
-        self.serialized_tranform: dict
+        self.serialized_transform: dict
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -716,10 +713,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             )
 
         self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_tranform = serialize(
+        self.serialized_transform = serialize(
             self.hook.describe_transform_job(transform_config["TransformJobName"])
         )
-        return {"Model": self.serialized_model, "Transform": self.serialized_tranform}
+        return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
@@ -728,10 +725,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.log.info(event["message"])
         transform_config = self.config.get("Transform", self.config)
         self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_tranform = serialize(
+        self.serialized_transform = serialize(
             self.hook.describe_transform_job(transform_config["TransformJobName"])
         )
-        return {"Model": self.serialized_model, "Transform": self.serialized_tranform}
+        return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Return OpenLineage data gathered from SageMaker's API response saved by transform job."""
@@ -747,10 +744,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.log.error("Cannot find Model Package Name.", exc_info=True)
 
         try:
-            transform_input = self.serialized_tranform["TransformInput"]["DataSource"]["S3DataSource"][
+            transform_input = self.serialized_transform["TransformInput"]["DataSource"]["S3DataSource"][
                 "S3Uri"
             ]
-            transform_output = self.serialized_tranform["TransformOutput"]["S3OutputPath"]
+            transform_output = self.serialized_transform["TransformOutput"]["S3OutputPath"]
         except KeyError:
             self.log.error("Cannot find some required input/output details.", exc_info=True)
 
@@ -1621,7 +1618,6 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
-
         create_notebook_instance_kwargs = {
             "NotebookInstanceName": self.instance_name,
             "InstanceType": self.instance_type,

@@ -27,7 +27,7 @@ from datetime import datetime
 
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
@@ -110,7 +110,7 @@ def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
     raise Exception(f"Unknown target column: {column_name}")
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

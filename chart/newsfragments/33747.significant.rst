@@ -1,3 +1,0 @@
-``bitnami/postgresql`` subchart updated to ``12.10.0``
-
-The PostgreSQL subchart that is used with the Chart is now ``12.10.0``, previously it was ``12.1.9``.

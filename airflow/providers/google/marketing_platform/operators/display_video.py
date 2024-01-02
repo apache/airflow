@@ -285,13 +285,15 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
 
         # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePath"]
+        if urllib.parse.urlparse(file_url).scheme == "file":
+            raise AirflowException("Accessing local file is not allowed in this operator")
         report_name = self.report_name or urlsplit(file_url).path.split("/")[-1]
         report_name = self._resolve_file_name(report_name)
 
         # Download the report
         self.log.info("Starting downloading report %s", self.report_id)
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            with urllib.request.urlopen(file_url) as response:
+            with urllib.request.urlopen(file_url) as response:  # nosec
                 shutil.copyfileobj(response, temp_file, length=self.chunk_size)
 
             temp_file.flush()

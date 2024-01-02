@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -60,8 +59,8 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         *,
         run_id: str,
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -86,10 +85,18 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         )
 
         if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
-            raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} has failed.")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Pipeline run {self.run_id} has failed."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AzureDataFactoryPipelineRunException(message)
 
         if pipeline_run_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
-            raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} has been cancelled.")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Pipeline run {self.run_id} has been cancelled."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AzureDataFactoryPipelineRunException(message)
 
         return pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
 
@@ -123,36 +130,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         """
         if event:
             if event["status"] == "error":
+                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+                if self.soft_fail:
+                    raise AirflowSkipException(event["message"])
                 raise AirflowException(event["message"])
             self.log.info(event["message"])
         return None
-
-
-class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunStatusSensor):
-    """
-    Checks the status of a pipeline run asynchronously.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use
-    :class:`airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :param run_id: The pipeline run identifier.
-    :param resource_group_name: The resource group name.
-    :param factory_name: The data factory name.
-    :param poke_interval: polling period in seconds to check for the status
-    :param deferrable: Run sensor in the deferrable mode.
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `AzureDataFactoryPipelineRunStatusAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `AzureDataFactoryPipelineRunStatusSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(**kwargs, deferrable=True)
