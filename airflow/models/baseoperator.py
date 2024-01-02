@@ -601,6 +601,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that it is executed when the task succeeds.
     :param on_skipped_callback: much like the ``on_failure_callback`` except
         that it is executed when skipped occur; this callback will be called only if AirflowSkipException get raised.
+        Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
+        decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+        is never scheduled.
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
