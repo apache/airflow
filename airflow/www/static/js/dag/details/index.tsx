@@ -153,7 +153,6 @@ const Details = ({
     !isGroup &&
     !isMappedTaskSummary
   );
-  const shouldShowDetailsTab = taskId && runId;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -302,7 +301,7 @@ const Details = ({
           <TabPanel height="100%">
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
-            {shouldShowDetailsTab && (
+            {!!runId && !!taskId && (
               <>
                 <BackToTaskSummary
                   isMapIndexDefined={mapIndex !== undefined && mapIndex > -1}
