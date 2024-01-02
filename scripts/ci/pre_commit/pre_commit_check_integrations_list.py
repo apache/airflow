@@ -26,7 +26,9 @@ from __future__ import annotations
 
 import sys
 import re
+import yaml
 from pathlib import Path
+from typing import Any
 
 # make sure common_precommit_utils is imported
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
@@ -48,7 +50,7 @@ _LIST_MATCH = r"\|[^|\n]+"
 def get_ci_integrations(
     tests_path: Path = INTEGRATION_TESTS_PATH,
     integration_prefix: str = INTEGRATION_TEST_PREFIX,
-) -> list[str]:
+) -> dict[str, Path]:
     """Get list of integrations from matching filenames."""
     if not tests_path.is_dir() and tests_path.exists():
         console.print(f"[red]Bad tests path: {tests_path}. [/]")
@@ -64,14 +66,13 @@ def get_ci_integrations(
         sys.exit(1)
 
     # parse into list of ids
-    integrations = []
+    integrations = {}
     for _i in integrations_files:
         try:
-            integrations.append(_i.stem.split("-")[1])
+            _key = _i.stem.split("-")[1]
+            integrations[_key] = _i
         except IndexError:
-            console.print(
-                f"[red]Tried to parse {_i.stem}, but did not contain '-' separator. [/]"
-            )
+            console.print(f"[red]Tried to parse {_i.stem}, but did not contain '-' separator. [/]")
             continue
 
     return integrations
@@ -117,17 +118,16 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
     return table_cells
 
 
-def update_integration_tests_array(integrations: list[str]):
+def update_integration_tests_array(contents: dict[str, str]):
+    """Generate docs table."""
     rows = []
     description = ""
-    for integration in sorted(integrations):
-        # TODO: replace description
-        rows.append((integration, description))
-    formatted_table = (
-        "\n"
-        + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description"))
-        + "\n\n"
-    )
+    for integration, description in contents.items():
+        formatted_hook_description = (
+            description[0] if len(description) == 1 else "* " + "\n* ".join(description)
+        )
+        rows.append((integration, formatted_hook_description))
+    formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description")) + "\n\n"
     insert_documentation(
         file_path=AIRFLOW_SOURCES_ROOT_PATH / "TESTING.rst",
         content=formatted_table.splitlines(keepends=True),
@@ -136,13 +136,44 @@ def update_integration_tests_array(integrations: list[str]):
     )
 
 
-def print_diff_and_fail(source, target, msg):
+def print_diff(source, target, msg):
     difference = source - target
     if difference:
         console.print(msg)
         for i in difference:
             console.print(f"[red]\t- {i}[/]")
     return list(difference)
+
+
+def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "breeze.description"):
+    """Extract all breeze.description lables per image."""
+    image_label_map = {}
+    # possible key error handled outside
+    for _img_name, img in parsed_compose["services"].items():
+        try:
+            for _label_name, label in img["labels"].items():
+                if _label_name == label_key:
+                    image_label_map[_img_name] = label
+        except KeyError:
+            # service has no 'lables' entry
+            continue
+    return image_label_map
+
+
+def get_integration_descriptions(integrations: dict[str, Path]) -> dict[str, str]:
+    """Pull breeze description from docker-compose files."""
+    table = {}
+    for integration, path in integrations.items():
+        with open(path) as f:
+            _compose = yaml.safe_load(f)
+
+        try:
+            _labels = _get_breeze_description(_compose)
+        except KeyError:
+            console.print(f"[red]No 'services' entry in compose file {path}.[/]")
+            sys.exit(1)
+        table[integration] = list(_labels.values())
+    return table
 
 
 def main():
@@ -156,20 +187,15 @@ def main():
     _ci_items = set(ci_integrations)
     _docs_items = set(docs_integrations)
     diff = []
-    diff.append(
-        print_diff_and_fail(
-            _ci_items, _docs_items, "[red]Found in ci files, but not in docs: [/]"
-        )
-    )
-    diff.append(
-        print_diff_and_fail(
-            _docs_items, _ci_items, "[red]Found in docs, but not in ci files: [/]"
-        )
-    )
+    diff.append(print_diff(_ci_items, _docs_items, "[red]Found in ci files, but not in docs: [/]"))
+    diff.append(print_diff(_docs_items, _ci_items, "[red]Found in docs, but not in ci files: [/]"))
     if diff:
-        sys.exit(1)
+        console.print(
+            "[yellow]Regenerating documentation table. Don't forget to review and commit possible changes.[/]"
+        )
 
-    # update_integration_tests_array(integrations)
+    table_contents = get_integration_descriptions(ci_integrations)
+    update_integration_tests_array(table_contents)
 
 
 if __name__ == "__main__":

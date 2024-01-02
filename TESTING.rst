@@ -1213,29 +1213,29 @@ The following integrations are available:
 
 .. BEGIN AUTO-GENERATED INTEGRATION LIST
 
-+--------------+---------------+
-| Identifier   | Description   |
-+==============+===============+
-| cassandra    |               |
-+--------------+---------------+
-| celery       |               |
-+--------------+---------------+
-| kafka        |               |
-+--------------+---------------+
-| kerberos     |               |
-+--------------+---------------+
-| mongo        |               |
-+--------------+---------------+
-| openlineage  |               |
-+--------------+---------------+
-| otel         |               |
-+--------------+---------------+
-| pinot        |               |
-+--------------+---------------+
-| statsd       |               |
-+--------------+---------------+
-| trino        |               |
-+--------------+---------------+
++--------------+----------------------------------------------------+
+| Identifier   | Description                                        |
++==============+====================================================+
+| kafka        | Integration required for Kafka hooks.              |
++--------------+----------------------------------------------------+
+| celery       | Integration required for Celery executor tests.    |
++--------------+----------------------------------------------------+
+| trino        | Integration required for Trino hooks.              |
++--------------+----------------------------------------------------+
+| mongo        | Integration required for MongoDB hooks.            |
++--------------+----------------------------------------------------+
+| pinot        | Integration required for Apache Pinot hooks.       |
++--------------+----------------------------------------------------+
+| openlineage  | Integration required for Openlineage hooks.        |
++--------------+----------------------------------------------------+
+| statsd       | Integration required for Satsd hooks.              |
++--------------+----------------------------------------------------+
+| kerberos     | Integration that provides Kerberos authentication. |
++--------------+----------------------------------------------------+
+| cassandra    | Integration required for Cassandra hooks.          |
++--------------+----------------------------------------------------+
+| otel         | Integration required for OTEL/opentelemetry hooks. |
++--------------+----------------------------------------------------+
 
 .. END AUTO-GENERATED INTEGRATION LIST'
 
