@@ -372,7 +372,7 @@ class OracleHook(DbApiHook):
         identifier: str,
         autocommit: bool = False,
         parameters: list | dict | None = None,
-    ) -> list | dict | None:
+    ) -> list | dict | tuple | None:
         """
         Call the stored procedure identified by the provided string.
 

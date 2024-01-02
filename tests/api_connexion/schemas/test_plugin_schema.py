@@ -25,7 +25,7 @@ from airflow.api_connexion.schemas.plugin_schema import (
     plugin_schema,
 )
 from airflow.hooks.base import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 
 
@@ -91,6 +91,9 @@ class TestPluginSchema(TestPluginBase):
             "operator_extra_links": [str(MockOperatorLink())],
             "source": None,
             "name": "test_plugin",
+            "ti_deps": [],
+            "listeners": [],
+            "timetables": [],
         }
 
 
@@ -112,6 +115,9 @@ class TestPluginCollectionSchema(TestPluginBase):
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
                     "name": "test_plugin",
+                    "ti_deps": [],
+                    "listeners": [],
+                    "timetables": [],
                 },
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
@@ -124,6 +130,9 @@ class TestPluginCollectionSchema(TestPluginBase):
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
                     "name": "test_plugin_2",
+                    "ti_deps": [],
+                    "listeners": [],
+                    "timetables": [],
                 },
             ],
             "total_entries": 2,

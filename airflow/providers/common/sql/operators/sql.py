@@ -729,6 +729,8 @@ class SQLCheckOperator(BaseSQLOperator):
     The ``SQLCheckOperator`` expects a sql query that will return a single row.
     Each value on that first row is evaluated using python ``bool`` casting.
     If any of the values return ``False`` the check is failed and errors out.
+    If a Python dict is returned, and any values in the Python dict are ``False``,
+    the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -737,6 +739,7 @@ class SQLCheckOperator(BaseSQLOperator):
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
+    * Dictionary with value = ``False`` (``{'DUPLICATE_ID_CHECK': False}``)
 
     Given a query like ``SELECT COUNT(*) FROM foo``, it will fail only if
     the count ``== 0``. You can craft much more complex query that could,
@@ -785,6 +788,8 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
+        elif isinstance(records, dict) and not all(records.values()):
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
@@ -837,14 +842,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
         error_msg = (
-            "Test failed.\nPass value:{pass_value_conv}\n"
-            "Tolerance:{tolerance_pct_str}\n"
-            "Query:\n{sql}\nResults:\n{records!s}"
-        ).format(
-            pass_value_conv=pass_value_conv,
-            tolerance_pct_str=f"{self.tol:.1%}" if self.tol is not None else None,
-            sql=self.sql,
-            records=records,
+            f"Test failed.\n"
+            f"Pass value:{pass_value_conv}\n"
+            f"Tolerance:{f'{self.tol:.1%}' if self.tol is not None else None}\n"
+            f"Query:\n{self.sql}\n"
+            f"Results:\n{records!s}"
         )
 
         if not is_numeric_value_check:

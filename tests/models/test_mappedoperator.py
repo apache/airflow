@@ -46,6 +46,8 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -93,7 +95,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("task_2 ran successfully") == 2
+    assert caplog.text.count("[DAG TEST] end task task_id=task_2") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
@@ -467,7 +469,6 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 
 def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
-
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):
@@ -1565,5 +1566,64 @@ class TestMappedSetupTeardown:
             "tg_2.my_setup": "skipped",
             "tg_2.my_teardown": "skipped",
             "tg_2.my_work": "skipped",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group_with_generator(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def make_list():
+                return [1, 2, 3]
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n):
+                ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=make_list())
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
+            "make_list": "success",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n):
+                ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=[1, 2, 3])
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
         }
         assert states == expected

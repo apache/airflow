@@ -78,14 +78,16 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
+    "admin_views",
     "flask_blueprints",
+    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
     "ti_deps",
     "timetables",
-    "source",
     "listeners",
 }
 
@@ -557,8 +559,10 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 elif attr in ("macros", "timetables", "hooks", "executors"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
-                    # listeners are always modules
-                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
+                    # listeners may be modules or class instances
+                    info[attr] = [
+                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
+                    ]
                 elif attr == "appbuilder_views":
                     info[attr] = [
                         {**d, "view": qualname(d["view"].__class__) if "view" in d else None}

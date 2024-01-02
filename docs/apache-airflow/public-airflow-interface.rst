@@ -86,6 +86,16 @@ References for the modules used in DAGs are here:
   _api/airflow/models/dagbag/index
   _api/airflow/models/param/index
 
+Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dagrun/index
+
+
 Operators
 ---------
 
@@ -302,6 +312,13 @@ Extra Links
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
 
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperatorlink/index
+
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
 Using Public Interface to integrate with external services and applications
@@ -353,12 +370,24 @@ You can read more about Secret Backends in :doc:`security/secrets/secrets-backen
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
+Auth managers
+-------------
+
+Auth managers are responsible of user authentication and user authorization in Airflow. All auth managers are
+derived from :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+
+The auth manager interface itself (the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` class) is
+public, but the different implementations of auth managers are not (i.e. FabAuthManager).
+
+You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager`.
+
 Authentication Backends
 -----------------------
 
 Authentication backends can extend the way how Airflow authentication mechanism works. You can find out more
 about authentication in :doc:`apache-airflow-providers:core-extensions/auth-backends` that also shows available
-Authentication backends implemented in the community providers.
+Authentication backends implemented in the community providers. In case of authentication backend implemented in a
+provider, it is then part of the provider's public interface and not Airflow's.
 
 Connections
 -----------

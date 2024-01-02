@@ -29,6 +29,8 @@ from airflow.utils.scheduler_health import HealthServer, serve_health_check
 from airflow.utils.serve_logs import serve_logs
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSchedulerCommand:
     @classmethod
@@ -138,6 +140,22 @@ class TestSchedulerCommand:
         scheduler_command.scheduler(args)
         with pytest.raises(AssertionError):
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
+
+    @mock.patch("airflow.utils.scheduler_health.HTTPServer")
+    def test_scheduler_health_host(
+        self,
+        http_server_mock,
+    ):
+        health_check_host = "192.168.0.0"
+        health_check_port = 1111
+        with conf_vars(
+            {
+                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST"): health_check_host,
+                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(health_check_port),
+            }
+        ):
+            serve_health_check()
+        assert http_server_mock.call_args.args[0] == (health_check_host, health_check_port)
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")

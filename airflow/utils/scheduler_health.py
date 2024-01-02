@@ -57,8 +57,10 @@ class HealthServer(BaseHTTPRequestHandler):
 
 
 def serve_health_check():
+    """Start a http server to serve scheduler health check."""
+    health_check_host = conf.get("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST")
     health_check_port = conf.getint("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT")
-    httpd = HTTPServer(("0.0.0.0", health_check_port), HealthServer)
+    httpd = HTTPServer((health_check_host, health_check_port), HealthServer)
     httpd.serve_forever()
 
 

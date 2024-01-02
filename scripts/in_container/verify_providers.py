@@ -192,7 +192,7 @@ def import_all_classes(
                     console.print(f"Skipping module: {modinfo.name}")
                 continue
             if print_imports:
-                package_to_print = ".".join(modinfo.name.split(".")[:-1])
+                package_to_print = modinfo.name.rpartition(".")[0]
                 if package_to_print not in printed_packages:
                     printed_packages.add(package_to_print)
                     console.print(f"Importing package: {package_to_print}")
@@ -247,7 +247,7 @@ def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
     :param imported_name: name of the imported class
     :return: true if the class was imported from another module
     """
-    return ".".join(imported_name.split(".")[:-1]) == the_class.__module__
+    return imported_name.rpartition(":")[0] == the_class.__module__
 
 
 def is_example_dag(imported_name: str) -> bool:
@@ -360,7 +360,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
     :param class_name: name of the class
     :return: URL to the class
     """
-    return base_url + os.path.sep.join(class_name.split(".")[:-1]) + ".py"
+    return base_url + class_name.rpartition(".")[0].replace(".", "/") + ".py"
 
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
@@ -426,7 +426,6 @@ def find_all_entities(
             and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
             and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
         ):
-
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
                     wrong_entities.append(
@@ -579,7 +578,7 @@ def is_camel_case_with_acronyms(s: str):
 
 
 def check_if_classes_are_properly_named(
-    entity_summary: dict[EntityType, EntityTypeSummary]
+    entity_summary: dict[EntityType, EntityTypeSummary],
 ) -> tuple[int, int]:
     """Check if all entities in the dictionary are named properly.
 
@@ -746,15 +745,14 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
-    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.6.0.dev0"):
-        # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the triggers command is not available till airflow-2-6-0
-        # TODO: Remove this block once airflow dependency in providers are > 2-6-0
-        console.print("[bright_blue]List all triggers[/]\n")
-        subprocess.run(["airflow", "providers", "triggers"], check=True)
     if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
         # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the executors command is not available till airflow-2-7-0
+        # But the triggers command is not available till airflow 2.7.0
+        # TODO: Remove this condition once airflow dependency in providers are > 2.7.0
+        console.print("[bright_blue]List all triggers[/]\n")
+        subprocess.run(["airflow", "providers", "triggers"], check=True)
+        # CI also check if our providers are installable and discoverable in airflow older versions
+        # But the executors command is not available till airflow 2.7.0
         console.print("[bright_blue]List all executors[/]\n")
         subprocess.run(["airflow", "providers", "executors"], check=True)
 

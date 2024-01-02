@@ -21,8 +21,13 @@ name: Apache Spark
 description: |
     `Apache Spark <https://spark.apache.org/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288115
 versions:
+  - 4.6.0
+  - 4.5.0
+  - 4.4.0
+  - 4.3.0
   - 4.2.0
   - 4.1.5
   - 4.1.4
@@ -47,8 +52,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - pyspark
+  - grpcio-status
 
 integrations:
   - integration-name: Apache Spark
@@ -68,6 +74,7 @@ operators:
 hooks:
   - integration-name: Apache Spark
     python-modules:
+      - airflow.providers.apache.spark.hooks.spark_connect
       - airflow.providers.apache.spark.hooks.spark_jdbc
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
       - airflow.providers.apache.spark.hooks.spark_sql
@@ -75,12 +82,18 @@ hooks:
 
 
 connection-types:
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook
+    connection-type: spark_connect
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
     connection-type: spark_jdbc
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
     connection-type: spark_sql
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
     connection-type: spark
+
+task-decorators:
+  - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
+    name: pyspark
 
 additional-extras:
   - name: cncf.kubernetes

@@ -40,6 +40,7 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
+  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -240,6 +241,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pipx install -e ./dev/breeze
     ```
 
+
+
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -256,6 +259,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -759,6 +765,47 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
+## Remove chicken-egg providers
+
+For the first MINOR (X.Y.0) release you need to do few more steps if there are new "chicken-egg" providers
+that have min-airflow version set to X.Y.0
+
+* NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
+
+1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
+   version. Find the place where the provider should be added, add it with the latest provider version.
+
+```
+apache-airflow-providers-PROVIDER==VERSION
+```
+
+Commit, push and tag this change with ``constraints-X.Y.Z`` tag:
+
+```bash
+git add
+git commit -m "Add chicken-egg provider apache-airflow-providers-PROVIDER"
+git tag -s constraints-X.Y.Z --force
+git push -f apache constraints-X.Y.Z
+```
+
+
+2. remove providers from ``CHICKEN_EGG_PROVIDERS`` list  in ``src/airflow_breeze/global_constants.py``
+   that have >= ``X.Y.0`` in the corresponding provider.yaml file.
+
+
+3. In case the provider should also be installed in the image (it is part of ``airflow/providers/installed_providers.txt``)
+   it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
+
+```Dockerfile
+ARG AIRFLOW_EXTRAS=".....,<provider>,...."
+```
+
+This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
+
+4. Make sure to update Airflow version in ``v2-*-test`` branch after cherry-picking to X.Y.1.dev0 in
+   ``airflow/__init__.py``
+
+
 ## Manually prepare production Docker Image
 
 Building the image is triggered by running the
@@ -769,7 +816,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use v2-*-stable branch to run the workflow.
+Make sure you use ``v2-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -1003,29 +1050,27 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 After releasing airflow core, we need to check if we have to follow up with API clients release.
 
-Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
-ASF policy does not allow to vote against multiple artifacts with different versions.
+Clients are released in a separate process, with their own vote.
 
-### API Clients versioning policy
-
-For major/minor version release, always release new versions of the API clients.
+Clients can be found here:
 
 - [Python client](https://github.com/apache/airflow-client-python)
 - [Go client](https://github.com/apache/airflow-client-go)
 
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
-There are other external reasons for which we might want to release a patch version for clients only, but they are not
-tied to an airflow release and therefore out of scope.
+### API Clients versioning policy
 
-To determine if you should also release API clients you can run:
+Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+changed, clients need to be released.
+
+To determine if you should release API clients, you can run from the airflow repository:
 
 ```shell
-./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+./dev/airflow-github api-clients-policy 2.3.2 2.4.0
 ```
 
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
-> You need to check for each client what is the next patch version to be released.
+> All clients follow SemVer and you should check what the appropriate new version for each client should be. Depending on the current
+> client version and type of content added (feature, fix, breaking change etc.) appropriately increment the version number.
 
 ### Releasing the clients
 

@@ -267,12 +267,6 @@ __deprecated_classes = {
         "PinotAdminHook": "airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook",
         "PinotDbApiHook": "airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook",
     },
-    "qubole_check_hook": {
-        "QuboleCheckHook": "airflow.providers.qubole.hooks.qubole_check.QuboleCheckHook",
-    },
-    "qubole_hook": {
-        "QuboleHook": "airflow.providers.qubole.hooks.qubole.QuboleHook",
-    },
     "redis_hook": {
         "RedisHook": "airflow.providers.redis.hooks.redis.RedisHook",
     },
@@ -316,9 +310,6 @@ __deprecated_classes = {
     },
     "spark_submit_hook": {
         "SparkSubmitHook": "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook",
-    },
-    "sqoop_hook": {
-        "SqoopHook": "airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook",
     },
     "ssh_hook": {
         "SSHHook": "airflow.providers.ssh.hooks.ssh.SSHHook",

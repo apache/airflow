@@ -213,7 +213,6 @@ class CountQueries:
 count_queries = CountQueries
 
 if __name__ == "__main__":
-
     # Example:
     def case():
         """Case of logging om/"""

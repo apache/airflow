@@ -23,6 +23,7 @@ import os
 from datetime import datetime
 
 from google.cloud import dataplex_v1
+from google.cloud.dataplex_v1 import DataQualitySpec
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models.baseoperator import chain
@@ -50,7 +51,7 @@ from airflow.providers.google.cloud.sensors.dataplex import DataplexDataQualityJ
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_dataplex_data_quality"
 
@@ -109,18 +110,20 @@ EXAMPLE_DATA_SCAN.data.entity = (
 EXAMPLE_DATA_SCAN.data.resource = (
     f"//bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/{DATASET}/tables/{TABLE_1}"
 )
-EXAMPLE_DATA_SCAN.data_quality_spec = {
-    "rules": [
-        {
-            "range_expectation": {
-                "min_value": "0",
-                "max_value": "10000",
-            },
-            "column": "value",
-            "dimension": "VALIDITY",
-        }
-    ],
-}
+EXAMPLE_DATA_SCAN.data_quality_spec = DataQualitySpec(
+    {
+        "rules": [
+            {
+                "range_expectation": {
+                    "min_value": "0",
+                    "max_value": "10000",
+                },
+                "column": "value",
+                "dimension": "VALIDITY",
+            }
+        ],
+    }
+)
 # [END howto_dataplex_data_quality_configuration]
 UPDATE_MASK = FieldMask(paths=["data_quality_spec"])
 ENTITY = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"

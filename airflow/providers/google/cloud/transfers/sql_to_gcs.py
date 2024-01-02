@@ -179,7 +179,6 @@ class BaseSQLToGCSOperator(BaseOperator):
         total_files = 0
         self.log.info("Writing local data files")
         for file_to_upload in self._write_local_data_files(cursor):
-
             # Flush file before uploading
             file_to_upload["file_handle"].flush()
 

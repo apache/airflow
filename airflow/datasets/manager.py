@@ -20,8 +20,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
+from sqlalchemy.orm import joinedload
 
 from airflow.configuration import conf
+from airflow.datasets import Dataset
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -29,7 +32,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.datasets import Dataset
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -44,6 +46,15 @@ class DatasetManager(LoggingMixin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def create_datasets(self, dataset_models: list[DatasetModel], session: Session) -> None:
+        """Create new datasets."""
+        for dataset_model in dataset_models:
+            session.add(dataset_model)
+        session.flush()
+
+        for dataset_model in dataset_models:
+            self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
+
     def register_dataset_change(
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
@@ -53,7 +64,11 @@ class DatasetManager(LoggingMixin):
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
-        dataset_model = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset.uri))
+        dataset_model = session.scalar(
+            select(DatasetModel)
+            .where(DatasetModel.uri == dataset.uri)
+            .options(joinedload(DatasetModel.consuming_dags))
+        )
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
             return
@@ -68,10 +83,21 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
+
+        self.notify_dataset_changed(dataset=dataset)
+
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
+
+    def notify_dataset_created(self, dataset: Dataset):
+        """Run applicable notification actions when a dataset is created."""
+        get_listener_manager().hook.on_dataset_created(dataset=dataset)
+
+    def notify_dataset_changed(self, dataset: Dataset):
+        """Run applicable notification actions when a dataset is changed."""
+        get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually

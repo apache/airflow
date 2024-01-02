@@ -27,11 +27,12 @@ The Microsoft Azure Service Bus connection type enables the Azure Service Bus In
 Authenticating to Azure Service Bus
 ------------------------------------
 
-There are two ways to authenticate and authorize access to Azure Service Bus resources:
+There are three ways to authenticate and authorize access to Azure Service Bus resources:
 
 1. Use a `Connection String`_
    i.e. Use connection string Field to add ``Connection String`` in the Airflow connection.
-2. Fallback on DefaultAzureCredential_.
+2. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+3. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
    ``fully_qualified_namespace`` is required in this authentication mechanism.
 
@@ -56,6 +57,16 @@ Fully Qualified Namespace (optional)
    Use the key ``fully_qualified_namespace`` to pass in the Connection ID .
    This is required when falling back to DefaultAzureCredential_.
 
+Managed Identity Client ID (optional)
+    The client ID of a user-assigned managed identity. If provided with ``workload_identity_tenant_id``, they'll pass to DefaultAzureCredential_.
+
+Workload Identity Tenant ID (optional)
+    ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with ``managed_identity_client_id``, they'll pass to DefaultAzureCredential_.
+
+
 .. _Connection String: https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#get-the-connection-string
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
 .. _Get connection string: https://docs.microsoft.com/en-gb/azure/service-bus-messaging/service-bus-create-namespace-portal#get-the-connection-string
+
+.. spelling:word-list::
+    Entra

@@ -72,7 +72,6 @@ with DAG(
     catchup=False,
     tags=["fizz-buzz"],
 ) as dag:
-
     t0 = PythonOperator(task_id="load_connections", python_callable=load_connections)
 
     t1 = ProduceToTopicOperator(

@@ -49,6 +49,7 @@ from airflow.version import version
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.pubsub_v1.types import (
         DeadLetterPolicy,
         Duration,
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
         PushConfig,
         ReceivedMessage,
         RetryPolicy,
+        SchemaSettings,
     )
 
 
@@ -182,6 +184,8 @@ class PubSubHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
+        schema_settings: dict | SchemaSettings = None,
+        message_retention_duration: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -206,6 +210,11 @@ class PubSubHook(GoogleBaseHook):
             to be used to protect access to messages published on this topic.
             The expected format is
             ``projects/*/locations/*/keyRings/*/cryptoKeys/*``.
+        :param schema_settings: (Optional) Settings for validating messages published against an
+            existing schema. The expected format is ``projects/*/schemas/*``.
+        :param message_retention_duration: (Optional) Indicates the minimum duration to retain a
+            message after it is published to the topic. The expected format is a duration in
+            seconds with up to nine fractional digits, ending with 's'. Example: "3.5s".
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
@@ -222,13 +231,14 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
-
             publisher.create_topic(
                 request={
                     "name": topic_path,
                     "labels": labels,
                     "message_storage_policy": message_storage_policy,
                     "kms_key_name": kms_key_name,
+                    "schema_settings": schema_settings,
+                    "message_retention_duration": message_retention_duration,
                 },
                 retry=retry,
                 timeout=timeout,
@@ -274,7 +284,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
-
             publisher.delete_topic(
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
@@ -446,7 +455,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
-
             subscriber.delete_subscription(
                 request={"subscription": subscription_path},
                 retry=retry,
@@ -561,7 +569,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
-
             subscriber.acknowledge(
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,
@@ -605,7 +612,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         project_id: str,
         ack_ids: list[str] | None = None,
         messages: list[ReceivedMessage] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
@@ -659,7 +666,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:

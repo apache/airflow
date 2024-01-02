@@ -43,6 +43,7 @@ def s3mock():
         yield
 
 
+@pytest.mark.db_test
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
@@ -143,36 +144,9 @@ class TestS3TaskHandler:
         assert 1 == len(log)
         assert len(log) == len(metadata)
         actual = log[0][0][-1]
-        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"  # noqa: E501
+        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
         assert actual == expected
         assert {"end_of_log": True, "log_pos": 0} == metadata[0]
-
-    def test_read_when_s3_log_missing_and_log_pos_missing_pre_26(self):
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        # mock that super class has no _read_remote_logs method
-        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
-            log, metadata = self.s3_task_handler.read(ti)
-        assert 1 == len(log)
-        assert log[0][0][-1].startswith("*** Falling back to local log")
-
-    def test_read_when_s3_log_missing_and_log_pos_zero_pre_26(self):
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        # mock that super class has no _read_remote_logs method
-        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
-            log, metadata = self.s3_task_handler.read(ti, metadata={"log_pos": 0})
-        assert 1 == len(log)
-        assert log[0][0][-1].startswith("*** Falling back to local log")
-
-    def test_read_when_s3_log_missing_and_log_pos_over_zero_pre_26(self):
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        # mock that super class has no _read_remote_logs method
-        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
-            log, metadata = self.s3_task_handler.read(ti, metadata={"log_pos": 1})
-        assert 1 == len(log)
-        assert not log[0][0][-1].startswith("*** Falling back to local log")
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler
@@ -239,15 +213,11 @@ class TestS3TaskHandler:
             boto3.resource("s3").Object("bucket", self.remote_log_key).get()
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
-        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+        "delete_local_copy, expected_existence_of_local_copy",
+        [(True, False), (False, True)],
     )
-    def test_close_with_delete_local_logs_conf(
-        self, delete_local_copy, expected_existence_of_local_copy, airflow_version
-    ):
-        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
-            "airflow.version.version", airflow_version
-        ):
+    def test_close_with_delete_local_logs_conf(self, delete_local_copy, expected_existence_of_local_copy):
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}):
             handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
 
         handler.log.info("test")

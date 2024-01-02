@@ -111,7 +111,6 @@ class WinRMOperator(BaseOperator):
             command_done = False
             while not command_done:
                 try:
-
                     (
                         stdout,
                         stderr,

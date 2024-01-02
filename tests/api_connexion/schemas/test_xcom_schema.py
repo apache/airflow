@@ -30,6 +30,9 @@ from airflow.api_connexion.schemas.xcom_schema import (
 from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
+from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -186,6 +189,7 @@ class TestXComSchema:
     default_time = "2016-04-02T21:00:00+00:00"
     default_time_parsed = parse_execution_date(default_time)
 
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_serialize(self, create_xcom, session):
         create_xcom(
             dag_id="test_dag",
@@ -206,6 +210,7 @@ class TestXComSchema:
             "map_index": -1,
         }
 
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_deserialize(self):
         xcom_dump = {
             "key": "test_key",

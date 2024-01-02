@@ -26,10 +26,6 @@ from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobSensor,
 )
 
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
-
 BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "file.txt")
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 GCP_BUCKET_FILE_PATH = os.environ.get("GCP_BUCKET_FILE_PATH", "file.txt")

@@ -34,7 +34,6 @@ from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse

@@ -111,13 +111,16 @@ class PostgresHook(DbApiHook):
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
-        if _cursor == "dictcursor":
-            return psycopg2.extras.DictCursor
-        if _cursor == "realdictcursor":
-            return psycopg2.extras.RealDictCursor
-        if _cursor == "namedtuplecursor":
-            return psycopg2.extras.NamedTupleCursor
-        raise ValueError(f"Invalid cursor passed {_cursor}")
+        cursor_types = {
+            "dictcursor": psycopg2.extras.DictCursor,
+            "realdictcursor": psycopg2.extras.RealDictCursor,
+            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+        }
+        if _cursor in cursor_types:
+            return cursor_types[_cursor]
+        else:
+            valid_cursors = ", ".join(cursor_types.keys())
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
@@ -272,9 +275,8 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @classmethod
     def _generate_insert_sql(
-        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """Generate the INSERT SQL statement.
 
@@ -289,7 +291,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
@@ -363,8 +365,8 @@ class PostgresHook(DbApiHook):
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": [],
             "relabeling": {

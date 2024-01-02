@@ -71,8 +71,10 @@ Extra (optional)
     * ``use_beeline``
       Specify as ``True`` if using the Beeline CLI. Default is ``False``.
     * ``proxy_user``
-      Specify a proxy user as an ``owner`` or ``login`` or keep blank if using a
+      Specify a proxy user as an ``owner`` or ``login`` or ``as_param`` keep blank if using a
       custom proxy user.
+      When using ``owner`` you will want to pass the operator ``run_as_owner=True`` if you don't you will run the hql as user="owner"
+      When using ``as_param`` you will want to pass the operator ``proxy_user=<some_user>`` if you don't you will run the hql as user="as_param"
     * ``principal``
       Specify the JDBC Hive principal to be used with Hive Beeline.
 

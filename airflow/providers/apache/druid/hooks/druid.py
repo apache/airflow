@@ -61,7 +61,6 @@ class DruidHook(BaseHook):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
-
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout

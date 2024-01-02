@@ -40,7 +40,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -63,7 +63,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
@@ -479,7 +478,6 @@ class DagFileProcessor(LoggingMixin):
                 if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
                     continue
                 if next_info.logical_date + task.sla < ts:
-
                     sla_miss = SlaMiss(
                         task_id=ti.task_id,
                         dag_id=ti.dag_id,
@@ -594,7 +592,10 @@ class DagFileProcessor(LoggingMixin):
     @internal_api_call
     @provide_session
     def update_import_errors(
-        file_last_changed: dict[str, datetime], import_errors: dict[str, str], session: Session = NEW_SESSION
+        file_last_changed: dict[str, datetime],
+        import_errors: dict[str, str],
+        processor_subdir: str | None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         Update any import errors to be displayed in the UI.
@@ -629,7 +630,12 @@ class DagFileProcessor(LoggingMixin):
                 )
             else:
                 session.add(
-                    errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
+                    errors.ImportError(
+                        filename=filename,
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                        processor_subdir=processor_subdir,
+                    )
                 )
             (
                 session.query(DagModel)
@@ -831,12 +837,13 @@ class DagFileProcessor(LoggingMixin):
             return 0, 0
 
         if dagbag.dags:
-            self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
+            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
             if callback_requests:
@@ -862,6 +869,7 @@ class DagFileProcessor(LoggingMixin):
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
         except Exception:
@@ -884,7 +892,6 @@ class DagFileProcessor(LoggingMixin):
         pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
-
         import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
         session.commit()
 

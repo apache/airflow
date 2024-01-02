@@ -16,46 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck shell=bash
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
 set -euo pipefail
+
+common::get_colors
 declare -a packages
 
 # https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
-MYSQL_LTS_VERSION="8.0"
+readonly MYSQL_LTS_VERSION="8.0"
 # https://mariadb.org/about/#maintenance-policy
-MARIADB_LTS_VERSION="10.11"
-readonly MYSQL_LTS_VERSION
-readonly MARIADB_LTS_VERSION
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_YELLOW=$'\e[1;33m'
-readonly COLOR_YELLOW
-COLOR_RED=$'\e[1;31m'
-readonly COLOR_RED
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
+readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-
-export_key() {
-    local key="${1}"
-    local name="${2:-mysql}"
-
-    echo "${COLOR_BLUE}Verify and export GPG public key ${key}${COLOR_RESET}"
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
-                               keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
-    do
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
-}
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
 install_mysql_client() {
     if [[ "${1}" == "dev" ]]; then
@@ -74,7 +49,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    export_key "467B942D3A79BD29" "mysql"
+    common::import_trusted_gpg "B7B3B788A8D3785C" "mysql"
 
     echo
     echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -86,6 +61,13 @@ install_mysql_client() {
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Remove mysql repository from sources.list.d as MySQL repos have a basic flaw that they put expiry
+    # date on their GPG signing keys and they sign their repo with those keys. This means that after a
+    # certain date, the GPG key becomes invalid and if you have the repository added in your sources.list
+    # then you will not be able to install anything from any other repository. This id unlike any other
+    # repository we have seen (for example Postgres, MariaDB, MsSQL - all have non-expiring signing keys)
+    rm /etc/apt/sources.list.d/mysql.list
 }
 
 install_mariadb_client() {
@@ -109,7 +91,7 @@ install_mariadb_client() {
         exit 1
     fi
 
-    export_key "0xF1656F24C74CD1D8" "mariadb"
+    common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
     echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
@@ -128,13 +110,26 @@ install_mariadb_client() {
 }
 
 # Install MySQL client only if it is not disabled.
-# For amd64 (x86_64) install MySQL client from Oracle repositories.
-# For arm64 install MariaDB client from MariaDB repository, see:
+# INSTALL_MYSQL_CLIENT_TYPE=mysql : Install MySQL client from Oracle repository.
+# INSTALL_MYSQL_CLIENT_TYPE=mariadb : Install MariaDB client from MariaDB repository.
 # https://mariadb.com/kb/en/mariadb-clientserver-tcp-protocol/
+# For ARM64 INSTALL_MYSQL_CLIENT_TYPE ignored and always install MariaDB.
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+        echo
+        echo "${COLOR_YELLOW}Client forced to mariadb for ARM${COLOR_RESET}"
+        echo
+    fi
+
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+        install_mysql_client "${@}"
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
-        install_mysql_client "${@}"
+        echo
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo
+        exit 1
     fi
 fi

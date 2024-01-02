@@ -135,6 +135,7 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
+    @pytest.mark.db_test
     @patch.object(LocalExecutor, "get_cli_commands")
     def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
         core_commands.append(
@@ -342,6 +343,7 @@ class TestCliSubprocess:
     than from provider packages which might not be installed in the test environment.
     """
 
+    @pytest.mark.quarantined
     def test_cli_run_time(self):
         setup_code = "import subprocess"
         command = [sys.executable, "-m", "airflow", "--help"]

@@ -130,11 +130,6 @@ __deprecated_classes = {
     "python_sensor": {
         "PythonSensor": "airflow.sensors.python.PythonSensor",
     },
-    "qubole_sensor": {
-        "QuboleFileSensor": "airflow.providers.qubole.sensors.qubole.QuboleFileSensor",
-        "QubolePartitionSensor": "airflow.providers.qubole.sensors.qubole.QubolePartitionSensor",
-        "QuboleSensor": "airflow.providers.qubole.sensors.qubole.QuboleSensor",
-    },
     "redis_key_sensor": {
         "RedisKeySensor": "airflow.providers.redis.sensors.redis_key.RedisKeySensor",
     },

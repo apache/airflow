@@ -146,6 +146,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -528,7 +529,7 @@ def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[s
 
 def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
-    Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them.
+    Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them.
 
     :param task_instance: the task instance
 
@@ -608,6 +609,12 @@ def _get_template_context(
         if dagrun is None:
             return None
         return timezone.coerce_datetime(dagrun.start_date)
+
+    def get_prev_end_date_success() -> pendulum.DateTime | None:
+        dagrun = _get_previous_dagrun_success()
+        if dagrun is None:
+            return None
+        return timezone.coerce_datetime(dagrun.end_date)
 
     @cache
     def get_yesterday_ds() -> str:
@@ -729,6 +736,7 @@ def _get_template_context(
             session=session,
         ),
         "prev_start_date_success": get_prev_start_date_success(),
+        "prev_end_date_success": get_prev_end_date_success(),
         "run_id": task_instance.run_id,
         "task": task,
         "task_instance": task_instance,
@@ -971,7 +979,7 @@ def _get_previous_execution_date(
     """
     log.debug("previous_execution_date was called")
     prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    return prev_ti and pendulum.instance(prev_ti.execution_date)
+    return pendulum.instance(prev_ti.execution_date) if prev_ti and prev_ti.execution_date else None
 
 
 def _email_alert(
@@ -1154,7 +1162,7 @@ def _get_previous_ti(
     task_instance: TaskInstance | TaskInstancePydantic,
     session: Session,
     state: DagRunState | None = None,
-) -> TaskInstance | None:
+) -> TaskInstance | TaskInstancePydantic | None:
     """
     The task instance for the task that ran before this task instance.
 
@@ -1269,7 +1277,7 @@ class TaskInstance(Base, LoggingMixin):
         ),
     )
 
-    dag_model = relationship(
+    dag_model: DagModel = relationship(
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
@@ -1444,32 +1452,31 @@ class TaskInstance(Base, LoggingMixin):
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
 
-    def command_as_list(
-        self,
-        mark_success=False,
-        ignore_all_deps=False,
-        ignore_task_deps=False,
-        ignore_depends_on_past=False,
-        wait_for_past_depends_before_skipping=False,
-        ignore_ti_state=False,
-        local=False,
+    @staticmethod
+    def _command_as_list(
+        ti: TaskInstance | TaskInstancePydantic,
+        mark_success: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_ti_state: bool = False,
+        local: bool = False,
         pickle_id: int | None = None,
-        raw=False,
-        job_id=None,
-        pool=None,
-        cfg_path=None,
+        raw: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
     ) -> list[str]:
-        """
-        Return a command that can be executed anywhere where airflow is installed.
-
-        This command is part of the message sent to executors by the orchestrator.
-        """
-        dag: DAG | DagModel
+        dag: DAG | DagModel | DagModelPydantic | None
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(self, "task") and hasattr(self.task, "dag") and self.task.dag is not None:
-            dag = self.task.dag
+        if hasattr(ti, "task") and hasattr(ti.task, "dag") and ti.task.dag is not None:
+            dag = ti.task.dag
         else:
-            dag = self.dag_model
+            dag = ti.dag_model
+
+        if dag is None:
+            raise ValueError("DagModel is empty")
 
         should_pass_filepath = not pickle_id and dag
         path: PurePath | None = None
@@ -1486,9 +1493,9 @@ class TaskInstance(Base, LoggingMixin):
                     path = "DAGS_FOLDER" / path
 
         return TaskInstance.generate_command(
-            self.dag_id,
-            self.task_id,
-            run_id=self.run_id,
+            ti.dag_id,
+            ti.task_id,
+            run_id=ti.run_id,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -1502,7 +1509,43 @@ class TaskInstance(Base, LoggingMixin):
             job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
-            map_index=self.map_index,
+            map_index=ti.map_index,
+        )
+
+    def command_as_list(
+        self,
+        mark_success: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_ti_state: bool = False,
+        local: bool = False,
+        pickle_id: int | None = None,
+        raw: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
+    ) -> list[str]:
+        """
+        Return a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by the orchestrator.
+        """
+        return TaskInstance._command_as_list(
+            ti=self,
+            mark_success=mark_success,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_ti_state=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path,
         )
 
     @staticmethod
@@ -1793,7 +1836,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | None:
+    ) -> TaskInstance | TaskInstancePydantic | None:
         """
         Return the task instance for the task that ran before this task instance.
 
@@ -1803,7 +1846,7 @@ class TaskInstance(Base, LoggingMixin):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
     @property
-    def previous_ti(self) -> TaskInstance | None:
+    def previous_ti(self) -> TaskInstance | TaskInstancePydantic | None:
         """
         This attribute is deprecated.
 
@@ -1820,7 +1863,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.get_previous_ti()
 
     @property
-    def previous_ti_success(self) -> TaskInstance | None:
+    def previous_ti_success(self) -> TaskInstance | TaskInstancePydantic | None:
         """
         This attribute is deprecated.
 
@@ -1863,7 +1906,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("previous_start_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
         # prev_ti may not exist and prev_ti.start_date may be None.
-        return prev_ti and prev_ti.start_date and pendulum.instance(prev_ti.start_date)
+        return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
 
     @property
     def previous_start_date_success(self) -> pendulum.DateTime | None:
@@ -2007,9 +2050,12 @@ class TaskInstance(Base, LoggingMixin):
 
         return dr
 
+    @classmethod
+    @internal_api_call
     @provide_session
-    def check_and_change_state_before_execution(
-        self,
+    def _check_and_change_state_before_execution(
+        cls,
+        task_instance: TaskInstance | TaskInstancePydantic,
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -2018,6 +2064,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
+        hostname: str = "",
         job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
@@ -2037,22 +2084,28 @@ class TaskInstance(Base, LoggingMixin):
         :param ignore_ti_state: Disregards previous task instance state
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
+        :param hostname: The hostname of the worker running the task instance.
         :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
         """
-        task = self.task
-        self.refresh_from_task(task, pool_override=pool)
-        self.test_mode = test_mode
-        self.refresh_from_db(session=session, lock_for_update=True)
-        self.job_id = job_id
-        self.hostname = get_hostname()
-        self.pid = None
+        if isinstance(task_instance, TaskInstance):
+            ti: TaskInstance = task_instance
+        else:  # isinstance(task_instance,TaskInstancePydantic)
+            filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
+            ti = session.query(TaskInstance).filter(*filters).scalar()
+        task = task_instance.task
+        ti.refresh_from_task(task, pool_override=pool)
+        ti.test_mode = test_mode
+        ti.refresh_from_db(session=session, lock_for_update=True)
+        ti.job_id = job_id
+        ti.hostname = hostname
+        ti.pid = None
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == TaskInstanceState.SUCCESS:
-            Stats.incr("previously_succeeded", tags=self.stats_tags)
+        if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
+            Stats.incr("previously_succeeded", tags=ti.stats_tags)
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -2066,7 +2119,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_task_deps=ignore_task_deps,
                 description="non-requeueable deps",
             )
-            if not self.are_dependencies_met(
+            if not ti.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
             ):
                 session.commit()
@@ -2078,15 +2131,13 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
-            self.start_date = self.start_date if self.next_method else timezone.utcnow()
-            if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
+            if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 tr_start_date = session.scalar(
-                    TR.stmt_for_task_instance(self, descending=False)
-                    .with_only_columns(TR.start_date)
-                    .limit(1)
+                    TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
                 )
                 if tr_start_date:
-                    self.start_date = tr_start_date
+                    ti.start_date = tr_start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
@@ -2100,35 +2151,35 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_ti_state=ignore_ti_state,
                 description="requeueable deps",
             )
-            if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                self.state = None
-                self.log.warning(
+            if not ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
+                ti.state = None
+                cls.logger().warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
                     "%s. State set to NONE.",
-                    self.try_number,
-                    self.max_tries + 1,
+                    ti.try_number,
+                    ti.max_tries + 1,
                 )
-                self.queued_dttm = timezone.utcnow()
-                session.merge(self)
+                ti.queued_dttm = timezone.utcnow()
+                session.merge(ti)
                 session.commit()
                 return False
 
-        if self.next_kwargs is not None:
-            self.log.info("Resuming after deferral")
+        if ti.next_kwargs is not None:
+            cls.logger().info("Resuming after deferral")
         else:
-            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self._try_number += 1
+            cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
+        ti._try_number += 1
 
         if not test_mode:
-            session.add(Log(TaskInstanceState.RUNNING.value, self))
+            session.add(Log(TaskInstanceState.RUNNING.value, ti))
 
-        self.state = TaskInstanceState.RUNNING
-        self.emit_state_change_metric(TaskInstanceState.RUNNING)
-        self.external_executor_id = external_executor_id
-        self.end_date = None
+        ti.state = TaskInstanceState.RUNNING
+        ti.emit_state_change_metric(TaskInstanceState.RUNNING)
+        ti.external_executor_id = external_executor_id
+        ti.end_date = None
         if not test_mode:
-            session.merge(self).task = task
+            session.merge(ti).task = task
         session.commit()
 
         # Closing all pooled connections to prevent
@@ -2136,10 +2187,43 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()  # type: ignore
         if verbose:
             if mark_success:
-                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
+                cls.logger().info("Marking success for %s on %s", ti.task, ti.execution_date)
             else:
-                self.log.info("Executing %s on %s", self.task, self.execution_date)
+                cls.logger().info("Executing %s on %s", ti.task, ti.execution_date)
         return True
+
+    @provide_session
+    def check_and_change_state_before_execution(
+        self,
+        verbose: bool = True,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        return TaskInstance._check_and_change_state_before_execution(
+            task_instance=self,
+            verbose=verbose,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            mark_success=mark_success,
+            test_mode=test_mode,
+            hostname=get_hostname(),
+            job_id=job_id,
+            pool=pool,
+            external_executor_id=external_executor_id,
+            session=session,
+        )
 
     def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
@@ -2189,7 +2273,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     def clear_next_method_args(self) -> None:
-        """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
         _clear_next_method_args(task_instance=self)
 
     @provide_session
@@ -2200,6 +2284,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
+        raise_on_defer: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskReturnCode | None:
         """
@@ -2254,6 +2339,8 @@ class TaskInstance(Base, LoggingMixin):
             except TaskDeferred as defer:
                 # The task has signalled it wants to defer execution based on
                 # a trigger.
+                if raise_on_defer:
+                    raise
                 self._defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
@@ -3130,14 +3217,16 @@ class TaskInstance(Base, LoggingMixin):
             return filters[0]
         return or_(*filters)
 
+    @classmethod
+    @internal_api_call
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
+    def _schedule_downstream_tasks(
+        cls,
+        ti: TaskInstance | TaskInstancePydantic,
+        session: Session = NEW_SESSION,
+        max_tis_per_query: int | None = None,
+    ):
         from sqlalchemy.exc import OperationalError
 
         from airflow.models.dagrun import DagRun
@@ -3146,13 +3235,13 @@ class TaskInstance(Base, LoggingMixin):
             # Re-select the row with a lock
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
                 ),
                 session=session,
             ).one()
 
-            task = self.task
+            task = ti.task
             if TYPE_CHECKING:
                 assert task.dag
 
@@ -3189,18 +3278,29 @@ class TaskInstance(Base, LoggingMixin):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
             num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
-            self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
+            cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)
 
             session.flush()
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            self.log.info(
+            cls.logger().info(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,
             )
             session.rollback()
+
+    @provide_session
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
+        """
+        Schedule downstream tasks of this task instance.
+
+        :meta: private
+        """
+        return TaskInstance._schedule_downstream_tasks(
+            ti=self, session=session, max_tis_per_query=max_tis_per_query
+        )
 
     def get_relevant_upstream_map_indexes(
         self,
@@ -3219,18 +3319,22 @@ class TaskInstance(Base, LoggingMixin):
             def this_task(v):  # This is self.task.
                 return v * 2
 
+
             @task_group
             def tg1(inp):
                 val = upstream(inp)  # This is the upstream task.
                 this_task(val)  # When inp is 1, val here should resolve to 2.
                 return val
 
+
             # This val is the same object returned by tg1.
             val = tg1.expand(inp=[1, 2, 3])
+
 
             @task_group
             def tg2(inp):
                 another_task(inp, val)  # val here should resolve to [2, 4, 6].
+
 
             tg2.expand(inp=["a", "b"])
 

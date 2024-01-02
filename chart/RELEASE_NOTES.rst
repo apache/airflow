@@ -430,7 +430,7 @@ Flower disabled by default
 """"""""""""""""""""""""""
 
 Flower is no longer enabled by default when using CeleryExecutor. If you'd like to deploy it, set
-``flower.enabed`` to true in your values file.
+``flower.enabled`` to true in your values file.
 
 New Features
 ^^^^^^^^^^^^

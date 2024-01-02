@@ -155,7 +155,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     """
     Return an iterable with one level flattened.
 
-    >>> as_flattened_list((('blue', 'red'), ('green', 'yellow', 'pink')))
+    >>> as_flattened_list((("blue", "red"), ("green", "yellow", "pink")))
     ['blue', 'red', 'green', 'yellow', 'pink']
     """
     return [e for i in iterable for e in i]

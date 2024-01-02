@@ -123,8 +123,8 @@ require Breeze Docker image to be built locally.
   ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
-  In case you do not have breeze image configured locally, you can also disable all checks that require
-  the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+  In case you do not have breeze image configured locally, you can also disable all checks that require breeze
+  the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
 .. note:: Mypy volume cache
@@ -140,7 +140,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ID                                                        | Description                                                  | Image   |
 +===========================================================+==============================================================+=========+
-| black                                                     | Run black (Python formatter)                                 |         |
+| bandit                                                    | bandit                                                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -150,11 +150,14 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-base-operator-usage                                 | * Check BaseOperator[Link] core imports                      |         |
+| check-base-operator-usage                                 | * Check BaseOperator core imports                            |         |
+|                                                           | * Check BaseOperatorLink core imports                        |         |
 |                                                           | * Check BaseOperator[Link] other imports                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency           |         |
@@ -184,6 +187,8 @@ require Breeze Docker image to be built locally.
 | check-extra-packages-references                           | Checks setup extra packages                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -217,6 +222,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-provider-docs-valid                                 | Validate provider doc files                                  |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-providers-init-file-missing                         | Provider init file is missing                                |         |
@@ -230,6 +237,8 @@ require Breeze Docker image to be built locally.
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -264,6 +273,8 @@ require Breeze Docker image to be built locally.
 | fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-airflow-diagrams                                 | Generate airflow diagrams                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -319,7 +330,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | rst-backticks                                             | Check if RST files use double backticks for code             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff                                                      | ruff                                                         |         |
+| ruff                                                      | ruff-lint                                                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| ruff-format                                               | ruff-format                                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | shellcheck                                                | Check Shell scripts syntax correctness                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -452,18 +465,18 @@ Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
      breeze static-checks --type ruff --file tests/core.py --verbose
 
-Run the ``ruff for the ``tests.core`` package with verbose output:
+Run the ``ruff`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
 
-Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+Run the ``ruff-format`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
 ``airflow/example_dags/example_python_operator.py``:
 
 .. code-block:: bash
 
-     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+     breeze static-checks --type ruff-format --file airflow/example_dags/example_bash_operator.py \
          airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:

@@ -320,13 +320,13 @@ def dag_next_execution(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
 
-    if dag.get_is_paused():
-        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
-
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(
             select(DagModel).where(DagModel.dag_id == dag.dag_id)
         ).one()
+
+    if last_parsed_dag.get_is_paused():
+        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     def print_execution_interval(interval: DataInterval | None):
         if interval is None:
@@ -409,6 +409,8 @@ def dag_list_import_errors(args) -> None:
         data=data,
         output=args.output,
     )
+    if data:
+        sys.exit(1)
 
 
 @cli_utils.action_cli
@@ -513,7 +515,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
     dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
@@ -533,6 +535,9 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+    if dr and dr.state == DagRunState.FAILED:
+        raise SystemExit("DagRun failed")
 
 
 @cli_utils.action_cli

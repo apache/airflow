@@ -23,7 +23,9 @@ SETUP_COMMANDS: dict[str, str | list[str]] = {
         "self-upgrade",
         "cleanup",
         "config",
+        "check-all-params-in-groups",
         "regenerate-command-images",
+        "synchronize-local-mounts",
         "command-hash-export",
         "version",
     ],
@@ -78,5 +80,6 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze setup synchronize-local-mounts": [],
     "breeze setup version": [],
 }
