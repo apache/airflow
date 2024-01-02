@@ -223,33 +223,42 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
     }
 )
 
+PYTHON_OPERATOR_FILES = [
+    r"^airflow/operators/python.py",
+    r"^tests/operators/test_python.py",
+]
+
 TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveUnitTestTypes.API: [
-            r"^airflow/api",
-            r"^airflow/api_connexion",
-            r"^tests/api",
-            r"^tests/api_connexion",
+            r"^airflow/api/",
+            r"^airflow/api_connexion/",
+            r"^airflow/api_internal/",
+            r"^tests/api/",
+            r"^tests/api_connexion/",
+            r"^tests/api_internal/",
         ],
         SelectiveUnitTestTypes.CLI: [
-            r"^airflow/cli",
-            r"^tests/cli",
+            r"^airflow/cli/",
+            r"^tests/cli/",
         ],
         SelectiveUnitTestTypes.OPERATORS: [
-            r"^airflow/operators",
-            r"^tests/operators",
+            r"^airflow/operators/",
+            r"^tests/operators/",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
             r"^airflow/providers/",
             r"^tests/system/providers/",
             r"^tests/providers/",
         ],
-        SelectiveUnitTestTypes.PYTHON_VENV: [
-            r"^tests/operators/test_python.py",
+        SelectiveUnitTestTypes.SERIALIZATION: [
+            r"^airflow/serialization/",
+            r"^tests/serialization/",
         ],
-        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: [
-            r"^tests/operators/test_python.py",
-        ],
+        SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.EXTERNAL_PYTHON: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.EXTERNAL_BRANCH_PYTHON: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
@@ -652,21 +661,14 @@ class SelectiveChecks:
 
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.WWW)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.PROVIDERS)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.CLI)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.OPERATORS)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
-        )
+        for test_type in SelectiveUnitTestTypes:
+            if test_type not in [
+                SelectiveUnitTestTypes.ALWAYS,
+                SelectiveUnitTestTypes.CORE,
+                SelectiveUnitTestTypes.OTHER,
+                SelectiveUnitTestTypes.PLAIN_ASSERTS,
+            ]:
+                matched_files.update(self._select_test_type_if_matching(candidate_test_types, test_type))
 
         kubernetes_files = self._matching_files(
             FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES

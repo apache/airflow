@@ -21,9 +21,10 @@ name: OpenSearch
 description: |
     `OpenSearch <https://opensearch.org/>`__
 
-suspended: false
-source-date-epoch: 1701983402
+state: ready
+source-date-epoch: 1703288156
 versions:
+  - 1.1.1
   - 1.1.0
   - 1.0.0
 

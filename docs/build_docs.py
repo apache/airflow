@@ -183,7 +183,8 @@ class SpellCheckResult(NamedTuple):
 
     package_name: str
     log_file_name: str
-    errors: list[SpellingError]
+    spelling_errors: list[SpellingError]
+    build_errors: list[DocBuildError]
 
 
 def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
@@ -204,11 +205,13 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
     """Performs single package spell check."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
     console.print(f"[info]{build_specification.package_name:60}:[/] Checking spelling started")
+    spelling_errors, build_errors = builder.check_spelling(
+        verbose=build_specification.verbose,
+    )
     result = SpellCheckResult(
         package_name=build_specification.package_name,
-        errors=builder.check_spelling(
-            verbose=build_specification.verbose,
-        ),
+        spelling_errors=spelling_errors,
+        build_errors=build_errors,
         log_file_name=builder.log_spelling_filename,
     )
     console.print(f"[info]{build_specification.package_name:60}:[/] Checking spelling completed")
@@ -280,8 +283,10 @@ def run_sequentially(
                     verbose=verbose,
                 )
             )
-            if spellcheck_result.errors:
-                all_spelling_errors[package_name].extend(spellcheck_result.errors)
+            if spellcheck_result.spelling_errors:
+                all_spelling_errors[package_name].extend(spellcheck_result.spelling_errors)
+                if spellcheck_only:
+                    all_build_errors[package_name].extend(spellcheck_result.build_errors)
                 print_spelling_output(spellcheck_result)
 
 
@@ -306,6 +311,7 @@ def run_in_parallel(
         if not docs_only:
             run_spell_check_in_parallel(
                 all_spelling_errors=all_spelling_errors,
+                all_build_errors=all_build_errors,
                 current_packages=current_packages,
                 verbose=verbose,
                 pool=pool,
@@ -363,6 +369,7 @@ def print_spelling_output(result: SpellCheckResult):
 
 def run_spell_check_in_parallel(
     all_spelling_errors: dict[str, list[SpellingError]],
+    all_build_errors: dict[str, list[DocBuildError]],
     current_packages: list[str],
     verbose: bool,
     pool,
@@ -377,8 +384,9 @@ def run_spell_check_in_parallel(
         console.print()
         result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
     for result in result_list:
-        if result.errors:
-            all_spelling_errors[result.package_name].extend(result.errors)
+        if result.spelling_errors:
+            all_spelling_errors[result.package_name].extend(result.spelling_errors)
+            all_build_errors[result.package_name].extend(result.build_errors)
             print_spelling_output(result)
 
 
@@ -473,9 +481,8 @@ def main():
     # If only one inventory is missing, the remaining packages are correct. If we are missing
     # two or more inventories, it is better to try to build for all packages as the previous packages
     # may have failed as well.
-    packages_to_build = current_packages if len(priority_packages) > 1 else normal_packages
     package_build_errors, package_spelling_errors = build_docs_for_packages(
-        current_packages=packages_to_build,
+        current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         jobs=jobs,
@@ -494,9 +501,9 @@ def main():
             args,
             docs_only,
             jobs,
-            packages_to_build,
             package_build_errors,
             package_spelling_errors,
+            current_packages,
             spellcheck_only,
         )
 
@@ -507,9 +514,9 @@ def main():
             args,
             docs_only,
             jobs,
-            packages_to_build,
             package_build_errors,
             package_spelling_errors,
+            current_packages,
             spellcheck_only,
         )
 
@@ -538,35 +545,29 @@ def retry_building_docs_if_needed(
     args,
     docs_only,
     jobs,
-    all_packages_to_build,
     package_build_errors,
     package_spelling_errors,
+    current_packages,
     spellcheck_only,
 ):
-    build_to_retry_packages = [
+    to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
         if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
     ]
-    spelling_to_retry_packages = [
-        package_name
-        for package_name, errors in package_spelling_errors.items()
-        if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
-    ]
-    to_retry_packages = build_to_retry_packages + spelling_to_retry_packages
+    if to_retry_packages and spellcheck_only:
+        # in case spellchecking fails with retry all packages should be rebuilt without spell-checking
+        # in case the failed package refers to another package
+        to_retry_packages = current_packages
     if to_retry_packages:
-        if spellcheck_only:
-            all_build_errors = {}
-            all_spelling_errors = {}
-        else:
-            for package_name in to_retry_packages:
-                if package_name in all_build_errors:
-                    del all_build_errors[package_name]
-                if package_name in all_spelling_errors:
-                    del all_spelling_errors[package_name]
+        for package_name in to_retry_packages:
+            if package_name in all_build_errors:
+                del all_build_errors[package_name]
+            if package_name in all_spelling_errors:
+                del all_spelling_errors[package_name]
 
         package_build_errors, package_spelling_errors = build_docs_for_packages(
-            current_packages=all_packages_to_build if spellcheck_only else to_retry_packages,
+            current_packages=to_retry_packages,
             docs_only=docs_only,
             spellcheck_only=False,
             jobs=jobs,

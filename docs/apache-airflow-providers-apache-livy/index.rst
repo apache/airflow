@@ -33,6 +33,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Operators <operators>
 
 .. toctree::

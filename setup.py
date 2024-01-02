@@ -105,6 +105,8 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
             dependencies = json.load(f)
         provider_dict = {}
         for key, value in dependencies.items():
+            if value["state"] in ["suspended", "removed"]:
+                continue
             if value.get(DEPS):
                 apply_pypi_suffix_to_airflow_packages(value[DEPS])
             if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:
@@ -902,6 +904,8 @@ class AirflowDistribution(Distribution):
                 self.package_data["airflow"].append(provider_relative_path)
             # Add python_kubernetes_script.jinja2 to package data
             self.package_data["airflow"].append("providers/cncf/kubernetes/python_kubernetes_script.jinja2")
+            # Add default email template to package data
+            self.package_data["airflow"].append("providers/smtp/notifications/templates/email.html")
         else:
             self.install_requires.extend(
                 [

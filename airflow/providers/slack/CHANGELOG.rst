@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Slack: Remove parameter 'token' in SlackAPIPostOperator's docstring (#36121)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.5.0
 .....
 

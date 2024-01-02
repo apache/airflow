@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+7.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow changing of 'config_file' in 'KubernetesResourceBaseOperator' (#36397)``
+
+Misc
+~~~~
+
+* ``Add reminder about update stub file in case of change KubernetesPodOperator's arguments (#36434)``
+* ``Don't get pod status in KubernetesPodOperator if skip_on_exit_code is not set (#36355)``
+* ``Remove deprecated input parameters in the k8s pod operator (#36433)``
+* ``Delete get_python_source from Kubernetes decorator after bumping min airflow version to 2.6.0 (#36426)``
+* ``Remove duplicated methods in K8S pod operator module and import them from helper function (#36427)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add _request_timeout to KPO log fetch calls (#36297)``
+* ``Add 'pod_template_dict' field to 'KubernetesPodOperator' (#33174)``
+* ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
+* ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kubernetes executor running slots leak fix (#36240)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``list pods performance optimization (#36092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.11.0
 ......
 

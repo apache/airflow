@@ -41,8 +41,8 @@ class FSHook(BaseHook):
     conn_type = "fs"
     hook_name = "File (path)"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -50,8 +50,8 @@ class FSHook(BaseHook):
 
         return {"path": StringField(lazy_gettext("Path"), widget=BS3TextFieldWidget())}
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password", "extra"],

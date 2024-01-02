@@ -385,8 +385,8 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-common-sql-dependency-make-serializable
-        name: Check dependency of SQL Providers with '_make_serializable'
+      - id: check-sql-dependency-common-data-structure
+        name: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
         language: python
         files: ^airflow/providers/.*/hooks/.*\.py$
@@ -416,8 +416,8 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
         language: python
-        files: ^scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
-        pass_filenames: false
+        files: ^docs/.*/diagram_[^/]*\.py$
+        pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
       - id: update-supported-versions
         name: Updates supported versions in documentation

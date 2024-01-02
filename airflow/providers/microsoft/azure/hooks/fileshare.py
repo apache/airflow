@@ -135,6 +135,7 @@ class AzureFileShareHook(BaseHook):
 
     @property
     def share_directory_client(self):
+        self.get_conn()
         if self._connection_string:
             return ShareDirectoryClient.from_connection_string(
                 conn_str=self._connection_string,
@@ -160,6 +161,7 @@ class AzureFileShareHook(BaseHook):
 
     @property
     def share_file_client(self):
+        self.get_conn()
         if self._connection_string:
             return ShareFileClient.from_connection_string(
                 conn_str=self._connection_string,

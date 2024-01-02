@@ -63,8 +63,9 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
-        env_extractors = conf.get("openlinege", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
-        if env_extractors is not None:
+        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
+        # skip either when it's empty string or None
+        if env_extractors:
             for extractor in env_extractors.split(";"):
                 extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
                 for operator_class in extractor.get_operator_classnames():

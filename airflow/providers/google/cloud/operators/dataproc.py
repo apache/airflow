@@ -512,9 +512,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     The operator will wait until the creation is successful or an error occurs
     in the creation process.
 
-    If the cluster already exists and ``use_if_exists`` is True, the operator will:
-
-    If the cluster already exists and ``use_if_exists`` is True then the operator will:
+    If the cluster already exists and ``use_if_exists`` is True, then the operator will:
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
     - if cluster state is DELETING wait for it and then create new cluster
@@ -1299,6 +1297,12 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         query: str | None = None,
         query_uri: str | None = None,
         variables: dict | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1310,7 +1314,15 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -1377,6 +1389,12 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         query: str | None = None,
         query_uri: str | None = None,
         variables: dict | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1388,7 +1406,15 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -1456,6 +1482,12 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         query: str | None = None,
         query_uri: str | None = None,
         variables: dict | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1467,7 +1499,15 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -1537,6 +1577,12 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         arguments: list | None = None,
         archives: list | None = None,
         files: list | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1548,7 +1594,15 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
@@ -1614,6 +1668,12 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         arguments: list | None = None,
         archives: list | None = None,
         files: list | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1625,7 +1685,15 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
@@ -1714,6 +1782,12 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         archives: list | None = None,
         pyfiles: list | None = None,
         files: list | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        region: str,
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        cluster_name: str = "cluster-1",
+        dataproc_properties: dict | None = None,
+        dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1725,7 +1799,15 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             stacklevel=1,
         )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            impersonation_chain=impersonation_chain,
+            region=region,
+            job_name=job_name,
+            cluster_name=cluster_name,
+            dataproc_properties=dataproc_properties,
+            dataproc_jars=dataproc_jars,
+            **kwargs,
+        )
         self.main = main
         self.arguments = arguments
         self.archives = archives

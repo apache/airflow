@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.7.3"
+ARG AIRFLOW_VERSION="2.8.0"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
@@ -98,7 +98,7 @@ function get_dev_apt_deps() {
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
         export DEV_APT_DEPS
     fi
 }

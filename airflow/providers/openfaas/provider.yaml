@@ -21,8 +21,8 @@ name: OpenFaaS
 description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
-suspended: false
-source-date-epoch: 1701983401
+state: ready
+source-date-epoch: 1703288154
 versions:
   - 3.4.0
   - 3.3.0

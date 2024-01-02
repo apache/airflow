@@ -21,9 +21,10 @@ name: Alibaba
 description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
-suspended: false
-source-date-epoch: 1701983345
+state: ready
+source-date-epoch: 1703747466
 versions:
+  - 2.7.1
   - 2.7.0
   - 2.6.0
   - 2.5.3

@@ -1162,28 +1162,6 @@ class TestKubernetesPodOperatorSystem:
                 k.execute(context)
             create_mock.assert_called_once()
 
-    def test_using_resources(self, mock_get_connection):
-        exception_message = (
-            "Specifying resources for the launched pod with 'resources' is deprecated. "
-            "Use 'container_resources' instead."
-        )
-        with pytest.raises(AirflowException, match=exception_message):
-            resources = k8s.V1ResourceRequirements(
-                requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-                limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
-            )
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels=self.labels,
-                task_id=str(uuid4()),
-                in_cluster=False,
-                do_xcom_push=False,
-                resources=resources,
-            )
-
     def test_changing_base_container_name_with_get_logs(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
