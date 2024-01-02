@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add docs about zendesk connection and creating dedicated connection form (#36423)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
 4.5.0
 .....
 

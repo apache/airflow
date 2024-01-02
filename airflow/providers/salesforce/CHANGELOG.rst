@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.6.0
 .....
 

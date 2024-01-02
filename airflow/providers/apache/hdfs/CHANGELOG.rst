@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``Remove _read method from hdfs task handler after bumping min airflow version to 2.6 (#36425)``
+* ``Consolidate loading delete_local_logs conf in hdfs task handler (#36422)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix connection type webhdfs (#36145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.3.0
 .....
 

@@ -15,4 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../exts/includes/security.rst
+Opsgenie Connection
+===================
+
+The Opsgenie connection type enables connection to Opsgenie.
+
+Default Connection IDs
+----------------------
+
+OpsgenieAlert Hook uses parameter ``opsgenie_conn_id`` for Connection IDs and the value of the
+parameter as ``opsgenie_default`` by default.
+
+Configuring the Connection
+--------------------------
+Host
+    The host of the Opsgenie (should be with scheme).
+
+Opsgenie API Key
+    The API key of the user that will be used for authentication against the Opsgenie API.

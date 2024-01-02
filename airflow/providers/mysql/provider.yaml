@@ -21,8 +21,8 @@ name: MySQL
 description: |
     `MySQL <https://www.mysql.com/>`__
 
-suspended: false
-source-date-epoch: 1701983397
+state: ready
+source-date-epoch: 1703288151
 versions:
   - 5.5.0
   - 5.4.0

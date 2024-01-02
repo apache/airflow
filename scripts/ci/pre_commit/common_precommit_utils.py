@@ -79,7 +79,7 @@ def initialize_breeze_precommit(name: str, file: str):
 
     if os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
         console.print("[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set")
-        sys.exit(1)
+        sys.exit(0)
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"

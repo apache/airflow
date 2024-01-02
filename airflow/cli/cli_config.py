@@ -1779,6 +1779,12 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
         args=(ARG_VERBOSE,),
     ),
+    ActionCommand(
+        name="auth-managers",
+        help="Get information about auth managers provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.auth_managers_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
 )
 
 

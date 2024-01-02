@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Modify SmtpNotifier to accept template with defaults (#36226)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.0
 .....
 

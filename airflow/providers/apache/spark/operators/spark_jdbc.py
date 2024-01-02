@@ -37,7 +37,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         :ref:`howto/operator:SparkJDBCOperator`
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>`
         as configured in Airflow administration
     :param spark_conf: Any additional Spark configuration properties
     :param spark_py_files: Additional python files used (.zip, .egg, or .py)

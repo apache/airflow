@@ -156,6 +156,7 @@ def refresh_provider_metadata_with_provider_id(provider_id: str):
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
+@lru_cache(maxsize=1)
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """
     Load all data from providers files
@@ -207,11 +208,7 @@ def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
 
 @lru_cache
 def get_suspended_provider_ids() -> list[str]:
-    return [
-        provider_id
-        for provider_id, provider_metadata in get_provider_packages_metadata().items()
-        if provider_metadata.get("suspended", False)
-    ]
+    return get_available_packages(include_suspended=True, include_regular=False)
 
 
 @lru_cache
@@ -221,11 +218,12 @@ def get_suspended_provider_folders() -> list[str]:
 
 @lru_cache
 def get_removed_provider_ids() -> list[str]:
-    return [
-        provider_id
-        for provider_id, provider_metadata in get_provider_packages_metadata().items()
-        if provider_metadata.get("removed", False)
-    ]
+    return get_available_packages(include_removed=True, include_regular=False)
+
+
+@lru_cache
+def get_not_ready_provider_ids() -> list[str]:
+    return get_available_packages(include_not_ready=True, include_regular=False)
 
 
 def get_provider_requirements(provider_id: str) -> list[str]:
@@ -239,6 +237,8 @@ def get_available_packages(
     include_all_providers: bool = False,
     include_suspended: bool = False,
     include_removed: bool = False,
+    include_not_ready: bool = False,
+    include_regular: bool = True,
 ) -> list[str]:
     """
     Return provider ids for all packages that are available currently (not suspended).
@@ -246,32 +246,47 @@ def get_available_packages(
     :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
+    :param include_not_ready: whether the not-ready packages should be included
+    :param include_regular: whether the regular packages should be included
     :param include_non_provider_doc_packages: whether the non-provider doc packages should be included
            (packages like apache-airflow, helm-chart, docker-stack)
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_ids: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    available_packages = []
+    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+
+    valid_states = set()
+    if include_not_ready:
+        valid_states.add("not-ready")
+    if include_regular:
+        valid_states.add("ready")
+    if include_suspended:
+        valid_states.add("suspended")
+    if include_removed:
+        valid_states.add("removed")
+    available_packages: list[str] = [
+        provider_id
+        for provider_id, provider_dependencies in provider_dependencies.items()
+        if provider_dependencies["state"] in valid_states
+    ]
     if include_non_provider_doc_packages:
         available_packages.extend(REGULAR_DOC_PACKAGES)
     if include_all_providers:
         available_packages.append("all-providers")
-    available_packages.extend(provider_ids)
-    if include_suspended:
-        available_packages.extend(get_suspended_provider_ids())
-    if include_removed:
-        available_packages.extend(get_removed_provider_ids())
     return sorted(set(available_packages))
 
 
 def expand_all_provider_packages(
-    short_doc_packages: tuple[str, ...], include_removed: bool = False
+    short_doc_packages: tuple[str, ...],
+    include_removed: bool = False,
+    include_not_ready: bool = False,
 ) -> tuple[str, ...]:
     """In case there are "all-providers" in the list, expand the list with all providers."""
     if "all-providers" in short_doc_packages:
         packages = [package for package in short_doc_packages if package != "all-providers"]
-        packages.extend(get_available_packages(include_removed=include_removed))
+        packages.extend(
+            get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
+        )
         short_doc_packages = tuple(set(packages))
     return short_doc_packages
 
@@ -479,7 +494,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
         plugins=plugins,
-        removed=provider_info.get("removed", False),
+        removed=provider_info["state"] == "removed",
     )
 
 

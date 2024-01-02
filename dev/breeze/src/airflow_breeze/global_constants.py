@@ -338,6 +338,7 @@ COMMITTERS = [
     "sekikn",
     "turbaszek",
     "uranusjr",
+    "utkarsharma2",
     "vikramkoka",
     "vincbeck",
     "xinbinhuang",

@@ -1099,9 +1099,6 @@ __deprecated_classes = {
             "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator"
         ),
     },
-    "sqoop_operator": {
-        "SqoopOperator": "airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator",
-    },
     "ssh_operator": {
         "SSHOperator": "airflow.providers.ssh.operators.ssh.SSHOperator",
     },

@@ -105,6 +105,8 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
             dependencies = json.load(f)
         provider_dict = {}
         for key, value in dependencies.items():
+            if value["state"] in ["suspended", "removed"]:
+                continue
             if value.get(DEPS):
                 apply_pypi_suffix_to_airflow_packages(value[DEPS])
             if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:

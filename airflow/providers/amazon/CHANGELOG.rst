@@ -26,6 +26,54 @@
 Changelog
 ---------
 
+8.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Athena query results extra link (#36447)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): remove event['message'] call in EmrContainerOperator.execute_complete|as the key message no longer exists (#36417)``
+* ``handle tzinfo in S3Hook.is_keys_unchanged_async (#36363)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon ECS Operators/Sensors/Triggers (#36393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
+* ``Increase ConflictException retries to 4 total (#36337)``
+* ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'is_authorized_cluster_activity' from auth manager (#36175)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+* ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.13.0
 ......
 

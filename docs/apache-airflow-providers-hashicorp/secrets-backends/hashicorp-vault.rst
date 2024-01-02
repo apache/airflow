@@ -206,7 +206,9 @@ Then you can use above secret for ``sql_alchemy_conn_secret`` in your configurat
 Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``postgres://user:pass@host:5432/db?ssl_mode=disable`` and
 ``mount_point`` is ``airflow``.
 
-## For Vault running with self signed certificates
+Vault running with self signed certificates
+"""""""""""""""""""""""""""""""""""""""""""
+
 Add "verify": "absolute path to ca-certificate file"
 
 .. code-block:: ini

@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``change warnning message (#36148)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.8.0
 .....
 
