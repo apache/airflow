@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-02T10:57:04.014678
+# This constraints file was automatically generated on 2024-01-02T15:23:18.156228
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -143,7 +143,7 @@ cloudpickle==2.2.1
 cohere==4.39
 colorama==0.4.6
 colorlog==4.8.0
-comm==0.2.0
+comm==0.2.1
 confluent-kafka==2.3.0
 connexion==2.14.2
 coverage==7.4.0
@@ -548,7 +548,7 @@ tomlkit==0.12.3
 tornado==6.4
 towncrier==23.11.0
 tqdm==4.66.1
-traitlets==5.14.0
+traitlets==5.14.1
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
