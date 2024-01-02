@@ -536,7 +536,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         if show_dagrun:
             print(dot_graph.source)
 
-    if args.fail_on_dagrun_failure and dr and dr.state == DagRunState.FAILED:
+    if dr and dr.state == DagRunState.FAILED:
         raise SystemExit("DagRun failed")
 
 

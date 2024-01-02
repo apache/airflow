@@ -754,9 +754,7 @@ class TestCliDags:
         mock_get_dag.return_value.test.return_value = DagRun(
             dag_id="example_bash_operator", execution_date=DEFAULT_DATE, state=DagRunState.FAILED
         )
-        cli_args = self.parser.parse_args(
-            ["dags", "test", "example_bash_operator", execution_date_str, "--fail-on-dagrun-failure"]
-        )
+        cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", execution_date_str])
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
