@@ -131,6 +131,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.use_stream = use_stream
         self.stream_chunk_size = stream_chunk_size
         self.source_stream_wrapper = source_stream_wrapper
+        self.log_interval = log_interval
 
     def execute(self, context: Context):
         gcs_hook = GCSHook(
@@ -228,7 +229,6 @@ class SFTPToGCSOperator(BaseOperator):
         with sftp_hook.get_conn().file(source_path, 'rb') as source_stream:
             if self.source_stream_wrapper:
                 source_stream = self.source_stream_wrapper(source_stream)
-
             total_bytes_uploaded = 0
             interval_bytes_uploaded = 0
             if self.stream_chunk_size and self.stream_chunk_size < _DEFAULT_CHUNKSIZE:
