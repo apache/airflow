@@ -30,7 +30,7 @@ def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:
 
 
 def convert_configmap_to_volume(
-    configmap_info: dict[str, str]
+    configmap_info: dict[str, str],
 ) -> tuple[list[k8s.V1Volume], list[k8s.V1VolumeMount]]:
     """
     Converts a dictionary of config_map_name and mount_path into k8s volume mount object and k8s volume.

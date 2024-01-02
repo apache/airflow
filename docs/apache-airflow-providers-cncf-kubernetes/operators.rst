@@ -16,11 +16,10 @@
   under the License.
 
 
-
-.. _howto/operator:kubernetespodoperator:
-
 .. contents:: Table of Contents
     :depth: 2
+
+.. _howto/operator:kubernetespodoperator:
 
 KubernetesPodOperator
 =====================
@@ -216,162 +215,164 @@ It also supports out-of-the-box Kubernetes functionalities such as handling of v
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The operator initiates a Spark task by generating a SparkApplication Custom Resource Definition (CRD) within Kubernetes.
+This SparkApplication task subsequently generates driver and required executor pods, using the parameters specified by the user.
+The operator continuously monitors the task's progress until it either succeeds or fails.
+It retrieves logs from the driver pod and displays them in the Airflow UI.
 
 
 Usage examples
 ^^^^^^^^^^^^^^
-To create sparkKubenetesOpeartor task you need to have a minimum template to pass to the operator and
-that includes both Spark configuration as well as kubentents related resource configuration.
-It accepts both yaml and json. here is a sample template which you can use:
+In order to create a SparkKubernetesOperator task, you must provide a basic template that includes Spark configuration and
+Kubernetes-related resource configuration. This template, which can be in either YAML or JSON format, serves as a
+starting point for the operator. Below is a sample template that you can utilize:
 
 spark_job_template.yaml
 
-.. dropdown::
+.. code-block:: yaml
 
-    .. code-block:: yaml
+    spark:
+      apiVersion: sparkoperator.k8s.io/v1beta2
+      version: v1beta2
+      kind: SparkApplication
+      apiGroup: sparkoperator.k8s.io
+      metadata:
+        namespace: ds
+      spec:
+        type: Python
+        pythonVersion: "3"
+        mode: cluster
+        sparkVersion: 3.0.0
+        successfulRunHistoryLimit: 1
+        restartPolicy:
+          type: Never
+        imagePullPolicy: Always
+        hadoopConf: {}
+        imagePullSecrets: []
+        dynamicAllocation:
+          enabled: false
+          initialExecutors: 1
+          minExecutors: 1
+          maxExecutors: 1
+        labels: {}
+        driver:
+          serviceAccount: default
+          container_resources:
+            gpu:
+              name: null
+              quantity: 0
+            cpu:
+              request: null
+              limit: null
+            memory:
+              request: null
+              limit: null
+        executor:
+          instances: 1
+          container_resources:
+            gpu:
+              name: null
+              quantity: 0
+            cpu:
+              request: null
+              limit: null
+            memory:
+              request: null
+              limit: null
+    kubernetes:
+      # example:
+      # env_vars:
+      # - name: TEST_NAME
+      #   value: TEST_VALUE
+      env_vars: []
 
-        spark:
-          apiVersion: sparkoperator.k8s.io/v1beta2
-          version: v1beta2
-          kind: SparkApplication
-          apiGroup: sparkoperator.k8s.io
-          metadata:
-            namespace: ds
-          spec:
-            type: Python
-            pythonVersion: "3"
-            mode: cluster
-            sparkVersion: 3.0.0
-            successfulRunHistoryLimit: 1
-            restartPolicy:
-              type: Never
-            imagePullPolicy: Always
-            hadoopConf: {}
-            imagePullSecrets: []
-            dynamicAllocation:
-              enabled: false
-              initialExecutors: 1
-              minExecutors: 1
-              maxExecutors: 1
-            labels: {}
-            driver:
-              serviceAccount: default
-              container_resources:
-                gpu:
-                  name: null
-                  quantity: 0
-                cpu:
-                  request: null
-                  limit: null
-                memory:
-                  request: null
-                  limit: null
-            executor:
-              instances: 1
-              container_resources:
-                gpu:
-                  name: null
-                  quantity: 0
-                cpu:
-                  request: null
-                  limit: null
-                memory:
-                  request: null
-                  limit: null
-        kubernetes:
-          # example:
-          # env_vars:
-          # - name: TEST_NAME
-          #   value: TEST_VALUE
-          env_vars: []
+      # example:
+      # env_from:
+      # - name: test
+      #   valueFrom:
+      #     secretKeyRef:
+      #       name: mongo-secret
+      #       key: mongo-password
+      env_from: []
 
-          # example:
-          # env_from:
-          # - name: test
-          #   valueFrom:
-          #     secretKeyRef:
-          #       name: mongo-secret
-          #       key: mongo-password
-          env_from: []
+      # example:
+      # node_selector:
+      #   karpenter.sh/provisioner-name: spark
+      node_selector: {}
 
-          # example:
-          # node_selector:
-          #   karpenter.sh/provisioner-name: spark
-          node_selector: {}
+      # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #       - matchExpressions:
+      #         - key: beta.kubernetes.io/instance-type
+      #           operator: In
+      #           values:
+      #           - r5.xlarge
+      affinity:
+        nodeAffinity: {}
+        podAffinity: {}
+        podAntiAffinity: {}
 
-          # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
-          # affinity:
-          #   nodeAffinity:
-          #     requiredDuringSchedulingIgnoredDuringExecution:
-          #       nodeSelectorTerms:
-          #       - matchExpressions:
-          #         - key: beta.kubernetes.io/instance-type
-          #           operator: In
-          #           values:
-          #           - r5.xlarge
-          affinity:
-            nodeAffinity: {}
-            podAffinity: {}
-            podAntiAffinity: {}
+      # example: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+      # type: list
+      # tolerations:
+      # - key: "key1"
+      #   operator: "Equal"
+      #   value: "value1"
+      #   effect: "NoSchedule"
+      tolerations: []
 
-          # example: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
-          # type: list
-          # tolerations:
-          # - key: "key1"
-          #   operator: "Equal"
-          #   value: "value1"
-          #   effect: "NoSchedule"
-          tolerations: []
+      # example:
+      # config_map_mounts:
+      #   snowflake-default: /mnt/tmp
+      config_map_mounts: {}
 
-          # example:
-          # config_map_mounts:
-          #   snowflake-default: /mnt/tmp
-          config_map_mounts: {}
+      # example:
+      # volume_mounts:
+      # - name: config
+      #   mountPath: /airflow
+      volume_mounts: []
 
-          # example:
-          # volume_mounts:
-          # - name: config
-          #   mountPath: /airflow
-          volume_mounts: []
+      # https://kubernetes.io/docs/concepts/storage/volumes/
+      # example:
+      # volumes:
+      # - name: config
+      #   persistentVolumeClaim:
+      #     claimName: airflow
+      volumes: []
 
-          # https://kubernetes.io/docs/concepts/storage/volumes/
-          # example:
-          # volumes:
-          # - name: config
-          #   persistentVolumeClaim:
-          #     claimName: airflow
-          volumes: []
+      # read config map into an env variable
+      # example:
+      # from_env_config_map:
+      # - configmap_1
+      # - configmap_2
+      from_env_config_map: []
 
-          # read config map into an env variable
-          # example:
-          # from_env_config_map:
-          # - configmap_1
-          # - configmap_2
-          from_env_config_map: []
+      # load secret into an env variable
+      # example:
+      # from_env_secret:
+      # - secret_1
+      # - secret_2
+      from_env_secret: []
 
-          # load secret into an env variable
-          # example:
-          # from_env_secret:
-          # - secret_1
-          # - secret_2
-          from_env_secret: []
-
-          in_cluster: true
-          conn_id: kubernetes_default
-          kube_config_file: null
-          cluster_context: null
+      in_cluster: true
+      conn_id: kubernetes_default
+      kube_config_file: null
+      cluster_context: null
 
 .. important::
 
-  * There are two high level category in that template file: ``spark`` and ``kubernetes``
+  * The template file consists of two primary categories: ``spark`` and ``kubernetes``.
 
-    * spark: This section contains the task's Spark configuration. The fields here align directly with the Spark API template.
+    * spark: This segment encompasses the task's Spark configuration, mirroring the structure of the Spark API template.
 
-    * kubernetes: This section contains the task's kubernetes resource configuration. The fields here align directly with the kubernetes API Documentation. We have included an example for each resource in the above template.
+    * kubernetes: This segment encompasses the task's Kubernetes resource configuration, directly corresponding to the Kubernetes API Documentation. Each resource type includes an example within the template.
 
-  * The base image that should be used is ``gcr.io/spark-operator/spark-py:v3.1.1``
+  * The designated base image to be utilized is ``gcr.io/spark-operator/spark-py:v3.1.1``.
 
-  * Make sure you copy the spark code into the image or mount the code using persistentVolume or use the code stored on S3
+  * Ensure that the Spark code is either embedded within the image, mounted using a persistentVolume, or accessible from an external location such as an S3 bucket.
 
 Next, create the task using the following:
 
@@ -389,9 +390,7 @@ Note: Alternatively application_file can also be a json file. see below example
 
 spark_job_template.json
 
-.. dropdown::
-
-  .. code-block:: yaml
+.. code-block:: json
 
     {
       "spark": {
@@ -493,5 +492,14 @@ spark_job_template.json
 
 
 
-Another Alternative to yaml or json file is to pass ``template_spec`` field directly instead of application_file,
- if you dont want to use a file.
+An alternative method, apart from using YAML or JSON files, is to directly pass the ``template_spec`` field instead of application_file
+if you prefer not to employ a file for configuration.
+
+
+Reference
+^^^^^^^^^
+For further information, look at:
+
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Spark-on-k8s-operator Documentation - User guide <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md>`__
+* `Spark-on-k8s-operator Documentation - API <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/api-docs.md>`__
