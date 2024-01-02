@@ -268,8 +268,11 @@ class TestBatchOperator:
                 container_overrides={"a": "b"},
             )
 
+    @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def test_defer_if_deferrable_param_set(self, mock_client):
+    def test_defer_if_deferrable_param_set(self, mock_client, mock_get_job_description):
+        mock_get_job_description.return_value = {"status": "SUBMITTED"}
+
         batch = BatchOperator(
             task_id="task",
             job_name=JOB_NAME,
@@ -280,8 +283,64 @@ class TestBatchOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            batch.execute(context=None)
+            batch.execute(self.mock_context)
         assert isinstance(exc.value.trigger, BatchJobTrigger)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_failed_due_to_job_id_not_found(self, mock_client):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = {
+            "jobName": JOB_NAME,
+            "jobId": None,
+        }
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException) as exc:
+            batch.execute(self.mock_context)
+        assert "AWS Batch job - job_id was not found" in str(exc.value)
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_success_before_deferred(self, mock_client, mock_get_job_description):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
+        mock_get_job_description.return_value = {"status": "SUCCEEDED"}
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        assert batch.execute(self.mock_context) == JOB_ID
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_fail_before_deferred(self, mock_client, mock_get_job_description):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
+        mock_get_job_description.return_value = {"status": "FAILED"}
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException) as exc:
+            batch.execute(self.mock_context)
+        assert f"{JOB_ID} failed" in str(exc.value)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
