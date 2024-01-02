@@ -14,43 +14,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
+
 from airflow.providers.amazon.aws.executors.batch.utils import BatchJob
 
+
 class BatchSubmitJobResponseSchema(Schema):
-    """API Response for SubmitJob"""
+    """API Response for SubmitJob."""
+
     # The unique identifier for the job.
-    job_id = fields.String(data_key='jobId', required=True)
+    job_id = fields.String(data_key="jobId", required=True)
 
     class Meta:
+        """Options object for a Schema. See Schema.Meta for more details and valid values."""
+
         unknown = EXCLUDE
 
 
 class BatchJobDetailSchema(Schema):
-    """API Response for Describe Jobs"""
+    """API Response for Describe Jobs."""
+
     # The unique identifier for the job.
-    job_id = fields.String(data_key='jobId', required=True)
+    job_id = fields.String(data_key="jobId", required=True)
     # The current status for the job:
     # 'SUBMITTED', 'PENDING', 'RUNNABLE', 'STARTING', 'RUNNING', 'SUCCEEDED', 'FAILED'
     status = fields.String(required=True)
     # A short, human-readable string to provide additional details about the current status of the job.
-    status_reason = fields.String(data_key='statusReason')
+    status_reason = fields.String(data_key="statusReason")
 
     @post_load
     def make_job(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of BatchJob instead of a dictionary"""
+        """Overwrites marshmallow load() to return an instance of BatchJob instead of a dictionary."""
         return BatchJob(**data)
 
     class Meta:
+        """Options object for a Schema. See Schema.Meta for more details and valid values."""
+
         unknown = EXCLUDE
 
 
 class BatchDescribeJobsResponseSchema(Schema):
-    """API Response for Describe Jobs"""
+    """API Response for Describe Jobs."""
+
     # The list of jobs
     jobs = fields.List(fields.Nested(BatchJobDetailSchema), required=True)
 
     class Meta:
-        unknown = EXCLUDE
+        """Options object for a Schema. See Schema.Meta for more details and valid values."""
 
+        unknown = EXCLUDE

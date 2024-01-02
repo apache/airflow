@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 from inflection import camelize
 
+from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
