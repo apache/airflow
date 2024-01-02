@@ -151,7 +151,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         self.ci_conn_id = ci_conn_id
         self.resource_group = resource_group
-        self.name = self._check_name(name)
+        self.name = name
         self.image = image
         self.region = region
         self.registry_conn_id = registry_conn_id
