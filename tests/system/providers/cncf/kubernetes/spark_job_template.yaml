@@ -33,7 +33,7 @@ spark:
       type: Never
     imagePullPolicy: Always
     hadoopConf: {}
-    imagePullSecrets: ''
+    imagePullSecrets: []
     dynamicAllocation:
       enabled: false
       initialExecutors: 1
@@ -79,6 +79,11 @@ kubernetes:
   #       name: mongo-secret
   #       key: mongo-password
   env_from: []
+
+  # example:
+  # node_selector:
+  #   karpenter.sh/provisioner-name: spark-group
+  node_selector: {}
 
   # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   # affinity:

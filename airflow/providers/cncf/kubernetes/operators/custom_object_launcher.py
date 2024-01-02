@@ -252,6 +252,7 @@ class CustomObjectLauncher(LoggingMixin):
                 # Add affinity
                 self.body.spec[item]["affinity"] = k8s_spec.affinity
                 self.body.spec[item]["tolerations"] = k8s_spec.tolerations
+                self.body.spec[item]["nodeSelector"] = k8s_spec.node_selector
                 # Labels
                 self.body.spec[item]["labels"] = self.body.spec["labels"]
 
