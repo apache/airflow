@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-03T08:31:58.453194
+# This constraints file was automatically generated on 2024-01-03T17:10:44.076834
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -369,7 +369,7 @@ httpcore==0.16.3
 httplib2==0.22.0
 httpx==0.23.3
 humanize==4.9.0
-hvac==2.0.0
+hvac==2.1.0
 icdiff==2.0.7
 identify==2.5.33
 idna==3.6
@@ -403,7 +403,7 @@ jsonschema-specifications==2023.12.1
 jsonschema==4.20.0
 junit-xml==1.9
 jupyter_client==8.6.0
-jupyter_core==5.6.1
+jupyter_core==5.7.0
 keyring==24.3.0
 kombu==5.3.4
 krb5==0.5.1
