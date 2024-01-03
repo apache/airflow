@@ -27,7 +27,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
-    ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -234,14 +233,6 @@ option_mount_sources = click.option(
     show_default=True,
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
-)
-option_mssql_version = click.option(
-    "-S",
-    "--mssql-version",
-    help="Version of MsSQL used.",
-    type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
-    default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
-    show_default=True,
 )
 option_mysql_version = click.option(
     "-M",
