@@ -930,8 +930,6 @@ class Airflow(AirflowBaseView):
                 dag.can_pause = get_auth_manager().is_authorized_dag(
                     method="PATCH", details=DagDetails(id=dag.dag_id), user=g.user
                 )
-                # dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
-                # dag.can_pause = get_airflow_app().appbuilder.sm.can_pause_dag(dag.dag_id, g.user)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
@@ -5893,7 +5891,7 @@ class DagDependenciesView(AirflowBaseView):
 
 def add_user_permissions_to_dag(sender, template, context, **extra):
     """
-    Add `.can_edit`, `.can_trigger`, and `.can_delete` properties to DAG based on current user's permissions.
+    Add `.can_edit`, `.can_trigger`, `.can_pause`, and `.can_delete` properties to DAG based on current user's permissions.
 
     Located in `views.py` rather than the DAG model to keep permissions logic out of the Airflow core.
     """
@@ -5907,6 +5905,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
     dag.can_edit = get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag.dag_id))
     dag.can_trigger = dag.can_edit and can_create_dag_run
     dag.can_delete = get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag.dag_id))
+    dag.can_pause = get_auth_manager().is_authorized_dag(method="PATCH", details=DagDetails(id=dag.dag_id))
     context["dag"] = dag
 
 
