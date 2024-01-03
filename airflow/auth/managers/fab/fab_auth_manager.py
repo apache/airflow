@@ -222,10 +222,10 @@ class FabAuthManager(BaseAuthManager):
         entity (e.g. DAG runs).
         2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
-            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
-            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity.
 
-            However, if no specific DAG is targeted, just check the sub entity.
+            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
+            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity. However,
+                if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
         :param access_entity: The dag access entity.
@@ -335,19 +335,19 @@ class FabAuthManager(BaseAuthManager):
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
         """Return the security manager specific to FAB."""
         from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-        from airflow.www.security import AirflowSecurityManager
+        from airflow.www.security_manager import AirflowSecurityManagerV2
 
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
-            if not issubclass(sm_from_config, AirflowSecurityManager):
+            if not issubclass(sm_from_config, AirflowSecurityManagerV2):
                 raise Exception(
-                    """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
+                    """Your CUSTOM_SECURITY_MANAGER must extend AirflowSecurityManagerV2,
                      not FAB's own security manager."""
                 )
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
                 warnings.warn(
                     "Please make your custom security manager inherit from "
-                    "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
+                    "FabAirflowSecurityManagerOverride instead of FabAirflowSecurityManagerOverride.",
                     DeprecationWarning,
                 )
             return sm_from_config(self.appbuilder)
