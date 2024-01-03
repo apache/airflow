@@ -49,6 +49,7 @@ class RedisHook(BaseHook):
         self.redis = None
         self.host = None
         self.port = None
+        self.username = None
         self.password = None
         self.db = None
 
@@ -57,6 +58,7 @@ class RedisHook(BaseHook):
         conn = self.get_connection(self.redis_conn_id)
         self.host = conn.host
         self.port = conn.port
+        self.username = conn.login
         self.password = None if str(conn.password).lower() in ["none", "false", ""] else conn.password
         self.db = conn.extra_dejson.get("db")
 
@@ -79,6 +81,13 @@ class RedisHook(BaseHook):
                 self.port,
                 self.db,
             )
-            self.redis = Redis(host=self.host, port=self.port, password=self.password, db=self.db, **ssl_args)
+            self.redis = Redis(
+                host=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                db=self.db,
+                **ssl_args,
+            )
 
         return self.redis

@@ -42,6 +42,7 @@ class TestRedisHook:
     @mock.patch(
         "airflow.providers.redis.hooks.redis.RedisHook.get_connection",
         return_value=Connection(
+            login="user",
             password="password",
             host="remote_host",
             port=1234,
@@ -63,6 +64,7 @@ class TestRedisHook:
         hook.get_conn()
         mock_redis.assert_called_once_with(
             host=connection.host,
+            username=connection.login,
             password=connection.password,
             port=connection.port,
             db=connection.extra_dejson["db"],
