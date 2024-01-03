@@ -132,6 +132,7 @@ Not avoiding top-level DAG code:
       print("Hello from Airflow!")
       sleep(1000)
 
+
   my_expensive_response = expensive_api_call()
 
   with DAG(
@@ -160,6 +161,7 @@ Avoiding top-level DAG code:
       sleep(1000)
       return "Hello from Airflow!"
 
+
   with DAG(
       dag_id="example_python_operator",
       schedule=None,
@@ -175,7 +177,39 @@ Avoiding top-level DAG code:
 
 In the first example, ``expensive_api_call`` is executed each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the second example, ``expensive_api_call`` is only called when the task is running and thus is able to be parsed without suffering any performance hits. To test it out yourself, implement the first DAG and see "Hello from Airflow!" printed _in the scheduler logs_!
 
-Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that too can impact the performance of the scheduler.
+Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that can also impact the performance of the scheduler. The following example illustrates how to handle expensive imports.
+
+.. code-block:: python
+
+  # It's ok to import modules that are not expensive to load at top-level of DAG file
+  import random
+  import pendulum
+
+  # Expensive imports should be avoided as top level imports because DAG is imported frequently
+  # even if it does not follow PEP8 advice (PEP8 have not foreseen that certain imports will be very expensive)
+  # DON'T DO THAT - import them locally instead (see below)
+  #
+  # import pandas
+  # import torch
+  # import tensorflow
+  #
+
+  ...
+
+
+  @task()
+  def do_stuff_with_pandas_and_torch():
+      import pandas
+      import torch
+
+      # do some operations using pandas and torch
+
+
+  @task()
+  def do_stuff_with_tensorflow():
+      import tensorflow
+
+      # do some operations using tensorflow
 
 
 How to check if my code is "top-level" code
