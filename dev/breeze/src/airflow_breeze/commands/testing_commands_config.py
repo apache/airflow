@@ -45,6 +45,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-db-tests-only",
                 "--skip-db-tests",
+                "--db-tests-mode",
             ],
         },
         {
@@ -137,6 +138,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--parallel-test-types",
                 "--excluded-parallel-test-types",
+                "--db-tests-mode",
             ],
         },
         {

@@ -21,6 +21,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+from typing import Literal
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -189,6 +190,7 @@ class ShellParams:
     remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
+    db_tests_mode: Literal["sync", "async", "all"] = "sync"
     run_system_tests: bool = os.environ.get("RUN_SYSTEM_TESTS", "false") == "true"
     run_tests: bool = False
     skip_db_tests: bool = False
@@ -286,6 +288,10 @@ class ShellParams:
     @cached_property
     def sqlite_url(self) -> str:
         return "sqlite:////root/airflow/sqlite/airflow.db"
+
+    @cached_property
+    def async_sqlite_url(self) -> str:
+        return "sqlite+aiosqlite:////root/airflow/sqlite/airflow.db"
 
     def print_badge_info(self):
         if get_verbose():
@@ -557,6 +563,7 @@ class ShellParams:
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
+        _set_var(_env, "ASYNC_SQLITE_URL", self.async_sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
@@ -571,6 +578,7 @@ class ShellParams:
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
+        _set_var(_env, "_AIRFLOW_DB_TESTS_MODE", self.db_tests_mode)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)
 

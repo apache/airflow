@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import warnings
@@ -446,6 +447,21 @@ class Connection(Base, LoggingMixin):
 
         return obj
 
+    @staticmethod
+    def get_connection_from_cache(conn_id: str) -> Connection | None:
+        """
+        Get connection by conn_id from cache.
+
+        :param conn_id: connection id
+        :return: connection
+        """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        with contextlib.suppress(SecretCache.NotPresentException):
+            uri = SecretCache.get_connection_uri(conn_id)
+            return Connection(conn_id=conn_id, uri=uri)
+        return None
+
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:
         """
@@ -454,18 +470,42 @@ class Connection(Base, LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        # check cache first
-        # enabled only if SecretCache.init() has been called first
-        try:
-            uri = SecretCache.get_connection_uri(conn_id)
-            return Connection(conn_id=conn_id, uri=uri)
-        except SecretCache.NotPresentException:
-            pass  # continue business
+        cached_conn = cls.get_connection_from_cache(conn_id)
+        if cached_conn:
+            return cached_conn
 
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                    return conn
+            except Exception:
+                log.exception(
+                    "Unable to retrieve connection from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(secrets_backend).__name__,
+                )
+
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    @classmethod
+    async def async_get_connection_from_secrets(cls, conn_id: str) -> Connection:
+        """
+        Get connection by conn_id.
+
+        :param conn_id: connection id
+        :return: connection
+        """
+        cached_conn = cls.get_connection_from_cache(conn_id)
+        if cached_conn:
+            return cached_conn
+
+        # iterate over backends if not in cache (or expired)
+        for secrets_backend in ensure_secrets_loaded():
+            try:
+                conn = await secrets_backend.async_get_connection(conn_id=conn_id)
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn

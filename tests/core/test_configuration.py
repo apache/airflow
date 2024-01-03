@@ -1584,6 +1584,7 @@ def test_sensitive_values():
     # items not matching this pattern must be added here manually
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
+        ("database", "async_sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("smtp", "smtp_password"),
         ("webserver", "secret_key"),

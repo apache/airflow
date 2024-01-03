@@ -84,6 +84,20 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
+    async def async_get_connection(cls, conn_id: str) -> Connection:
+        """
+        Get connection, given connection id.
+
+        :param conn_id: connection id
+        :return: connection
+        """
+        from airflow.models.connection import Connection
+
+        conn = await Connection.async_get_connection_from_secrets(conn_id)
+        log.info("Using connection ID '%s' for task execution.", conn.conn_id)
+        return conn
+
+    @classmethod
     def get_hook(cls, conn_id: str) -> BaseHook:
         """
         Return default hook for this connection id.

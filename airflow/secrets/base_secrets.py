@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import warnings
 from abc import ABC
 from typing import TYPE_CHECKING
@@ -50,6 +51,18 @@ class BaseSecretsBackend(ABC):
         :param conn_id: connection id
         """
         raise NotImplementedError
+
+    async def async_get_conn_value(self, conn_id: str) -> str | None:
+        """
+        Retrieve from Secrets Backend a string value representing the Connection object asynchronously.
+
+        If the client your secrets backend uses already returns a python dict, you should override
+        ``get_connection`` instead.
+
+        :param conn_id: connection id
+        """
+        # if the backend doesn't implement async_get_conn_value, we fallback to get_conn_value
+        return self.get_conn_value(conn_id=conn_id)
 
     def deserialize_connection(self, conn_id: str, value: str) -> Connection:
         """
@@ -117,6 +130,22 @@ class BaseSecretsBackend(ABC):
         else:
             return None
 
+    async def async_get_connection(self, conn_id: str) -> Connection | None:
+        """
+        Return connection object with a given ``conn_id`` asynchronously.
+
+        Tries ``get_conn_value`` first and if not implemented, tries ``get_conn_uri``
+
+        :param conn_id: connection id
+        """
+        value = None
+        with contextlib.suppress(Exception):
+            value = await self.async_get_conn_value(conn_id=conn_id)
+        if value:
+            return self.deserialize_connection(conn_id=conn_id, value=value)
+        else:
+            return None
+
     def get_connections(self, conn_id: str) -> list[Connection]:
         """
         Return connection object with a given ``conn_id``.
@@ -142,6 +171,16 @@ class BaseSecretsBackend(ABC):
         :return: Variable Value
         """
         raise NotImplementedError()
+
+    async def async_get_variable(self, key: str) -> str | None:
+        """
+        Return value for Airflow Variable asynchronously.
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        # if the backend doesn't implement async_get_variable, we fallback to get_variable
+        return self.get_variable(key=key)
 
     def get_config(self, key: str) -> str | None:
         """

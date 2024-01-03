@@ -53,6 +53,12 @@ run_db_tests_only = (
     "--run-db-tests-only" in sys.argv or os.environ.get("_AIRFLOW_RUN_DB_TESTS_ONLY") == "true"
 )
 
+db_tests_mode = os.environ.get("_AIRFLOW_DB_TESTS_MODE", "sync")
+for arg in sys.argv:
+    if arg.startswith("--db-tests-mode="):
+        db_tests_mode = arg.split("=")[1]
+        break
+
 if skip_db_tests:
     if run_db_tests_only:
         raise Exception("You cannot specify both --skip-db-tests and --run-db-tests-only together")
@@ -213,6 +219,16 @@ def pytest_addoption(parser):
         help="only run tests requiring database",
     )
     group.addoption(
+        "--db-tests-mode",
+        action="store",
+        dest="db_tests_mode",
+        help=(
+            "only run tests requiring database in certain mode, accepted values: [sync, async, all],"
+            " default: sync"
+        ),
+        default="sync",
+    )
+    group.addoption(
         "--backend",
         action="store",
         dest="backend",
@@ -355,6 +371,13 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
+        "async_db_test: mark the database tests that uses async session",
+    )
+    config.addinivalue_line(
+        "markers", "sync_db_test_override: this marker is used to override the async_db_test marker"
+    )
+    config.addinivalue_line(
+        "markers",
         "non_db_test_override: you can mark individual tests with this marker to override the db_test marker",
     )
     config.addinivalue_line(
@@ -450,7 +473,7 @@ def skip_external_python_operator_test(item):
 
 
 def skip_db_test(item):
-    if next(item.iter_markers(name="db_test"), None):
+    if next(item.iter_markers(name="db_test"), None) or next(item.iter_markers(name="async_db_test"), None):
         if next(item.iter_markers(name="non_db_test_override"), None):
             # non_db_test can override the db_test set for example on module or class level
             return
@@ -469,15 +492,30 @@ def skip_db_test(item):
 
 
 def only_run_db_test(item):
+    def should_run_db_test():
+        if db_tests_mode == "all":
+            return True
+        if next(item.iter_markers(name="async_db_test"), None) and not next(
+            item.iter_markers(name="sync_db_test_override"), None
+        ):
+            # sync_db_test at individual level can override the async_db_test set
+            # for example on module or class level
+            return db_tests_mode == "async"
+        return db_tests_mode == "sync"
+
     if next(item.iter_markers(name="db_test"), None) and not next(
         item.iter_markers(name="non_db_test_override"), None
     ):
         # non_db_test at individual level can override the db_test set for example on module or class level
-        return
+        if should_run_db_test():
+            return
+        pytest.skip(f"The test is skipped as it is not running in the chosen DB test mode {item}")
     else:
         if next(item.iter_markers(name="backend"), None):
             # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-            return
+            if should_run_db_test():
+                return
+            pytest.skip(f"The test is skipped as it is not running in the chosen DB test mode {item}")
         pytest.skip(
             f"The test is skipped as it is not a DB tests "
             f"and --run-db-tests-only flag is passed to pytest. {item}"
