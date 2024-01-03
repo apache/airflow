@@ -499,5 +499,7 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
+        if conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ):
             self.security_manager.sync_roles()
