@@ -19,7 +19,7 @@
 """Append dag pause on dag edit
 
 Revision ID: bd59965b3fe5
-Revises: 937cbd173ca1
+Revises: 10b52ebd31f7
 Create Date: 2023-04-23 13:23:39.037211
 
 """
