@@ -14,13 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  mssql:
-    volumes:
-      - mssql-db-volume:/var/opt/mssql
-  mssqlsetup:
-    volumes:
-      - mssql-db-volume:/var/opt/mssql
-volumes:
-  mssql-db-volume:

@@ -301,7 +301,7 @@ const Details = ({
           <TabPanel height="100%">
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
-            {isTaskInstance && (
+            {!!runId && !!taskId && (
               <>
                 <BackToTaskSummary
                   isMapIndexDefined={mapIndex !== undefined && mapIndex > -1}

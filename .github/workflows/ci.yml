@@ -86,17 +86,14 @@ jobs:
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      mssql-versions: ${{ steps.selective-checks.outputs.mssql-versions }}
       default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
-      mssql-parallelism: ${{ steps.selective-checks.outputs.mssql-parallelism }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
-      mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
@@ -671,7 +668,7 @@ jobs:
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   spellcheck-docs:
-    timeout-minutes: 130
+    timeout-minutes: 120
     name: "Spellcheck docs"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1236,69 +1233,6 @@ jobs:
         if: failure()
 
 
-  tests-mssql:
-    timeout-minutes: 130
-    name: >
-      DB:MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
-      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    strategy:
-      matrix:
-        python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
-        mssql-version: "${{fromJson(needs.build-info.outputs.mssql-versions)}}"
-        exclude: "${{fromJson(needs.build-info.outputs.mssql-exclude)}}"
-      fail-fast: false
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
-      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "mssql"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
-      MSSQL_VERSION: "${{matrix.mssql-version}}"
-      BACKEND_VERSION: "${{matrix.mssql-version}}"
-      JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
-      # The below (and corresponding selective checks code) can be removed once
-      # https://github.com/apache/airflow/issues/31575 is fixed.
-      # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
-      PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
-    if: >
-      needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.is-self-hosted-runner == 'true' &&
-       needs.build-info.outputs.is-airflow-runner == 'true' ||
-      needs.build-info.outputs.full-tests-needed == 'true' ||
-      needs.build-info.outputs.has-migrations == 'true')
-    steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: >
-          Migration Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/migration_tests
-      - name: >
-          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: >
-          breeze testing db-tests
-          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      - name: >
-          Post Tests success: MsSQL"
-        uses: ./.github/actions/post_tests_success
-        if: success()
-      - name: >
-          Post Tests failure: MsSQL"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
-
   tests-sqlite:
     timeout-minutes: 130
     name: >
@@ -1508,19 +1442,11 @@ jobs:
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
           MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       - name: >
-          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze testing tests || true
-        env:
-          BACKEND: "mssql"
-          BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
-          MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
-      - name: >
           Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "sqlite"
           BACKEND_VERSION: ""
-          MSSQL_VERSION: ""
       - name: >
           Post Tests success: Quarantined"
         uses: ./.github/actions/post_tests_success
