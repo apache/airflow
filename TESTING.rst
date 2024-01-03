@@ -1216,25 +1216,25 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | Identifier   | Description                                        |
 +==============+====================================================+
-| kafka        | Integration required for Kafka hooks.              |
+| cassandra    | Integration required for Cassandra hooks.          |
 +--------------+----------------------------------------------------+
 | celery       | Integration required for Celery executor tests.    |
 +--------------+----------------------------------------------------+
-| trino        | Integration required for Trino hooks.              |
-+--------------+----------------------------------------------------+
-| mongo        | Integration required for MongoDB hooks.            |
-+--------------+----------------------------------------------------+
-| pinot        | Integration required for Apache Pinot hooks.       |
-+--------------+----------------------------------------------------+
-| openlineage  | Integration required for Openlineage hooks.        |
-+--------------+----------------------------------------------------+
-| statsd       | Integration required for Satsd hooks.              |
+| kafka        | Integration required for Kafka hooks.              |
 +--------------+----------------------------------------------------+
 | kerberos     | Integration that provides Kerberos authentication. |
 +--------------+----------------------------------------------------+
-| cassandra    | Integration required for Cassandra hooks.          |
+| mongo        | Integration required for MongoDB hooks.            |
++--------------+----------------------------------------------------+
+| openlineage  | Integration required for Openlineage hooks.        |
 +--------------+----------------------------------------------------+
 | otel         | Integration required for OTEL/opentelemetry hooks. |
++--------------+----------------------------------------------------+
+| pinot        | Integration required for Apache Pinot hooks.       |
++--------------+----------------------------------------------------+
+| statsd       | Integration required for Satsd hooks.              |
++--------------+----------------------------------------------------+
+| trino        | Integration required for Trino hooks.              |
 +--------------+----------------------------------------------------+
 
 .. END AUTO-GENERATED INTEGRATION LIST'

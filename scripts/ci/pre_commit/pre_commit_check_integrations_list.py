@@ -121,7 +121,8 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
 def update_integration_tests_array(contents: dict[str, list[str]]):
     """Generate docs table."""
     rows = []
-    for integration, description in contents.items():
+    sorted_contents = dict(sorted(contents.items()))
+    for integration, description in sorted_contents.items():
         formatted_hook_description = (
             description[0] if len(description) == 1 else "* " + "\n* ".join(description)
         )
