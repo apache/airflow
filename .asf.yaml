@@ -86,12 +86,13 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
   collaborators:
-    - mhenc
-    - utkarsharma2
     - Lee-W
-    - sunank200
-    - nathadfield
     - RNHTTR
+    - dirrao
+    - mhenc
+    - nathadfield
+    - sunank200
+    - vatsrahul1001
 
 notifications:
   jobs: jobs@airflow.apache.org
