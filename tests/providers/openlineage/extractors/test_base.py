@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import Any
 from unittest import mock
 
@@ -27,11 +28,13 @@ from openlineage.client.run import Dataset
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.base import (
+    BaseExtractor,
     DefaultExtractor,
     OperatorLineage,
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -50,6 +53,12 @@ class CompleteRunFacet(BaseFacet):
 
 
 FINISHED_FACETS: dict[str, BaseFacet] = {"complete": CompleteRunFacet(True)}
+
+
+class ExampleExtractor(BaseExtractor):
+    @classmethod
+    def get_operator_classnames(cls):
+        return ["ExampleOperator"]
 
 
 class ExampleOperator(BaseOperator):
@@ -219,6 +228,24 @@ def test_extraction_without_on_start():
         run_facets=RUN_FACETS,
         job_facets=FINISHED_FACETS,
     )
+
+
+@mock.patch.dict(
+    os.environ,
+    {"OPENLINEAGE_EXTRACTORS": "tests.providers.openlineage.extractors.test_base.ExampleExtractor"},
+)
+def test_extractors_env_var():
+    extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
+    assert extractor is ExampleExtractor
+
+
+@mock.patch.dict(os.environ, {"OPENLINEAGE_EXTRACTORS": "no.such.extractor"})
+@conf_vars(
+    {("openlineage", "extractors"): "tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
+)
+def test_config_has_precedence_over_env_var():
+    extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
+    assert extractor is ExampleExtractor
 
 
 def test_does_not_use_default_extractor_when_not_a_method():

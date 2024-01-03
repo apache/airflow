@@ -30,6 +30,7 @@ from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
+    SCRIPTS_DOCKER_DIR,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
@@ -481,10 +482,30 @@ def prepare_broker_url(params, env_variables):
         env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
+def check_executable_entrypoint_permissions(quiet: bool = False):
+    """
+    Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
+    """
+    for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
+        if get_verbose() and not quiet:
+            get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
+        if not os.access(entrypoint.as_posix(), os.X_OK):
+            get_console().print(
+                f"[error]You do not have executable permissions on {entrypoint}[/]\n"
+                f"You likely checked out airflow repo on a filesystem that does not support executable "
+                f"permissions (for example on a Windows filesystem that is mapped to Linux VM). Airflow "
+                f"repository should only be checked out on a filesystem that is POSIX compliant."
+            )
+            sys.exit(1)
+    if not quiet:
+        get_console().print("[success]Executable permissions on entrypoints are OK[/]")
+
+
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
     check_docker_version(quiet)
     check_docker_compose_version(quiet)
+    check_executable_entrypoint_permissions(quiet)
 
 
 def get_docker_syntax_version() -> str:
@@ -773,9 +794,6 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
             get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
         if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:

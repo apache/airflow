@@ -21,8 +21,8 @@ name: Microsoft SQL Server (MSSQL)
 description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
-suspended: false
-source-date-epoch: 1701983393
+state: ready
+source-date-epoch: 1703288147
 versions:
   - 3.6.0
   - 3.5.0

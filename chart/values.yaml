@@ -121,7 +121,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v3.6.9
+    tag: v4.1.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -1895,7 +1895,7 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
-  auth_type: md5
+  auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
   # annotations to be added to the PgBouncer deployment
@@ -2277,8 +2277,6 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
-  image:
-    tag: "11"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
@@ -2422,6 +2420,8 @@ dags:
     repo: https://github.com/apache/airflow.git
     branch: v2-2-stable
     rev: HEAD
+    # The git revision (branch, tag, or hash) to check out, v4 only
+    ref: v2-2-stable
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
@@ -2436,8 +2436,12 @@ dags:
     #   metadata:
     #     name: git-credentials
     #   data:
+    #     # For git-sync v3
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
+    #     # For git-sync v4
+    #     GITSYNC_USERNAME: <base64_encoded_git_username>
+    #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
     #
     # credentialsSecret: git-credentials
@@ -2466,7 +2470,11 @@ dags:
     # interval between git sync attempts in seconds
     # high values are more likely to cause DAGs to become out of sync between different components
     # low values cause more traffic to the remote git repository
-    wait: 5
+    # Go-style duration string (e.g. "100ms" or "0.1s" = 100ms).
+    # For backwards compatibility, wait will be used if it is specified.
+    period: 5s
+    wait: ~
+
     containerName: git-sync
     uid: 65533
 

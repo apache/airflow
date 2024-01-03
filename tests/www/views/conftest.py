@@ -63,7 +63,7 @@ def app(examples_dag_bag):
         ]
     )
     def factory():
-        with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        with conf_vars({("fab", "auth_rate_limited"): "False"}):
             return create_app(testing=True)
 
     app = factory()

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
@@ -43,7 +42,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     ROLES_COMMANDS,
@@ -334,20 +333,12 @@ class FabAuthManager(BaseAuthManager):
         from airflow.providers.fab.auth_manager.security_manager.override import (
             FabAirflowSecurityManagerOverride,
         )
-        from airflow.www.security import AirflowSecurityManager
 
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
-            if not issubclass(sm_from_config, AirflowSecurityManager):
-                raise Exception(
-                    """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
-                     not FAB's own security manager."""
-                )
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
-                warnings.warn(
-                    "Please make your custom security manager inherit from "
-                    "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
-                    AirflowProviderDeprecationWarning,
+                raise Exception(
+                    """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."""
                 )
             return sm_from_config(self.appbuilder)
 
@@ -508,5 +499,7 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
+        if conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ):
             self.security_manager.sync_roles()

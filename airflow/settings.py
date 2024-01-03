@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import pendulum
 import pluggy
-import sqlalchemy
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -253,27 +252,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             expire_on_commit=False,
         )
     )
-    if engine.dialect.name == "mssql":
-        session = Session()
-        try:
-            result = session.execute(
-                sqlalchemy.text(
-                    "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name"
-                ),
-                params={"database_name": engine.url.database},
-            )
-            data = result.fetchone()[0]
-            if data != 1:
-                log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical("The database %s has it disabled.", engine.url.database)
-                log.critical("This will cause random deadlocks, Refusing to start.")
-                log.critical(
-                    "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
-                    "set-up-database.html#setting-up-a-mssql-database"
-                )
-                raise Exception("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-        finally:
-            session.close()
 
 
 DEFAULT_ENGINE_ARGS = {
@@ -351,12 +329,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # More information here:
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
 
-    # Similarly MSSQL default isolation level should be set to READ COMMITTED.
-    # We also make sure that READ_COMMITTED_SNAPSHOT option is on, in order to avoid deadlocks when
-    # Select queries are running. This is by default enforced during init/upgrade. More information:
-    # https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql
-
-    if SQL_ALCHEMY_CONN.startswith(("mysql", "mssql")):
+    if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 
     # Allow the user to specify an encoding for their DB otherwise default
@@ -628,6 +601,18 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+SMTP_DEFAULT_TEMPLATED_SUBJECT = """
+{% if ti is defined %}
+DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+{% elif slas is defined %}
+SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
+{% endif %}
+"""
+
+SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
+    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
+)
 
 
 # AIP-44: internal_api (experimental)

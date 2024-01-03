@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+8.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``azurefilesharehook fix with connection type azure (#36309)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.4.0
 .....
 

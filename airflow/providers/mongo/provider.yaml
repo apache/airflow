@@ -21,8 +21,8 @@ name: MongoDB
 description: |
     `MongoDB <https://www.mongodb.com/>`__
 
-suspended: false
-source-date-epoch: 1701983396
+state: ready
+source-date-epoch: 1703288150
 versions:
   - 3.5.0
   - 3.4.0

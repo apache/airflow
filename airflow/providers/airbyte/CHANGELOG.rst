@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+``Cancel airbyte job when timeout exceeded to prevent inconsistency among airflow and airbyte (#36241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.5.0
 .....
 
