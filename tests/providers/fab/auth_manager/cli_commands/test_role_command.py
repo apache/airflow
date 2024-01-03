@@ -194,9 +194,18 @@ class TestCliRoles:
         assert fakeTeamB is not None
         assert len(fakeTeamB.permissions) == 0
         assert len(fakeTeamA.permissions) == 3
-        assert fakeTeamA.permissions[0].resource.name == permissions.RESOURCE_POOL
-        assert fakeTeamA.permissions[0].action.name == permissions.ACTION_CAN_EDIT
-        assert fakeTeamA.permissions[1].resource.name == permissions.RESOURCE_POOL
-        assert fakeTeamA.permissions[1].action.name == permissions.ACTION_CAN_READ
-        assert fakeTeamA.permissions[2].resource.name == permissions.RESOURCE_ADMIN_MENU
-        assert fakeTeamA.permissions[2].action.name == permissions.ACTION_CAN_ACCESS_MENU
+        assert any(
+            permission.resource.name == permissions.RESOURCE_POOL
+            and permission.action.name == permissions.ACTION_CAN_EDIT
+            for permission in fakeTeamA.permissions
+        )
+        assert any(
+            permission.resource.name == permissions.RESOURCE_POOL
+            and permission.action.name == permissions.ACTION_CAN_READ
+            for permission in fakeTeamA.permissions
+        )
+        assert any(
+            permission.resource.name == permissions.RESOURCE_ADMIN_MENU
+            and permission.action.name == permissions.ACTION_CAN_ACCESS_MENU
+            for permission in fakeTeamA.permissions
+        )

@@ -98,11 +98,8 @@ Apache Airflow is tested with:
 | PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
 | MySQL       | 8.0, Innovation              | 8.0, Innovation              |
 | SQLite      | 3.15.0+                      | 3.15.0+                      |
-| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*\*), 2019(\*\*)       |
 
 \* Experimental
-
-\*\* **Discontinued in 2.9.0**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -388,7 +385,7 @@ The important dependencies are:
 
 * `SQLAlchemy`: upper-bound to specific MINOR version (SQLAlchemy is known to remove deprecations and
    introduce breaking changes especially that support for different Databases varies and changes at
-   various speed (example: SQLAlchemy 1.4 broke MSSQL integration for Airflow)
+   various speed)
 * `Alembic`: it is important to handle our migrations in predictable and performant way. It is developed
    together with SQLAlchemy. Our experience with Alembic is that it very stable in MINOR version
 * `Flask`: We are using Flask as the back-bone of our web UI and API. We know major version of Flask

@@ -195,7 +195,7 @@ class KubernetesPodOperator(BaseOperator):
         Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
-    :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+    :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
         in V1PodSpec.
     :param progress_callback: Callback function for receiving k8s container logs.
     """

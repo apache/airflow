@@ -68,7 +68,6 @@ class RenderedTaskInstanceFields(Base):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
-            mssql_clustered=True,
         ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
