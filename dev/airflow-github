@@ -323,6 +323,8 @@ def changelog(previous_version, target_version, github_token):
     # Get a list of issues/PRs that have been committed on the current branch.
     log = get_commits_between(repo, previous_version, target_version)
 
+    print("Number of commits", len(log))
+
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
@@ -341,9 +343,7 @@ def changelog(previous_version, target_version, github_token):
             files = files_touched(repo, commit["id"])
             if commit["id"] in existing_commits:
                 continue
-            if is_core_commit(files) and issue_type in ["bug-fix", "doc-only", "misc/internal"]:
-                sections[issue_type].append(commit["subject"])
-            else:
+            if is_core_commit(files):
                 sections[issue_type].append(commit["subject"])
         else:
             sections[DEFAULT_SECTION_NAME].append(commit["subject"])
