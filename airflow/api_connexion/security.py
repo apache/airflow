@@ -152,10 +152,10 @@ def requires_access_dag(
             # If method is "GET", return whether the user has read access to any DAGs
             # If method is "PUT", return whether the user has edit access to any DAGs
             # If method is "PATCH", return whether the user has pause access to any DAGs
-            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
-                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
-            ) or (
-                method == "PATCH" and any(get_auth_manager().get_permitted_dag_ids(methods=["PATCH"]))
+            return (
+                (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) 
+                or (method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"])))
+                or (method == "PATCH" and any(get_auth_manager().get_permitted_dag_ids(methods=["PATCH"])))
             )
 
         return callback
