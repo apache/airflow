@@ -603,7 +603,7 @@ workers:
     maxReplicaCount: 5
 
     # Specifications for which to use to calculate the desired replica count
-    metrics: |-
+    metrics:
       - type: Resource
         resource:
           name: cpu

@@ -42,7 +42,7 @@ spec:
     name: {{ include "airflow.fullname" . }}-worker
   minReplicas: {{ .Values.workers.hpa.minReplicaCount }}
   maxReplicas: {{ .Values.workers.hpa.maxReplicaCount }}
-  metrics: {{- tpl (default "[]" .Values.workers.hpa.metrics) . | nindent 4 }}
+  metrics: {{- toYaml .Values.workers.hpa.metrics | nindent 4 }}
   {{- with .Values.workers.hpa.behavior }}
   behavior: {{- toYaml . | nindent 4 }}
   {{- end }}

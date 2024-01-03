@@ -1040,13 +1040,21 @@ class TestWorkerHPAAutoScaler:
             ),
             # custom metric
             (
-                '[{"type":"Pods","pods":{"metric":{"name":"custom_prometheus"},"target":{"type":"AverageValue","averageValue":"20"}}}]',
+                [
+                    {
+                        "type": "Pods",
+                        "pods": {
+                            "metric": {"name": "custom"},
+                            "target": {"type": "Utilization", "averageUtilization": 80},
+                        },
+                    }
+                ],
                 "CeleryKubernetesExecutor",
                 {
                     "type": "Pods",
                     "pods": {
-                        "metric": {"name": "custom_prometheus"},
-                        "target": {"type": "AverageValue", "averageValue": "20"},
+                        "metric": {"name": "custom"},
+                        "target": {"type": "Utilization", "averageUtilization": 80},
                     },
                 },
             ),
