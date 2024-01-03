@@ -103,8 +103,7 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
         m = re.findall(_LIST_MATCH, line)
         if len(m) == 0:
             continue
-        for _i in m:
-            table_cells.append(_i.strip("|").strip())
+        table_cells.append(m[0].strip("|").strip())
 
     def _list_matcher(j):
         """Filter callable to exclude header and empty cells."""
