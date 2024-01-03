@@ -1567,7 +1567,7 @@
                                 }
                             ],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetrics"
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricSpec"
                             }
                         },
                         "behavior": {
@@ -7456,6 +7456,72 @@
             "type": "object",
             "additionalProperties": false
         },
+        "io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource": {
+            "description": "ContainerResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+            "properties": {
+                "container": {
+                    "description": "container is the name of the container in the pods of the scaling target",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "name is the name of the resource in question.",
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "name",
+                "target",
+                "container"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference": {
+            "description": "CrossVersionObjectReference contains enough information to let you identify the referred resource.",
+            "properties": {
+                "apiVersion": {
+                    "description": "API version of the referent",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\"",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "kind",
+                "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ExternalMetricSource": {
+            "description": "ExternalMetricSource indicates how to scale on a metric not associated with any Kubernetes object (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "metric",
+                "target"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy": {
             "description": "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
             "properties": {
@@ -7520,191 +7586,145 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetrics": {
-            "description": "HorizontalPodAutoscalerMetrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used)",
-            "properties": {
-                "external": {
-                    "description": "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ExternalMetricStatus"
-                },
-                "object": {
-                    "description": "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object).",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ObjectMetricStatus"
-                },
-                "pods": {
-                    "description": "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.PodsMetricStatus"
-                },
-                "resource": {
-                    "description": "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ResourceMetricStatus"
-                },
-                "type": {
-                    "description": "type is the type of metric source.  It will be one of \"Object\", \"Pods\" or \"Resource\", each corresponds to a matching field in the object.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            },
-            "type": "object",
-            "additionalProperties": false
-        },
-        "io.k8s.api.autoscaling.v2.ExternalMetricStatus": {
-            "description": "ExternalMetricStatus indicates the current value of a global metric not associated with any Kubernetes object.",
-            "required": [
-                "metric",
-                "target"
-            ],
-            "type": "object",
-            "properties": {
-                "metric": {
-                    "description": "currentAverageValue is the current value of metric averaged over autoscaled pods.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricIdentifier"
-                },
-                "target": {
-                    "description": "target specifies the target value for the given metric",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricTarget"
-                }
-            }
-        },
-        "io.k8s.api.autoscaling.v2.ObjectMetricStatus": {
-            "description": "ObjectMetricStatus indicates the current value of a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
-            "required": [
-                "describedObject",
-                "metric",
-                "target"
-            ],
-            "type": "object",
-            "properties": {
-                "describedObject": {
-                    "description": "currentAverageValue is the current value of metric averaged over autoscaled pods.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.CrossVersionObjectReference"
-                },
-                "metric": {
-                    "description": "currentAverageValue is the current value of metric averaged over autoscaled pods.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricIdentifier"
-                },
-                "target": {
-                    "description": "target specifies the target value for the given metric",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricTarget"
-                }
-            }
-        },
-        "io.k8s.api.autoscaling.v2.PodsMetricStatus": {
-            "description": "PodsMetricStatus indicates the current value of a metric describing each pod in the current scale target (for example, transactions-processed-per-second).",
-            "required": [
-                "metric",
-                "target"
-            ],
-            "type": "object",
-            "properties": {
-                "metric": {
-                    "description": "currentAverageValue is the current value of metric averaged over autoscaled pods.",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricIdentifier"
-                },
-                "target": {
-                    "description": "target specifies the target value for the given metric",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricTarget"
-                }
-            }
-        },
-        "io.k8s.api.autoscaling.v2.ResourceMetricStatus": {
-            "description": "ResourceMetricStatus indicates the current value of a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
-            "required": [
-                "name",
-                "target"
-            ],
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "name is the name of the resource in question.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                },
-                "target": {
-                    "description": "target specifies the target value for the given metric",
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricTarget"
-                }
-            }
-        },
-        "io.k8s.api.autoscaling.v2.CrossVersionObjectReference": {
-            "description": "CrossVersionObjectReference contains enough information to let you identify the referred resource.",
-            "type": "object",
-            "required": [
-                "kind",
-                "name"
-            ],
-            "properties": {
-                "apiVersion": {
-                    "description": "API version of the referent",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                },
-                "kind": {
-                    "description": "Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\"",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                },
-                "name": {
-                    "description": "Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            }
-        },
-        "io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricIdentifier": {
-            "description": "metric identifies the target metric by name and selector",
-            "required": [
-                "name"
-            ],
+        "io.k8s.api.autoscaling.v2beta2.MetricIdentifier": {
+            "description": "MetricIdentifier defines the name and optionally selector for a metric",
             "properties": {
                 "name": {
                     "description": "name is the name of the given metric",
                     "type": "string"
                 },
                 "selector": {
-                    "description": "selector is the string-encoded form of a standard kubernetes label selector for the given metric",
-                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
+                    "description": "selector is the string-encoded form of a standard kubernetes label selector for the given metric When set, it is passed as an additional parameter to the metrics server for more specific metrics scoping. When unset, just the metricName will be used to gather metrics."
                 }
-            }
+            },
+            "required": [
+                "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetricTarget": {
-            "description": "target specifies the target value for the given metric",
+        "io.k8s.api.autoscaling.v2beta2.MetricSpec": {
+            "description": "MetricSpec specifies how to scale based on a single metric (only `type` and one other matching field should be set at once).",
+            "properties": {
+                "containerResource": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource",
+                    "description": "container resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source. This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag."
+                },
+                "external": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ExternalMetricSource",
+                    "description": "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster)."
+                },
+                "object": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ObjectMetricSource",
+                    "description": "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object)."
+                },
+                "pods": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.PodsMetricSource",
+                    "description": "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value."
+                },
+                "resource": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ResourceMetricSource",
+                    "description": "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source."
+                },
+                "type": {
+                    "description": "type is the type of metric source.  It should be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each mapping to a matching field in the object. Note: \"ContainerResource\" type is available on when the feature-gate HPAContainerMetrics is enabled",
+                    "type": "string"
+                }
+            },
             "required": [
                 "type"
             ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.MetricTarget": {
+            "description": "MetricTarget defines the target value, average value, or average utilization of a specific metric",
             "properties": {
-                "type": {
-                    "description": "type represents whether the metric type is Utilization, Value, or AverageValue",
-                    "type": "string",
-                    "enum": [
-                        "Utilization",
-                        "Value",
-                        "AverageValue"
-                    ]
-                },
                 "averageUtilization": {
-                    "description": "averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods",
+                    "description": "averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type",
+                    "format": "int32",
                     "type": "integer"
                 },
                 "averageValue": {
-                    "description": "averageValue is the target value of the average of the metric across all relevant pods (as a quantity)",
-                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+                    "description": "averageValue is the target value of the average of the metric across all relevant pods (as a quantity)"
+                },
+                "type": {
+                    "description": "type represents whether the metric type is Utilization, Value, or AverageValue",
+                    "type": "string"
                 },
                 "value": {
-                    "description": "value is the target value of the metric (as a quantity).",
-                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+                    "description": "value is the target value of the metric (as a quantity)."
                 }
-            }
+            },
+            "required": [
+                "type"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ObjectMetricSource": {
+            "description": "ObjectMetricSource indicates how to scale on a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
+            "properties": {
+                "describedObject": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference"
+                },
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "describedObject",
+                "target",
+                "metric"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.PodsMetricSource": {
+            "description": "PodsMetricSource indicates how to scale on a metric describing each pod in the current scale target (for example, transactions-processed-per-second). The values will be averaged together before being compared to the target value.",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "metric",
+                "target"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ResourceMetricSource": {
+            "description": "ResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+            "properties": {
+                "name": {
+                    "description": "name is the name of the resource in question.",
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "name",
+                "target"
+            ],
+            "type": "object",
+            "additionalProperties": false
         },
         "io.k8s.api.core.v1.AWSElasticBlockStoreVolumeSource": {
             "description": "Represents a Persistent Disk resource in AWS.\n\nAn AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.",
