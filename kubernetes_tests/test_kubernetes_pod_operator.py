@@ -1348,12 +1348,13 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
 class TestKubernetesPodOperator(BaseK8STest):
     @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
     def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+        ns = "default"
         k = KubernetesPodOperator(
             task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
             image="busybox",
             cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
-            namespace="default",
+            namespace=ns,
             on_finish_action="keep_pod",
         )
 
@@ -1362,11 +1363,11 @@ class TestKubernetesPodOperator(BaseK8STest):
         with pytest.raises(AirflowException):
             k.execute(context)
 
-        pod = k.find_pod("default", context, exclude_checked=False)
+        pod = k.find_pod(ns, context, exclude_checked=False)
 
         k8s_client = client.CoreV1Api()
 
-        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
+        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace=ns)
         phase = pod_status.status.phase
         reason = pod_status.status.reason
 
