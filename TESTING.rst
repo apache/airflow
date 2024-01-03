@@ -1181,24 +1181,33 @@ until you stop the Breeze environment with the ``stop`` command and started with
 
 The following integrations are available:
 
-.. list-table:: Airflow Test Integrations
-   :widths: 15 80
-   :header-rows: 1
+.. BEGIN AUTO-GENERATED INTEGRATION LIST
 
-   * - Integration
-     - Description
-   * - cassandra
-     - Integration required for Cassandra hooks
-   * - kerberos
-     - Integration that provides Kerberos authentication
-   * - mongo
-     - Integration required for MongoDB hooks
-   * - pinot
-     - Integration required for Apache Pinot hooks
-   * - celery
-     - Integration required for Celery executor tests
-   * - trino
-     - Integration required for Trino hooks
++--------------+----------------------------------------------------+
+| Identifier   | Description                                        |
++==============+====================================================+
+| cassandra    | Integration required for Cassandra hooks.          |
++--------------+----------------------------------------------------+
+| celery       | Integration required for Celery executor tests.    |
++--------------+----------------------------------------------------+
+| kafka        | Integration required for Kafka hooks.              |
++--------------+----------------------------------------------------+
+| kerberos     | Integration that provides Kerberos authentication. |
++--------------+----------------------------------------------------+
+| mongo        | Integration required for MongoDB hooks.            |
++--------------+----------------------------------------------------+
+| openlineage  | Integration required for Openlineage hooks.        |
++--------------+----------------------------------------------------+
+| otel         | Integration required for OTEL/opentelemetry hooks. |
++--------------+----------------------------------------------------+
+| pinot        | Integration required for Apache Pinot hooks.       |
++--------------+----------------------------------------------------+
+| statsd       | Integration required for Satsd hooks.              |
++--------------+----------------------------------------------------+
+| trino        | Integration required for Trino hooks.              |
++--------------+----------------------------------------------------+
+
+.. END AUTO-GENERATED INTEGRATION LIST'
 
 To start the ``mongo`` integration only, enter:
 
