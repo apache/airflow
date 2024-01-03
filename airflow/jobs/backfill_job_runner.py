@@ -266,33 +266,25 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         executor = self.job.executor
         # list of tuples (dag_id, task_id, execution_date, map_index) of running tasks in executor
         buffered_events = list(executor.get_event_buffer().items())
-        if session.get_bind().dialect.name == "mssql":
-            # SQL Server doesn't support multiple column subqueries
-            # TODO: Remove this once we drop support for SQL Server (#35868)
-            need_refresh = True
-            running_dict = {(ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in running.values()}
-        else:
-            running_tis_ids = [
-                (key.dag_id, key.task_id, key.run_id, key.map_index)
-                for key, _ in buffered_events
-                if key in running
-            ]
-            # list of TaskInstance of running tasks in executor (refreshed from db in batch)
-            refreshed_running_tis = session.scalars(
-                select(TaskInstance).where(
-                    tuple_(
-                        TaskInstance.dag_id,
-                        TaskInstance.task_id,
-                        TaskInstance.run_id,
-                        TaskInstance.map_index,
-                    ).in_(running_tis_ids)
-                )
-            ).all()
-            # dict of refreshed TaskInstance by key to easily find them
-            running_dict = {
-                (ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in refreshed_running_tis
-            }
-            need_refresh = False
+        running_tis_ids = [
+            (key.dag_id, key.task_id, key.run_id, key.map_index)
+            for key, _ in buffered_events
+            if key in running
+        ]
+        # list of TaskInstance of running tasks in executor (refreshed from db in batch)
+        refreshed_running_tis = session.scalars(
+            select(TaskInstance).where(
+                tuple_(
+                    TaskInstance.dag_id,
+                    TaskInstance.task_id,
+                    TaskInstance.run_id,
+                    TaskInstance.map_index,
+                ).in_(running_tis_ids)
+            )
+        ).all()
+        # dict of refreshed TaskInstance by key to easily find them
+        running_dict = {(ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in refreshed_running_tis}
+        need_refresh = False
 
         for key, value in buffered_events:
             state, info = value
