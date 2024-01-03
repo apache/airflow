@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-02T17:11:09.776322
+# This constraints file was automatically generated on 2024-01-03T01:31:02.570994
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -143,7 +143,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.39
+cohere==4.40
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -489,7 +489,7 @@ rich-click==1.7.2
 rich==13.7.0
 rpds-py==0.16.2
 rsa==4.9
-ruff==0.1.9
+ruff==0.1.11
 s3fs==2023.12.2
 s3transfer==0.8.2
 sarif-om==1.0.4
