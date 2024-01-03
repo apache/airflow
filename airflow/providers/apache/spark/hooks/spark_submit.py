@@ -33,7 +33,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 with contextlib.suppress(ImportError, NameError):
     from airflow.providers.cncf.kubernetes import kube_client
 
-ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
+DEFAULT_SPARK_BINARY = "spark-submit"
+ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -41,7 +42,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     :param conf: Arbitrary Spark configuration properties
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default
         to yarn.
     :param files: Upload additional files to the executor running the job, separated by a
@@ -98,8 +99,42 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "login", "password"],
+            "hidden_fields": ["schema", "login", "password", "extra"],
             "relabeling": {},
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import Optional, any_of
+
+        return {
+            "queue": StringField(
+                lazy_gettext("YARN queue"),
+                widget=BS3TextFieldWidget(),
+                description="Default YARN queue to use",
+                validators=[Optional()],
+            ),
+            "deploy-mode": StringField(
+                lazy_gettext("Deploy mode"),
+                widget=BS3TextFieldWidget(),
+                description="Must be client or cluster",
+                validators=[any_of(["client", "cluster"])],
+                default="client",
+            ),
+            "spark-binary": StringField(
+                lazy_gettext("Spark binary"),
+                widget=BS3TextFieldWidget(),
+                description=f"Must be one of: {', '.join(ALLOWED_SPARK_BINARIES)}",
+                validators=[any_of(ALLOWED_SPARK_BINARIES)],
+                default=DEFAULT_SPARK_BINARY,
+            ),
+            "namespace": StringField(
+                lazy_gettext("Kubernetes namespace"), widget=BS3TextFieldWidget(), validators=[Optional()]
+            ),
         }
 
     def __init__(
@@ -198,7 +233,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "master": "yarn",
             "queue": None,
             "deploy_mode": None,
-            "spark_binary": self.spark_binary or "spark-submit",
+            "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
             "namespace": None,
         }
 
@@ -216,7 +251,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data["queue"] = self._queue if self._queue else extra.get("queue")
             conn_data["deploy_mode"] = self._deploy_mode if self._deploy_mode else extra.get("deploy-mode")
             if not self.spark_binary:
-                self.spark_binary = extra.get("spark-binary", "spark-submit")
+                self.spark_binary = extra.get("spark-binary", DEFAULT_SPARK_BINARY)
                 if self.spark_binary is not None and self.spark_binary not in ALLOWED_SPARK_BINARIES:
                     raise RuntimeError(
                         f"The spark-binary extra can be on of {ALLOWED_SPARK_BINARIES} and it"

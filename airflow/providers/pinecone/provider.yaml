@@ -23,7 +23,7 @@ name: Pinecone
 description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288160
 
 versions:

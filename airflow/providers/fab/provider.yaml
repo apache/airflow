@@ -24,11 +24,9 @@ name: Fab
 description: |
   `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
-suspended: false
-
 # The provider is not yet ready to be released, we will skip it by default when preparing new release waves
 # For providers until we think it should be released.
-not-ready: true
+state: not-ready
 
 source-date-epoch: 1703288133
 
@@ -41,3 +39,6 @@ dependencies:
   - flask-appbuilder==4.3.10
   - flask-login>=0.6.2
   - google-re2>=1.0
+
+auth-managers:
+  - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+10.13.1
+.......
+
+Misc
+~~~~
+
+* ``Remove backcompat code for stackdriver (#36442)``
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``
+   * ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)``
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)" (#36440)``
+
 10.13.0
 .......
 

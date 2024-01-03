@@ -29,7 +29,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -451,7 +451,7 @@ def prepare_provider_documentation(
         except PrepareReleaseDocsUserQuitException:
             break
         else:
-            if provider_metadata.get("removed"):
+            if provider_metadata["state"] == "removed":
                 removed_packages.append(provider_id)
             else:
                 success_packages.append(provider_id)
@@ -482,12 +482,12 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     if not provider_metadata:
         get_console().print(f"[error]The package {provider_package_id} is not a provider package. Exiting[/]")
         sys.exit(1)
-    if provider_metadata.get("removed", False):
+    if provider_metadata["state"] == "removed":
         get_console().print(
             f"[warning]The package: {provider_package_id} is scheduled for removal, but "
             f"since you asked for it, it will be built [/]\n"
         )
-    elif provider_metadata.get("suspended"):
+    elif provider_metadata.get("state") == "suspended":
         get_console().print(f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n")
         raise PackageSuspendedException()
     return provider_metadata
@@ -564,17 +564,20 @@ def prepare_provider_packages(
         shutil.rmtree(DIST_DIR, ignore_errors=True)
         DIST_DIR.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
+        package_version = version_suffix_for_pypi
         try:
             basic_provider_checks(provider_id)
-            if not skip_tag_check and should_skip_the_package(provider_id, version_suffix_for_pypi):
-                continue
+            if not skip_tag_check:
+                should_skip, package_version = should_skip_the_package(provider_id, package_version)
+                if should_skip:
+                    continue
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
                 target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
                 generate_build_files(
                     provider_id=provider_id,
-                    version_suffix=version_suffix_for_pypi,
+                    version_suffix=package_version,
                     target_provider_root_sources_path=target_provider_root_sources_path,
                 )
                 cleanup_build_remnants(target_provider_root_sources_path)
@@ -1569,6 +1572,25 @@ def get_prs_for_package(provider_id: str) -> list[int]:
     return prs
 
 
+def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str:
+    """
+    Creates URL to create the issue with title, body and labels.
+    :param title: issue title
+    :param body: issue body
+    :param labels: labels for the issue
+    :return: URL to use to create the issue
+    """
+    from urllib.parse import quote
+
+    quoted_labels = quote(",".join(labels))
+    quoted_title = quote(title)
+    quoted_body = quote(body)
+    return (
+        f"https://github.com/apache/airflow/issues/new?labels={quoted_labels}&"
+        f"title={quoted_title}&body={quoted_body}"
+    )
+
+
 @release_management.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
@@ -1590,14 +1612,12 @@ def get_prs_for_package(provider_id: str) -> list[int]:
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
-@click.option("--suffix", default="rc1", help="Suffix to add to the version prepared")
 @argument_provider_packages
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
-    suffix: str,
     provider_packages: list[str],
 ):
     import jinja2
@@ -1672,7 +1692,7 @@ def generate_issue_content_providers(
                     provider_package_id=provider_id,
                     pypi_package_name=provider_yaml_dict["package-name"],
                     pr_list=pull_request_list,
-                    suffix=package_suffix if package_suffix else suffix,
+                    suffix=package_suffix if package_suffix else "",
                 )
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
@@ -1686,19 +1706,29 @@ def generate_issue_content_providers(
         get_console().print()
         get_console().print()
         get_console().print(
-            "Issue title: [yellow]Status of testing Providers that were "
+            "Issue title: [warning]Status of testing Providers that were "
             f"prepared on {datetime.now():%B %d, %Y}[/]"
         )
         get_console().print()
-        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
-        get_console().print(syntax)
-        get_console().print()
+        issue_content += "\n"
         users: set[str] = set()
         for provider_info in providers.values():
             for pr in provider_info.pr_list:
                 users.add("@" + pr.user.login)
-        get_console().print("All users involved in the PRs:")
-        get_console().print(" ".join(users))
+        issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
+        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
+        get_console().print(syntax)
+        url_to_create_the_issue = create_github_issue_url(
+            title=f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
+            body=issue_content,
+            labels=["testing status", "kind:meta"],
+        )
+        get_console().print()
+        get_console().print(
+            "[info]You can prefill the issue by copy&pasting this link to browser "
+            "(or Cmd+Click if your terminal supports it):\n"
+        )
+        print(url_to_create_the_issue)
 
 
 def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> None:

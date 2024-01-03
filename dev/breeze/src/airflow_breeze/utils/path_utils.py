@@ -291,6 +291,7 @@ DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
 GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
+SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "docker"
 SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
 GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
@@ -300,8 +301,6 @@ DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
-
-MSSQL_TMP_DIR_NAME = ".tmp-mssql"
 
 
 def create_volume_if_missing(volume_name: str):

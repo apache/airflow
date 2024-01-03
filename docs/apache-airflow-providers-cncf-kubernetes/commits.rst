@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.13.0
+......
+
+Latest change: 2023-12-26
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`2bd60771a8 <https://github.com/apache/airflow/commit/2bd60771a80dcceffed08bfaff710289e6ffe5be>`_  2023-12-26   ``Remove deprecated input parameters in the k8s pod operator (#36433)``
+`a7700c1567 <https://github.com/apache/airflow/commit/a7700c1567b08f29280a9e6c11be2ee1bf1f3a9b>`_  2023-12-26   ``Add reminder about update stub file in case of change KubernetesPodOperator's arguments (#36434)``
+`ee219e658d <https://github.com/apache/airflow/commit/ee219e658da34d1ef6479c853338e9a33ae983ff>`_  2023-12-26   ``Delete get_python_source from Kubernetes decorator after bumping min airflow version to 2.6.0 (#36426)``
+`af9328e6ff <https://github.com/apache/airflow/commit/af9328e6ff312b5ed32d0c342127f8bea9191686>`_  2023-12-26   ``Remove duplicated methods in K8S pod operator module and import them from helper function (#36427)``
+`3f60482974 <https://github.com/apache/airflow/commit/3f604829747843733e785beb109096bb2bb7a0b3>`_  2023-12-24   ``Don't get pod status in KubernetesPodOperator if skip_on_exit_code is not set (#36355)``
+`63544e184d <https://github.com/apache/airflow/commit/63544e184d0edaa3cad7b7f6618e114beb426574>`_  2023-12-24   ``Allow changing of 'config_file' in 'KubernetesResourceBaseOperator' (#36397)``
+=================================================================================================  ===========  ==========================================================================================================
+
 7.12.0
 ......
 
-Latest change: 2023-12-22
+Latest change: 2023-12-23
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `33ee0b98b2 <https://github.com/apache/airflow/commit/33ee0b98b2731ecdb27fc67d33e121948dd63c68>`_  2023-12-22   ``Add _request_timeout to KPO log fetch calls (#36297)``
 `381922f7c0 <https://github.com/apache/airflow/commit/381922f7c02ebd4c2ad8bb1147e99e932ea800ff>`_  2023-12-21   ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
 `49108e15eb <https://github.com/apache/airflow/commit/49108e15eb2eb30e2ccb95c9332db7b38d35f2de>`_  2023-12-20   ``Kubernetes executor running slots leak fix (#36240)``
@@ -51,7 +69,7 @@ Commit                                                                          
 `a398d9d4fa <https://github.com/apache/airflow/commit/a398d9d4fa38479155058b95abdcb96f9b918646>`_  2023-12-16   ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
 `cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
 `b9c574c61a <https://github.com/apache/airflow/commit/b9c574c61ae42481b9d2c9ce7c42c93dc44b9507>`_  2023-12-10   ``list pods performance optimization (#36092)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 7.11.0
 ......

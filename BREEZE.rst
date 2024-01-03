@@ -1004,7 +1004,7 @@ Running single test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class:
 

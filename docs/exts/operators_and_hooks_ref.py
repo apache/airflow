@@ -209,10 +209,16 @@ def _render_deferrable_operator_content(*, header_separator: str):
                         )
 
         if provider_info["operators"]:
+            provider_info["operators"] = sorted(provider_info["operators"])
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
             provider_info["name"] = provider_yaml_content["package-name"]
             providers.append(provider_info)
-    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
+
+    return _render_template(
+        "deferrable_operators_list.rst.jinja2",
+        providers=sorted(providers, key=lambda p: p["name"]),
+        header_separator=header_separator,
+    )
 
 
 class BaseJinjaReferenceDirective(Directive):

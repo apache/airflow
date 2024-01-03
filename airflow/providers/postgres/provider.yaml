@@ -21,7 +21,7 @@ name: PostgreSQL
 description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288162
 versions:
   - 5.10.0

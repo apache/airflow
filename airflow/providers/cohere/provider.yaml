@@ -23,7 +23,7 @@ name: Cohere
 description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288123
 
 versions:

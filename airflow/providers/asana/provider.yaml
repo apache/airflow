@@ -21,7 +21,7 @@ name: Asana
 description: |
     `Asana <https://asana.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288118
 versions:
   - 2.4.1

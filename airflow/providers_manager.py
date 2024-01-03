@@ -429,6 +429,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._field_behaviours: dict[str, dict] = {}
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
+        self._auth_manager_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
@@ -548,6 +549,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers notifications information."""
         self.initialize_providers_list()
         self._discover_notifications()
+
+    @provider_info_cache("auth_managers")
+    def initialize_providers_auth_managers(self):
+        """Lazy initialization of providers notifications information."""
+        self.initialize_providers_list()
+        self._discover_auth_managers()
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
@@ -1053,6 +1060,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 e,
             )
 
+    def _discover_auth_managers(self) -> None:
+        """Retrieves all auth managers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("auth-managers"):
+                for auth_manager_class_name in provider.data["auth-managers"]:
+                    if _correctness_check(provider_package, auth_manager_class_name, provider):
+                        self._auth_manager_class_name_set.add(auth_manager_class_name)
+
     def _discover_notifications(self) -> None:
         """Retrieves all notifications defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1136,6 +1151,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                             integration_name=trigger.get("integration-name", ""),
                         )
                     )
+
+    @property
+    def auth_managers(self) -> list[str]:
+        """Returns information about available providers notifications class."""
+        self.initialize_providers_auth_managers()
+        return sorted(self._auth_manager_class_name_set)
 
     @property
     def notification(self) -> list[NotificationInfo]:

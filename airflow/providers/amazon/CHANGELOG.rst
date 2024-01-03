@@ -26,6 +26,28 @@
 Changelog
 ---------
 
+8.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Athena query results extra link (#36447)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): remove event['message'] call in EmrContainerOperator.execute_complete|as the key message no longer exists (#36417)``
+* ``handle tzinfo in S3Hook.is_keys_unchanged_async (#36363)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon ECS Operators/Sensors/Triggers (#36393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.14.0
 ......
 
