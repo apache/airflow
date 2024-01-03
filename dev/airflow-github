@@ -326,26 +326,27 @@ def changelog(previous_version, target_version, github_token):
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
+    existing_commits = set()
+    with open("../RELEASE_NOTES.rst") as file:
+        for line in file.readlines():
+            match = re.search(r"\(#(\w+)\)", line)
+            if match:
+                existing_commits.add(match.group(1))
+
     for commit in log:
         tickets = pr_title_re.findall(commit["subject"])
         if tickets:
             issue = gh_repo.get_issue(number=int(tickets[0][1:]))
             issue_type = get_issue_type(issue)
             files = files_touched(repo, commit["id"])
-            if is_core_commit(files):
-                if issue_type in ["bug-fix", "doc-only", "misc/internal"]:
-                    with open("../RELEASE_NOTES.rst") as file:
-                        for line in file.readlines():
-                            if line.endswith(f"(#{commit['id']})"):
-                                continue
-                        else:
-                            sections[issue_type].append(commit["subject"])
-                else:
-                    sections[issue_type].append(commit["subject"])
-
+            if commit["id"] in existing_commits:
+                continue
+            if is_core_commit(files) and issue_type in ["bug-fix", "doc-only", "misc/internal"]:
+                sections[issue_type].append(commit["subject"])
+            else:
+                sections[issue_type].append(commit["subject"])
         else:
             sections[DEFAULT_SECTION_NAME].append(commit["subject"])
-
     print_changelog(sections)
 
 
