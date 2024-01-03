@@ -281,23 +281,11 @@ class TestMySqlHook:
 
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with(
-            """
-            LOAD DATA LOCAL INFILE '%s'
-            INTO TABLE %s
-            """,
-            ("/tmp/file", "table"),
-        )
+        self.cur.execute.assert_called_once_with("LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",))
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with(
-            """
-            SELECT * INTO OUTFILE '%s'
-            FROM %s
-            """,
-            ("/tmp/file", "table"),
-        )
+        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
 
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
@@ -312,16 +300,10 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            """
-            LOAD DATA LOCAL INFILE '%s'
-            %s
-            INTO TABLE %s
-            %s
-            """,
+            "LOAD DATA LOCAL INFILE %s %s INTO TABLE table %s",
             (
                 "/tmp/file",
                 "IGNORE",
-                "table",
                 """FIELDS TERMINATED BY ';'
             OPTIONALLY ENCLOSED BY '"'
             IGNORE 1 LINES""",
@@ -420,8 +402,5 @@ class TestMySql:
             hook.bulk_dump(table, tmp_file)
 
             assert mock_execute.call_count == 1
-            query = f"""
-                SELECT * INTO OUTFILE '{tmp_file}'
-                FROM {table}
-            """
+            query = f"SELECT * INTO OUTFILE %s FROM {table}"
             assert_equal_ignore_multiple_spaces(mock_execute.call_args.args[0], query)
