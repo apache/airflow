@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-03T01:31:02.714454
+# This constraints file was automatically generated on 2024-01-03T04:19:26.775010
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -40,7 +40,7 @@ PyYAML==6.0.1
 Pygments==2.17.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.50
+SQLAlchemy==1.4.51
 SecretStorage==3.3.3
 Sphinx==5.3.0
 WTForms==3.1.1
@@ -562,7 +562,7 @@ types-aiofiles==23.2.0.0
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.0
 types-docutils==0.20.0.3
-types-paramiko==3.3.0.2
+types-paramiko==3.4.0.20240103
 types-protobuf==4.24.0.4
 types-pyOpenSSL==23.3.0.0
 types-python-dateutil==2.8.19.14
