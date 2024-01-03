@@ -1554,7 +1554,18 @@
                         "metrics": {
                             "description": "Specifications for which to use to calculate the desired replica count.",
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                {
+                                    "type": "Resource",
+                                    "resource": {
+                                        "name": "cpu",
+                                        "target": {
+                                            "type": "Utilization",
+                                            "averageUtilization": 80
+                                        }
+                                    }
+                                }
+                            ],
                             "items": {
                                 "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerMetrics"
                             }
