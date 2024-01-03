@@ -671,7 +671,7 @@ jobs:
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   spellcheck-docs:
-    timeout-minutes: 60
+    timeout-minutes: 120
     name: "Spellcheck docs"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]

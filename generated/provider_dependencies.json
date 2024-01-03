@@ -468,6 +468,7 @@
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
       "google-ads>=22.1.0",
+      "google-analytics-admin",
       "google-api-core>=2.11.0",
       "google-api-python-client>=1.6.0",
       "google-auth-httplib2>=0.0.1",
