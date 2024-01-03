@@ -24,11 +24,12 @@ integration files, if there is a mismatch, the table is generated.
 """
 from __future__ import annotations
 
-import sys
 import re
-import yaml
+import sys
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 # make sure common_precommit_utils is imported
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
@@ -118,10 +119,9 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
     return table_cells
 
 
-def update_integration_tests_array(contents: dict[str, str]):
+def update_integration_tests_array(contents: dict[str, list[str]]):
     """Generate docs table."""
     rows = []
-    description = ""
     for integration, description in contents.items():
         formatted_hook_description = (
             description[0] if len(description) == 1 else "* " + "\n* ".join(description)
@@ -146,7 +146,7 @@ def print_diff(source, target, msg):
 
 
 def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "breeze.description"):
-    """Extract all breeze.description lables per image."""
+    """Extract all breeze.description labels per image."""
     image_label_map = {}
     # possible key error handled outside
     for _img_name, img in parsed_compose["services"].items():
@@ -160,7 +160,7 @@ def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "br
     return image_label_map
 
 
-def get_integration_descriptions(integrations: dict[str, Path]) -> dict[str, str]:
+def get_integration_descriptions(integrations: dict[str, Path]) -> dict[str, list[Any]]:
     """Pull breeze description from docker-compose files."""
     table = {}
     for integration, path in integrations.items():
