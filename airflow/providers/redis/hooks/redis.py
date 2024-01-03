@@ -18,8 +18,11 @@
 """RedisHook module."""
 from __future__ import annotations
 
+import warnings
+
 from redis import Redis
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -66,10 +69,20 @@ class RedisHook(BaseHook):
             "ssl_cert_reqs",
             "ssl_ca_certs",
             "ssl_keyfile",
-            "ssl_cert_file",
+            "ssl_certfile",
             "ssl_check_hostname",
         ]
         ssl_args = {name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names}
+
+        # This logic is for backward compatibility only
+        if "ssl_cert_file" in conn.extra_dejson and "ssl_certfile" not in conn.extra_dejson:
+            warnings.warn(
+                "Extra parameter `ssl_cert_file` deprecated and will be removed "
+                "in a future release. Please use `ssl_certfile` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            ssl_args["ssl_certfile"] = conn.extra_dejson.get("ssl_cert_file")
 
         if not self.redis:
             self.log.debug(
