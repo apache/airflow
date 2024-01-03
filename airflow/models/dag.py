@@ -874,8 +874,8 @@ class DAG(LoggingMixin):
         from croniter import croniter
 
         cron = croniter(self.timetable._expression)
-        next_a = cron.get_next(datetime.datetime)
-        next_b = cron.get_next(datetime.datetime)
+        next_a = cron.get_next(datetime)
+        next_b = cron.get_next(datetime)
         return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
     def following_schedule(self, dttm):

@@ -35,14 +35,47 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.0
+.....
+
+Latest change: 2023-12-30
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+`0a741b2fe6 <https://github.com/apache/airflow/commit/0a741b2fe674e62f693e73937aec5fb97c204b6a>`_  2023-12-28   ``Handle  list like input objects in weavaite's 'create_or_replace_document_objects' hook method (#36475)``
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
+`8850715e22 <https://github.com/apache/airflow/commit/8850715e22dc8fd69dfc234efed805cc75708938>`_  2023-12-26   ``Remove 'insertion_errors' as required argument (#36435)``
+`97d2266b2d <https://github.com/apache/airflow/commit/97d2266b2dfe1c6d3a0185926a7508b7039575a2>`_  2023-12-24   ``Add WeaviateDocumentIngestOperator (#36402)``
+`ff3b8daac0 <https://github.com/apache/airflow/commit/ff3b8daac0cbf3c885ea1479b1fb9cfcb2261f21>`_  2023-12-23   ``Add 'uuid_column', 'tenant' params to WeaviateIngestOperator (#36387)``
+`75d74b1f3a <https://github.com/apache/airflow/commit/75d74b1f3a535fdc3624077bde3a34d1abcf641e>`_  2023-12-23   ``Add create_or_replace_document_objects method to weaviate provider (#36177)``
+=================================================================================================  ===========  ===========================================================================================================
+
+1.2.0
+.....
+
+Latest change: 2023-12-23
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`7084429f42 <https://github.com/apache/airflow/commit/7084429f42d0a006e777612c07b3471100f953c9>`_  2023-12-21   ``Fixing template_fields for WeaviateIngestOperator (#36359)``
+`5439b494b0 <https://github.com/apache/airflow/commit/5439b494b00daf0bb62d8f1f8a0f4d71c39f4923>`_  2023-12-11   ``Add helper function for CRUD operations on weaviate's schema and class objects (#35919)``
+`a8333b778a <https://github.com/apache/airflow/commit/a8333b778ac2ec905d6f51ab408e807d1294bd5a>`_  2023-12-08   ``Add retry mechanism and dataframe support for WeaviateIngestOperator (#36085)``
+=================================================================================================  ===========  ===========================================================================================
+
 1.1.0
 .....
 
-Latest change: 2023-12-07
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `b2464477c4 <https://github.com/apache/airflow/commit/b2464477c472894f142c1a85f04a92af033e700e>`_  2023-12-07   ``Add object methods in weaviate hook (#35934)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 `8be03c9937 <https://github.com/apache/airflow/commit/8be03c99372cfaf7a86f31464959338f6f9b900f>`_  2023-12-01   ``Add a cache for weaviate client (#35983)``

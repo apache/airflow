@@ -76,10 +76,11 @@ def calculate_constraints_location(
     constraints_reference: str | None,
     github_repository: str,
     python_version: str,
+    providers: bool,
 ):
     constraints_base = f"https://raw.githubusercontent.com/{github_repository}/{constraints_reference}"
     location = f"{constraints_base}/{constraints_mode}-{python_version}.txt"
-    console.print(f"[info]Determined constraints as: {location}")
+    console.print(f"[info]Determined {'providers' if providers else 'airflow'} constraints as: {location}")
     return location
 
 
@@ -126,6 +127,7 @@ def get_airflow_constraints_location(
         constraints_reference=airflow_constraints_reference,
         github_repository=github_repository,
         python_version=python_version,
+        providers=False,
     )
 
 
@@ -157,6 +159,7 @@ def get_providers_constraints_location(
         constraints_reference=providers_constraints_reference,
         python_version=python_version,
         github_repository=github_repository,
+        providers=True,
     )
 
 

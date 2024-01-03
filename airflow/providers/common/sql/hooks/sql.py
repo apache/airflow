@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import warnings
 from contextlib import closing
 from datetime import datetime
 from typing import (
@@ -24,6 +26,7 @@ from typing import (
     Callable,
     Generator,
     Iterable,
+    List,
     Mapping,
     Protocol,
     Sequence,
@@ -36,7 +39,7 @@ from urllib.parse import urlparse
 import sqlparse
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -122,10 +125,10 @@ class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
 
-    When subclassing, maintainers can override the `_make_serializable` method:
+    When subclassing, maintainers can override the `_make_common_data_structure` method:
     This method transforms the result of the handler method (typically `cursor.fetchall()`) into
-    JSON-serializable objects. Most of the time, the underlying SQL library already returns tuples from
-    its cursor, and the `_make_serializable` method can be ignored.
+    objects common across all Hooks derived from this class (tuples). Most of the time, the underlying SQL
+    library already returns tuples from its cursor, and the `_make_common_data_structure` method can be ignored.
 
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
@@ -308,7 +311,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -319,7 +322,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
@@ -395,7 +398,7 @@ class DbApiHook(BaseHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self._make_serializable(handler(cur))
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -415,19 +418,31 @@ class DbApiHook(BaseHook):
         else:
             return results
 
-    @staticmethod
-    def _make_serializable(result: Any) -> Any:
-        """Ensure the data returned from an SQL command is JSON-serializable.
+    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
+        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
-        transform the result of an SQL command (typically returned by cursor methods) into a
-        JSON-serializable format.
+        transform the result of an SQL command (typically returned by cursor methods) into a common
+        data structure (a tuple or list[tuple]) across all DBApiHook derived Hooks, as defined in the
+        ADR-0002 of the sql provider.
 
-        If this method is not overridden, the result data is returned as-is.
-        If the output of the cursor is already JSON-serializable, this method
-        should be ignored.
+        If this method is not overridden, the result data is returned as-is. If the output of the cursor
+        is already a common data structure, this method should be ignored.
         """
-        return result
+        # Back-compatibility call for providers implementing old ´_make_serializable' method.
+        with contextlib.suppress(AttributeError):
+            result = self._make_serializable(result=result)  # type: ignore[attr-defined]
+            warnings.warn(
+                "The `_make_serializable` method is deprecated and support will be removed in a future "
+                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
+                "to a version based on common.sql >= 1.9.1.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
+        if isinstance(result, Sequence):
+            return cast(List[tuple], result)
+        return cast(tuple, result)
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""

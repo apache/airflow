@@ -20,9 +20,10 @@ package-name: apache-airflow-providers-yandex
 name: Yandex
 description: |
     Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
-suspended: false
-source-date-epoch: 1701983429
+state: ready
+source-date-epoch: 1703288182
 versions:
+  - 3.7.1
   - 3.7.0
   - 3.6.0
   - 3.5.0

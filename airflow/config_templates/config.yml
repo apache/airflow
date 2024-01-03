@@ -1741,6 +1741,8 @@ webserver:
       type: string
       example: ~
       default: "True"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
@@ -1817,6 +1819,8 @@ webserver:
       type: boolean
       example: ~
       default: "True"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     auth_rate_limit:
       description: |
         Rate limit for authentication endpoints.
@@ -1824,6 +1828,8 @@ webserver:
       type: string
       example: ~
       default: "5 per 40 second"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
@@ -1855,6 +1861,13 @@ webserver:
       type: boolean
       example: "False"
       default: "False"
+    allowed_payload_size:
+      description: |
+        The maximum size of the request payload (in MB) that can be sent.
+      version_added: 2.8.1
+      type: float
+      example: ~
+      default: "1.0"
 email:
   description: |
     Configuration email backend and whether to

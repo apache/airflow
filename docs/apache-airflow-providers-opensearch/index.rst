@@ -76,7 +76,7 @@ Package apache-airflow-providers-opensearch
 `OpenSearch <https://opensearch.org/>`__
 
 
-Release: 1.1.0
+Release: 1.1.1
 
 Provider package
 ----------------

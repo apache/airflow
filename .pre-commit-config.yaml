@@ -385,8 +385,8 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-common-sql-dependency-make-serializable
-        name: Check dependency of SQL Providers with '_make_serializable'
+      - id: check-sql-dependency-common-data-structure
+        name: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
         language: python
         files: ^airflow/providers/.*/hooks/.*\.py$
@@ -774,6 +774,14 @@ repos:
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
+        require_serial: true
+        pass_filenames: false
+      - id: check-integrations-list-consistent
+        name: Sync integrations list with docs
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
+        language: python
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash

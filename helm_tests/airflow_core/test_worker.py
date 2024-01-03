@@ -564,21 +564,28 @@ class TestWorker:
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_init_containers",
+        "airflow_version, init_container_enabled, expected_init_containers",
         [
-            ("1.9.0", 2),
-            ("1.10.14", 2),
-            ("2.0.2", 2),
-            ("2.1.0", 2),
-            ("2.8.0", 3),
+            ("1.9.0", True, 2),
+            ("1.9.0", False, 2),
+            ("1.10.14", True, 2),
+            ("1.10.14", False, 2),
+            ("2.0.2", True, 2),
+            ("2.0.2", False, 2),
+            ("2.1.0", True, 2),
+            ("2.1.0", False, 2),
+            ("2.8.0", True, 3),
+            ("2.8.0", False, 2),
         ],
     )
-    def test_airflow_kerberos_init_container(self, airflow_version, expected_init_containers):
+    def test_airflow_kerberos_init_container(
+        self, airflow_version, init_container_enabled, expected_init_containers
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
                 "workers": {
-                    "kerberosInitContainer": {"enabled": True},
+                    "kerberosInitContainer": {"enabled": init_container_enabled},
                     "persistence": {"fixPermissions": True},
                 },
             },

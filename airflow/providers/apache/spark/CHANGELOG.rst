@@ -29,6 +29,23 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SparkSubmit: Adding propertyfiles option (#36164)``
+* ``SparkSubmit Connection Extras can be overridden (#36151)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.0
 .....
 

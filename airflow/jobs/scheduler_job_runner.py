@@ -1833,9 +1833,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskOutletDatasetReference,
                 isouter=True,
             )
-            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
-            # group by id and select all columns.
-            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .group_by(DatasetModel.id)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

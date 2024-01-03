@@ -170,8 +170,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-common-sql-dependency-make-serializable             | Check dependency of SQL Providers with '_make_serializable'  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                           | Make sure days_ago is imported from airflow.utils.dates      |         |
@@ -201,6 +199,8 @@ require Breeze Docker image to be built locally.
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-init-decorator-arguments                            | Check model __init__ and decorator arguments are in sync     |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-integrations-list-consistent                        | Sync integrations list with docs                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-lazy-logging                                        | Check that all logging methods are lazy                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -239,6 +239,8 @@ require Breeze Docker image to be built locally.
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

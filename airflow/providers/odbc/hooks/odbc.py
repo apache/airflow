@@ -17,10 +17,10 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, NamedTuple
+from typing import Any, List, NamedTuple, Sequence, cast
 from urllib.parse import quote_plus
 
-import pyodbc
+from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
@@ -195,9 +195,9 @@ class OdbcHook(DbApiHook):
 
         return merged_connect_kwargs
 
-    def get_conn(self) -> pyodbc.Connection:
+    def get_conn(self) -> Connection:
         """Returns a pyodbc connection object."""
-        conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
+        conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
     @property
@@ -228,17 +228,15 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    @staticmethod
-    def _make_serializable(result: list[pyodbc.Row] | pyodbc.Row | None) -> list[NamedTuple] | None:
-        """Transform the pyodbc.Row objects returned from an SQL command into JSON-serializable NamedTuple."""
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+        """Transform the pyodbc.Row objects returned from an SQL command into typed NamedTuples."""
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
-        # instantiated Namedtuple, and will never do: https://github.com/python/mypy/issues/848
-        columns: list[tuple[str, type]] | None = None
-        if isinstance(result, list):
-            columns = [col[:2] for col in result[0].cursor_description]
-            row_object = NamedTuple("Row", columns)  # type: ignore[misc]
-            return [row_object(*row) for row in result]
-        elif isinstance(result, pyodbc.Row):
-            columns = [col[:2] for col in result.cursor_description]
-            return NamedTuple("Row", columns)(*result)  # type: ignore[misc, operator]
-        return result
+        # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        field_names: list[tuple[str, type]] | None = None
+        if isinstance(result, Sequence):
+            field_names = [col[:2] for col in result[0].cursor_description]
+            row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
+            return cast(List[tuple], [row_object(*row) for row in result])
+        else:
+            field_names = [col[:2] for col in result.cursor_description]
+            return cast(tuple, NamedTuple("Row", field_names)(*result))  # type: ignore[misc, operator]

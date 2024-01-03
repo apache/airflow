@@ -31,12 +31,10 @@ from airflow_breeze.global_constants import (
     CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
-    CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
-    DEFAULT_MSSQL_VERSION,
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -44,7 +42,6 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
-    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -223,33 +220,42 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
     }
 )
 
+PYTHON_OPERATOR_FILES = [
+    r"^airflow/operators/python.py",
+    r"^tests/operators/test_python.py",
+]
+
 TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveUnitTestTypes.API: [
-            r"^airflow/api",
-            r"^airflow/api_connexion",
-            r"^tests/api",
-            r"^tests/api_connexion",
+            r"^airflow/api/",
+            r"^airflow/api_connexion/",
+            r"^airflow/api_internal/",
+            r"^tests/api/",
+            r"^tests/api_connexion/",
+            r"^tests/api_internal/",
         ],
         SelectiveUnitTestTypes.CLI: [
-            r"^airflow/cli",
-            r"^tests/cli",
+            r"^airflow/cli/",
+            r"^tests/cli/",
         ],
         SelectiveUnitTestTypes.OPERATORS: [
-            r"^airflow/operators",
-            r"^tests/operators",
+            r"^airflow/operators/",
+            r"^tests/operators/",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
             r"^airflow/providers/",
             r"^tests/system/providers/",
             r"^tests/providers/",
         ],
-        SelectiveUnitTestTypes.PYTHON_VENV: [
-            r"^tests/operators/test_python.py",
+        SelectiveUnitTestTypes.SERIALIZATION: [
+            r"^airflow/serialization/",
+            r"^tests/serialization/",
         ],
-        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: [
-            r"^tests/operators/test_python.py",
-        ],
+        SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.EXTERNAL_PYTHON: PYTHON_OPERATOR_FILES,
+        SelectiveUnitTestTypes.EXTERNAL_BRANCH_PYTHON: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
@@ -391,7 +397,6 @@ class SelectiveChecks:
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     default_postgres_version = DEFAULT_POSTGRES_VERSION
     default_mysql_version = DEFAULT_MYSQL_VERSION
-    default_mssql_version = DEFAULT_MSSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
@@ -459,10 +464,6 @@ class SelectiveChecks:
         return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
 
     @cached_property
-    def mssql_versions(self) -> list[str]:
-        return CURRENT_MSSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MSSQL_VERSION]
-
-    @cached_property
     def kind_version(self) -> str:
         return KIND_VERSION
 
@@ -480,19 +481,6 @@ class SelectiveChecks:
             {"python-version": python_version, "postgres-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
-            )
-        ]
-
-    @cached_property
-    def mssql_exclude(self) -> list[dict[str, str]]:
-        if not self.full_tests_needed:
-            # Only basic combination so we do not need to exclude anything
-            return []
-        return [
-            # Exclude all combinations that are repeating python/mssql versions
-            {"python-version": python_version, "mssql-version": mssql_version}
-            for python_version, mssql_version in excluded_combos(
-                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MSSQL_VERSIONS
             )
         ]
 
@@ -652,21 +640,14 @@ class SelectiveChecks:
 
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.WWW)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.PROVIDERS)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.CLI)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.OPERATORS)
-        )
-        matched_files.update(
-            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
-        )
+        for test_type in SelectiveUnitTestTypes:
+            if test_type not in [
+                SelectiveUnitTestTypes.ALWAYS,
+                SelectiveUnitTestTypes.CORE,
+                SelectiveUnitTestTypes.OTHER,
+                SelectiveUnitTestTypes.PLAIN_ASSERTS,
+            ]:
+                matched_files.update(self._select_test_type_if_matching(candidate_test_types, test_type))
 
         kubernetes_files = self._matching_files(
             FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
@@ -1012,11 +993,6 @@ class SelectiveChecks:
         # TODO: when we have it properly set-up with labels we should just check for
         #       "k8s-runner" presence in runs_on
         return False
-
-    @cached_property
-    def mssql_parallelism(self) -> int:
-        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
-        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
 
     @cached_property
     def has_migrations(self) -> bool:

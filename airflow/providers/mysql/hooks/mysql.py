@@ -214,10 +214,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            INTO TABLE {table}
-            """
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -227,10 +225,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            SELECT * INTO OUTFILE '{tmp_file}'
-            FROM {table}
-            """
+            f"SELECT * INTO OUTFILE %s FROM {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -294,12 +290,8 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            {duplicate_key_handling}
-            INTO TABLE {table}
-            {extra_options}
-            """
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            (tmp_file, duplicate_key_handling, extra_options),
         )
 
         cursor.close()

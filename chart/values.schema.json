@@ -776,7 +776,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.6.9"
+                            "default": "v4.1.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -7183,6 +7183,11 @@
                             "type": "string",
                             "default": "HEAD"
                         },
+                        "ref": {
+                            "description": "Git revision branch, tag, or hash.",
+                            "type": "string",
+                            "default": "v2-2-stable"
+                        },
                         "depth": {
                             "description": "Repository depth.",
                             "type": "integer",
@@ -7200,8 +7205,16 @@
                         },
                         "wait": {
                             "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": "integer",
-                            "default": 5
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "period": {
+                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "type": "string",
+                            "default": "5s"
                         },
                         "containerName": {
                             "description": "Git sync container name.",
