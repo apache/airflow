@@ -747,7 +747,7 @@ def test_paused_post_failed(user_edit_one_dag_client):
     resp = user_edit_one_dag_client.post(
         "paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=False
     )
-    check_content_not_in_response("OK", resp, resp_code=302)
+    check_content_not_in_response("OK", resp, resp_code=403)
 
 
 @pytest.fixture(scope="module")
