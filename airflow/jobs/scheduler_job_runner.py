@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -1644,13 +1644,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
+                        .options(lazyload("dag_run"))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
-                        # outerjoin is because we didn't use to have queued_by_job
-                        # set, so we need to pick up anything pre upgrade. This (and the
-                        # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
-                        # released.
-                        .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != JobState.RUNNING))
+                        .join(TI.queued_by_job)
+                        .where(Job.state != JobState.RUNNING)
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
