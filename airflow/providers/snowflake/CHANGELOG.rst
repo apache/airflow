@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+5.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``OpenLineage integration tried to use non-existed method in SnowflakeHook (#35752)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 5.1.1
 .....
 

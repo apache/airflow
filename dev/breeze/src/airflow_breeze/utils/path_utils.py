@@ -60,13 +60,13 @@ def in_help() -> bool:
     return "--help" in sys.argv or "-h" in sys.argv
 
 
-def skip_upgrade_check():
+def skip_breeze_self_upgrade_check():
     return (
         in_self_upgrade()
         or in_autocomplete()
         or in_help()
         or hasattr(sys, "_called_from_test")
-        or os.environ.get("SKIP_UPGRADE_CHECK")
+        or os.environ.get("SKIP_BREEZE_SELF_UPGRADE_CHECK")
     )
 
 
@@ -243,7 +243,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     if sources_root_from_env:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
-    if installation_airflow_sources is None and not skip_upgrade_check():
+    if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         get_console().print(
             "\n[error]Breeze should only be installed with -e flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
@@ -254,7 +254,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()
-    if not skip_upgrade_check():
+    if not skip_breeze_self_upgrade_check():
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
@@ -263,6 +263,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
+AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -277,6 +278,9 @@ AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
 WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
 WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
+WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
+WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
+WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
 FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
 FILES_SBOM_DIR = FILES_DIR / "sbom"
@@ -284,8 +288,15 @@ HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
+SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "docker"
+SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
+GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
+GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
+GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
@@ -346,11 +357,17 @@ def cleanup_python_generated_files():
     for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
         try:
             path.unlink()
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
         try:
             shutil.rmtree(path)
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     if permission_errors:

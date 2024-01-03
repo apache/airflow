@@ -118,6 +118,7 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
@@ -272,6 +273,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -315,6 +317,7 @@ cpus
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -478,6 +481,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -548,6 +552,7 @@ env
 envFrom
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -791,7 +796,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -855,6 +862,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -1077,6 +1085,8 @@ Oozie
 openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch
@@ -1144,6 +1154,7 @@ pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1350,6 +1361,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl

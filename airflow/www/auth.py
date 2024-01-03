@@ -22,7 +22,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request
 from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.const import (
     FLAMSG_ERR_SEC_ACCESS_DENIED,
@@ -45,6 +45,12 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
+        IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
+    )
     from airflow.models import DagRun, Pool, SlaMiss, TaskInstance, Variable
     from airflow.models.connection import Connection
     from airflow.models.xcom import BaseXCom
@@ -75,7 +81,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
 
     return _has_access_fab(permissions)
 
@@ -101,21 +107,20 @@ def has_access_with_pk(f):
             _permission_name = self.method_permission_name.get(f.__name__)
             if _permission_name:
                 permission_str = f"{PERMISSION_PREFIX}{_permission_name}"
-        if permission_str in self.base_permissions and self.appbuilder.sm.has_access(
-            action_name=permission_str,
-            resource_name=self.class_permission_name,
-            resource_pk=kwargs.get("pk"),
+        if (
+            get_auth_manager().is_logged_in()
+            and permission_str in self.base_permissions
+            and self.appbuilder.sm.has_access(
+                action_name=permission_str,
+                resource_name=self.class_permission_name,
+                resource_pk=kwargs.get("pk"),
+            )
         ):
             return f(self, *args, **kwargs)
         else:
-            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED.format(permission_str, self.__class__.__name__))
+            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(
-            url_for(
-                self.appbuilder.sm.auth_view.__class__.__name__ + ".login",
-                next=request.url,
-            )
-        )
+        return redirect(get_auth_manager().get_url_login(next=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -177,10 +182,6 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     return redirect(get_auth_manager().get_url_login(next=request.url))
 
 
-def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
-
-
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_configuration(method=method))
 
@@ -190,15 +191,14 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             connections: set[Connection] = set(args[1])
-            connections_details = [
-                ConnectionDetails(conn_id=connection.conn_id) for connection in connections
+            requests: Sequence[IsAuthorizedConnectionRequest] = [
+                {
+                    "method": method,
+                    "details": ConnectionDetails(conn_id=connection.conn_id),
+                }
+                for connection in connections
             ]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_connection(method=method, details=connection_details)
-                    for connection_details in connections_details
-                ]
-            )
+            is_authorized = get_auth_manager().batch_is_authorized_connection(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -265,15 +265,16 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
         @wraps(func)
         def decorated(*args, **kwargs):
             items: set[SlaMiss | BaseXCom | DagRun | TaskInstance] = set(args[1])
-            dags_details = [DagDetails(id=item.dag_id) for item in items if item is not None]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_dag(
-                        method=method, access_entity=access_entity, details=dag_details
-                    )
-                    for dag_details in dags_details
-                ]
-            )
+            requests: Sequence[IsAuthorizedDagRequest] = [
+                {
+                    "method": method,
+                    "access_entity": access_entity,
+                    "details": DagDetails(id=item.dag_id),
+                }
+                for item in items
+                if item is not None
+            ]
+            is_authorized = get_auth_manager().batch_is_authorized_dag(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -296,13 +297,14 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             pools: set[Pool] = set(args[1])
-            pools_details = [PoolDetails(name=pool.pool) for pool in pools]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_pool(method=method, details=pool_details)
-                    for pool_details in pools_details
-                ]
-            )
+            requests: Sequence[IsAuthorizedPoolRequest] = [
+                {
+                    "method": method,
+                    "details": PoolDetails(name=pool.pool),
+                }
+                for pool in pools
+            ]
+            is_authorized = get_auth_manager().batch_is_authorized_pool(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -324,13 +326,14 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                 is_authorized = get_auth_manager().is_authorized_variable(method=method)
             else:
                 variables: set[Variable] = set(args[1])
-                variables_details = [VariableDetails(key=variable.key) for variable in variables]
-                is_authorized = all(
-                    [
-                        get_auth_manager().is_authorized_variable(method=method, details=variable_details)
-                        for variable_details in variables_details
-                    ]
-                )
+                requests: Sequence[IsAuthorizedVariableRequest] = [
+                    {
+                        "method": method,
+                        "details": VariableDetails(key=variable.key),
+                    }
+                    for variable in variables
+                ]
+                is_authorized = get_auth_manager().batch_is_authorized_variable(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,

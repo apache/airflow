@@ -17,12 +17,18 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.exceptions import AirflowException
 from airflow.security import permissions
 from airflow.www.extensions.init_appbuilder import init_appbuilder
@@ -33,26 +39,13 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         ConfigurationDetails,
-        ConnectionDetails,
         DagAccessEntity,
-        DagDetails,
         DatasetDetails,
-        PoolDetails,
-        VariableDetails,
     )
 
 
 class EmptyAuthManager(BaseAuthManager):
-    def get_user_display_name(self) -> str:
-        raise NotImplementedError()
-
-    def get_user_name(self) -> str:
-        raise NotImplementedError()
-
     def get_user(self) -> BaseUser:
-        raise NotImplementedError()
-
-    def get_user_id(self) -> str:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -62,9 +55,6 @@ class EmptyAuthManager(BaseAuthManager):
         details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        raise NotImplementedError()
-
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
     def is_authorized_connection(
@@ -113,20 +103,17 @@ class EmptyAuthManager(BaseAuthManager):
     def get_url_logout(self) -> str:
         raise NotImplementedError()
 
-    def get_url_user_profile(self) -> str | None:
-        raise NotImplementedError()
-
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None, None)
+    return EmptyAuthManager(None)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return EmptyAuthManager(flask_app, appbuilder)
+    return EmptyAuthManager(appbuilder)
 
 
 class TestBaseAuthManager:
@@ -136,12 +123,122 @@ class TestBaseAuthManager:
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
 
-    def test_is_authorized_custom_view_throws_exception(self, auth_manager):
+    def test_get_user_name(self, auth_manager):
+        user = Mock()
+        user.get_name.return_value = "test_username"
+        auth_manager.get_user = MagicMock(return_value=user)
+        result = auth_manager.get_user_name()
+        assert result == "test_username"
+
+    def test_get_user_name_when_not_logged_in(self, auth_manager):
+        auth_manager.get_user = MagicMock(return_value=None)
+        with pytest.raises(AirflowException):
+            auth_manager.get_user_name()
+
+    def test_get_user_display_name_return_user_name(self, auth_manager):
+        auth_manager.get_user_name = MagicMock(return_value="test_user")
+        assert auth_manager.get_user_display_name() == "test_user"
+
+    def test_get_user_id_return_user_id(self, auth_manager):
+        user = Mock()
+        user.get_id = MagicMock(return_value="test_user")
+        auth_manager.get_user = MagicMock(return_value=user)
+        assert auth_manager.get_user_id() == "test_user"
+
+    def test_get_user_id_raise_exception_when_no_user(self, auth_manager):
+        auth_manager.get_user = MagicMock(return_value=None)
+        with pytest.raises(AirflowException, match="The user must be signed in."):
+            auth_manager.get_user_id()
+
+    def test_get_url_user_profile_return_none(self, auth_manager):
+        assert auth_manager.get_url_user_profile() is None
+
+    def test_is_authorized_custom_view_raise_exception(self, auth_manager):
         with pytest.raises(AirflowException, match="The resource `.*` does not exist in the environment."):
             auth_manager.is_authorized_custom_view(
                 fab_action_name=permissions.ACTION_CAN_READ,
                 fab_resource_name=permissions.RESOURCE_MY_PASSWORD,
             )
+
+    @pytest.mark.parametrize(
+        "return_values, expected",
+        [
+            ([False, False], False),
+            ([True, False], False),
+            ([True, True], True),
+        ],
+    )
+    @patch.object(EmptyAuthManager, "is_authorized_dag")
+    def test_batch_is_authorized_dag(self, mock_is_authorized_dag, auth_manager, return_values, expected):
+        mock_is_authorized_dag.side_effect = return_values
+        result = auth_manager.batch_is_authorized_dag(
+            [
+                {"method": "GET", "details": DagDetails(id="dag1")},
+                {"method": "GET", "details": DagDetails(id="dag2")},
+            ]
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "return_values, expected",
+        [
+            ([False, False], False),
+            ([True, False], False),
+            ([True, True], True),
+        ],
+    )
+    @patch.object(EmptyAuthManager, "is_authorized_connection")
+    def test_batch_is_authorized_connection(
+        self, mock_is_authorized_connection, auth_manager, return_values, expected
+    ):
+        mock_is_authorized_connection.side_effect = return_values
+        result = auth_manager.batch_is_authorized_connection(
+            [
+                {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
+                {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
+            ]
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "return_values, expected",
+        [
+            ([False, False], False),
+            ([True, False], False),
+            ([True, True], True),
+        ],
+    )
+    @patch.object(EmptyAuthManager, "is_authorized_pool")
+    def test_batch_is_authorized_pool(self, mock_is_authorized_pool, auth_manager, return_values, expected):
+        mock_is_authorized_pool.side_effect = return_values
+        result = auth_manager.batch_is_authorized_pool(
+            [
+                {"method": "GET", "details": PoolDetails(name="pool1")},
+                {"method": "GET", "details": PoolDetails(name="pool2")},
+            ]
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "return_values, expected",
+        [
+            ([False, False], False),
+            ([True, False], False),
+            ([True, True], True),
+        ],
+    )
+    @patch.object(EmptyAuthManager, "is_authorized_variable")
+    def test_batch_is_authorized_variable(
+        self, mock_is_authorized_variable, auth_manager, return_values, expected
+    ):
+        mock_is_authorized_variable.side_effect = return_values
+        result = auth_manager.batch_is_authorized_variable(
+            [
+                {"method": "GET", "details": VariableDetails(key="var1")},
+                {"method": "GET", "details": VariableDetails(key="var2")},
+            ]
+        )
+        assert result == expected
 
     @pytest.mark.db_test
     def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):

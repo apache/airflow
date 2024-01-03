@@ -61,12 +61,18 @@ def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access_dag("GET")
-def get_dag_details(*, dag_id: str) -> APIResponse:
+@provide_session
+def get_dag_details(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    return dag_detail_schema.dump(dag)
+    dag_model: DagModel = session.get(DagModel, dag_id)
+    for key, value in dag.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag_model, key):
+            setattr(dag_model, key, value)
+
+    return dag_detail_schema.dump(dag_model)
 
 
 @security.requires_access_dag("GET")

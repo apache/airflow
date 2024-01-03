@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.io.store.path import ObjectStoragePath
+from airflow.io.path import ObjectStoragePath
 from airflow.models import BaseOperator
 
 if TYPE_CHECKING:

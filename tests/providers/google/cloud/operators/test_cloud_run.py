@@ -40,6 +40,12 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+OVERRIDES = {
+    "container_overrides": [{"args": ["python", "main.py"]}],
+    "task_count": 1,
+    "timeout": "60s",
+}
+
 JOB = Job()
 JOB.name = JOB_NAME
 
@@ -78,11 +84,12 @@ class TestCloudRunCreateJobOperator:
 class TestCloudRunExecuteJobOperator:
     def test_template_fields(self):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=OVERRIDES
         )
 
         _assert_common_template_fields(operator.template_fields)
         assert "job_name" in operator.template_fields
+        assert "overrides" in operator.template_fields
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
@@ -166,7 +173,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
 
         with pytest.raises(AirflowException) as e:
             operator.execute_complete(mock.MagicMock(), event)
@@ -183,7 +190,7 @@ class TestCloudRunExecuteJobOperator:
         error_message = "error message"
 
         event = {
-            "status": RunJobStatus.FAIL,
+            "status": RunJobStatus.FAIL.value,
             "operation_error_code": error_code,
             "operation_error_message": error_message,
             "job_name": JOB_NAME,
@@ -204,7 +211,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
+        event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
 
         result = operator.execute_complete(mock.MagicMock(), event)
         assert result["name"] == JOB_NAME

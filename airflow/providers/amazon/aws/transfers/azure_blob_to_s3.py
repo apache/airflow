@@ -90,8 +90,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         dest_s3_extra_args: dict | None = None,
         replace: bool = False,
         s3_acl_policy: str | None = None,
-        wasb_extra_args: dict = {},
-        s3_extra_args: dict = {},
+        wasb_extra_args: dict | None = None,
+        s3_extra_args: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,8 +106,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.replace = replace
         self.s3_acl_policy = s3_acl_policy
-        self.wasb_extra_args = wasb_extra_args
-        self.s3_extra_args = s3_extra_args
+        self.wasb_extra_args = wasb_extra_args or {}
+        self.s3_extra_args = s3_extra_args or {}
 
     def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container

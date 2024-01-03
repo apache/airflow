@@ -24,8 +24,11 @@ description: |
       - `Slack API <https://api.slack.com/>`__
       - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288171
 versions:
+  - 8.5.1
+  - 8.5.0
   - 8.4.0
   - 8.3.0
   - 8.2.0
@@ -53,7 +56,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.3.1
   - slack_sdk>=3.0.0
 

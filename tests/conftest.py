@@ -616,8 +616,8 @@ def dag_maker(request):
     the same argument as DAG::
 
         with dag_maker(dag_id="mydag") as dag:
-            task1 = EmptyOperator(task_id='mytask')
-            task2 = EmptyOperator(task_id='mytask2')
+            task1 = EmptyOperator(task_id="mytask")
+            task2 = EmptyOperator(task_id="mytask2")
 
     If the DagModel you want to use needs different parameters than the one
     automatically created by the dag_maker, you have to update the DagModel as below::
@@ -854,7 +854,7 @@ def create_dummy_dag(dag_maker):
     is not here, please use `default_args` so that the DAG will pass it to the
     Task::
 
-        dag, task = create_dummy_dag(default_args={'start_date':timezone.datetime(2016, 1, 1)})
+        dag, task = create_dummy_dag(default_args={"start_date": timezone.datetime(2016, 1, 1)})
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
@@ -1075,7 +1075,14 @@ def clear_lru_cache():
     from airflow.utils.entry_points import _get_grouped_entry_points
 
     ExecutorLoader.validate_database_executor_compatibility.cache_clear()
-    _get_grouped_entry_points.cache_clear()
+    try:
+        _get_grouped_entry_points.cache_clear()
+        try:
+            yield
+        finally:
+            _get_grouped_entry_points.cache_clear()
+    finally:
+        ExecutorLoader.validate_database_executor_compatibility.cache_clear()
 
 
 @pytest.fixture(autouse=True)

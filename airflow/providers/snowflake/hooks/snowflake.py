@@ -90,8 +90,8 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
     _test_connection_sql = "select 1"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -112,8 +112,8 @@ class SnowflakeHook(DbApiHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -323,7 +323,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -335,7 +335,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
         return_dictionaries: bool = False,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Runs a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
@@ -388,7 +388,7 @@ class SnowflakeHook(DbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -480,7 +480,7 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_database_info(connection))
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
 
         if self.query_ids:
             return OperatorLineage(

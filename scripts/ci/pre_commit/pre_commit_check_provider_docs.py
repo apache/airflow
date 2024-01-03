@@ -94,7 +94,7 @@ def find_all_providers():
     for provider_file in AIRFLOW_PROVIDERS_DIR.rglob("provider.yaml"):
         provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(os.sep, ".")
         provider_info = yaml.safe_load(provider_file.read_text())
-        if not provider_info["suspended"]:
+        if provider_info["state"] != "suspended":
             ALL_PROVIDERS[provider_name] = provider_info
 
 

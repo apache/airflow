@@ -61,6 +61,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -75,7 +77,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.5.1
+Release: 5.6.1
 
 Provider package
 ----------------
@@ -93,12 +95,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.5.0``
+``apache-airflow``     ``>=2.6.0``
 ``simple-salesforce``  ``>=1.0.0``
 ``pandas``             ``>=0.17.1``
 =====================  ==================

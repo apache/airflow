@@ -642,6 +642,16 @@ class TestCheckOperator:
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_execute_records_dict_not_all_values_are_true(self, mock_get_db_hook):
+        mock_get_db_hook.return_value.get_first.return_value = {
+            "DUPLICATE_ID_CHECK": False,
+            "NULL_VALUES_CHECK": True,
+        }
+
+        with pytest.raises(AirflowException, match=r"Test failed."):
+            self._operator.execute({})
+
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
         self._operator.execute({})
         mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")

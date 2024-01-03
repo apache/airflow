@@ -20,12 +20,12 @@ from __future__ import annotations
 import warnings
 from base64 import b64encode
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Container, Sequence
 
 from deprecated.classic import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -60,6 +60,9 @@ class SSHOperator(BaseOperator):
         The default is ``False`` but note that `get_pty` is forced to ``True``
         when the `command` starts with ``sudo``.
     :param banner_timeout: timeout to wait for banner from the server in seconds
+    :param skip_on_exit_code: If command exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
 
     If *do_xcom_push* is *True*, the numeric exit code emitted by
     the ssh session is pushed to XCom under key ``ssh_exit``.
@@ -91,6 +94,7 @@ class SSHOperator(BaseOperator):
         environment: dict | None = None,
         get_pty: bool = False,
         banner_timeout: float = 30.0,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,6 +110,13 @@ class SSHOperator(BaseOperator):
         self.environment = environment
         self.get_pty = get_pty
         self.banner_timeout = banner_timeout
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code is not None
+            else []
+        )
 
     @cached_property
     def ssh_hook(self) -> SSHHook:
@@ -141,7 +152,7 @@ class SSHOperator(BaseOperator):
         self.log.info("Creating ssh_client")
         return self.hook.get_conn()
 
-    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str):
+    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> tuple[int, bytes, bytes]:
         warnings.warn(
             "exec_ssh_client_command method on SSHOperator is deprecated, call "
             "`ssh_hook.exec_ssh_client_command` instead",
@@ -156,6 +167,8 @@ class SSHOperator(BaseOperator):
         if context and self.do_xcom_push:
             ti = context.get("task_instance")
             ti.xcom_push(key="ssh_exit", value=exit_status)
+        if exit_status in self.skip_on_exit_code:
+            raise AirflowSkipException(f"SSH command returned exit code {exit_status}. Skipping.")
         if exit_status != 0:
             raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 

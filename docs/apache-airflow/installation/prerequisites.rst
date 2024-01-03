@@ -24,10 +24,10 @@ Airflow™ is tested with:
 
 * Databases:
 
-  * PostgreSQL: 11, 12, 13, 14, 15
-  * MySQL: 5.7, 8.0, 8.1
+  * PostgreSQL: 12, 13, 14, 15, 16
+  * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
-  * MSSQL(Experimental): 2017, 2019
+  * MSSQL (was experimental, **will be discontinued in 2.9.0**): 2017, 2019
 
 * Kubernetes: 1.25, 1.26, 1.27, 1.28
 
@@ -44,11 +44,6 @@ wildly on the deployment options you have
   because the number of users who tried to use MariaDB for Airflow is very small.
 
 .. warning::
-
-  MySQL 5.x versions are unable to or have limitations with
-  running multiple schedulers -- please see: :doc:`/administration-and-deployment/scheduler`.
-
-.. warning::
   SQLite is used in Airflow tests. Do not use it in production. We recommend
   using the latest stable version of SQLite for local development.
 
@@ -56,10 +51,11 @@ wildly on the deployment options you have
 .. warning::
 
   Airflow™ currently can be run on POSIX-compliant Operating Systems. For development it is regularly
-  tested on fairly modern Linux Distros and recent versions of MacOS.
+  tested on fairly modern Linux Distros that our contributors use and recent versions of MacOS.
   On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
   The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__
   but it is not a high priority. You should only use Linux-based distros as "Production" execution environment
   as this is the only environment that is supported. The only distro that is used in our CI tests and that
   is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-  ``Debian Bullseye``.
+  ``Debian Bookworm``. We also build ``Debian Bullseye`` images in Airflow 2.8 but we do not use them for
+  CI tests and they will be dropped in Airflow 2.9.

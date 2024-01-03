@@ -61,6 +61,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -75,7 +77,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.7.0
+Release: 4.8.0
 
 Provider package
 ----------------
@@ -93,12 +95,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.5.0``
+``apache-airflow``     ``>=2.6.0``
 ``requests``           ``>=2.26.0``
 ``requests_toolbelt``
 ``aiohttp``

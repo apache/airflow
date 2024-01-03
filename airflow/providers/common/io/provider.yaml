@@ -21,8 +21,10 @@ name: Common IO
 description: |
   ``Common IO Provider``
 
-suspended: false
+state: ready
+source-date-epoch: 1703288123
 versions:
+  - 1.1.0
   - 1.0.1
   - 1.0.0
 

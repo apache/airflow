@@ -18,23 +18,34 @@
 from __future__ import annotations
 
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Iterable
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
-
+from airflow.configuration import conf
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
 
 class SmtpNotifier(BaseNotifier):
     """
     SMTP Notifier.
+
+    Accepts keyword arguments. The only required argument is `to`. Examples:
+
+    .. code-block:: python
+
+        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"))
+
+        EmptyOperator(
+            task_id="task",
+            on_failure_callback=SmtpNotifier(
+                from_email="myemail@myemail.com",
+                to="myemail@myemail.com",
+                subject="Task {{ ti.task_id }} failed",
+            ),
+        )
+
+    Default template is defined in airflow.settings but can be overridden in local_settings.py
 
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
@@ -55,10 +66,12 @@ class SmtpNotifier(BaseNotifier):
 
     def __init__(
         self,
+        # TODO: Move from_email to keyword parameter in next major release so that users do not
+        # need to specify from_email. No argument here will lead to defaults from conf being used.
         from_email: str | None,
         to: str | Iterable[str],
-        subject: str,
-        html_content: str,
+        subject: str | None = None,
+        html_content: str | None = None,
         files: list[str] | None = None,
         cc: str | Iterable[str] | None = None,
         bcc: str | Iterable[str] | None = None,
@@ -66,19 +79,31 @@ class SmtpNotifier(BaseNotifier):
         mime_charset: str = "utf-8",
         custom_headers: dict[str, Any] | None = None,
         smtp_conn_id: str = SmtpHook.default_conn_name,
+        *,
+        template: str | None = None,
     ):
+        from airflow.settings import SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH, SMTP_DEFAULT_TEMPLATED_SUBJECT
+
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
-        self.from_email = from_email
+        self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
         self.to = to
-        self.subject = subject
-        self.html_content = html_content
+        self.subject = subject or SMTP_DEFAULT_TEMPLATED_SUBJECT.replace("\n", "").strip()
         self.files = files
         self.cc = cc
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
         self.custom_headers = custom_headers
+
+        # If html_content is passed, prioritize it. Otherwise, if template is passed, use
+        # it to populate html_content. Else, fall back to defaults defined in settings
+        if html_content is not None:
+            self.html_content = html_content
+        elif template is not None:
+            self.html_content = Path(template).read_text()
+        else:
+            self.html_content = Path(SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH).read_text()
 
     @cached_property
     def hook(self) -> SmtpHook:

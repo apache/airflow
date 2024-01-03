@@ -74,6 +74,7 @@ jobs:
       is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
       is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
       is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
+      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
@@ -237,20 +238,6 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
           BUILD_TIMEOUT_MINUTES: 70
-      - name: "Source constraints"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-        env:
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
 
   build-prod-images:
     permissions:
@@ -272,6 +259,7 @@ jobs:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       BACKEND: sqlite
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -302,18 +290,12 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: >
-          Pull CI image for PROD build:
-          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
-        shell: bash
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
-      - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -382,7 +364,4 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
         if: always()

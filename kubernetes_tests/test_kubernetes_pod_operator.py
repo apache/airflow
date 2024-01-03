@@ -26,12 +26,12 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
+import pendulum
 import pytest
 from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
-from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.connection import Connection
@@ -53,7 +53,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
-    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=Timezone("Europe/Amsterdam"))
+    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=pendulum.tz.timezone("Europe/Amsterdam"))
     dag_run = DagRun(
         dag_id=dag.dag_id,
         execution_date=execution_date,
@@ -1161,28 +1161,6 @@ class TestKubernetesPodOperatorSystem:
             with pytest.raises(AirflowException):
                 k.execute(context)
             create_mock.assert_called_once()
-
-    def test_using_resources(self, mock_get_connection):
-        exception_message = (
-            "Specifying resources for the launched pod with 'resources' is deprecated. "
-            "Use 'container_resources' instead."
-        )
-        with pytest.raises(AirflowException, match=exception_message):
-            resources = k8s.V1ResourceRequirements(
-                requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-                limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
-            )
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels=self.labels,
-                task_id=str(uuid4()),
-                in_cluster=False,
-                do_xcom_push=False,
-                resources=resources,
-            )
 
     def test_changing_base_container_name_with_get_logs(self, mock_get_connection):
         k = KubernetesPodOperator(

@@ -142,3 +142,9 @@ doap_airflow.rdf
 
 # nvm (Node Version Manager)
 .nvmrc
+
+# PKG-INFO file
+PKG-INFO
+
+# checksum files
+.*\.md5sum

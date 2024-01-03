@@ -118,11 +118,6 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/spark/**/*
     - tests/system/providers/apache/spark/**/*
 
-  provider:apache-sqoop:
-    - airflow/providers/apache/sqoop/**/*
-    - docs/apache-airflow-providers-apache-sqoop/**/*
-    - tests/providers/apache/sqoop/**/*
-
   provider:apprise:
     - airflow/providers/apprise/**/*
     - docs/apache-airflow-providers-apprise/**/*
@@ -166,6 +161,12 @@ labelPRBasedOnFilePath:
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
 
+  provider:cohere:
+    - airflow/providers/cohere/**/*
+    - docs/apache-airflow-providers-cohere/**/*
+    - tests/providers/cohere/**/*
+    - tests/system/providers/cohere/**/*
+
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*
@@ -177,11 +178,6 @@ labelPRBasedOnFilePath:
     - tests/providers/common/sql/**/*
     - tests/system/providers/common/sql/**/*
 
-  provider:daskexecutor:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
-
   provider:databricks:
     - airflow/providers/databricks/**/*
     - docs/apache-airflow-providers-databricks/**/*
@@ -189,9 +185,9 @@ labelPRBasedOnFilePath:
     - tests/system/providers/databricks/**/*
 
   provider:datadog:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
+    - airflow/providers/datadog/**/*
+    - docs/apache-airflow-providers-datadog/**/*
+    - tests/providers/datadog/**/*
 
   provider:dbt-cloud:
     - airflow/providers/dbt/cloud/**/*
@@ -226,6 +222,11 @@ labelPRBasedOnFilePath:
     - airflow/providers/exasol/**/*
     - docs/apache-airflow-providers-exasol/**/*
     - tests/providers/exasol/**/*
+
+  provider:fab:
+    - airflow/providers/fab/**/*
+    - docs/apache-airflow-providers-fab/**/*
+    - tests/providers/fab/**/*
 
   provider:facebook:
     - airflow/providers/facebook/**/*
@@ -334,6 +335,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-odbc/**/*
     - tests/providers/odbc/**/*
 
+  provider:openai:
+    - airflow/providers/openai/**/*
+    - docs/apache-airflow-providers-openai/**/*
+    - tests/providers/openai/**/*
+    - tests/system/providers/openai/**/*
+
   provider:openfaas:
     - airflow/providers/openfaas/**/*
     - docs/apache-airflow-providers-openfaas/**/*
@@ -372,11 +379,17 @@ labelPRBasedOnFilePath:
     - tests/providers/papermill/**/*
     - tests/system/providers/papermill/**/*
 
-  provider:plexus:
-    - airflow/providers/plexus/**/*
-    - docs/apache-airflow-providers-plexus/**/*
-    - tests/providers/plexus/**/*
-    - tests/system/providers/plexus/**/*
+  provider:pgvector:
+    - airflow/providers/pgvector/**/*
+    - docs/apache-airflow-providers-pgvector/**/*
+    - tests/providers/pgvector/**/*
+    - tests/system/providers/pgvector/**/*
+
+  provider:pinecone:
+    - airflow/providers/pinecone/**/*
+    - docs/apache-airflow-providers-pinecone/**/*
+    - tests/providers/pinecone/**/*
+    - tests/system/providers/pinecone/**/*
 
   provider:postgres:
     - airflow/providers/postgres/**/*
@@ -483,6 +496,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/vertica/**/*
     - docs/apache-airflow-providers-vertica/**/*
     - tests/providers/vertica/**/*
+
+  provider:weaviate:
+    - airflow/providers/weaviate/**/*
+    - docs/apache-airflow-providers-weaviate/**/*
+    - tests/providers/weaviate/**/*
+    - tests/system/providers/weaviate/**/*
 
   provider:yandex:
     - airflow/providers/yandex/**/*

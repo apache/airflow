@@ -34,7 +34,7 @@ import pendulum
 from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
@@ -46,7 +46,8 @@ from airflow.utils.session import create_session
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -70,18 +71,47 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # For elasticsearch>8 retry_timeout have changed for elasticsearch to retry_on_timeout
-    # in Elasticsearch() compared to previous versions.
-    # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
     if (
         elastic_search_config
         and "retry_timeout" in elastic_search_config
         and not kwargs_dict.get("retry_on_timeout")
     ):
+        warnings.warn(
+            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         retry_timeout = elastic_search_config.get("retry_timeout")
         if retry_timeout is not None:
             kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
+
+
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+    """Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    if not isinstance(ti, TaskInstanceKey):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if isinstance(val, TaskInstance):
+        val._try_number = ti.try_number
+        return val
+    else:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -182,8 +212,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         return host
 
-    def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        from airflow.models.taskinstance import TaskInstanceKey
+
         with create_session() as session:
+            if isinstance(ti, TaskInstanceKey):
+                ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
@@ -377,11 +411,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
+        :param identifier: if set, identifies the Airflow component which is relaying logs from
+            exceptional scenarios related to the task instance
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -410,7 +446,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
-            super().set_context(ti)
+            # todo: remove-at-min-airflow-version-2.8
+            #   after Airflow 2.8 can always pass `identifier`
+            if getattr(super(), "supports_task_context_logging", False):
+                super().set_context(ti, identifier=identifier)
+            else:
+                super().set_context(ti)
         self.context_set = True
 
     def close(self) -> None:
@@ -421,8 +462,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+        if not self.mark_end_on_close:
             # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return

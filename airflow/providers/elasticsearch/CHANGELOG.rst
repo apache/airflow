@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Remove getattr in es task handler when airflow min version bumped to 2.6 (#36431)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
+5.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Cleanup code for elasticsearch<8 (#35707)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Extend task context logging support for remote logging using Elasticsearch (#32977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update es read query to not use body (#34792)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+
+Misc
+~~~~
+
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 5.1.1
 .....
 
