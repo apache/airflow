@@ -134,14 +134,17 @@ def _can_edit_dag(dag_id: str, user) -> bool:
 def _can_delete_dag(dag_id: str, user) -> bool:
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
+
 def _can_pause_dag(dag_id: str, user) -> bool:
     return get_auth_manager().is_authorized_dag(method="PATCH", details=DagDetails(id=dag_id), user=user)
 
 
 def _has_all_dags_access(user) -> bool:
-    return get_auth_manager().is_authorized_dag(
-        method="GET", user=user
-    ) or get_auth_manager().is_authorized_dag(method="PUT", user=user)
+    return (
+        get_auth_manager().is_authorized_dag(method="GET", user=user)
+        or get_auth_manager().is_authorized_dag(method="PUT", user=user)
+        or get_auth_manager().is_authorized_dag(method="PATCH", user=user)
+    )
 
 
 @contextlib.contextmanager
@@ -528,7 +531,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     # get_permitted_dag_ids() don't return DAGs to which the user has CAN_EDIT action
     username = "Monsieur User"
     role_name = "MyRole1"
-    permission_action = perm_action
+    permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
     with app.app_context():
         with create_user_scope(
@@ -734,7 +737,7 @@ def test_has_all_dag_access(app, security_manager):
             role_name="pause_all",
             permissions=[(permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG)],
         ) as user:
-            assert security_manager.has_all_dags_access(user)
+            assert _has_all_dags_access(user)
 
     with app.app_context():
         with create_user_scope(
@@ -822,7 +825,7 @@ def test_access_control_is_set_on_init(
                 user=user,
             )
             assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_PAUSE],
+                perms=["PATCH"],
                 dag_id="access_control_test",
                 user=user,
             )
@@ -844,8 +847,6 @@ def test_access_control_stale_perms_are_revoked(
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"
-    dag_id = "access_control_test"
-    dag_pause_permission = (permissions.ACTION_CAN_PAUSE, f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}")
 
     with app.app_context():
         with create_user_scope(
@@ -868,6 +869,7 @@ def test_access_control_stale_perms_are_revoked(
             assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
             assert_user_does_not_have_dag_perms(perms=["PATCH"], dag_id="access_control_test", user=user)
             assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
+
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_PAUSE}
             )

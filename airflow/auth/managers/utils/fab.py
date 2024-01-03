@@ -24,8 +24,8 @@ from airflow.security.permissions import (
     ACTION_CAN_CREATE,
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
-    ACTION_CAN_READ,
     ACTION_CAN_PAUSE,
+    ACTION_CAN_READ,
 )
 
 if TYPE_CHECKING:
