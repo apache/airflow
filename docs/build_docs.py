@@ -534,7 +534,7 @@ def main():
                 jobs=jobs,
                 package_build_errors=package_build_errors,
                 originally_built_packages=packages_to_build,
-                # In the 3rd pass we only rebuild packages that failed in the 3rd pass
+                # In the 4th pass we only rebuild packages that failed in the 2nd pass
                 # no matter if we do spellcheck-only build
                 rebuild_all_packages=False,
             )
