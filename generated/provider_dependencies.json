@@ -298,10 +298,11 @@
     },
     "common.io": {
         "deps": [
-            "apache-airflow>=2.8.0",
+            "apache-airflow>=2.8.0"
+        ],
+        "cross-providers-deps": [
             "openlineage"
         ],
-        "cross-providers-deps": [],
         "excluded-python-versions": [],
         "state": "ready"
     },
