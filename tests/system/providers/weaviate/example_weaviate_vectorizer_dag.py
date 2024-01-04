@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import pendulum
-from airflow.decorators import dag, setup, task, teardown
 
+from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 class_name = "Weaviate_with_vectorizer_example_class"
@@ -42,6 +42,7 @@ def example_weaviate_vectorizer_dag():
         Example task to create class without any Vectorizer. You're expected to provide custom vectors for your data.
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+
         weaviate_hook = WeaviateHook()
         # Class definition object. Weaviate's autoschema feature will infer properties when importing.
         class_obj = {

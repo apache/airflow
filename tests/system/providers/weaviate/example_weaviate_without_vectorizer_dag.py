@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+from __future__ import annotations
 
 import pendulum
+
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
@@ -113,7 +113,6 @@ def example_weaviate_without_vectorizer_dag():
 
 
 example_weaviate_without_vectorizer_dag()
-
 
 
 from tests.system.utils import get_test_run  # noqa: E402

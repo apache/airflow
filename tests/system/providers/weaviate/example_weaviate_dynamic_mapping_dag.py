@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pendulum
+
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
@@ -74,6 +76,7 @@ def example_weaviate_dynamic_mapping_dag():
         """
 
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+
         weaviate_hook = WeaviateHook()
         # Class definition object. Weaviate's autoschema feature will infer properties when importing.
 

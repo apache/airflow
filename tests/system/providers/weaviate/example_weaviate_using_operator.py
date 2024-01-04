@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import pendulum
-from airflow.decorators import dag, task, teardown
 
+from airflow.decorators import dag, task, teardown
 from airflow.providers.weaviate.operators.weaviate import (
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
 )
-
 
 
 @dag(
@@ -251,7 +250,6 @@ def example_weaviate_using_operator():
 
 
 example_weaviate_using_operator()
-
 
 
 from tests.system.utils import get_test_run  # noqa: E402

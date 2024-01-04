@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import pendulum
+
 from airflow.decorators import dag, task, teardown
 
 
@@ -32,7 +33,7 @@ def example_weaviate_dag_using_hook():
     @task()
     def create_class_with_vectorizer():
         """
-        Example task to create class with OpenAI Vectorizer responsible for vectorizing data using Weaviate cluster.
+        Example task to create class with OpenAI Vectorizer responsible for vectorining data using Weaviate cluster.
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
