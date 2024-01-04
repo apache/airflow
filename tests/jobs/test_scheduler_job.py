@@ -3232,6 +3232,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id=task_id)
 
         scheduler_job = Job()
+        scheduler_job.state = "running"
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
         session.add(scheduler_job)
@@ -3245,9 +3246,9 @@ class TestSchedulerJob:
         session.merge(tis[0])
         session.flush()
 
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
         tis[0].refresh_from_db()
-        assert State.RUNNING == tis[0].state
+        assert tis[0].state == State.RUNNING
 
     def test_reset_orphaned_tasks_non_running_dagruns(self, dag_maker):
         """Ensure orphaned tasks with non-running dagruns are not reset."""
