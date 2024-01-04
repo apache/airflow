@@ -2459,7 +2459,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration", tags=self.stats_tags):
+        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
+            "task.duration", tags=self.stats_tags
+        ):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
