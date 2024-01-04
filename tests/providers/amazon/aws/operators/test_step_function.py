@@ -46,6 +46,14 @@ def mocked_context():
 class TestStepFunctionGetExecutionOutputOperator:
     TASK_ID = "step_function_get_execution_output"
 
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        with mock.patch(
+            "airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink.persist"
+        ) as executions_details_link:
+            self.mocked_executions_details_link = executions_details_link
+            yield
+
     def test_init(self):
         op = StepFunctionGetExecutionOutputOperator(
             task_id=self.TASK_ID,
@@ -86,10 +94,28 @@ class TestStepFunctionGetExecutionOutputOperator:
         )
         assert op.execute(mocked_context) == expected_output
         mocked_hook.describe_execution.assert_called_once_with(EXECUTION_ARN)
+        self.mocked_executions_details_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            execution_arn=EXECUTION_ARN,
+        )
 
 
 class TestStepFunctionStartExecutionOperator:
     TASK_ID = "step_function_start_execution_task"
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        with mock.patch(
+            "airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink.persist"
+        ) as executions_details_link, mock.patch(
+            "airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink.persist"
+        ) as details_link:
+            self.mocked_executions_details_link = executions_details_link
+            self.mocked_details_link = details_link
+            yield
 
     def test_init(self):
         op = StepFunctionStartExecutionOperator(
@@ -134,6 +160,20 @@ class TestStepFunctionStartExecutionOperator:
         )
         assert op.execute(mocked_context) == hook_response
         mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT)
+        self.mocked_details_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            state_machine_arn=STATE_MACHINE_ARN,
+        )
+        self.mocked_executions_details_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            execution_arn=EXECUTION_ARN,
+        )
 
     @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
     def test_step_function_start_execution_deferrable(self, mocked_hook):
