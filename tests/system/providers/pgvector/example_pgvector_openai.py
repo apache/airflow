@@ -66,14 +66,12 @@ def example_pgvector_dag():
         model="text-embedding-ada-002",
     )
 
-    # [START howto_operator_pgvector_ingest]
     pgvector_ingest = PgVectorIngestOperator(
         task_id="pgvector_ingest",
         conn_id=POSTGRES_CONN_ID,
         sql=f"INSERT INTO {TABLE_NAME} (name, value, vector_column) "
         f"VALUES ('John Doe', '123' ,'{embedd_query.output}')",
     )
-    # [END howto_operator_pgvector_ingest]
 
     @teardown()
     @task()
