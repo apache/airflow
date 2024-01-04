@@ -311,27 +311,6 @@ Airflow needs to walk the directory tree and copy each file individually. This i
 source to the target.
 
 
-Caching
--------
-
-The object storage abstraction can use a local cache to speed up access to remote files. The cache is implemented by
-``fsspec`` and is transparent to the user. You will need to attach a cache to the scheme you want to use. For example,
-to enable caching for s3, you would do the following:
-
-.. code-block:: python
-
-    import fsspec
-
-    from airflow.io.path import ObjectStoragePath
-    from airflow.io.store import attach
-
-    s3_storage_options = {}
-    filesystem = fsspec.filesystem(protocol="filecache", target_protocol="s3", **s3_storage_options)
-    attach(protocol="filecache", fs=filesystem)
-
-    base = ObjectStoragePath("filecache://my-bucket/")
-
-
 External Integrations
 ---------------------
 
