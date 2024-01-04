@@ -79,7 +79,6 @@ class RedshiftClusterSensor(BaseSensorOperator):
             self.defer(
                 timeout=timedelta(seconds=self.timeout),
                 trigger=RedshiftClusterSensorTrigger(
-                    task_id=self.task_id,
                     aws_conn_id=self.aws_conn_id,
                     cluster_identifier=self.cluster_identifier,
                     target_status=self.target_status,

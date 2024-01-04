@@ -270,7 +270,6 @@ class RedshiftClusterSensorTrigger(BaseTrigger):
     """
     RedshiftClusterSensorTrigger is fired as deferred class with params to run the task in trigger worker.
 
-    :param task_id: Reference to task id of the Dag
     :param aws_conn_id: Reference to AWS connection id for redshift
     :param cluster_identifier: unique identifier of a cluster
     :param target_status: Reference to the status which needs to be checked
@@ -279,14 +278,12 @@ class RedshiftClusterSensorTrigger(BaseTrigger):
 
     def __init__(
         self,
-        task_id: str,
         aws_conn_id: str,
         cluster_identifier: str,
         target_status: str,
         poke_interval: float,
     ):
         super().__init__()
-        self.task_id = task_id
         self.aws_conn_id = aws_conn_id
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
@@ -297,7 +294,6 @@ class RedshiftClusterSensorTrigger(BaseTrigger):
         return (
             "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSensorTrigger",
             {
-                "task_id": self.task_id,
                 "aws_conn_id": self.aws_conn_id,
                 "cluster_identifier": self.cluster_identifier,
                 "target_status": self.target_status,

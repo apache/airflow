@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 )
 from airflow.triggers.base import TriggerEvent
 
-TASK_ID = "redshift_trigger_check"
 POLLING_PERIOD_SECONDS = 1.0
 
 
@@ -38,7 +37,6 @@ class TestRedshiftClusterSensorTrigger:
         and classpath.
         """
         trigger = RedshiftClusterSensorTrigger(
-            task_id=TASK_ID,
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
@@ -49,7 +47,6 @@ class TestRedshiftClusterSensorTrigger:
             classpath == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSensorTrigger"
         )
         assert kwargs == {
-            "task_id": TASK_ID,
             "aws_conn_id": "test_redshift_conn_id",
             "cluster_identifier": "mock_cluster_identifier",
             "target_status": "available",
@@ -70,7 +67,6 @@ class TestRedshiftClusterSensorTrigger:
         """
         mock_cluster_status.return_value = expected_result
         trigger = RedshiftClusterSensorTrigger(
-            task_id=TASK_ID,
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
@@ -95,7 +91,6 @@ class TestRedshiftClusterSensorTrigger:
         """Test RedshiftClusterSensorTrigger with the success status"""
         mock_cluster_status.return_value = expected_result
         trigger = RedshiftClusterSensorTrigger(
-            task_id=TASK_ID,
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
@@ -116,7 +111,6 @@ class TestRedshiftClusterSensorTrigger:
         """Test RedshiftClusterSensorTrigger with exception"""
         mock_cluster_status.side_effect = Exception("Test exception")
         trigger = RedshiftClusterSensorTrigger(
-            task_id=TASK_ID,
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
