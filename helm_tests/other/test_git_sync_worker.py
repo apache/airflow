@@ -132,3 +132,11 @@ class TestGitSyncWorker:
         )
 
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+        assert "git-sync-ssh-key" not in jmespath.search(
+            "spec.template.spec.containers[].volumeMounts[].name",
+            docs[0],
+        )
+        assert "git-sync-ssh-key" not in jmespath.search(
+            "spec.template.spec.initContainers[].volumeMounts[].name",
+            docs[0],
+        )

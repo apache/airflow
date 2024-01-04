@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -211,7 +212,9 @@ class TestGitSyncSchedulerTest:
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
+    @pytest.mark.parametrize("persistence", [True, False])
+    def test_validate_sshkeysecret_added_regardless_of_persistence_value(self, persistence):
+        # Unlike
         docs = render_chart(
             values={
                 "dags": {
@@ -222,12 +225,20 @@ class TestGitSyncSchedulerTest:
                         "knownHosts": None,
                         "branch": "test-branch",
                     },
-                    "persistence": {"enabled": True},
+                    "persistence": {"enabled": persistence},
                 }
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+        assert "git-sync-ssh-key" in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+        assert "git-sync-ssh-key" in jmespath.search(
+            "spec.template.spec.containers[].volumeMounts[].name",
+            docs[0],
+        )
+        assert "git-sync-ssh-key" in jmespath.search(
+            "spec.template.spec.initContainers[].volumeMounts[].name",
+            docs[0],
+        )
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(

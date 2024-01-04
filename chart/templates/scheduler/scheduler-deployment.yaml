@@ -166,6 +166,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
+        # unlike other pods, git-sync in scheduler is enabled even if dag.persistence is enabled
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
@@ -244,6 +245,7 @@ spec:
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
+        # unlike other pods, git-sync in scheduler is enabled even if dag.persistence is enabled
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
@@ -299,9 +301,10 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if .Values.dags.gitSync.sshKeySecret }}
-          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+        {{- if .Values.dags.gitSync.sshKeySecret }}
+        # unlike other pods, git-sync in scheduler is enabled even if dag.persistence is enabled
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
         {{- if .Values.volumes }}
