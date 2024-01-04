@@ -2375,6 +2375,25 @@ scheduler:
       type: string
       example: ~
       default: "^[A-Za-z0-9_.~:+-]+$"
+    create_cron_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time for cron schedules, when
+        a cron string is provided to `schedule` argument of a DAG. If True,
+        CronDataIntervalTimetable is used, which is the legacy Airflow behavior suitable
+        for DAGs with well-defined data_interval you get contiguous intervals from the end of the previous
+        interval up to the scheduled datetime. If False, CronTriggerTimetable is used,
+        which is closer to the behavior of cron itself.
+
+        Notably, for CronTriggerTimetable, the logical_date is the same as the time the DAG Run will try to
+        schedule, while for CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
+        but the DAG Run will try to schedule at the end of the data interval. For more differences
+        between the two Timetables, see
+        https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html#differences-between-the-two-cron-timetables
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "True"
+      see_also: ":ref:`Differences between the two cron timetables`"
 triggerer:
   description: ~
   options:
