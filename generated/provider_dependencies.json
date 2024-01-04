@@ -300,7 +300,9 @@
     "deps": [
       "apache-airflow>=2.8.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },

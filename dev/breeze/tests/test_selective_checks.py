@@ -525,7 +525,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "tests/providers/common/io/operators/test_file_transfer.py",
             ),
             {
-                "affected-providers-list-as-string": "common.io",
+                "affected-providers-list-as-string": "common.io openlineage",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -538,7 +538,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[common.io]",
+                "parallel-test-types-list-as-string": "Always Providers[common.io,openlineage]",
             },
             id="Only Always and Common.IO tests should run when only common.io and tests/always changed",
         ),

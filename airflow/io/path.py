@@ -52,6 +52,9 @@ class _AirflowCloudAccessor(_CloudAccessor):
         conn_id: str | None = None,
         **kwargs: typing.Any,
     ) -> None:
+        # warning: we are not calling super().__init__ here
+        # as it will try to create a new fs from a different
+        # set if registered filesystems
         if parsed_url and parsed_url.scheme:
             self._store = attach(parsed_url.scheme, conn_id)
         else:
@@ -173,9 +176,15 @@ class ObjectStoragePath(CloudPath):
     @property
     def key(self) -> str:
         if self._url:
-            return self._url.path
+            # per convention, we strip the leading slashes to ensure a relative key is returned
+            # we keep the trailing slash to allow for directory-like semantics
+            return self._url.path.lstrip(self.sep)
         else:
             return ""
+
+    @property
+    def namespace(self) -> str:
+        return f"{self.protocol}://{self.bucket}" if self.bucket else self.protocol
 
     def stat(self) -> stat_result:  # type: ignore[override]
         """Call ``stat`` and return the result."""
