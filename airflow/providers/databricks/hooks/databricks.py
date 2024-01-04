@@ -519,13 +519,14 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"run_id": run_id}
         self._do_api_call(DELETE_RUN_ENDPOINT, json)
 
-    def repair_run(self, json: dict) -> None:
+    def repair_run(self, json: dict) -> int:
         """
         Re-run one or more tasks.
 
         :param json: repair a job run.
         """
-        self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        response = self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        return response["repair_id"]
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """
