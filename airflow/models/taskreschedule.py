@@ -26,7 +26,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class TaskReschedule(Base):
+class TaskReschedule(TaskInstanceDependencies):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
