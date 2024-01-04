@@ -17,15 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, Iterable
+
+import botocore.exceptions
+from asgiref.sync import sync_to_async
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+
+FINISHED_STATE = "FINISHED"
+FAILED_STATE = "FAILED"
+ABORTED_STATE = "ABORTED"
+FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
+RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
 
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
@@ -108,26 +118,32 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         return statement_id
 
-    def wait_for_results(self, statement_id, poll_interval):
+    def wait_for_results(self, statement_id: str, poll_interval: int) -> str:
         while True:
             self.log.info("Polling statement %s", statement_id)
-            resp = self.conn.describe_statement(
-                Id=statement_id,
-            )
-            status = resp["Status"]
-            if status == "FINISHED":
-                num_rows = resp.get("ResultRows")
-                if num_rows is not None:
-                    self.log.info("Processed %s rows", num_rows)
-                return status
-            elif status in ("FAILED", "ABORTED"):
-                raise ValueError(
-                    f"Statement {statement_id!r} terminated with status {status}. "
-                    f"Response details: {pformat(resp)}"
-                )
-            else:
-                self.log.info("Query %s", status)
+            is_finished = self.check_query_is_finished(statement_id)
+            if is_finished:
+                return FINISHED_STATE
+
             time.sleep(poll_interval)
+
+    def check_query_is_finished(self, statement_id: str) -> bool:
+        """Check whether query finished, raise exception is failed."""
+        resp = self.conn.describe_statement(Id=statement_id)
+        status = resp["Status"]
+        if status == FINISHED_STATE:
+            num_rows = resp.get("ResultRows")
+            if num_rows is not None:
+                self.log.info("Processed %s rows", num_rows)
+            return True
+        elif status in FAILURE_STATES:
+            raise ValueError(
+                f"Statement {statement_id!r} terminated with status {status}. "
+                f"Response details: {pformat(resp)}"
+            )
+
+        self.log.info("Query %s", status)
+        return False
 
     def get_table_primary_key(
         self,
@@ -201,3 +217,56 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 break
 
         return pk_columns or None
+
+    async def check_query_is_finished_async(
+        self, statement_id: str, poll_interval: int = 10
+    ) -> dict[str, str]:
+        """Async function to check statement is finished.
+
+        It takes statement_id, makes async connection to redshift data to get the query status
+        by statement_id and returns the query status.
+
+        :param statement_id: the UUID of the statement
+        :param poll_interval: how often in seconds to check the query status
+        """
+        try:
+            client = await sync_to_async(self.get_conn)()
+            while await self.is_still_running(statement_id):
+                await asyncio.sleep(poll_interval)
+
+            resp = client.describe_statement(Id=statement_id)
+            status = resp["Status"]
+            if status == FINISHED_STATE:
+                return {"status": "success", "statement_id": statement_id}
+            elif status == FAILED_STATE:
+                return {
+                    "status": "error",
+                    "message": f"Error: {resp['QueryString']} query Failed due to, {resp['Error']}",
+                    "statement_id": statement_id,
+                    "type": status,
+                }
+            elif status == ABORTED_STATE:
+                return {
+                    "status": "error",
+                    "message": "The query run was stopped by the user.",
+                    "statement_id": statement_id,
+                    "type": status,
+                }
+
+            return {
+                "status": "error",
+                "message": f"Unexpected statue {status}",
+                "statement_id": statement_id,
+                "type": status,
+            }
+        except botocore.exceptions.ClientError as error:
+            return {"status": "error", "message": str(error), "type": "ERROR"}
+
+    async def is_still_running(self, statement_id: str) -> bool:
+        """Async function to check whether the query is still running.
+
+        :param statement_id: the UUID of the statement
+        """
+        client = await sync_to_async(self.get_conn)()
+        desc = client.describe_statement(Id=statement_id)
+        return desc["Status"] in RUNNING_STATES

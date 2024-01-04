@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -92,6 +95,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         poll_interval: int = 10,
         return_sql_result: bool = False,
         workgroup_name: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,10 +118,16 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             )
         self.return_sql_result = return_sql_result
         self.statement_id: str | None = None
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
         """Execute a statement against Amazon Redshift."""
         self.log.info("Executing statement: %s", self.sql)
+
+        # Set wait_for_completion to False so that it waits for the status in the deferred task.
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            self.wait_for_completion = False
 
         self.statement_id = self.hook.execute_query(
             database=self.database,
@@ -129,10 +139,48 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             poll_interval=self.poll_interval,
         )
 
+        if self.deferrable:
+            is_finished = self.hook.check_query_is_finished(self.statement_id)
+            if not is_finished:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=RedshiftDataTrigger(
+                        statement_id=self.statement_id,
+                        task_id=self.task_id,
+                        poll_interval=self.poll_interval,
+                        aws_conn_id=self.aws_conn_id,
+                        region=self.region,
+                    ),
+                    method_name="execute_complete",
+                )
+
+        if self.return_sql_result:
+            result = self.hook.conn.get_statement_result(Id=self.statement_id)
+            self.log.debug("Statement result: %s", result)
+            return result
+        else:
+            return self.statement_id
+
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> GetStatementResultResponseTypeDef | str:
+        if event is None:
+            err_msg = "Trigger error: event is None"
+            self.log.info(err_msg)
+            raise AirflowException(err_msg)
+
+        if event["status"] == "error":
+            msg = f"context: {context}, error message: {event['message']}"
+            raise AirflowException(msg)
+
+        if not self.statement_id:
+            raise AirflowException("statement_id should not be empty.")
+
+        self.log.info("%s completed successfully.", self.task_id)
         if self.return_sql_result:
             result = self.hook.conn.get_statement_result(Id=self.statement_id)
             self.log.debug("Statement result: %s", result)
