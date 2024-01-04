@@ -279,7 +279,7 @@ class TestFs:
 
         assert s["protocol"] == "file"
         assert s["conn_id"] == "mock"
-        assert s["filesystem"] is None
+        assert s["filesystem"] == qualname(LocalFileSystem)
         assert store == d
 
         store = attach("localfs", fs=LocalFileSystem())
