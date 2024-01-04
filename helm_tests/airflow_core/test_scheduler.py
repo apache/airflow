@@ -390,40 +390,116 @@ class TestScheduler:
         )
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        "airflow_version, expected_probe_command",
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
+            (
+                "1.9.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+                    "\"\nimport os\nos.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = "
+                    "'ERROR'\nos.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = "
+                    "'ERROR'\nfrom airflow.jobs.scheduler_job import SchedulerJob\nfrom "
+                    "airflow.utils.db import create_session\nfrom airflow.utils.net import "
+                    "get_hostname\nimport sys\nwith create_session() as session:\n    job = "
+                    "session.query(SchedulerJob).filter_by(hostname=get_hostname("
+                    ")).order_by(\n        SchedulerJob.latest_heartbeat.desc()).limit("
+                    '1).first()\nsys.exit(0 if job.is_alive() else 1)"\n',
+                ],
+            ),
+            (
+                "2.1.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec "
+                    "/entrypoint \\\nairflow jobs check --job-type SchedulerJob --hostname "
+                    "$(hostname)\n",
+                ],
+            ),
+            (
+                "2.5.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec "
+                    "/entrypoint \\\nairflow jobs check --job-type SchedulerJob --local\n",
+                ],
+            ),
         ],
     )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, expected_probe_command):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-        assert (
-            probe_command
-            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
+        actual_probe_command = jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+        )
+
+        assert expected_probe_command == actual_probe_command
+
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        "airflow_version, expected_probe_command",
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
+            (
+                "1.9.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+                    "\"\nimport os\nos.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = "
+                    "'ERROR'\nos.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = "
+                    "'ERROR'\nfrom airflow.jobs.scheduler_job import SchedulerJob\nfrom "
+                    "airflow.utils.db import create_session\nfrom airflow.utils.net import "
+                    "get_hostname\nimport sys\nwith create_session() as session:\n    job = "
+                    "session.query(SchedulerJob).filter_by(hostname=get_hostname("
+                    ")).order_by(\n        SchedulerJob.latest_heartbeat.desc()).limit("
+                    '1).first()\nsys.exit(0 if job.is_alive() else 1)"\n',
+                ],
+            ),
+            (
+                "2.1.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec "
+                    "/entrypoint \\\nairflow jobs check --job-type SchedulerJob --hostname "
+                    "$(hostname)\n",
+                ],
+            ),
+            (
+                "2.5.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec "
+                    "/entrypoint \\\nairflow jobs check --job-type SchedulerJob --local\n",
+                ],
+            ),
+            (
+                "2.8.0",
+                [
+                    "sh",
+                    "-c",
+                    "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec "
+                    "/entrypoint \\\nairflow jobs check --job-type SchedulerJob --local\n",
+                ],
+            ),
         ],
     )
-    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version, expected_probe_command):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert (
-            probe_command
-            in jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
+        actual_probe_command = jmespath.search(
+            "spec.template.spec.containers[0].startupProbe.exec.command", docs[0]
         )
+
+        assert expected_probe_command == actual_probe_command
 
     @pytest.mark.parametrize(
         "log_values, expected_volume",
