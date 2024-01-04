@@ -488,7 +488,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
             f"since you asked for it, it will be built [/]\n"
         )
     elif provider_metadata.get("state") == "suspended":
-        get_console().print(f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n")
+        get_console().print(f"[warning]The package: {provider_package_id} is suspended skipping it [/]\n")
         raise PackageSuspendedException()
     return provider_metadata
 

@@ -320,7 +320,7 @@ def get_short_package_name(long_form_provider: str) -> str:
     else:
         if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
             raise ValueError(
-                f"Invalid provider name: {long_form_provider}. " f"Should start with {LONG_PROVIDERS_PREFIX}"
+                f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
             )
         return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
 
@@ -661,7 +661,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             )
         else:
             get_console().print(
-                f"[error]Error {ex}[/]\n" f"[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
+                f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
             )
             sys.exit(1)
     get_console().print("[info]Fetching full history and tags from remote.")
