@@ -113,7 +113,7 @@ class RedisHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "login", "extra"],
+            "hidden_fields": ["schema", "extra"],
             "relabeling": {},
         }
 
@@ -147,7 +147,7 @@ class RedisHook(BaseHook):
                 validators=[Optional()],
                 default=None,
             ),
-            "ssl_cert_file": StringField(
+            "ssl_certfile": StringField(
                 lazy_gettext("Certificate path"),
                 widget=BS3TextFieldWidget(),
                 validators=[Optional()],

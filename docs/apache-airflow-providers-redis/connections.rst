@@ -34,6 +34,9 @@ Host
 Port
     Specify the port to use for connecting the Redis cluster (Default is ``6379``).
 
+Login
+    The user that will be used for authentication against the Redis cluster (only applicable in Redis 6.0 and above).
+
 Password
     The password of the user that will be used for authentication against the Redis cluster.
 
@@ -58,4 +61,4 @@ Certificate path
     Path to an ssl certificate (Default is ``None``).
 
 Enable hostname check
-    If set, match the hostname during the SSL handshake (Default is False).
+    If set, match the hostname during the SSL handshake (Default is ``False``).
