@@ -32,7 +32,7 @@ class_name = "Weaviate_with_vectorizer_example_class"
 )
 def example_weaviate_vectorizer_dag():
     """
-    Example DAG which uses WeaviateIngestOperator to insert embeddings to Weaviate with vectorizer as text2vec-openai and then query to verify the response .
+    Example DAG which uses WeaviateIngestOperator to insert embeddings to Weaviate with vectorizer and then query to verify the response .
     """
 
     @setup
