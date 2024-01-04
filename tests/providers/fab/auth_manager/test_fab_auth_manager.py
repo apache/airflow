@@ -63,8 +63,12 @@ def auth_manager():
 
 
 @pytest.fixture
-def auth_manager_with_appbuilder():
-    flask_app = Flask(__name__)
+def flask_app():
+    return Flask(__name__)
+
+
+@pytest.fixture
+def auth_manager_with_appbuilder(flask_app):
     appbuilder = init_appbuilder(flask_app)
     return FabAuthManager(appbuilder)
 
@@ -354,6 +358,28 @@ class TestFabAuthManager:
     @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
+
+    @pytest.mark.db_test
+    def test_security_manager_return_custom_provided(self, flask_app, auth_manager_with_appbuilder):
+        class TestSecurityManager(FabAirflowSecurityManagerOverride):
+            pass
+
+        flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
+        assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
+
+    @pytest.mark.db_test
+    def test_security_manager_wrong_inheritance_raise_exception(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        class TestSecurityManager:
+            pass
+
+        flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
+
+        with pytest.raises(
+            Exception, match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."
+        ):
+            auth_manager_with_appbuilder.security_manager
 
     @pytest.mark.db_test
     def test_get_url_login_when_auth_view_not_defined(self, auth_manager_with_appbuilder):

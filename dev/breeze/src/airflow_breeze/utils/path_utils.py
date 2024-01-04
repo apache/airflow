@@ -302,8 +302,6 @@ CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
-MSSQL_TMP_DIR_NAME = ".tmp-mssql"
-
 
 def create_volume_if_missing(volume_name: str):
     from airflow_breeze.utils.run_utils import run_command

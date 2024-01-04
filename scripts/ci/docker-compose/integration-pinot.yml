@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+version: "3.8"
 services:
   pinot:
     image: apachepinot/pinot:0.8.0
+    labels:
+      breeze.description: "Integration required for Apache Pinot hooks."
     ports:
       - "9080:9080"
     volumes:

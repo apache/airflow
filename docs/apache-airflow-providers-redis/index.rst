@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Logging <logging/index>
 
 .. toctree::

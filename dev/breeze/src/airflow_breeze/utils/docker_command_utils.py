@@ -794,9 +794,6 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
             get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
         if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
