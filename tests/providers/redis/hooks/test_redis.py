@@ -109,6 +109,7 @@ class TestRedisHook:
         mock_redis.assert_called_once_with(
             host=connection.host,
             password=connection.password,
+            username=None,
             port=connection.port,
             db=connection.extra_dejson["db"],
             ssl=connection.extra_dejson["ssl"],
