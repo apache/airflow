@@ -132,8 +132,8 @@ class DataSyncOperator(BaseOperator):
         allow_random_task_choice: bool = False,
         allow_random_location_choice: bool = False,
         create_task_kwargs: dict | None = None,
-        create_source_location_kwargs: dict | None = None,
-        create_destination_location_kwargs: dict | None = None,
+        create_source_location_kwargs: dict | None = {},
+        create_destination_location_kwargs: dict | None = {},
         update_task_kwargs: dict | None = None,
         task_execution_kwargs: dict | None = None,
         delete_task_after_execution: bool = False,
@@ -155,12 +155,8 @@ class DataSyncOperator(BaseOperator):
         self.allow_random_location_choice = allow_random_location_choice
 
         self.create_task_kwargs = create_task_kwargs or {}
-        self.create_source_location_kwargs = {}
-        if create_source_location_kwargs:
-            self.create_source_location_kwargs = create_source_location_kwargs
-        self.create_destination_location_kwargs = {}
-        if create_destination_location_kwargs:
-            self.create_destination_location_kwargs = create_destination_location_kwargs
+        self.create_source_location_kwargs = create_source_location_kwargs
+        self.create_destination_location_kwargs = create_destination_location_kwargs
 
         self.update_task_kwargs = update_task_kwargs or {}
         self.task_execution_kwargs = task_execution_kwargs or {}
