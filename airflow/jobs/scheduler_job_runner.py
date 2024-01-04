@@ -1647,7 +1647,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .options(lazyload("dag_run"))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
                         .join(TI.queued_by_job)
-                        .where(Job.state != JobState.RUNNING)
+                        .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
