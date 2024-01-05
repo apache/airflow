@@ -175,19 +175,17 @@ Avoiding top-level DAG code:
           my_expensive_response = expensive_api_call()
           print(my_expensive_response)
 
-In the first example, ``expensive_api_call`` is executed each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the second example, ``expensive_api_call`` is only called when the task is running and thus is able to be parsed without suffering any performance hits. To test it out yourself, implement the first DAG and see "Hello from Airflow!" printed _in the scheduler logs_!
+In the first example, ``expensive_api_call`` is executed each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the second example, ``expensive_api_call`` is only called when the task is running and thus is able to be parsed without suffering any performance hits. To test it out yourself, implement the first DAG and see "Hello from Airflow!" printed in the scheduler logs!
 
 Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that can also impact the performance of the scheduler. The following example illustrates how to handle expensive imports.
 
 .. code-block:: python
 
-  # It's ok to import modules that are not expensive to load at top-level of DAG file
+  # It's ok to import modules that are not expensive to load at top-level of a DAG file
   import random
   import pendulum
 
-  # Expensive imports should be avoided as top level imports because DAG is imported frequently
-  # even if it does not follow PEP8 advice (PEP8 have not foreseen that certain imports will be very expensive)
-  # DON'T DO THAT - import them locally instead (see below)
+  # Expensive imports should be avoided as top level imports, because DAG files are parsed frequently, resulting in top-level code being executed.
   #
   # import pandas
   # import torch
