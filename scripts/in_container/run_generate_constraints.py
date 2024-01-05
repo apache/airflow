@@ -358,7 +358,7 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     core_dependencies = get_core_airflow_dependencies()
     uninstall_all_packages(config_params)
     console.print(
-        f"[bright_blue]Installing airflow with [{core_dependencies}] extras only " f"with eager upgrade."
+        f"[bright_blue]Installing airflow with [{core_dependencies}] extras only with eager upgrade."
     )
     install_local_airflow_with_eager_upgrade(
         config_params, config_params.eager_upgrade_additional_requirements, core_dependencies

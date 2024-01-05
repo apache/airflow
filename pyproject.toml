@@ -62,6 +62,7 @@ extend-select = [
     "TCH",  # Rules around TYPE_CHECKING blocks
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
 ]
 extend-ignore = [
     "D203",
