@@ -118,13 +118,14 @@ class HttpHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms.fields import SelectField, TextAreaField
 
-        default_auth_type = frozenset({""})
-        auth_types_choices = default_auth_type | get_auth_types()
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
         return {
             "auth_type": SelectField(
                 lazy_gettext("Auth type"),
                 choices=[(clazz, clazz) for clazz in auth_types_choices],
                 widget=Select2Widget(),
+                default=default_auth_type
             ),
             "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
             "headers": TextAreaField(
