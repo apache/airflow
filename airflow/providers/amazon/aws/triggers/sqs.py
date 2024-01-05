@@ -59,7 +59,7 @@ class SqsSensorTrigger(BaseTrigger):
     def __init__(
         self,
         sqs_queue: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         max_messages: int = 5,
         num_batches: int = 1,
         wait_time_seconds: int = 1,
@@ -69,9 +69,11 @@ class SqsSensorTrigger(BaseTrigger):
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
         waiter_delay: int = 60,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.sqs_queue = sqs_queue
-        self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
         self.num_batches = num_batches
         self.wait_time_seconds = wait_time_seconds
@@ -81,6 +83,11 @@ class SqsSensorTrigger(BaseTrigger):
         self.message_filtering_match_values = message_filtering_match_values
         self.message_filtering_config = message_filtering_config
         self.waiter_delay = waiter_delay
+
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -97,12 +104,20 @@ class SqsSensorTrigger(BaseTrigger):
                 "message_filtering_match_values": self.message_filtering_match_values,
                 "message_filtering_config": self.message_filtering_config,
                 "waiter_delay": self.waiter_delay,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @property
     def hook(self) -> SqsHook:
-        return SqsHook(aws_conn_id=self.aws_conn_id)
+        return SqsHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def poll_sqs(self, client: BaseAwsConnection) -> Collection:
         """
