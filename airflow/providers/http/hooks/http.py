@@ -127,7 +127,16 @@ class HttpHook(BaseHook):
                 widget=Select2Widget(),
             ),
             "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
-            "headers": TextAreaField(lazy_gettext("Headers"), widget=BS3TextAreaFieldWidget()),
+            "headers": TextAreaField(
+                lazy_gettext("Headers"),
+                description=(
+                    "Warning: "
+                    "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "will be removed in a future version of the Http provider. Use the 'Headers' "
+                    "field instead."
+                ),
+                widget=BS3TextAreaFieldWidget(),
+            ),
         }
 
     # headers may be passed through directly or in the "extra" field in the connection
