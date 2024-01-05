@@ -42,8 +42,8 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsQueuedTask,
     EcsTaskCollection,
 )
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import exponential_backoff_retry
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.amazon.aws.utils.exponential_backoff_retry import exponential_backoff_retry
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -128,11 +128,11 @@ class AwsEcsExecutor(BaseExecutor):
         Make a test API call to check the health of the ECS Executor.
 
         Deliberately use an invalid task ID, some potential outcomes in order:
-          1. "AccessDeniedException" is raised if there are insufficient permissions.
-          2. "ClusterNotFoundException" is raised if permissions exist but the cluster does not.
+          1. `AccessDeniedException` is raised if there are insufficient permissions.
+          2. `ClusterNotFoundException` is raised if permissions exist but the cluster does not.
           3. The API responds with a failure message if the cluster is found and there
              are permissions, but the cluster itself has issues.
-          4. "InvalidParameterException" is raised if the permissions and cluster exist but the task does not.
+          4. `InvalidParameterException` is raised if the permissions and cluster exist but the task does not.
 
         The last one is considered a success state for the purposes of this check.
         """

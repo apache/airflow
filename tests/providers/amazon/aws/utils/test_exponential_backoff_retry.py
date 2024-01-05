@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.utils.exponential_backoff_retry import exponential_backoff_retry
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import exponential_backoff_retry
 
 
 class TestExponentialBackoffRetry:
@@ -111,6 +111,7 @@ class TestExponentialBackoffRetry:
         self, mock_utcnow, attempt_number, utcnow_value, expected_calls
     ):
         mock_callable_function = mock.Mock()
+        mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = Exception()
         mock_utcnow.return_value = utcnow_value
 
@@ -124,6 +125,7 @@ class TestExponentialBackoffRetry:
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_exponential_backoff_retry_fail_success(self, mock_utcnow, caplog):
         mock_callable_function = mock.Mock()
+        mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = [Exception(), True]
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 2)
         exponential_backoff_retry(
@@ -146,6 +148,7 @@ class TestExponentialBackoffRetry:
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_exponential_backoff_retry_max_delay(self, mock_utcnow):
         mock_callable_function = mock.Mock()
+        mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.return_value = Exception()
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 4, 15)
         exponential_backoff_retry(
@@ -177,6 +180,7 @@ class TestExponentialBackoffRetry:
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_exponential_backoff_retry_max_attempts(self, mock_utcnow, caplog):
         mock_callable_function = mock.Mock()
+        mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.return_value = Exception()
         mock_utcnow.return_value = datetime(2023, 1, 1, 12, 55, 0)
         for i in range(10):
@@ -264,6 +268,7 @@ class TestExponentialBackoffRetry:
         self, mock_utcnow, attempt_number, utcnow_value, expected_calls
     ):
         mock_callable_function = mock.Mock()
+        mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = Exception()
         mock_utcnow.return_value = utcnow_value
 
