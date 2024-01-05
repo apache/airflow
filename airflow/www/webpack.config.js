@@ -60,7 +60,6 @@ const config = {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
     chart: [`${CSS_DIR}/chart.css`],
-    connection: [`${CSS_DIR}/connection.css`],
     dag: `${JS_DIR}/dag.js`,
     dagDependencies: `${JS_DIR}/dag_dependencies.js`,
     dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
