@@ -54,14 +54,14 @@ class AwsToAwsBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        source_aws_conn_id: str | None = AwsBaseHook.default_conn_name,
-        dest_aws_conn_id: str | None | ArgNotSet = NOTSET,
-        aws_conn_id: str | None | ArgNotSet = NOTSET,
+        source_aws_conn_id: str = AwsBaseHook.default_conn_name,
+        dest_aws_conn_id: str | ArgNotSet = NOTSET,
+        aws_conn_id: str | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
+        super().__init__(**kwargs)
         self.source_aws_conn_id = source_aws_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
-        super().__init__(**kwargs)
         if not isinstance(aws_conn_id, ArgNotSet):
             warnings.warn(_DEPRECATION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
             self.source_aws_conn_id = aws_conn_id
