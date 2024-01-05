@@ -5450,7 +5450,6 @@ class TaskInstanceModelView(AirflowModelView):
         "action_clear": "edit",
         "action_clear_downstream": "edit",
         "action_muldelete": "delete",
-        "action_set_running": "edit",
         "action_set_failed": "edit",
         "action_set_success": "edit",
         "action_set_retry": "edit",
@@ -5726,15 +5725,6 @@ class TaskInstanceModelView(AirflowModelView):
             flash(f"{count} task instances were set to '{target_state}'")
         except Exception:
             flash("Failed to set state", "error")
-
-    @action("set_running", "Set state to 'running'", "", single=False)
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
-    def action_set_running(self, tis):
-        """Set state to 'running'."""
-        self.set_task_instance_state(tis, TaskInstanceState.RUNNING)
-        self.update_redirect()
-        return redirect(self.get_redirect())
 
     @action("set_failed", "Set state to 'failed'", "", single=False)
     @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)
