@@ -149,7 +149,7 @@ On **all operating systems**, you need to run database migrations and create the
 
 .. code-block:: bash
 
-    docker compose up airflow-init
+    docker compose run airflow-init
 
 After initialization is complete, you should see a message like this:
 
