@@ -22,23 +22,6 @@
       "additionalProperties": {
         "type": "string"
       }
-    },
-    "collapsible_fields": {
-      "description": "List of collapsed fields for the hook, with their properties.",
-      "type": "object",
-      "patternProperties": {
-        "\"^.*$\"": {
-          "description": "Name of the field to enable collapsing.",
-          "type": "object",
-          "properties": {
-            "expanded": {
-              "description": "Set the default state of the field as expanded.",
-              "default": true,
-              "type": "boolean"
-            }
-          }
-        }
-      }
     }
   },
   "additionalProperties": true,
