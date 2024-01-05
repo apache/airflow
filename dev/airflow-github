@@ -319,7 +319,8 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 @click.argument("previous_version")
 @click.argument("target_version")
 @click.argument("github-token", envvar="GITHUB_TOKEN")
-def changelog(previous_version, target_version, github_token):
+@click.option("--disable-progress", is_flag=True, help="Disable the progress bar")
+def changelog(previous_version, target_version, github_token, disable_progress):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
     log = get_commits_between(repo, previous_version, target_version)
@@ -333,8 +334,6 @@ def changelog(previous_version, target_version, github_token):
             if match:
                 existing_commits.add(match.group(1))
 
-    # To disable the progress bar, set to True
-    disable_progress = False
     console = Console(width=180)
 
     with Progress(console=console, disable=disable_progress) as progress:
