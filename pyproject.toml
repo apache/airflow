@@ -63,6 +63,7 @@ extend-select = [
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "B006", # Checks for uses of mutable objects as function argument defaults.
 ]
 extend-ignore = [
     "D203",

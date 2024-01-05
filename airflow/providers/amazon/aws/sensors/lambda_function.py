@@ -58,13 +58,13 @@ class LambdaFunctionStateSensor(AwsBaseSensor[LambdaHook]):
         *,
         function_name: str,
         qualifier: str | None = None,
-        target_states: list = ["Active"],
+        target_states: list | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.function_name = function_name
         self.qualifier = qualifier
-        self.target_states = target_states
+        self.target_states = target_states or ["Active"]
 
     def poke(self, context: Context) -> bool:
         get_function_args = {
