@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-05T17:59:39.075797
+# This constraints file was automatically generated on 2024-01-05T19:59:31.172252
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -267,7 +267,6 @@ debugpy==1.8.0
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.15.0
-deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
@@ -420,7 +419,7 @@ linkify-it-py==2.0.2
 lockfile==0.12.2
 loguru==0.7.2
 looker-sdk==23.20.1
-lxml==5.0.0
+lxml==5.0.1
 lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.0.1
@@ -490,7 +489,7 @@ parso==0.8.3
 pathable==0.4.3
 pathspec==0.12.1
 pbr==6.0.0
-pdpyras==5.1.3
+pdpyras==5.2.0
 pendulum==2.1.2
 pexpect==4.9.0
 pgvector==0.2.4
@@ -575,7 +574,7 @@ reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
 redshift-connector==2.0.918
-referencing==0.32.0
+referencing==0.32.1
 regex==2023.12.25
 requests-file==1.5.1
 requests-kerberos==0.14.0
