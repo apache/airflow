@@ -2232,7 +2232,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        dag_ids: list[str] = [],
+        dag_ids: list[str] | None = None,
     ) -> None:
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
