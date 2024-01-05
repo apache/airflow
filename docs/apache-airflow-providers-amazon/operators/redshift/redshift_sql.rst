@@ -35,7 +35,7 @@ Operators
 Execute a SQL query
 ===================
 
-The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against an Amazon Redshift cluster using a `Redshift connection <../../connections/redshift.rst>`_.
+The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against an Amazon Redshift cluster using a `Redshift connection <../../connections/redshift.html>`_.
 
 To execute a SQL query against an Amazon Redshift cluster without using a Redshift connection,
 please check ``RedshiftDataOperator``.
