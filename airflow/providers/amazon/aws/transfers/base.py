@@ -54,9 +54,9 @@ class AwsToAwsBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        source_aws_conn_id: str = AwsBaseHook.default_conn_name,
-        dest_aws_conn_id: str | ArgNotSet = NOTSET,
-        aws_conn_id: str | ArgNotSet = NOTSET,
+        source_aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        dest_aws_conn_id: str | None | ArgNotSet = NOTSET,
+        aws_conn_id: str | None | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,7 +67,6 @@ class AwsToAwsBaseOperator(BaseOperator):
             self.source_aws_conn_id = aws_conn_id
         else:
             self.source_aws_conn_id = source_aws_conn_id
-
         if isinstance(dest_aws_conn_id, ArgNotSet):
             self.dest_aws_conn_id = self.source_aws_conn_id
         else:

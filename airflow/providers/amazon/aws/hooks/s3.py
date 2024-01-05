@@ -40,6 +40,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from airflow.utils.types import ArgNotSet
+
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
@@ -167,7 +169,7 @@ class S3Hook(AwsBaseHook):
 
     def __init__(
         self,
-        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
         transfer_config_args: dict | None = None,
         extra_args: dict | None = None,
         *args,
