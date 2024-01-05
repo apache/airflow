@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import operator
-from typing import TYPE_CHECKING, Iterator
+from typing import Iterator
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -35,7 +35,6 @@ from flask_wtf import FlaskForm
 from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
-from wtforms.widgets.core import html_params
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -49,9 +48,6 @@ from airflow.www.widgets import (
     BS3TextAreaROWidget,
     BS3TextFieldROWidget,
 )
-
-if TYPE_CHECKING:
-    from markupsafe import Markup
 
 
 class DateTimeWithTimezoneField(Field):
@@ -198,67 +194,6 @@ class TaskInstanceEditForm(DynamicForm):
                 field.populate_obj(item, name)
 
 
-class BS3CollapsibleWidgetMixin:
-    """Implement an accordion/collapsible, which allows to hide the field."""
-
-    _collapsible: bool = False  # Hide the accordion button and collapsible panel
-    _expanded: bool = True  # Display the collapsible content
-
-    @classmethod
-    def _make_accordion_panel(cls, field: Field, content: Markup) -> str:
-        collapsible_id: str = f"collapsible_{field.id}"
-        return f"""
-        <div {html_params(
-                class_="panel panel-default form-panel"
-                + " panel-invisible" if not cls._collapsible else ""
-            )}>
-            <div {html_params(
-                    class_="panel-heading"
-                    + " hidden" if not cls._collapsible else ""
-                )}>
-                <h4 {html_params(class_="panel-title")}>
-                    <a {html_params(
-                            class_="accordion-toggle",
-                            id="control_" + collapsible_id,
-                            data_toggle="collapse",
-                            aria_expanded=cls._expanded,
-                            aria_controls=collapsible_id,
-                            href='#' + collapsible_id
-                        )}>
-                            Show <span {html_params(class_="caret")}></span>
-                        </a>
-                </h4>
-            </div>
-            <div {html_params(
-                    class_=(
-                        "panel-collapse collapse"
-                        + " in" if cls._expanded else ""
-                    ),
-                    id=collapsible_id,
-                    aria_expanded=cls._expanded
-                )}>
-                {content.__html__()}
-            </div>
-        </div>
-        """
-
-    def __call__(self, field, **kwargs):
-        content = super().__call__(field, **kwargs)
-        return self._make_accordion_panel(field=field, content=content)
-
-
-class BS3CollapsibleTextAreaFieldWidget(BS3CollapsibleWidgetMixin, BS3TextAreaFieldWidget):
-    """Collapsible TextArea Field Widget."""
-
-
-class BS3CollapsibleTextFieldWidget(BS3CollapsibleWidgetMixin, BS3TextFieldWidget):
-    """Collapsible Text Field Widget."""
-
-
-class BS3CollapsiblePasswordFieldWidget(BS3CollapsibleWidgetMixin, BS3PasswordFieldWidget):
-    """Collapsible Password Field Widget."""
-
-
 @cache
 def create_connection_form_class() -> type[DynamicForm]:
     """Create a form class for editing and adding Connection.
@@ -299,15 +234,13 @@ def create_connection_form_class() -> type[DynamicForm]:
                 "corresponding Airflow Provider Package."
             ),
         )
-        description = StringField(lazy_gettext("Description"), widget=BS3CollapsibleTextAreaFieldWidget())
-        host = StringField(lazy_gettext("Host"), widget=BS3CollapsibleTextFieldWidget())
-        schema = StringField(lazy_gettext("Schema"), widget=BS3CollapsibleTextFieldWidget())
-        login = StringField(lazy_gettext("Login"), widget=BS3CollapsibleTextFieldWidget())
-        password = PasswordField(lazy_gettext("Password"), widget=BS3CollapsiblePasswordFieldWidget())
-        port = IntegerField(
-            lazy_gettext("Port"), validators=[Optional()], widget=BS3CollapsibleTextFieldWidget()
-        )
-        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3CollapsibleTextAreaFieldWidget())
+        description = StringField(lazy_gettext("Description"), widget=BS3TextAreaFieldWidget())
+        host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget())
+        schema = StringField(lazy_gettext("Schema"), widget=BS3TextFieldWidget())
+        login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
+        password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
+        port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
+        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
 
     for key, value in providers_manager.connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)

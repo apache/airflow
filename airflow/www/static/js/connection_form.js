@@ -88,23 +88,6 @@ function restoreFieldBehaviours() {
     elem.placeholder = "";
     elem.parentElement.parentElement.classList.remove("hide");
   });
-
-  Array.from(document.querySelectorAll(".form-panel")).forEach((elem) => {
-    elem.parentElement.parentElement.classList.remove("hide");
-
-    elem.classList.add("panel-invisible");
-    const panelHeader = elem.children[0];
-    panelHeader.classList.add("hidden");
-    panelHeader.firstElementChild.firstElementChild.setAttribute(
-      "aria-expanded",
-      "true"
-    );
-
-    const collapsible = elem.children[1];
-    collapsible.setAttribute("aria-expanded", "true");
-    collapsible.classList.add("in");
-    collapsible.style.height = null;
-  });
 }
 
 /**
@@ -118,7 +101,7 @@ function applyFieldBehaviours(connection) {
     if (Array.isArray(connection.hidden_fields)) {
       connection.hidden_fields.forEach((field) => {
         document
-          .querySelector(`label[for='${field}']`)
+          .getElementById(field)
           .parentElement.parentElement.classList.add("hide");
       });
     }
@@ -135,26 +118,6 @@ function applyFieldBehaviours(connection) {
       Object.keys(connection.placeholders).forEach((field) => {
         const placeholder = connection.placeholders[field];
         document.getElementById(field).placeholder = placeholder;
-      });
-    }
-
-    if (connection.collapsible_fields) {
-      Object.entries(connection.collapsible_fields).forEach((entry) => {
-        const [field, properties] = entry;
-
-        const collapsibleController = document.getElementById(
-          `control_collapsible_${field}`
-        );
-        const panelHeader = collapsibleController.parentElement.parentElement;
-        panelHeader.classList.remove("hidden");
-        panelHeader.parentElement.classList.remove("panel-invisible");
-
-        if (properties.expanded === false) {
-          const collapsible = document.getElementById(`collapsible_${field}`);
-          collapsible.classList.remove("in");
-          collapsible.setAttribute("aria-expanded", "false");
-          collapsibleController.setAttribute("aria-expanded", "false");
-        }
       });
     }
   }

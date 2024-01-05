@@ -130,10 +130,6 @@ class HttpHook(BaseHook):
             "headers": TextAreaField(lazy_gettext("Headers"), widget=BS3TextAreaFieldWidget()),
         }
 
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        return {"hidden_fields": [], "relabeling": {}, "collapsible_fields": {"extra": {"expanded": False}}}
-
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
