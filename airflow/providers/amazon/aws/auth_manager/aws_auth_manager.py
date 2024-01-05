@@ -92,7 +92,7 @@ class AwsAuthManager(BaseAuthManager):
         user: BaseUser | None = None,
     ) -> bool:
         config_section = details.section if details else None
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CONFIGURATION,
             user=user or self.get_user(),
@@ -107,7 +107,7 @@ class AwsAuthManager(BaseAuthManager):
         user: BaseUser | None = None,
     ) -> bool:
         connection_id = details.conn_id if details else None
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CONNECTION,
             user=user or self.get_user(),
@@ -122,13 +122,29 @@ class AwsAuthManager(BaseAuthManager):
         details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.is_logged_in()
+        dag_id = details.id if details else None
+        context = (
+            None
+            if access_entity is None
+            else {
+                "dag_entity": {
+                    "string": access_entity.value,
+                },
+            }
+        )
+        return self.is_logged_in() and self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.DAG,
+            user=user or self.get_user(),
+            entity_id=dag_id,
+            context=context,
+        )
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         dataset_uri = details.uri if details else None
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.DATASET,
             user=user or self.get_user(),
@@ -139,7 +155,7 @@ class AwsAuthManager(BaseAuthManager):
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         pool_name = details.name if details else None
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.POOL,
             user=user or self.get_user(),
@@ -150,7 +166,7 @@ class AwsAuthManager(BaseAuthManager):
         self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         variable_key = details.key if details else None
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.VARIABLE,
             user=user or self.get_user(),
@@ -163,7 +179,7 @@ class AwsAuthManager(BaseAuthManager):
         access_view: AccessView,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.avp_facade.is_authorized(
+        return self.is_logged_in() and self.avp_facade.is_authorized(
             method="GET",
             entity_type=AvpEntities.VIEW,
             user=user or self.get_user(),

@@ -25,27 +25,27 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.utils.helpers import prune_dict
 from tests.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
 
+REGION_NAME = "us-east-1"
 AVP_POLICY_STORE_ID = "store_id"
 
 test_user = AwsAuthManagerUser(user_id="test_user", groups=["group1", "group2"])
 test_user_no_group = AwsAuthManagerUser(user_id="test_user_no_group", groups=[])
 
 
-def simple_entity_fetcher():
-    return [
-        {"identifier": {"entityType": "Airflow::Variable", "entityId": "var1"}},
-        {"identifier": {"entityType": "Airflow::Variable", "entityId": "var2"}},
-    ]
-
-
 @pytest.fixture
 def facade():
-    return AwsAuthManagerAmazonVerifiedPermissionsFacade()
+    with conf_vars(
+        {
+            ("aws_auth_manager", "region_name"): REGION_NAME,
+        }
+    ):
+        yield AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
 
 class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
@@ -61,13 +61,13 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             assert hasattr(facade, "avp_policy_store_id")
 
     @pytest.mark.parametrize(
-        "entity_id, user, entity_fetcher, expected_entities, avp_response, expected",
+        "entity_id, context, user, expected_entities, expected_context, avp_response, expected",
         [
             # User with groups with no permissions
             (
                 None,
-                test_user,
                 None,
+                test_user,
                 [
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
@@ -83,14 +83,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                         "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
                     },
                 ],
+                None,
                 {"decision": "DENY"},
                 False,
             ),
             # User with groups with permissions
             (
                 "dummy_id",
-                test_user,
                 None,
+                test_user,
                 [
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
@@ -106,57 +107,53 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                         "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
                     },
                 ],
+                None,
                 {"decision": "ALLOW"},
                 True,
             ),
             # User without group without permission
             (
                 None,
-                test_user_no_group,
                 None,
+                test_user_no_group,
                 [
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user_no_group"},
                         "parents": [],
                     },
                 ],
+                None,
                 {"decision": "DENY"},
                 False,
             ),
-            # With entity fetcher but no resource ID
+            # With context
             (
-                None,
-                test_user_no_group,
-                simple_entity_fetcher,
+                "dummy_id",
+                {"context_param": {"string": "value"}},
+                test_user,
                 [
                     {
-                        "identifier": {"entityType": "Airflow::User", "entityId": "test_user_no_group"},
-                        "parents": [],
+                        "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
+                        "parents": [
+                            {"entityType": "Airflow::Role", "entityId": "group1"},
+                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                        ],
                     },
-                ],
-                {"decision": "DENY"},
-                False,
-            ),
-            # With entity fetcher and resource ID
-            (
-                "resource_id",
-                test_user_no_group,
-                simple_entity_fetcher,
-                [
                     {
-                        "identifier": {"entityType": "Airflow::User", "entityId": "test_user_no_group"},
-                        "parents": [],
+                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
                     },
-                    {"identifier": {"entityType": "Airflow::Variable", "entityId": "var1"}},
-                    {"identifier": {"entityType": "Airflow::Variable", "entityId": "var2"}},
+                    {
+                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                    },
                 ],
-                {"decision": "DENY"},
-                False,
+                {"contextMap": {"context_param": {"string": "value"}}},
+                {"decision": "ALLOW"},
+                True,
             ),
         ],
     )
     def test_is_authorized_successful(
-        self, facade, entity_id, user, entity_fetcher, expected_entities, avp_response, expected
+        self, facade, entity_id, context, user, expected_entities, expected_context, avp_response, expected
     ):
         mock_is_authorized = Mock(return_value=avp_response)
         facade.avp_client.is_authorized = mock_is_authorized
@@ -174,16 +171,21 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 entity_type=entity_type,
                 entity_id=entity_id,
                 user=user,
-                entity_fetcher=entity_fetcher,
+                context=context,
             )
 
-        mock_is_authorized.assert_called_once_with(
-            policyStoreId=AVP_POLICY_STORE_ID,
-            principal={"entityType": "Airflow::User", "entityId": user.get_id()},
-            action={"actionType": "Airflow::Action", "actionId": get_action_id(entity_type, method)},
-            resource={"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
-            entities={"entityList": expected_entities},
+        params = prune_dict(
+            {
+                "policyStoreId": AVP_POLICY_STORE_ID,
+                "principal": {"entityType": "Airflow::User", "entityId": user.get_id()},
+                "action": {"actionType": "Airflow::Action", "actionId": get_action_id(entity_type, method)},
+                "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
+                "entities": {"entityList": expected_entities},
+                "context": expected_context,
+            }
         )
+
+        mock_is_authorized.assert_called_once_with(**params)
 
         assert result == expected
 
