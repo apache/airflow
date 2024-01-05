@@ -42,7 +42,7 @@ def upgrade():
     log = logging.getLogger()
     handlers = log.handlers[:]
 
-    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).app.appbuilder
     roles_to_modify = [role for role in appbuilder.sm.get_all_roles() if role.name in ["User", "Viewer"]]
     can_read_on_config_perm = appbuilder.sm.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG
@@ -59,7 +59,7 @@ def upgrade():
 
 def downgrade():
     """Add can_read action on config resource for User and Viewer role"""
-    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).app.appbuilder
     roles_to_modify = [role for role in appbuilder.sm.get_all_roles() if role.name in ["User", "Viewer"]]
     can_read_on_config_perm = appbuilder.sm.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG
