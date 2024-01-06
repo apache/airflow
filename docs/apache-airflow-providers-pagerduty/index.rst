@@ -49,6 +49,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections/index>
     Pagerduty Notifications <notifications/pagerduty_notifier_howto_guide>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
