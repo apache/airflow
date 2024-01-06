@@ -1633,6 +1633,20 @@ webserver:
       type: string
       example: ~
       default: "#51504f"
+    navbar_hover_color:
+      description: |
+        Define the color of navigation bar links when hovered
+      version_added: 2.8.1
+      type: string
+      example: ~
+      default: "#eee"
+    navbar_text_hover_color:
+      description: |
+        Define the color of text in the navigation bar when hovered
+      version_added: 2.8.1
+      type: string
+      example: ~
+      default: "#51504f"
     default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
