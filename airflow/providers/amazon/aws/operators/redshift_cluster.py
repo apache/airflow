@@ -538,7 +538,13 @@ class RedshiftResumeClusterOperator(BaseOperator):
 
         if self.deferrable:
             cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-            if cluster_state == "paused":
+            if cluster_state == "available":
+                self.log.info("Resumed cluster successfully")
+            elif cluster_state == "deleting":
+                raise AirflowException(
+                    "Unable to resume cluster since cluster is currently in status: %s", cluster_state
+                )
+            else:
                 self.defer(
                     trigger=RedshiftResumeClusterTrigger(
                         cluster_identifier=self.cluster_identifier,
@@ -551,10 +557,6 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                     timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                 )
-
-            self.log.warning(
-                "Unable to resume cluster since cluster is currently in status: %s", cluster_state
-            )
 
         if self.wait_for_completion:
             waiter = redshift_hook.get_waiter("cluster_resumed")
@@ -636,7 +638,13 @@ class RedshiftPauseClusterOperator(BaseOperator):
                     raise error
         if self.deferrable:
             cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-            if cluster_state == "available":
+            if cluster_state == "paused":
+                self.log.info("Paused cluster successfully")
+            elif cluster_state == "deleting":
+                raise AirflowException(
+                    f"Unable to pause cluster since cluster is currently in status: {cluster_state}"
+                )
+            else:
                 self.defer(
                     trigger=RedshiftPauseClusterTrigger(
                         cluster_identifier=self.cluster_identifier,
@@ -649,10 +657,6 @@ class RedshiftPauseClusterOperator(BaseOperator):
                     # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                     timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                 )
-
-            self.log.warning(
-                "Unable to pause cluster since cluster is currently in status: %s", cluster_state
-            )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event is None:
@@ -737,7 +741,13 @@ class RedshiftDeleteClusterOperator(BaseOperator):
 
         if self.deferrable:
             cluster_state = self.redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-            if cluster_state == "available":
+            if cluster_state == "cluster_not_found":
+                self.log.info("Cluster deleted successfully")
+            elif cluster_state in ("creating", "modifying"):
+                raise AirflowException(
+                    f"Unable to delete cluster since cluster is currently in status: {cluster_state}"
+                )
+            else:
                 self.defer(
                     timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                     trigger=RedshiftDeleteClusterTrigger(
@@ -748,14 +758,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                     ),
                     method_name="execute_complete",
                 )
-            elif cluster_state == "cluster_not_found":
-                self.log.warning(
-                    "Unable to delete cluster since cluster is not found. It may have already been deleted"
-                )
 
-            raise AirflowException(
-                "Unable to delete cluster since cluster is currently in status: %s", cluster_state
-            )
         elif self.wait_for_completion:
             waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")
             waiter.wait(
@@ -763,8 +766,13 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": self.max_attempts},
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            err_msg = "Trigger error: event is None"
+            self.log.info(err_msg)
+            raise AirflowException(err_msg)
+
         if event["status"] != "success":
             raise AirflowException(f"Error deleting cluster: {event}")
-        else:
-            self.log.info("Cluster deleted successfully")
+
+        self.log.info("Cluster deleted successfully")

@@ -329,11 +329,12 @@ class TestResumeClusterOperator:
         ), "Trigger is not a RedshiftResumeClusterTrigger"
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftResumeClusterOperator.defer")
+    @mock.patch.object(RedshiftHook, "cluster_status")
     @mock.patch.object(RedshiftHook, "conn")
-    def test_resume_cluster_deferrable_in_available_state(self, mock_conn, mock_defer):
+    def test_resume_cluster_deferrable_in_deleting_state(self, mock_conn, mock_cluster_status, mock_defer):
         """Test Resume cluster operator deferrable"""
         mock_conn.resume_cluster.return_value = True
-        mock_conn.cluster_status.return_value == "available"
+        mock_cluster_status.return_value = "deleting"
 
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test",
@@ -342,7 +343,8 @@ class TestResumeClusterOperator:
             deferrable=True,
         )
 
-        redshift_operator.execute({})
+        with pytest.raises(AirflowException):
+            redshift_operator.execute({})
         assert not mock_defer.called
 
     @mock.patch.object(RedshiftHook, "get_waiter")
@@ -454,17 +456,21 @@ class TestPauseClusterOperator:
         ), "Trigger is not a RedshiftPauseClusterTrigger"
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftPauseClusterOperator.defer")
+    @mock.patch.object(RedshiftHook, "cluster_status")
     @mock.patch.object(RedshiftHook, "get_conn")
-    def test_pause_cluster_deferrable_mode_in_modifying_status(self, mock_get_conn, mock_defer):
+    def test_pause_cluster_deferrable_mode_in_deleting_status(
+        self, mock_get_conn, mock_cluster_status, mock_defer
+    ):
         """Test Pause cluster operator with defer when deferrable param is true"""
         mock_get_conn.return_value.pause_cluster.return_value = True
-        mock_get_conn.return_value.cluster_status.return_value = "modifying"
+        mock_cluster_status.return_value = "deleting"
 
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", deferrable=True
         )
 
-        redshift_operator.execute(context=None)
+        with pytest.raises(AirflowException):
+            redshift_operator.execute(context=None)
         assert not mock_defer.called
 
     def test_pause_cluster_execute_complete_success(self):
@@ -586,7 +592,7 @@ class TestDeleteClusterOperator:
     ):
         """Test delete cluster operator with defer when deferrable param is true"""
         mock_delete_cluster.return_value = True
-        mock_cluster_status.return_value = "paused"
+        mock_cluster_status.return_value = "creating"
         delete_cluster = RedshiftDeleteClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
