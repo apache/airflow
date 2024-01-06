@@ -174,7 +174,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -249,7 +249,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     if handler is not None:
                         raw_result = handler(cur)
                         if self.return_tuple:

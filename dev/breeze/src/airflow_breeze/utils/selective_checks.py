@@ -564,6 +564,43 @@ class SelectiveChecks:
             return False
 
     @cached_property
+    def mypy_packages(self) -> list[str]:
+        packages_to_run: list[str] = []
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("airflow")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self._are_all_providers_affected()
+        ) and self._default_branch == "main":
+            packages_to_run.append("airflow/providers")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("docs")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("dev")
+        return packages_to_run
+
+    @cached_property
+    def needs_mypy(self) -> bool:
+        return self.mypy_packages != []
+
+    @cached_property
     def needs_python_scans(self) -> bool:
         return self._should_be_run(FileGroupForCi.PYTHON_PRODUCTION_FILES)
 
@@ -802,6 +839,14 @@ class SelectiveChecks:
     def skip_pre_commits(self) -> str:
         pre_commits_to_skip = set()
         pre_commits_to_skip.add("identity")
+        # Skip all mypy "individual" file checks if we are running mypy checks in CI
+        # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
+        # The pre-commit will semi-randomly skip such list of files into several groups and we want
+        # to make sure that such checks are always run in CI for whole "group" of files - i.e.
+        # whole package rather than for individual files. That's why we skip those checks in CI
+        # and run them via `mypy-all` command instead and dedicated CI job in matrix
+        # This will also speed up static-checks job usually as the jobs will be running in parallel
+        pre_commits_to_skip.update({"mypy-providers", "mypy-core", "mypy-docs", "mypy-dev"})
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
@@ -810,29 +855,13 @@ class SelectiveChecks:
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
                     "lint-helm-chart",
-                    "mypy-providers",
                 )
             )
+
         if self.full_tests_needed:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-providers")
-        if not self._matching_files(
-            FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-core")
-        if not self._matching_files(
-            FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-docs")
-        if not self._matching_files(
-            FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-dev")
         if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not self._matching_files(
