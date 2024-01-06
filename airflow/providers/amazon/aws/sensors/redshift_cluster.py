@@ -25,7 +25,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterSensorTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
         elif not self.poke(context):
             self.defer(
                 timeout=timedelta(seconds=self.timeout),
-                trigger=RedshiftClusterSensorTrigger(
+                trigger=RedshiftClusterTrigger(
                     aws_conn_id=self.aws_conn_id,
                     cluster_identifier=self.cluster_identifier,
                     target_status=self.target_status,

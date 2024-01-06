@@ -266,9 +266,9 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
 
-class RedshiftClusterSensorTrigger(BaseTrigger):
+class RedshiftClusterTrigger(BaseTrigger):
     """
-    RedshiftClusterSensorTrigger is fired as deferred class with params to run the task in trigger worker.
+    RedshiftClusterTrigger is fired as deferred class with params to run the task in trigger worker.
 
     :param aws_conn_id: Reference to AWS connection id for redshift
     :param cluster_identifier: unique identifier of a cluster
@@ -290,9 +290,9 @@ class RedshiftClusterSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes RedshiftClusterSensorTrigger arguments and classpath."""
+        """Serializes RedshiftClusterTrigger arguments and classpath."""
         return (
-            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSensorTrigger",
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger",
             {
                 "aws_conn_id": self.aws_conn_id,
                 "cluster_identifier": self.cluster_identifier,

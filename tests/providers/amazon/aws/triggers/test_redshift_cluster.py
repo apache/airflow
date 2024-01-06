@@ -23,29 +23,27 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
-    RedshiftClusterSensorTrigger,
+    RedshiftClusterTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
 POLLING_PERIOD_SECONDS = 1.0
 
 
-class TestRedshiftClusterSensorTrigger:
+class TestRedshiftClusterTrigger:
     def test_redshift_cluster_sensor_trigger_serialization(self):
         """
-        Asserts that the RedshiftClusterSensorTrigger correctly serializes its arguments
+        Asserts that the RedshiftClusterTrigger correctly serializes its arguments
         and classpath.
         """
-        trigger = RedshiftClusterSensorTrigger(
+        trigger = RedshiftClusterTrigger(
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
             poke_interval=POLLING_PERIOD_SECONDS,
         )
         classpath, kwargs = trigger.serialize()
-        assert (
-            classpath == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSensorTrigger"
-        )
+        assert classpath == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger"
         assert kwargs == {
             "aws_conn_id": "test_redshift_conn_id",
             "cluster_identifier": "mock_cluster_identifier",
@@ -63,10 +61,10 @@ class TestRedshiftClusterSensorTrigger:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
     async def test_redshift_cluster_sensor_trigger_success(self, mock_cluster_status, expected_result):
         """
-        Test RedshiftClusterSensorTrigger with the success status
+        Test RedshiftClusterTrigger with the success status
         """
         mock_cluster_status.return_value = expected_result
-        trigger = RedshiftClusterSensorTrigger(
+        trigger = RedshiftClusterTrigger(
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
@@ -88,9 +86,9 @@ class TestRedshiftClusterSensorTrigger:
     async def test_redshift_cluster_sensor_trigger_resuming_status(
         self, mock_cluster_status, expected_result
     ):
-        """Test RedshiftClusterSensorTrigger with the success status"""
+        """Test RedshiftClusterTrigger with the success status"""
         mock_cluster_status.return_value = expected_result
-        trigger = RedshiftClusterSensorTrigger(
+        trigger = RedshiftClusterTrigger(
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",
@@ -108,9 +106,9 @@ class TestRedshiftClusterSensorTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
     async def test_redshift_cluster_sensor_trigger_exception(self, mock_cluster_status):
-        """Test RedshiftClusterSensorTrigger with exception"""
+        """Test RedshiftClusterTrigger with exception"""
         mock_cluster_status.side_effect = Exception("Test exception")
-        trigger = RedshiftClusterSensorTrigger(
+        trigger = RedshiftClusterTrigger(
             aws_conn_id="test_redshift_conn_id",
             cluster_identifier="mock_cluster_identifier",
             target_status="available",

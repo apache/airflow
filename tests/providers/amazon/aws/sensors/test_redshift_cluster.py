@@ -24,7 +24,7 @@ from moto import mock_redshift
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterSensorTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 
 MODULE = "airflow.providers.amazon.aws.sensors.redshift_cluster"
 
@@ -109,13 +109,13 @@ class TestRedshiftClusterSensor:
     @mock.patch(f"{MODULE}.RedshiftClusterSensor.poke", return_value=False)
     def test_execute(self, mock_poke, deferrable_op):
         """Test RedshiftClusterSensor that a task with wildcard=True
-        is deferred and an RedshiftClusterSensorTrigger will be fired when executed method is called"""
+        is deferred and an RedshiftClusterTrigger will be fired when executed method is called"""
 
         with pytest.raises(TaskDeferred) as exc:
             deferrable_op.execute(None)
         assert isinstance(
-            exc.value.trigger, RedshiftClusterSensorTrigger
-        ), "Trigger is not a RedshiftClusterSensorTrigger"
+            exc.value.trigger, RedshiftClusterTrigger
+        ), "Trigger is not a RedshiftClusterTrigger"
 
     def test_redshift_sensor_async_execute_failure(self, deferrable_op):
         """Test RedshiftClusterSensor with an AirflowException is raised in case of error event"""
