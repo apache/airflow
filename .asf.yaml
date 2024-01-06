@@ -37,7 +37,6 @@ github:
     - mlops
     - orchestration
     - python
-    - task-scheduler
     - scheduler
     - workflow
     - workflow-engine
