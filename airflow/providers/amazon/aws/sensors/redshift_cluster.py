@@ -90,7 +90,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event is None:
             err_msg = "Trigger error: event is None"
-            self.log.info(err_msg)
+            self.log.error(err_msg)
             raise AirflowException(err_msg)
 
         status = event["status"]
