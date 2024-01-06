@@ -52,17 +52,13 @@ class TestRedshiftClusterTrigger:
         }
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "expected_result",
-        [
-            ({"status": "success", "cluster_state": "available"}),
-        ],
-    )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
-    async def test_redshift_cluster_sensor_trigger_success(self, mock_cluster_status, expected_result):
+    async def test_redshift_cluster_sensor_trigger_success(self, mock_cluster_status):
         """
         Test RedshiftClusterTrigger with the success status
         """
+        expected_result = {"status": "success", "cluster_state": "available"}
+
         mock_cluster_status.return_value = expected_result
         trigger = RedshiftClusterTrigger(
             aws_conn_id="test_redshift_conn_id",
