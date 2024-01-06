@@ -20,7 +20,7 @@
 
 Revision ID: 106e2751d462
 Revises: 10b52ebd31f7
-Create Date: 2023-12-02 14:48:12.289123
+Create Date: 2024-01-06 14:48:12.289123
 
 """
 
@@ -33,7 +33,7 @@ revision = '106e2751d462'
 down_revision = '10b52ebd31f7'
 branch_labels = None
 depends_on = None
-airflow_version = '2.8.0'
+airflow_version = '2.9.0'
 
 
 def upgrade():
