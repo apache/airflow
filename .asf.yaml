@@ -33,17 +33,13 @@ github:
     - data-science
     - elt
     - etl
-    - job-scheduler
-    - kubernetes
     - machine-learning
     - mlops
     - orchestration
-    - pipeline
     - python
     - task-scheduler
     - scheduler
     - workflow
-    - workflow-automation
     - workflow-engine
     - workflow-orchestration
   features:
