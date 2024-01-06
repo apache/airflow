@@ -340,7 +340,7 @@ class TestBatchOperator:
         )
         with pytest.raises(AirflowException) as exc:
             batch.execute(self.mock_context)
-        assert f"{JOB_ID} failed" in str(exc.value)
+        assert f"Error while running job: {JOB_ID} is in FAILED state" in str(exc.value)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")

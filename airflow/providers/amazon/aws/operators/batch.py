@@ -244,11 +244,10 @@ class BatchOperator(BaseOperator):
             job = self.hook.get_job_description(self.job_id)
             job_status = job.get("status")
             if job_status == self.hook.SUCCESS_STATE:
-                msg = f"{self.job_id} was completed successfully"
-                self.log.info(msg)
+                self.log.info("Job completed.")
                 return self.job_id
             elif job_status == self.hook.FAILURE_STATE:
-                raise AirflowException(f"{self.job_id} failed")
+                raise AirflowException(f"Error while running job: {self.job_id} is in {job_status} state")
             elif job_status in self.hook.INTERMEDIATE_STATES:
                 self.defer(
                     timeout=self.execution_timeout,
