@@ -126,6 +126,8 @@ The meaning of the different connection types in the diagrams below is as follow
 * **black solid lines** represent accessing the UI to manage execution of the workflows
 * **red dashed lines** represent accessing the *metadata database* by all components
 
+.. _overview-basic-airflow-architecture:
+
 Basic Airflow deployment
 ........................
 
@@ -142,6 +144,8 @@ and maintenance are all done by the same person and there are no security perime
 
 If you want to run Airflow on a single machine in a simple single-machine setup, you can skip the
 more complex diagrams below and go straight to the :ref:`overview:workloads` section.
+
+.. _overview-distributed-airflow-architecture:
 
 Distributed Airflow architecture
 ................................
@@ -163,6 +167,8 @@ ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
+
+.. _overview-separate-dag-processing-airflow-architecture:
 
 Separate DAG processing architecture
 ....................................
