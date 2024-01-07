@@ -149,7 +149,7 @@ Name                                                                   Descripti
                                                                        while running a task ``<task_id>`` of a DAG  ``<dag_id>``.
 ``local_task_job.task_exit``                                           Number of ``LocalTaskJob`` terminations with a ``<return_code>``
                                                                        while running a task ``<task_id>`` of a DAG  ``<dag_id>``.
-                                                                       Metric with job_id, dag_id
+                                                                       Metric with job_id, dag_id, task_id and return_code tagging.
 ``operator_failures_<operator_name>``                                  Operator ``<operator_name>`` failures
 ``operator_failures``                                                  Operator ``<operator_name>`` failures. Metric with operator_name tagging.
 ``operator_successes_<operator_name>``                                 Operator ``<operator_name>`` successes
