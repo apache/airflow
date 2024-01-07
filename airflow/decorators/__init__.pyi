@@ -60,7 +60,7 @@ __all__ = [
 
 class TaskDecoratorCollection:
     @overload
-    def python(
+    def python(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -88,7 +88,7 @@ class TaskDecoratorCollection:
     def python(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [END mixin_for_typing]
     @overload
-    def __call__(
+    def __call__(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -101,7 +101,7 @@ class TaskDecoratorCollection:
     def __call__(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]:
         """Aliasing ``python``; signature should match exactly."""
     @overload
-    def virtualenv(
+    def virtualenv(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -187,7 +187,9 @@ class TaskDecoratorCollection:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def branch(self, *, multiple_outputs: bool | None = None, **kwargs) -> TaskDecorator:
+    def branch(  # type: ignore[misc]
+        self, *, multiple_outputs: bool | None = None, **kwargs
+    ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
         For more information on how to use this decorator, see :ref:`concepts:branching`.
@@ -199,7 +201,7 @@ class TaskDecoratorCollection:
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
-    def branch_virtualenv(
+    def branch_virtualenv(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -292,7 +294,7 @@ class TaskDecoratorCollection:
         self, python_callable: Callable[FParams, FReturn]
     ) -> Task[FParams, FReturn]: ...
     @overload
-    def short_circuit(
+    def short_circuit(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -627,7 +629,7 @@ class TaskDecoratorCollection:
         :param progress_callback: Callback function for receiving k8s container logs.
         """
     @overload
-    def sensor(
+    def sensor(  # type: ignore[misc]
         self,
         *,
         poke_interval: float = ...,
@@ -664,7 +666,7 @@ class TaskDecoratorCollection:
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
     @overload
-    def pyspark(
+    def pyspark(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,

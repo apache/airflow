@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskReschedule(Base):
@@ -103,7 +104,7 @@ class TaskReschedule(Base):
     @classmethod
     def stmt_for_task_instance(
         cls,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstancePydantic,
         *,
         try_number: int | None = None,
         descending: bool = False,

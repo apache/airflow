@@ -200,7 +200,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
         return f"{conn_type}://{host}/{endpoint}"
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> None:
         raise NotImplementedError()
 
     def insert_rows(
@@ -211,5 +211,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplementedError:
+    ) -> None:
         raise NotImplementedError()

@@ -21,7 +21,7 @@ from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt
+from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,

@@ -103,6 +103,7 @@ PRE_COMMIT_LIST = [
     "lint-markdown",
     "lint-openapi",
     "mixed-line-ending",
+    "mypy",
     "mypy-core",
     "mypy-dev",
     "mypy-docs",

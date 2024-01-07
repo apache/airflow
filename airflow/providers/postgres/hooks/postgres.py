@@ -332,7 +332,9 @@ class PostgresHook(DbApiHook):
         if is_redshift:
             authority = self._get_openlineage_redshift_authority_part(connection)
         else:
-            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
+            authority = DbApiHook.get_openlineage_authority_part(  # type: ignore[attr-defined]
+                connection, default_port=5432
+            )
 
         return DatabaseInfo(
             scheme="postgres" if not is_redshift else "redshift",
