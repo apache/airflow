@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Sanitize filenames in MySQLHook (#33328)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
 5.5.0
 .....
 

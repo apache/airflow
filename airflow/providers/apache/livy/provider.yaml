@@ -22,8 +22,9 @@ description: |
   `Apache Livy <https://livy.apache.org/>`__
 
 state: ready
-source-date-epoch: 1703288112
+source-date-epoch: 1704610403
 versions:
+  - 3.7.1
   - 3.7.0
   - 3.6.0
   - 3.5.4
