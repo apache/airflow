@@ -736,6 +736,7 @@ paths:
         - $ref: "#/components/parameters/FilterUpdatedAtLTE"
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: List of DAG runs.
@@ -817,6 +818,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_run
       tags: [DAGRun]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
