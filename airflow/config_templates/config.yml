@@ -1636,14 +1636,14 @@ webserver:
     navbar_hover_color:
       description: |
         Define the color of navigation bar links when hovered
-      version_added: 2.8.1
+      version_added: 2.9.0
       type: string
       example: ~
       default: "#eee"
     navbar_text_hover_color:
       description: |
         Define the color of text in the navigation bar when hovered
-      version_added: 2.8.1
+      version_added: 2.9.0
       type: string
       example: ~
       default: "#51504f"
