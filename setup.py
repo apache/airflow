@@ -466,7 +466,7 @@ _devel_only_sentry = [
 _devel_only_static_checks = [
     "pre-commit",
     "black",
-    "ruff>=0.0.219",
+    "ruff==0.1.11",
     "yamllint",
 ]
 
