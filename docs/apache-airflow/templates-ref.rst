@@ -41,7 +41,7 @@ Variable                                    Type                  Description
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ dag_run.logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
-``{{ exception }}``                         None | str |          | Error occured while running task instance.
+``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
                                             KeyboardInterrupt     | 
 ``{{ ts }}``                                str                   | Same as ``{{ dag_run.logical_date | ts }}``.
