@@ -411,12 +411,17 @@ def display_packages_summary(
 def print_build_errors_and_exit(
     build_errors: dict[str, list[DocBuildError]],
     spelling_errors: dict[str, list[SpellingError]],
+    spellcheck_only: bool,
 ) -> None:
     """Prints build errors and exists."""
     if build_errors or spelling_errors:
         if build_errors:
-            display_errors_summary(build_errors)
-            console.print()
+            if spellcheck_only:
+                console.print("f[warning]There were some build errors remaining.")
+                console.print()
+            else:
+                display_errors_summary(build_errors)
+                console.print()
         if spelling_errors:
             display_spelling_error_summary(spelling_errors)
             console.print()
@@ -555,6 +560,7 @@ def main():
     print_build_errors_and_exit(
         all_build_errors,
         all_spelling_errors,
+        spellcheck_only,
     )
 
 
