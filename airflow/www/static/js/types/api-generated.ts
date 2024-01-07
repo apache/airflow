@@ -3005,6 +3005,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3070,6 +3072,10 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
         /** The DAG run ID. */
         dag_run_id: components["parameters"]["DAGRunID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -5039,7 +5045,8 @@ export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<
   operations["get_dag_runs_batch"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagRunVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_run"]["parameters"]["path"]
+  operations["get_dag_run"]["parameters"]["path"] &
+    operations["get_dag_run"]["parameters"]["query"]
 >;
 export type DeleteDagRunVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_run"]["parameters"]["path"]
