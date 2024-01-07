@@ -157,7 +157,7 @@ Filters
 
 Airflow defines some Jinja filters that can be used to format values.
 
-For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
+For example, using ``{{ logical_date | ds }}`` will output the logical_date in the ``YYYY-MM-DD`` format.
 
 =====================  ============  ==================================================================
 Filter                 Operates on   Description
