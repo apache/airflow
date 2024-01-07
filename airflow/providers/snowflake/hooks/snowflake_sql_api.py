@@ -213,6 +213,37 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             f".snowflakecomputing.com/api/v2/statements/{query_id}"
         )
         return header, params, url
+    
+    def get_headers(self, code: str, refresh_token:str) -> dict[str, Any]:
+        conn_config = self._get_conn_params()
+        oauth_token = self.get_oauth_token(conn_config["client_id"], conn_config["client_secret"], code, refresh_token, conn_config["redirect_uri"])
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {oauth_token}",
+            "Accept": "application/json",
+            "User-Agent": "snowflakeSQLAPI/1.0",
+        }
+        return headers
+
+    
+    def get_oauth_token(self, client_id: str, client_secret: str, code: str, refresh_token: str, redirect_uri: str) -> str:
+        conn_config = self._get_conn_params()
+        url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/oauth/token-request"
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "refresh_token": refresh_token,
+            "redirect_uri": redirect_uri
+        }
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "client_id": client_id,
+            "client_secret": client_secret
+        }
+        response = requests.post(url, data=data, headers=headers)
+        response.raise_for_status()
+        return response.json()["access_token"]
+
 
     def check_query_output(self, query_ids: list[str]) -> None:
         """
