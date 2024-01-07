@@ -30,7 +30,9 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
-    dag_detail_schema,
+    DAGCollectionSchema,
+    DAGDetailSchema,
+    DAGSchema,
     dag_schema,
     dags_collection_schema,
 )
@@ -50,19 +52,32 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag(
+    *, 
+    dag_id: str, 
+    fields: Collection[str] | None = None,
+    session: Session = NEW_SESSION
+) -> APIResponse:
     """Get basic information about a DAG."""
     dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-
+    print(f"{fields=}")
     if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-
-    return dag_schema.dump(dag)
+    try:
+        dag_schema = DAGSchema(only = fields) if fields else DAGSchema()
+    except ValueError as e:
+        raise BadRequest("DAGSchema init error", detail=str(e))
+    return dag_schema.dump(dag, )
 
 
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag_details(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag_details(
+    *, 
+    dag_id: str, 
+    fields: Collection[str] | None = None,
+    session: Session = NEW_SESSION
+) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
@@ -71,7 +86,10 @@ def get_dag_details(*, dag_id: str, session: Session = NEW_SESSION) -> APIRespon
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
-
+    try:
+        dag_detail_schema = DAGDetailSchema(only = fields) if fields else DAGDetailSchema()
+    except ValueError as e:
+        raise BadRequest("DAGDetailSchema init error", detail=str(e))
     return dag_detail_schema.dump(dag_model)
 
 
@@ -87,6 +105,7 @@ def get_dags(
     only_active: bool = True,
     paused: bool | None = None,
     order_by: str = "dag_id",
+    fields: Collection[str] | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all DAGs."""
@@ -113,6 +132,14 @@ def get_dags(
     dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
     dags = session.scalars(dags_query.offset(offset).limit(limit)).all()
 
+
+    try:
+        dags_collection_schema = DAGCollectionSchema(
+            only=[f"dags.{field}" for field in fields]
+        ) if fields else DAGCollectionSchema()
+    except ValueError as e:
+        raise BadRequest("DAGCollectionSchema init error", detail=str(e))
+    
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
