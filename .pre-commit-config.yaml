@@ -736,7 +736,7 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-www-assets
-        name: Compile www assets
+        name: Compile www assets (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -745,7 +745,7 @@ repos:
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
       - id: compile-www-assets-dev
-        name: Compile www assets in dev mode
+        name: Compile www assets in dev mode (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -1103,6 +1103,15 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy
+        stages: ['manual']
+        name: Run mypy for specified packages (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
+        pass_filenames: false
+        files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: check-provider-yaml-valid
