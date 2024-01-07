@@ -84,7 +84,7 @@ class GCSToSFTPOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :param bool confirm: whether to do a stat() on the file afterwards to confirm the file size
+    :param confirm: whether to do a stat() on the file afterwards to confirm the file size
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
