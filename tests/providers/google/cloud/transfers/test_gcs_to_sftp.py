@@ -74,7 +74,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
 
         sftp_hook_mock.return_value.store_file.assert_called_with(
-            os.path.join(DESTINATION_SFTP, target_object), mock.ANY
+            os.path.join(DESTINATION_SFTP, target_object), mock.ANY, confirm=True
         )
 
         gcs_hook_mock.return_value.delete.assert_not_called()
@@ -116,7 +116,55 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
 
         sftp_hook_mock.return_value.store_file.assert_called_with(
-            os.path.join(DESTINATION_SFTP, target_object), mock.ANY
+            os.path.join(DESTINATION_SFTP, target_object), mock.ANY, confirm=True
+        )
+
+        gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
+
+    @pytest.mark.parametrize(
+        "source_object, target_object, keep_directory_structure, confirm",
+        [
+            ("folder/test_object.txt", "folder/test_object.txt", True, True),
+            ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True, True),
+            ("folder/test_object.txt", "test_object.txt", False, True),
+            ("folder/subfolder/test_object.txt", "test_object.txt", False, True),
+
+            ("folder/test_object.txt", "folder/test_object.txt", True, False),
+            ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True, False),
+            ("folder/test_object.txt", "test_object.txt", False, False),
+            ("folder/subfolder/test_object.txt", "test_object.txt", False, False),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_confirm_store_file(
+        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure, confirm
+    ):
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_path=DESTINATION_SFTP,
+            keep_directory_structure=keep_directory_structure,
+            move_object=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            confirm=confirm
+        )
+        task.execute(None)
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        sftp_hook_mock.assert_called_once_with(SFTP_CONN_ID)
+
+        gcs_hook_mock.return_value.download.assert_called_with(
+            bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
+        )
+
+        sftp_hook_mock.return_value.store_file.assert_called_with(
+            os.path.join(DESTINATION_SFTP, target_object), mock.ANY, confirm=confirm
         )
 
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
@@ -206,7 +254,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         sftp_hook_mock.return_value.store_file.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY, confirm=True)
                 for target_object in target_objects
             ]
         )
@@ -298,7 +346,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         sftp_hook_mock.return_value.store_file.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY, confirm=True)
                 for target_object in target_objects
             ]
         )
