@@ -150,7 +150,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
-            confirm=confirm
+            confirm=confirm,
         )
         task.execute(None)
         gcs_hook_mock.assert_called_once_with(
