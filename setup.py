@@ -318,12 +318,14 @@ doc = [
 ]
 doc_gen = [
     "eralchemy2",
+    "graphviz>=0.12",
 ]
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
     "flask-appbuilder[oauth]==4.3.10",
 ]
+graphviz = ["graphviz>=0.12"]
 kerberos = [
     "pykerberos>=1.1.13",
     "requests_kerberos>=0.10.0",
@@ -593,6 +595,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
+    "graphviz": graphviz,
     "kerberos": kerberos,
     "ldap": ldap,
     "leveldb": leveldb,

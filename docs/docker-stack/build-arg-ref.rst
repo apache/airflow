@@ -91,6 +91,7 @@ List of default extras in the production Dockerfile:
 * ftp
 * google
 * google_auth
+* graphviz
 * grpc
 * hashicorp
 * http
