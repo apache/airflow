@@ -432,6 +432,7 @@ DEFAULT_EXTRAS = [
     "ftp",
     "google",
     "google_auth",
+    "graphviz",
     "grpc",
     "hashicorp",
     "http",
