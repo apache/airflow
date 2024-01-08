@@ -39,7 +39,6 @@ contributed by the community providers:
 
 * Celery Executor and related CLI commands: :doc:`apache-airflow-providers-celery:cli-ref`
 * Kubernetes Executor and related CLI commands: :doc:`apache-airflow-providers-cncf-kubernetes:cli-ref`
-* Fab CLI commands: :doc:`apache-airflow-providers-fab:cli-ref`
 
 .. argparse::
    :module: airflow.cli.cli_parser
