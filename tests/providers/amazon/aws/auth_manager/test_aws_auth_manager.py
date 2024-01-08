@@ -128,10 +128,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_configuration(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         details,
@@ -165,10 +163,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_connection(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         details,
@@ -214,10 +210,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_dag(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         access_entity,
@@ -256,10 +250,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_dataset(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         details,
@@ -290,10 +282,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_pool(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         details,
@@ -324,10 +314,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_variable(
         self,
-        _,
         mock_get_user,
         mock_avp_facade,
         details,
@@ -358,9 +346,8 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    @patch.object(AwsAuthManager, "is_logged_in", return_value=True)
     def test_is_authorized_view(
-        self, _, mock_get_user, mock_avp_facade, access_view, user, expected_user, auth_manager
+        self, mock_get_user, mock_avp_facade, access_view, user, expected_user, auth_manager
     ):
         is_authorized = Mock(return_value=True)
         mock_avp_facade.is_authorized = is_authorized
