@@ -22,8 +22,9 @@ description: |
   ``Common IO Provider``
 
 state: ready
-source-date-epoch: 1703288123
+source-date-epoch: 1704610529
 versions:
+  - 1.2.0
   - 1.1.0
   - 1.0.1
   - 1.0.0

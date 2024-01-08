@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add docs and UI form on pagerduty connection (#36636)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 3.5.1
 .....
 

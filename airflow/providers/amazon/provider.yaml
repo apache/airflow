@@ -22,8 +22,9 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1703747484
+source-date-epoch: 1704610260
 versions:
+  - 8.16.0
   - 8.15.0
   - 8.14.0
   - 8.13.0
@@ -720,6 +721,8 @@ extra-links:
   - airflow.providers.amazon.aws.links.emr.EmrLogsLink
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
+  - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
+  - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook

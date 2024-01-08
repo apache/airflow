@@ -36,7 +36,7 @@ import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.auth import _cloud_sdk, compute_engine
+from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from google.auth.exceptions import RefreshError
 from google.auth.transport import _http_client

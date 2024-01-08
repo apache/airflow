@@ -172,7 +172,7 @@ class KeywordParameters:
 
     def unpacking(self) -> Mapping[str, Any]:
         """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        if self._wildcard and isinstance(self._kwargs, Context):
+        if self._wildcard and isinstance(self._kwargs, Context):  # type: ignore[misc]
             return lazy_mapping_from_context(self._kwargs)
         return self._kwargs
 

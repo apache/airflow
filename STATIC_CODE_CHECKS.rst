@@ -114,6 +114,13 @@ Available pre-commit checks
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
 require Breeze Docker image to be built locally.
 
+.. note:: Manual pre-commits
+
+  Most of the checks we run are configured to run automatically when you commit the code. However,
+  there are some checks that are not run automatically and you need to run them manually. Those
+  checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
+  them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+
 .. note:: Disabling particular checks
 
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
@@ -127,6 +134,24 @@ require Breeze Docker image to be built locally.
   the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
+.. note:: Mypy checks
+
+  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-core``,
+  ``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
+  are run by passing those changed files to mypy. This is way faster than running checks for all files (even
+  if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
+  files). However, in some cases, it produces different results than when running checks for the whole set
+  of files, because ``mypy`` does not even know that some types are defined in other files and it might not
+  be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
+  directories (``airflow`` - excluding providers, ``airflow/providers``, ``dev`` and ``docs``) to make sure
+  that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
+  in CI. If you want to run mypy checks for all files locally, you can do it by running the following
+  command (example for ``airflow`` files):
+
+     .. code-block:: bash
+
+        MYPY_PACKAGES="airflow" pre-commit run --hook-stage manual mypy --all-files
+
 .. note:: Mypy volume cache
 
   MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
@@ -134,6 +159,7 @@ require Breeze Docker image to be built locally.
   will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
   is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
   cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
+
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
@@ -200,6 +226,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-init-decorator-arguments                            | Check model __init__ and decorator arguments are in sync     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-integrations-list-consistent                        | Sync integrations list with docs                             |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-lazy-logging                                        | Check that all logging methods are lazy                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-links-to-example-dags-do-not-use-hardcoded-versions | Verify example dags do not use hard-coded version numbers    |         |
@@ -256,9 +284,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets                                        | Compile www assets                                           |         |
+| compile-www-assets                                        | Compile www assets (manual)                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets-dev                                    | Compile www assets in dev mode                               |         |
+| compile-www-assets-dev                                    | Compile www assets in dev mode (manual)                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                        | Create missing init.py files in tests                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -314,6 +342,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| mypy                                                      | Run mypy for specified packages (manual)                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mypy-core                                                 | Run mypy for core                                            | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mypy-dev                                                  | Run mypy for dev                                             | *       |
@@ -330,9 +360,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | rst-backticks                                             | Check if RST files use double backticks for code             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff                                                      | ruff-lint                                                    |         |
+| ruff                                                      | Run 'ruff' for extremely fast Python linting                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff-format                                               | ruff-format                                                  |         |
+| ruff-format                                               | Run 'ruff format' for extremely fast Python formatting       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | shellcheck                                                | Check Shell scripts syntax correctness                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

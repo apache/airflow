@@ -52,6 +52,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |

@@ -144,9 +144,9 @@ code is maintained.
 
 The term "committer" and "maintainer" is used interchangeably. The term "committer" is the official term used by the
 Apache Software Foundation, while "maintainer" is more commonly used in the Open Source community and is used
-in GitHub context in a number of guidelines and documentation, so this document will mostly use "maintainer",
-when speaking about Github, Pull Request, Github Issues and Discussion, committer on the other hand is more
-often used in devlist discussions, official communication, Airflow website and every time when we formally
+in context of GitHub in a number of guidelines and documentation, so this document will mostly use "maintainer",
+when speaking about Github, Pull Request, Github Issues and Discussions. On the other hand, "committer" is more
+often used in devlist discussions, official communications, Airflow website and every time when we formally
 refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
@@ -459,7 +459,7 @@ Step 4: Prepare PR
 3. Re-run static code checks again.
 
 4. Make sure your commit has a good title and description of the context of your change, enough
-   for the maintainer reviewing it to understand why you are proposing a change. Make sure to follow other
+   for maintainers reviewing it to understand why you are proposing a change. Make sure to follow other
    PR guidelines described in `Pull Request guidelines <#pull-request-guidelines>`_.
    Create Pull Request! Make yourself ready for the discussion!
 
@@ -473,17 +473,17 @@ Step 4: Prepare PR
    feedback on the direction of your PR or if you want to get feedback on the design of your PR.
 
 6. Avoid @-mentioning individual maintainers in your PR, unless you have good reason to believe that they are
-   available, have time and interest in your PR. Generally speaking there are no "exclusive" reviewers for
+   available, have time and/or interest in your PR. Generally speaking there are no "exclusive" reviewers for
    different parts of the code. Reviewers review PRs and respond when they have some free time to spare and
-   when they feel they can provide valuable feedback. If you want to get attention of maintainers, you can just
+   when they feel they can provide some valuable feedback. If you want to get attention of maintainers, you can just
    follow-up on your PR and ask for review in general, however be considerate and do not expect "immediate"
    reviews. People review when they have time, most of the maintainers do such reviews in their
-   free time, which is taken away from their families and other interests so allow sufficient time before you
+   free time, which is taken away from their families and other interests, so allow sufficient time before you
    follow-up - but if you see no reaction in several days, do follow-up, as with the number of PRs we have
    daily, some of them might simply fall through the cracks, and following up shows your interest in completing
-   the PR as well as puts it at the top of "Recently commented" PRs. However, be considerate and mindful for
-   the time zones, holidays, busy periods and expect that some discussions and conversation might take time
-   and get stalled occasionally. Generally speaking it's author's responsibility to follow-up on the PR when
+   the PR as well as puts it at the top of "Recently commented" PRs. However, be considerate and mindful of
+   the time zones, holidays, busy periods, and expect that some discussions and conversation might take time
+   and get stalled occasionally. Generally speaking it's the author's responsibility to follow-up on the PR when
    they want to get it reviewed and merged.
 
 
@@ -856,13 +856,13 @@ arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cg
 cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
 deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
 druid, elasticsearch, exasol, fab, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty,
-pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs,
-salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, weaviate,
-webhdfs, winrm, yandex, zendesk
+google_auth, graphviz, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos,
+kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
+mssql, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel,
+pagerduty, pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq,
+redis, s3, s3fs, salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp,
+snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
+weaviate, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
