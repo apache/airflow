@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 import aiohttp
 import requests
@@ -115,7 +115,7 @@ class HttpHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import Select2Widget, BS3TextAreaFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
         from flask_babel import lazy_gettext
         from wtforms.fields import SelectField, TextAreaField
 
@@ -131,9 +131,7 @@ class HttpHook(BaseHook):
                 default=default_auth_type,
             ),
             "auth_kwargs": TextAreaField(
-                lazy_gettext("Auth kwargs"),
-                validators=[ValidJson()],
-                widget=BS3TextAreaFieldWidget()
+                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
             ),
             "headers": TextAreaField(
                 lazy_gettext("Headers"),
@@ -171,7 +169,6 @@ class HttpHook(BaseHook):
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
-            print(conn_extra)
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = (
@@ -200,8 +197,8 @@ class HttpHook(BaseHook):
     def _parse_extra(conn_extra: dict) -> dict:
         extra = conn_extra.copy()
         auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs: dict = none_safe_loads(extra.pop("auth_kwargs", None), default={})
-        headers: dict = none_safe_loads(extra.pop("headers", None), default={})
+        auth_kwargs = cast(dict, none_safe_loads(extra.pop("auth_kwargs", None), default={}))
+        headers = cast(dict, none_safe_loads(extra.pop("headers", None), default={}))
 
         if extra:
             warnings.warn(

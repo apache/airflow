@@ -24,53 +24,121 @@ HTTP Connection
 
 The HTTP connection enables connections to HTTP services.
 
-Authenticating with HTTP
-------------------------
-
-Login and Password authentication can be used along with any authentication method using headers.
-Headers can be given in json format in the Extras field.
-
 Default Connection IDs
 ----------------------
 
 The HTTP operators and hooks use ``http_default`` by default.
 
+Authentication
+--------------
+
+ .. _auth_basic:
+
+Authenticating via Basic auth
+.............................
+The simplest way to authenticate is to specify a *Login* and *Password* in the
+Connection.
+
+.. image:: /img/connection_username_password.png
+
+By default, when a *Login* or *Password* is provided, the HTTP operators and
+Hooks will perform a basic authentication via the
+``requests.auth.HTTPBasicAuth`` class.
+
+Authenticating via Headers
+..........................
+If :ref:`Basic authentication<auth_basic>` is not enough, you can also add
+*Headers* to the requests performed by the HTTP operators and Hooks.
+
+Headers can be passed in json format in the *Headers* field:
+
+.. image:: /img/connection_headers.png
+
+.. note:: Login and Password authentication can be used along custom Headers.
+
+Authenticating via Auth class
+.............................
+For more complex use-cases, you can inject a Auth class into the HTTP operators
+and Hooks via the *Auth type* setting. This is particularly useful when you
+need token refresh or advanced authentication methods like kerberos, oauth, ...
+
+.. image:: /img/connection_auth_type.png
+
+By default, only `requests Auth classes <https://github.com/psf/requests/blob/main/src/requests/auth.py>`_
+are available. But you can install any classes based on ``requests.auth.AuthBase``
+into your Airflow instance (via pip install), and then specify those classes in
+``extra_auth_types`` :doc:`configuration setting<../configurations-ref>` to
+make them available in the Connection UI.
+
+If the Auth class requires more than a *Username* and a *Password*, you can
+pass extra keywords arguments with the *Auth kwargs* setting.
+
+Example with the ``HTTPKerberosAuth`` from `requests-kerberos <https://pypi.org/project/requests-kerberos>`_ :
+
+.. image:: /img/connection_auth_kwargs.png
+
+.. tip::
+
+    You probably don't need to write an entire custom HttpOperator or HttpHook
+    to customize the connection. Simply extend the ``requests.auth.AuthBase``
+    class and configure a Connection with it.
+
 Configuring the Connection
 --------------------------
 
+Via the Admin panel
+...................
+
+Configuring the Connection via the Airflow Admin panel offers more
+possibilities than via :ref:`environment variables<env-variable>`.
+
 Login (optional)
-    Specify the login for the http service you would like to connect too.
+    The login (username) of the http service you would like to connect too.
+    If provided, by default, the HttpHook perform a Basic authentication.
 
 Password (optional)
-    Specify the password for the http service you would like to connect too.
+    The password of the http service you would like to connect too.
+    If provided, by default, the HttpHook perform a Basic authentication.
 
 Host (optional)
     Specify the entire url or the base of the url for the service.
 
 Port (optional)
-    Specify a port number if applicable.
+    A port number if applicable.
 
 Schema (optional)
-    Specify the service type etc: http/https.
+    The service type. E.g: http/https.
 
-Extras (optional)
-    Any key / value parameters supplied here will be added to the headers in json format.
+Auth type (optional)
+    Python class used by the HttpHook (and the underlying requests library) to
+    authenticate. If provided, the *Login* and *Password* are passed as the two
+    first arguments to this class. If *Login* and/or *Password* are provided
+    without any Auth type, the HttpHook will by default perform a basic
+    authentication via the ``requests.auth.HTTPBasicAuth`` class.
 
-   Additionally there a few special optional keywords that are handled separately.
+    Extra classes can be added via the ``extra_auth_types``
+    :doc:`configuration setting<../configurations-ref>`.
 
-    - ``auth_type``
-        * The path to the Authentication class to attach the request.Session object. Typically a subclass of
-          ``request.auth.AuthBase``. This is omitted if the HttpHook is declared with a ``auth_type``.
-    - ``auth_kwargs``
-        * Extra key-value parameters used to instantiate the ``auth_type`` class.
+Auth kwargs (optional)
+    Extra key-value parameters passed to the Auth type class.
+
+Headers (optional)
+    Extra key-value parameters added to the Headers in JSON format.
+
+Extras (optional - deprecated)
+    *Deprecated*: Specify headers in json format.
+
+ .. _env-variable:
+
+Via environment variable
+........................
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
-Note that all components of the URI should be URL-encoded.
-
-For example:
+.. note:: All components of the URI should be **URL-encoded**.
 
 .. code-block:: bash
+   :caption: Example:
 
-   export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@servvice.com:80/https?headers=header'
+   export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@service.com:80/https?headers=header'
