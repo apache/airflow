@@ -918,7 +918,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         :param package_name: provider package - only needed in case connection_type is missing
         : return
         """
-        from flask_codemirror.fields import CodeMirrorField
         from wtforms import BooleanField, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 
         if connection_type is None and hook_class_name is None:
@@ -946,7 +945,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             BooleanField,
             TextAreaField,
             SelectField,
-            CodeMirrorField,
         ]
         hook_class = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:

@@ -22,7 +22,6 @@ from datetime import timedelta
 
 from flask import Flask
 from flask_appbuilder import SQLA
-from flask_codemirror import CodeMirror
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
@@ -130,8 +129,6 @@ def create_app(config=None, testing=False):
     InternalApiConfig.force_database_direct_access()
 
     csrf.init_app(flask_app)
-
-    CodeMirror(flask_app)
 
     init_wsgi_middleware(flask_app)
 

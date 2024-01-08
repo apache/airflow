@@ -115,10 +115,9 @@ class HttpHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import Select2Widget
+        from flask_appbuilder.fieldwidgets import Select2Widget, BS3TextAreaFieldWidget
         from flask_babel import lazy_gettext
-        from flask_codemirror.fields import CodeMirrorField
-        from wtforms.fields import SelectField
+        from wtforms.fields import SelectField, TextAreaField
 
         from airflow.www.validators import ValidJson
 
@@ -131,17 +130,15 @@ class HttpHook(BaseHook):
                 widget=Select2Widget(),
                 default=default_auth_type,
             ),
-            "auth_kwargs": CodeMirrorField(
+            "auth_kwargs": TextAreaField(
                 lazy_gettext("Auth kwargs"),
                 validators=[ValidJson()],
-                language={"name": "javascript", "json": True},
-                config={"gutters": ["CodeMirror-lint-markers"], "lineNumbers": True, "lint": True},
+                widget=BS3TextAreaFieldWidget()
             ),
-            "headers": CodeMirrorField(
+            "headers": TextAreaField(
                 lazy_gettext("Headers"),
                 validators=[ValidJson()],
-                language={"name": "javascript", "json": True},
-                config={"gutters": ["CodeMirror-lint-markers"], "lineNumbers": True, "lint": True},
+                widget=BS3TextAreaFieldWidget(),
                 description=(
                     "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
                     "will be removed in a future version of the Http provider. Use the 'Headers' "
@@ -174,6 +171,7 @@ class HttpHook(BaseHook):
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
+            print(conn_extra)
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = (
