@@ -162,6 +162,7 @@ class _TemplateWithContext(NamedTuple):
             "navbar_text_color",
             "navbar_hover_color",
             "navbar_text_hover_color",
+            "navbar_logo_text_color",
             "log_fetch_delay_sec",
             "log_auto_tailing_offset",
             "log_animation_speed",
