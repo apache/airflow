@@ -32,6 +32,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.utils.json import none_safe_loads
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -40,9 +41,9 @@ if TYPE_CHECKING:
 
 DEFAULT_AUTH_TYPES = frozenset(
     {
-        "request.auth.HTTPBasicAuth",
-        "request.auth.HTTPProxyAuth",
-        "request.auth.HTTPDigestAuth",
+        "requests.auth.HTTPBasicAuth",
+        "requests.auth.HTTPProxyAuth",
+        "requests.auth.HTTPDigestAuth",
     }
 )
 
@@ -113,10 +114,13 @@ class HttpHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
+        """Return connection widgets to add to the connection form."""
+        from flask_appbuilder.fieldwidgets import Select2Widget
         from flask_babel import lazy_gettext
-        from wtforms.fields import SelectField, TextAreaField
+        from flask_codemirror.fields import CodeMirrorField
+        from wtforms.fields import SelectField
+
+        from airflow.www.validators import ValidJson
 
         default_auth_type: str = ""
         auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
@@ -125,18 +129,24 @@ class HttpHook(BaseHook):
                 lazy_gettext("Auth type"),
                 choices=[(clazz, clazz) for clazz in auth_types_choices],
                 widget=Select2Widget(),
-                default=default_auth_type
+                default=default_auth_type,
             ),
-            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
-            "headers": TextAreaField(
+            "auth_kwargs": CodeMirrorField(
+                lazy_gettext("Auth kwargs"),
+                validators=[ValidJson()],
+                language={"name": "javascript", "json": True},
+                config={"gutters": ["CodeMirror-lint-markers"], "lineNumbers": True, "lint": True},
+            ),
+            "headers": CodeMirrorField(
                 lazy_gettext("Headers"),
+                validators=[ValidJson()],
+                language={"name": "javascript", "json": True},
+                config={"gutters": ["CodeMirror-lint-markers"], "lineNumbers": True, "lint": True},
                 description=(
-                    "Warning: "
-                    "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
                     "will be removed in a future version of the Http provider. Use the 'Headers' "
                     "field instead."
                 ),
-                widget=BS3TextAreaFieldWidget(),
             ),
         }
 
@@ -163,36 +173,49 @@ class HttpHook(BaseHook):
             if conn.port:
                 self.base_url += f":{conn.port}"
 
-            conn_extra: dict = conn.extra_dejson.copy()
-            conn_auth_type_name: str | None = conn_extra.pop("auth_type", None)
-            auth_type: Any = self.auth_type or self._load_conn_auth_type(conn_auth_type_name) or HTTPBasicAuth
+            conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
             auth_args: list[str | None] = [conn.login, conn.password]
-            auth_kwargs: dict[str, Any] = conn_extra.pop("auth_kwargs", {})
+            auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
+            auth_type: Any = (
+                self.auth_type
+                or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
+                or HTTPBasicAuth
+            )
 
             if any(auth_args) or auth_kwargs:
                 session.auth = auth_type(*auth_args, **auth_kwargs)
             elif self._is_auth_type_setup:
                 session.auth = auth_type()
 
-            if conn_extra:
-                headers_params: dict = conn_extra.pop("headers", {})
-                if conn_extra:
-                    warnings.warn(
-                        "Passing headers parameters directly in 'Extra' field is deprecated, and "
-                        "will be removed in a future version of the Http provider. Use the 'Headers' "
-                        "field instead.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    headers_params = {**conn_extra, **headers_params}
+            extra_headers = conn_extra["headers"]
+            if extra_headers:
                 try:
-                    session.headers.update(headers_params)
+                    session.headers.update(extra_headers)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             session.headers.update(headers)
 
         return session
+
+    @staticmethod
+    def _parse_extra(conn_extra: dict) -> dict:
+        extra = conn_extra.copy()
+        auth_type: str | None = extra.pop("auth_type", None)
+        auth_kwargs: dict = none_safe_loads(extra.pop("auth_kwargs", None), default={})
+        headers: dict = none_safe_loads(extra.pop("headers", None), default={})
+
+        if extra:
+            warnings.warn(
+                "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                "will be removed in a future version of the Http provider. Use the 'Headers' "
+                "field instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            headers = {**extra, **headers}
+
+        return {"auth_type": auth_type, "auth_kwargs": auth_kwargs, "headers": headers}
 
     def _load_conn_auth_type(self, module_name: str | None) -> Any:
         """Load auth_type module from extra Connection parameters."""

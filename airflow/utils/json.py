@@ -122,5 +122,15 @@ class XComDecoder(json.JSONDecoder):
         return deserialize(dct, False)
 
 
+def none_safe_loads(obj: str | bytes | bytearray | None, default: Any = None) -> dict | None:
+    """Safely loads JSON.
+
+    Returns None by default if the given object is None.
+    """
+    if obj is not None:
+        return json.loads(obj)
+    return default
+
+
 # backwards compatibility
 AirflowJsonEncoder = WebEncoder

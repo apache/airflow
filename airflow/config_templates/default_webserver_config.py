@@ -34,6 +34,13 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 WTF_CSRF_ENABLED = True
 WTF_CSRF_TIME_LIMIT = None
 
+# Flask CodeMirror config
+CODEMIRROR_LANGUAGES = ["javascript"]
+# CODEMIRROR_THEME = '3024-day'
+# CODEMIRROR_ADDONS = (
+#         ('ADDON_DIR','ADDON_NAME'),
+# )
+
 # ----------------------------------------------------
 # AUTHENTICATION CONFIG
 # ----------------------------------------------------
