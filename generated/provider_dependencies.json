@@ -996,7 +996,7 @@
   "telegram": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "python-telegram-bot>=20.0.0"
+      "python-telegram-bot>=20.2"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
