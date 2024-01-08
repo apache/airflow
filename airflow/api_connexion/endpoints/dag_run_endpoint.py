@@ -338,9 +338,9 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         try:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
-            data_interval_start_exists = post_body.get('data_interval_start') is not None
-            data_interval_end_exists = post_body.get('data_interval_end') is not None
-            
+            data_interval_start_exists = post_body.get("data_interval_start") is not None
+            data_interval_end_exists = post_body.get("data_interval_end") is not None
+
             if (
                 data_interval_start_exists
                 and not data_interval_end_exists
