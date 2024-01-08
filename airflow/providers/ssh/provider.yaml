@@ -21,7 +21,7 @@ name: SSH
 description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288176
 versions:
   - 3.10.0

@@ -97,10 +97,9 @@ def find_all_providers_and_provider_files():
                     os.sep, "."
                 )
                 provider_info = yaml.safe_load(provider_file.read_text())
-                if not provider_info["suspended"]:
-                    ALL_PROVIDERS[provider_name] = provider_info
-                else:
+                if provider_info["state"] == "suspended":
                     suspended_paths.append(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix())
+                ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
             if path.is_file() and path.name.endswith(".py"):
                 ALL_PROVIDER_FILES.append(Path(root, filename))
@@ -174,6 +173,9 @@ def check_if_different_provider_used(file_path: Path) -> None:
             ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
+STATES: dict[str, str] = {}
+
+
 if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
@@ -182,8 +184,8 @@ if __name__ == "__main__":
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        if not provider_yaml_content.get("suspended"):
-            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+        ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+        STATES[provider] = provider_yaml_content["state"]
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -194,7 +196,7 @@ if __name__ == "__main__":
         for error in errors:
             console.print(f"[red] {error}")
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
-    unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
+    unique_sorted_dependencies: dict[str, dict[str, list[str] | str]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
@@ -202,6 +204,7 @@ if __name__ == "__main__":
         )
         excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
         unique_sorted_dependencies[key]["excluded-python-versions"] = excluded_versions or []
+        unique_sorted_dependencies[key]["state"] = STATES[key]
     if errors:
         console.print()
         console.print("[red]Errors found during verification. Exiting!")

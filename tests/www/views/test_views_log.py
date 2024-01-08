@@ -79,7 +79,7 @@ def log_app(backup_modules, log_path):
     @conf_vars(
         {
             ("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG",
-            ("webserver", "auth_rate_limited"): "False",
+            ("fab", "auth_rate_limited"): "False",
         }
     )
     def factory():

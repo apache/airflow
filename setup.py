@@ -105,6 +105,8 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
             dependencies = json.load(f)
         provider_dict = {}
         for key, value in dependencies.items():
+            if value["state"] in ["suspended", "removed"]:
+                continue
             if value.get(DEPS):
                 apply_pypi_suffix_to_airflow_packages(value[DEPS])
             if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:
@@ -316,12 +318,14 @@ doc = [
 ]
 doc_gen = [
     "eralchemy2",
+    "graphviz>=0.12",
 ]
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
     "flask-appbuilder[oauth]==4.3.10",
 ]
+graphviz = ["graphviz>=0.12"]
 kerberos = [
     "pykerberos>=1.1.13",
     "requests_kerberos>=0.10.0",
@@ -407,15 +411,15 @@ mypy_dependencies = [
 ]
 
 # make sure to update providers/amazon/provider.yaml botocore min version when you update it here
-_MIN_BOTO3_VERSION = "1.28.0"
+_MIN_BOTO3_VERSION = "1.33.0"
 
 _devel_only_amazon = [
-    "aws_xray_sdk",
-    "moto[cloudformation,glue]>=4.2.9",
+    "aws_xray_sdk>=2.12.0",
+    "moto[cloudformation,glue]>=4.2.12",
+    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
 ]
 
 _devel_only_azure = [
@@ -466,7 +470,7 @@ _devel_only_sentry = [
 _devel_only_static_checks = [
     "pre-commit",
     "black",
-    "ruff>=0.0.219",
+    "ruff==0.1.11",
     "yamllint",
 ]
 
@@ -591,6 +595,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
+    "graphviz": graphviz,
     "kerberos": kerberos,
     "ldap": ldap,
     "leveldb": leveldb,

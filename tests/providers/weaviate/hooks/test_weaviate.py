@@ -684,13 +684,13 @@ def test___generate_uuids(generate_uuid5, weaviate_hook):
         {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
     )
     with pytest.raises(
-        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify" r" 'uuid_column'"
+        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify 'uuid_column'"
     ):
         weaviate_hook._generate_uuids(df=df, class_name="test", unique_columns=["name", "age", "gender"])
 
     with pytest.raises(
         ValueError,
-        match=r"Property age already in dataset. Consider renaming or specify" r" a different 'uuid_column'.",
+        match=r"Property age already in dataset. Consider renaming or specify a different 'uuid_column'.",
     ):
         weaviate_hook._generate_uuids(
             df=df, uuid_column="age", class_name="test", unique_columns=["name", "age", "gender"]
@@ -773,9 +773,7 @@ def test_error_option_of_create_or_replace_document_objects(
 
     _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
     _generate_uuids.return_value = (df, "id")
-    with pytest.raises(
-        ValueError, match="Documents abc.xml already exists. You can either" " skip or replace"
-    ):
+    with pytest.raises(ValueError, match="Documents abc.xml already exists. You can either skip or replace"):
         weaviate_hook.create_or_replace_document_objects(
             data=df, document_column="doc", class_name="test", existing="error"
         )

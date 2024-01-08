@@ -21,7 +21,7 @@ name: Oracle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288157
 versions:
   - 3.9.1

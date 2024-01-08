@@ -26,6 +26,35 @@
 Changelog
 ---------
 
+8.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add AWS Step Functions links (#36599)``
+* ``Add OpenLineage support for Redshift SQL (#35794)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'AwsToAwsBaseOperator' (#36604)``
+* ``Fix assignment of template field in '__init__' in 'DataSyncOperator' (#36605)``
+* ``Check redshift cluster state before deferring to triggerer (#36416)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon SQS Operators/Sensors/Triggers (#36613)``
+* ``Use base aws classes in Amazon SNS Operators (#36615)``
+* ``Use base aws classes in AWS Step Functions Operators/Sensors/Triggers (#36468)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Select ruff B006 to detect the usage of mutable values as argument default (#36626)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+
 8.15.0
 ......
 

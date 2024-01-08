@@ -21,7 +21,7 @@ name: Trino
 description: |
     `Trino <https://trino.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288179
 versions:
   - 5.6.0

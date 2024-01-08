@@ -21,7 +21,7 @@ name: Common SQL
 description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288124
 versions:
   - 1.10.0

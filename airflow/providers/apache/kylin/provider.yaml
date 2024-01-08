@@ -21,7 +21,7 @@ name: Apache Kylin
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703747544
 versions:
   - 3.5.0

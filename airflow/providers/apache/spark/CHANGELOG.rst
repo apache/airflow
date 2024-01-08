@@ -29,6 +29,15 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+* ``change spark connection form and add spark connections docs (#36419)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 4.6.0
 .....
 

@@ -21,7 +21,7 @@ name: Presto
 description: |
     `Presto <https://prestodb.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288163
 versions:
   - 5.4.0

@@ -280,9 +280,7 @@ class WeaviateHook(BaseHook):
         intersection_classes = set__exiting_classes.intersection(set__to_be_added_classes)
         classes_to_create = set()
         if existing == "fail" and intersection_classes:
-            raise ValueError(
-                f"Trying to create class {intersection_classes}" f" but this class already exists."
-            )
+            raise ValueError(f"Trying to create class {intersection_classes} but this class already exists.")
         elif existing == "ignore":
             classes_to_create = set__to_be_added_classes - set__exiting_classes
         elif existing == "replace":

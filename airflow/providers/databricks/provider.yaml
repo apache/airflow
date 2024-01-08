@@ -21,7 +21,7 @@ name: Databricks
 description: |
     `Databricks <https://databricks.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288125
 versions:
   - 6.0.0

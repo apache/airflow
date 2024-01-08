@@ -619,7 +619,7 @@ def verify(
     )
     if (pull or image_name) and run_in_parallel:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:

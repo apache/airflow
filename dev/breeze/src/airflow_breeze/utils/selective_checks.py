@@ -31,12 +31,10 @@ from airflow_breeze.global_constants import (
     CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
-    CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
-    DEFAULT_MSSQL_VERSION,
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -44,7 +42,6 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
-    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -400,7 +397,6 @@ class SelectiveChecks:
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     default_postgres_version = DEFAULT_POSTGRES_VERSION
     default_mysql_version = DEFAULT_MYSQL_VERSION
-    default_mssql_version = DEFAULT_MSSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
@@ -468,10 +464,6 @@ class SelectiveChecks:
         return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
 
     @cached_property
-    def mssql_versions(self) -> list[str]:
-        return CURRENT_MSSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MSSQL_VERSION]
-
-    @cached_property
     def kind_version(self) -> str:
         return KIND_VERSION
 
@@ -489,19 +481,6 @@ class SelectiveChecks:
             {"python-version": python_version, "postgres-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
-            )
-        ]
-
-    @cached_property
-    def mssql_exclude(self) -> list[dict[str, str]]:
-        if not self.full_tests_needed:
-            # Only basic combination so we do not need to exclude anything
-            return []
-        return [
-            # Exclude all combinations that are repeating python/mssql versions
-            {"python-version": python_version, "mssql-version": mssql_version}
-            for python_version, mssql_version in excluded_combos(
-                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MSSQL_VERSIONS
             )
         ]
 
@@ -583,6 +562,43 @@ class SelectiveChecks:
                 f"[warning]{source_area} disabled because it did not match any changed files[/]"
             )
             return False
+
+    @cached_property
+    def mypy_packages(self) -> list[str]:
+        packages_to_run: list[str] = []
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("airflow")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self._are_all_providers_affected()
+        ) and self._default_branch == "main":
+            packages_to_run.append("airflow/providers")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("docs")
+        if (
+            self._matching_files(
+                FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            packages_to_run.append("dev")
+        return packages_to_run
+
+    @cached_property
+    def needs_mypy(self) -> bool:
+        return self.mypy_packages != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
@@ -823,6 +839,14 @@ class SelectiveChecks:
     def skip_pre_commits(self) -> str:
         pre_commits_to_skip = set()
         pre_commits_to_skip.add("identity")
+        # Skip all mypy "individual" file checks if we are running mypy checks in CI
+        # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
+        # The pre-commit will semi-randomly skip such list of files into several groups and we want
+        # to make sure that such checks are always run in CI for whole "group" of files - i.e.
+        # whole package rather than for individual files. That's why we skip those checks in CI
+        # and run them via `mypy-all` command instead and dedicated CI job in matrix
+        # This will also speed up static-checks job usually as the jobs will be running in parallel
+        pre_commits_to_skip.update({"mypy-providers", "mypy-core", "mypy-docs", "mypy-dev"})
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
@@ -831,29 +855,13 @@ class SelectiveChecks:
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
                     "lint-helm-chart",
-                    "mypy-providers",
                 )
             )
+
         if self.full_tests_needed:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-providers")
-        if not self._matching_files(
-            FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-core")
-        if not self._matching_files(
-            FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-docs")
-        if not self._matching_files(
-            FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("mypy-dev")
         if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not self._matching_files(
@@ -1014,11 +1022,6 @@ class SelectiveChecks:
         # TODO: when we have it properly set-up with labels we should just check for
         #       "k8s-runner" presence in runs_on
         return False
-
-    @cached_property
-    def mssql_parallelism(self) -> int:
-        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
-        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
 
     @cached_property
     def has_migrations(self) -> bool:

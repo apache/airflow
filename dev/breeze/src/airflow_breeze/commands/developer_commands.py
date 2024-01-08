@@ -50,7 +50,6 @@ from airflow_breeze.commands.common_options import (
     option_integration,
     option_max_time,
     option_mount_sources,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_project_name,
@@ -260,7 +259,6 @@ option_warn_image_upgrade_needed = click.option(
 @option_integration
 @option_max_time
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -306,7 +304,6 @@ def shell(
     integration: tuple[str, ...],
     max_time: int | None,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
@@ -365,7 +362,6 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,
@@ -460,7 +456,6 @@ option_executor_start_airflow = click.option(
 @option_load_default_connection
 @option_load_example_dags
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -500,7 +495,6 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
@@ -557,7 +551,6 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,

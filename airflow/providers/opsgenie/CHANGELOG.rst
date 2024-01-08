@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add docs and UI form for opsgenie connection (#36519)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+
+
 5.4.0
 .....
 
