@@ -64,8 +64,9 @@ class DockerHook(BaseHook):
         version: str | None = None,
         tls: TLSConfig | bool | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         if not base_url:
             raise AirflowException("URL to the Docker server not provided.")
         elif tls:

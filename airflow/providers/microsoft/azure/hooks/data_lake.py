@@ -97,8 +97,8 @@ class AzureDataLakeHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_data_lake_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_data_lake_conn_id
         self._conn: core.AzureDLFileSystem | None = None
         self.account_name: str | None = None
@@ -311,8 +311,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             },
         }
 
-    def __init__(self, adls_conn_id: str, public_read: bool = False) -> None:
-        super().__init__()
+    def __init__(self, adls_conn_id: str, public_read: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = adls_conn_id
         self.public_read = public_read
 

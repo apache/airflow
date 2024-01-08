@@ -73,8 +73,8 @@ class AzureBatchHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_batch_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_batch_conn_id
 
     def _get_field(self, extras, name):
