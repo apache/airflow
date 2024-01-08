@@ -409,15 +409,15 @@ mypy_dependencies = [
 ]
 
 # make sure to update providers/amazon/provider.yaml botocore min version when you update it here
-_MIN_BOTO3_VERSION = "1.28.0"
+_MIN_BOTO3_VERSION = "1.33.0"
 
 _devel_only_amazon = [
-    "aws_xray_sdk",
-    "moto[cloudformation,glue]>=4.2.9",
+    "aws_xray_sdk>=2.12.0",
+    "moto[cloudformation,glue]>=4.2.12",
+    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
 ]
 
 _devel_only_azure = [
