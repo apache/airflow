@@ -56,8 +56,6 @@ class HttpHook(BaseHook):
     conn_type = "http"
     hook_name = "HTTP"
 
-    _retry_obj: Callable[..., Any]
-
     def __init__(
         self,
         method: str = "POST",
@@ -72,6 +70,7 @@ class HttpHook(BaseHook):
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
+        self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
@@ -243,11 +242,9 @@ class HttpHook(BaseHook):
             hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 
         """
-        # Work around "Never not callable" error in Mypy 1.8.
-        # This is probably an annotation issue in tenacity? Not entirely sure.
-        retrying = tenacity.Retrying(**_retry_args)
-        self._retry_obj = retrying
-        return retrying(self.run, *args, **kwargs)
+        self._retry_obj = tenacity.Retrying(**_retry_args)
+
+        return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
