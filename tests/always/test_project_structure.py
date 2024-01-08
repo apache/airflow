@@ -75,7 +75,6 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/triggers/test_glue_crawler.py",
             "tests/providers/amazon/aws/triggers/test_lambda_function.py",
             "tests/providers/amazon/aws/triggers/test_rds.py",
-            "tests/providers/amazon/aws/triggers/test_redshift_cluster.py",
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
