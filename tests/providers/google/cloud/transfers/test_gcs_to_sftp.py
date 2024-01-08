@@ -128,7 +128,6 @@ class TestGoogleCloudStorageToSFTPOperator:
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True, True),
             ("folder/test_object.txt", "test_object.txt", False, True),
             ("folder/subfolder/test_object.txt", "test_object.txt", False, True),
-
             ("folder/test_object.txt", "folder/test_object.txt", True, False),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True, False),
             ("folder/test_object.txt", "test_object.txt", False, False),
