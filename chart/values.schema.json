@@ -6146,7 +6146,7 @@
                         "enabled": {
                             "description": "Enable PgBouncer metric exporter sidecar.",
                             "type": "boolean",
-                            "default": false
+                            "default": true
                         },
                         "resources": {
                             "description": "Resources for the PgBouncer metric exporter.",
