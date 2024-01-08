@@ -794,7 +794,7 @@
     "deps": [
       "apache-airflow>=2.6.0",
       "ipykernel",
-      "papermill[all]>=1.2.1",
+      "papermill[all]>=2.4.0",
       "scrapbook[all]"
     ],
     "cross-providers-deps": [],
