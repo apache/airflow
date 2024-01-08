@@ -38,6 +38,8 @@ if TYPE_CHECKING:
 
     from airflow.triggers.base import BaseTrigger
 
+ENCRYPTED_KWARGS_PREFIX = "encrypted__"
+
 
 class Trigger(Base):
     """
@@ -96,7 +98,7 @@ class Trigger(Base):
         secure_kwargs = {}
         fernet = get_fernet()
         for k, v in kwargs.items():
-            if k.startswith("encrypted__"):
+            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
                 secure_kwargs[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
             else:
                 secure_kwargs[k] = v

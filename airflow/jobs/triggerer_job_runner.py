@@ -35,7 +35,7 @@ from sqlalchemy import func, select
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import ENCRYPTED_KWARGS_PREFIX, Trigger
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
@@ -718,8 +718,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         decrypted_kwargs = {}
         fernet = get_fernet()
         for k, v in trigger_row.kwargs.items():
-            if k.startswith("encrypted__"):
-                decrypted_kwargs[k[11:]] = fernet.decrypt(v.encode("utf-8")).decode("utf-8")
+            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
+                decrypted_kwargs[k[len(ENCRYPTED_KWARGS_PREFIX) :]] = fernet.decrypt(
+                    v.encode("utf-8")
+                ).decode("utf-8")
             else:
                 decrypted_kwargs[k] = v
         return trigger_class(**decrypted_kwargs)
