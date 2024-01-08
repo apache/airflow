@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-07T13:50:52.516721
+# This constraints file was automatically generated on 2024-01-07T23:43:55.629465
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -265,7 +265,7 @@ db-dtypes==1.2.0
 debugpy==1.8.0
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.15.0
+deltalake==0.15.1
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
