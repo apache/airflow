@@ -283,8 +283,20 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker Processing Job creation failed: {response}")
 
         if self.deferrable and self.wait_for_completion:
+            response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
+            status = response["ProcessingJobStatus"]
+            if status in self.hook.failed_states:
+                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+            elif status == "Completed":
+                self.log.info("%s completed successfully.", self.task_id)
+                return {"Processing": serialize(response)}
+
+            timeout = self.execution_timeout
+            if self.max_ingestion_time:
+                timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+
             self.defer(
-                timeout=self.execution_timeout,
+                timeout=timeout,
                 trigger=SageMakerTrigger(
                     job_name=self.config["ProcessingJobName"],
                     job_type="Processing",
@@ -304,6 +316,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         else:
             self.log.info(event["message"])
         self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
+        self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
