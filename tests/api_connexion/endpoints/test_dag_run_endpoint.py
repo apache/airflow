@@ -1212,9 +1212,6 @@ class TestPostDagRun(TestDagRunEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-        if response.status_code == 400:
-            print(response.json)
-
         assert response.status_code == 200
 
         if logical_date is None:
