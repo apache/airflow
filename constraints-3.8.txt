@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-07T23:43:55.766981
+# This constraints file was automatically generated on 2024-01-08T12:26:58.471050
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -421,7 +421,7 @@ linkify-it-py==2.0.2
 lockfile==0.12.2
 loguru==0.7.2
 looker-sdk==23.20.1
-lxml==5.0.1
+lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.0.1
@@ -444,7 +444,7 @@ multidict==6.0.4
 mypy-boto3-appflow==1.34.0
 mypy-boto3-rds==1.34.6
 mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.0
+mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysql-connector-python==8.0.29
