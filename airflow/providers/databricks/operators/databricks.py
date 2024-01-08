@@ -754,7 +754,7 @@ class DatabricksRunNowOperator(BaseOperator):
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        repair_run: bool = False
+        repair_run: bool = False,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
