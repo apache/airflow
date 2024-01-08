@@ -37,6 +37,8 @@ from airflow.utils.session import create_session
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 
+pytestmark = pytest.mark.db_test
+
 
 # To move it to a shared module.
 def make_example_dags(module):

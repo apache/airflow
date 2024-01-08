@@ -37,7 +37,25 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
+@pytest.fixture()
+def context():
+    yield {"ti": mock.Mock()}
+
+
 class TestBashOperator:
+    def test_bash_operator_init(self):
+        """Test the construction of the operator with its defaults and initially-derived attrs."""
+        op = BashOperator(task_id="bash_op", bash_command="echo")
+
+        assert op.bash_command == "echo"
+        assert op.env is None
+        assert op.append_env is False
+        assert op.output_encoding == "utf-8"
+        assert op.skip_on_exit_code == [99]
+        assert op.cwd is None
+        assert op._init_bash_command_not_set is False
+
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "append_env,user_defined_env,expected_airflow_home",
         [
@@ -104,17 +122,17 @@ class TestBashOperator:
             ("", ""),
         ],
     )
-    def test_return_value(self, val, expected):
+    def test_return_value(self, val, expected, context):
         op = BashOperator(task_id="abc", bash_command=f'set -e; echo "{val}";')
-        line = op.execute({})
+        line = op.execute(context)
         assert line == expected
 
-    def test_raise_exception_on_non_zero_exit_code(self):
+    def test_raise_exception_on_non_zero_exit_code(self, context):
         bash_operator = BashOperator(bash_command="exit 42", task_id="test_return_value", dag=None)
         with pytest.raises(
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 42\\."
         ):
-            bash_operator.execute(context={})
+            bash_operator.execute(context)
 
     def test_task_retries(self):
         bash_operator = BashOperator(
@@ -128,25 +146,25 @@ class TestBashOperator:
 
         assert bash_operator.retries == 0
 
-    def test_command_not_found(self):
+    def test_command_not_found(self, context):
         with pytest.raises(
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
-            BashOperator(task_id="abc", bash_command="set -e; something-that-isnt-on-path").execute({})
+            BashOperator(task_id="abc", bash_command="set -e; something-that-isnt-on-path").execute(context)
 
-    def test_unset_cwd(self):
+    def test_unset_cwd(self, context):
         val = "xxxx"
         op = BashOperator(task_id="abc", bash_command=f'set -e; echo "{val}";')
-        line = op.execute({})
+        line = op.execute(context)
         assert line == val
 
-    def test_cwd_does_not_exist(self, tmp_path):
+    def test_cwd_does_not_exist(self, context, tmp_path):
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         test_cwd_folder = os.fspath(tmp_path / "test_command_with_cwd")
         # There should be no exceptions when creating the operator even the `cwd` doesn't exist
         bash_operator = BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_folder))
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
-            bash_operator.execute({})
+            bash_operator.execute(context)
 
     def test_cwd_is_file(self, tmp_path):
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
@@ -156,47 +174,58 @@ class TestBashOperator:
         with pytest.raises(AirflowException, match=f"The cwd {tmp_file} must be a directory"):
             BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(tmp_file)).execute({})
 
-    def test_valid_cwd(self, tmp_path):
+    def test_valid_cwd(self, context, tmp_path):
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         test_cwd_path = tmp_path / "test_command_with_cwd"
         test_cwd_path.mkdir()
         # Test everything went alright
-        result = BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_path)).execute({})
+        result = BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_path)).execute(
+            context
+        )
         assert result == "xxxx"
         assert (test_cwd_path / "outputs.txt").read_text().splitlines()[0] == "xxxx"
 
     @pytest.mark.parametrize(
         "extra_kwargs,actual_exit_code,expected_exc",
         [
-            (None, 99, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 99, AirflowException),
-            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 101, AirflowException),
-            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({}, 0, None),
+            ({}, 100, AirflowException),
+            ({}, 99, AirflowSkipException),
             ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": None}, 99, AirflowException),
+            ({"skip_on_exit_code": 100}, 0, None),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 99, AirflowException),
+            ({"skip_on_exit_code": 0}, 0, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 0, None),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 99, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 99, AirflowException),
+            ({"skip_on_exit_code": (100,)}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100,)}, 99, AirflowException),
         ],
     )
-    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc, context):
         kwargs = dict(task_id="abc", bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
         if extra_kwargs:
             kwargs.update(**extra_kwargs)
         if expected_exc is None:
-            BashOperator(**kwargs).execute({})
+            BashOperator(**kwargs).execute(context)
         else:
             with pytest.raises(expected_exc):
-                BashOperator(**kwargs).execute({})
+                BashOperator(**kwargs).execute(context)
 
-    def test_bash_operator_multi_byte_output(self):
+    def test_bash_operator_multi_byte_output(self, context):
         op = BashOperator(
             task_id="test_multi_byte_bash_operator",
             bash_command="echo \u2600",
             output_encoding="utf-8",
         )
-        op.execute(context={})
+        op.execute(context)
 
+    @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):
         import psutil
 

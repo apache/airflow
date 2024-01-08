@@ -343,7 +343,7 @@ class EmrContainerSensor(BaseSensorOperator):
                 raise AirflowSkipException(message)
             raise AirflowException(message)
         else:
-            self.log.info(event["message"])
+            self.log.info("Job completed.")
 
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):

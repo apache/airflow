@@ -63,7 +63,7 @@ def app(examples_dag_bag):
         ]
     )
     def factory():
-        with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        with conf_vars({("fab", "auth_rate_limited"): "False"}):
             return create_app(testing=True)
 
     app = factory()
@@ -159,6 +159,7 @@ class _TemplateWithContext(NamedTuple):
             "default_ui_timezone",
             "hostname",
             "navbar_color",
+            "navbar_text_color",
             "log_fetch_delay_sec",
             "log_auto_tailing_offset",
             "log_animation_speed",

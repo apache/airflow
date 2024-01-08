@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
 
 
-class TestDruidHook:
+@pytest.mark.db_test
+class TestDruidSubmitHook:
     def setup_method(self):
         import requests_mock
 
@@ -157,6 +158,25 @@ class TestDruidHook:
         assert task_post.called_once
         assert status_check.called
         assert shutdown_post.called_once
+
+
+class TestDruidHook:
+    def setup_method(self):
+        import requests_mock
+
+        session = requests.Session()
+        adapter = requests_mock.Adapter()
+        session.mount("mock", adapter)
+
+        class TestDRuidhook(DruidHook):
+            self.is_sql_based_ingestion = False
+
+            def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH):
+                if ingestion_type == IngestionType.MSQ:
+                    return "http://druid-overlord:8081/druid/v2/sql/task"
+                return "http://druid-overlord:8081/druid/indexer/v1/task"
+
+        self.db_hook = TestDRuidhook()
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_conn_url(self, mock_get_connection):

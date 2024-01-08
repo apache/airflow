@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -39,7 +40,7 @@ TEST_OBJECT = "TEST_OBJECT"
 TEST_PREFIX = "TEST_PREFIX"
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 TEST_POLLING_INTERVAL = 3.0
-TEST_HOOK_PARAMS = {}
+TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_TS_OBJECT = datetime.utcnow()
 
 
@@ -54,6 +55,19 @@ def trigger():
     return GCSBlobTrigger(
         bucket=TEST_BUCKET,
         object_name=TEST_OBJECT,
+        use_glob=False,
+        poke_interval=TEST_POLLING_INTERVAL,
+        google_cloud_conn_id=TEST_GCP_CONN_ID,
+        hook_params=TEST_HOOK_PARAMS,
+    )
+
+
+@pytest.fixture
+def trigger_using_glob():
+    return GCSBlobTrigger(
+        bucket=TEST_BUCKET,
+        object_name=TEST_OBJECT,
+        use_glob=True,
         poke_interval=TEST_POLLING_INTERVAL,
         google_cloud_conn_id=TEST_GCP_CONN_ID,
         hook_params=TEST_HOOK_PARAMS,
@@ -72,6 +86,7 @@ class TestGCSBlobTrigger:
         assert kwargs == {
             "bucket": TEST_BUCKET,
             "object_name": TEST_OBJECT,
+            "use_glob": False,
             "poke_interval": TEST_POLLING_INTERVAL,
             "google_cloud_conn_id": TEST_GCP_CONN_ID,
             "hook_params": TEST_HOOK_PARAMS,
@@ -139,6 +154,30 @@ class TestGCSBlobTrigger:
         res = await trigger._object_exists(hook, TEST_BUCKET, TEST_OBJECT)
         assert res == response
         bucket.blob_exists.assert_called_once_with(blob_name=TEST_OBJECT)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "blob_list,response",
+        [
+            ([TEST_OBJECT], "success"),
+            ([], "pending"),
+        ],
+    )
+    async def test_object_exists_using_glob(self, blob_list, response, trigger_using_glob):
+        """
+        Tests to check if a particular object in Google Cloud Storage
+        is found or not
+        """
+        hook = AsyncMock(GCSAsyncHook)
+        storage = AsyncMock(Storage)
+        hook.get_storage_client.return_value = storage
+        bucket = AsyncMock(Bucket)
+        storage.get_bucket.return_value = bucket
+        bucket.list_blobs.return_value = blob_list
+
+        res = await trigger_using_glob._object_exists(hook, TEST_BUCKET, TEST_OBJECT)
+        assert res == response
+        bucket.list_blobs.assert_called_once_with(match_glob=TEST_OBJECT)
 
 
 class TestGCSPrefixBlobTrigger:

@@ -20,31 +20,31 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
+from airflow.utils.timezone import utc
 
-START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # Precedes all events
+START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # Precedes all events
 
 EVENT_DATES = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),  # deliberate duplicate, should be ignored
-    pendulum.DateTime(2021, 10, 9, tzinfo=TIMEZONE),  # deliberately out of order
-    pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 7, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),  # deliberate duplicate, should be ignored
+    pendulum.DateTime(2021, 10, 9, tzinfo=utc),  # deliberately out of order
+    pendulum.DateTime(2021, 9, 10, tzinfo=utc),
 ]
 
 EVENT_DATES_SORTED = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 10, 9, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 7, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 10, tzinfo=utc),
+    pendulum.DateTime(2021, 10, 9, tzinfo=utc),
 ]
 
-NON_EVENT_DATE = pendulum.DateTime(2021, 10, 1, tzinfo=TIMEZONE)
-MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE)
+NON_EVENT_DATE = pendulum.DateTime(2021, 10, 1, tzinfo=utc)
+MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=utc)
 
 
 @pytest.fixture()

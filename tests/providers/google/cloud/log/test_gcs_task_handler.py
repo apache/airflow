@@ -31,6 +31,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
+@pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance):
@@ -239,7 +240,7 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
                     content_type="text/plain",
                 ),
             ],
@@ -247,8 +248,8 @@ class TestGCSTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
-        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+        "delete_local_copy, expected_existence_of_local_copy",
+        [(True, False), (False, True)],
     )
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -264,12 +265,9 @@ class TestGCSTaskHandler:
         local_log_location,
         delete_local_copy,
         expected_existence_of_local_copy,
-        airflow_version,
     ):
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
-        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
-            "airflow.version.version", airflow_version
-        ):
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}):
             handler = GCSTaskHandler(
                 base_log_folder=local_log_location,
                 gcs_log_folder="gs://bucket/remote/log/location",

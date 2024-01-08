@@ -25,7 +25,6 @@ from databricks.sql.types import Row
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
-from airflow.serialization.serde import serialize
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
@@ -134,6 +133,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
+            return_tuple=True,
             session_configuration=None,
             sql_endpoint_name=None,
             http_headers=None,
@@ -149,25 +149,6 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             return_last=return_last,
             split_statements=split_statement,
         )
-
-
-def test_return_value_serialization():
-    hook_descriptions = [[("id",), ("value",)]]
-    hook_results = [Row(id=1, value="value1"), Row(id=2, value="value2")]
-
-    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
-        op = DatabricksSqlOperator(
-            task_id=TASK_ID,
-            sql="select * from dummy2",
-            do_xcom_push=True,
-            return_last=True,
-        )
-        db_mock = db_mock_class.return_value
-        db_mock.run.return_value = hook_results
-        db_mock.descriptions = hook_descriptions
-        result = op.execute({})
-        serialized_result = serialize(result)
-        assert serialized_result == serialize(([("id",), ("value",)], [(1, "value1"), (2, "value2")]))
 
 
 @pytest.mark.parametrize(
@@ -296,6 +277,7 @@ def test_exec_write_file(
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
+            return_tuple=True,
             session_configuration=None,
             sql_endpoint_name=None,
             http_headers=None,

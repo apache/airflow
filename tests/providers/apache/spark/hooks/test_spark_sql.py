@@ -29,6 +29,8 @@ from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 def get_after(sentinel, iterable):
     """Get the value after `sentinel` in an `iterable`"""

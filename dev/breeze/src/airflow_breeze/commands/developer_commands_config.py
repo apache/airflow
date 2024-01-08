@@ -41,12 +41,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
             "name": "Database",
             "options": [
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -76,12 +83,29 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Docker Compose project management",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Scripts execution",
+            "options": [
+                "--quiet",
+                "--skip-image-upgrade-check",
+                "--warn-image-upgrade-needed",
+                "--skip-environment-initialization",
+                "--tty",
+            ],
+        },
+        {
             "name": "Database",
             "options": [
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -113,12 +137,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--install-selected-providers",
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -129,10 +160,18 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "DB test flags",
+            "options": [
+                "--run-db-tests-only",
+                "--skip-db-tests",
+            ],
+        },
+        {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
                 "--max-time",
+                "--verbose-commands",
             ],
         },
     ],
@@ -141,6 +180,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Compile www assets flag",
             "options": [
                 "--dev",
+                "--force-clean",
             ],
         }
     ],
@@ -158,12 +198,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
             "name": "Database",
             "options": [
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -200,11 +247,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -223,6 +278,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--project-name",
             ],
         },
     ],
@@ -235,6 +291,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--clean-build",
                 "--one-pass-only",
                 "--package-filter",
+                "--include-not-ready-providers",
+                "--include-removed-providers",
                 "--github-repository",
                 "--builder",
             ],
@@ -263,7 +321,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Building image before running checks",
             "options": [
-                "--skip-image-check",
+                "--skip-image-upgrade-check",
                 "--force-build",
                 "--image-tag",
                 "--github-repository",

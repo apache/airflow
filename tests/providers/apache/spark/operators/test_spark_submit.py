@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -51,6 +53,7 @@ class TestSparkSubmitOperator:
         "application": "test_application.py",
         "driver_memory": "3g",
         "java_class": "com.foo.bar.AppMain",
+        "properties_file": "conf/spark-custom.conf",
         "application_args": [
             "-f",
             "foo",
@@ -63,6 +66,9 @@ class TestSparkSubmitOperator:
             "--with-spaces",
             "args should keep embedded spaces",
         ],
+        "use_krb5ccache": True,
+        "queue": "yarn_dev_queue2",
+        "deploy_mode": "client2",
     }
 
     def setup_method(self):
@@ -73,7 +79,10 @@ class TestSparkSubmitOperator:
         # Given / When
         conn_id = "spark_default"
         operator = SparkSubmitOperator(
-            task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **self._config
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            **self._config,
         )
 
         # Then expected results
@@ -113,6 +122,10 @@ class TestSparkSubmitOperator:
                 "args should keep embedded spaces",
             ],
             "spark_binary": "sparky",
+            "queue": "yarn_dev_queue2",
+            "deploy_mode": "client2",
+            "use_krb5ccache": True,
+            "properties_file": "conf/spark-custom.conf",
         }
 
         assert conn_id == operator._conn_id
@@ -140,7 +153,35 @@ class TestSparkSubmitOperator:
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["application_args"] == operator._application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
+        assert expected_dict["queue"] == operator._queue
+        assert expected_dict["deploy_mode"] == operator._deploy_mode
+        assert expected_dict["properties_file"] == operator._properties_file
+        assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
+    @pytest.mark.db_test
+    def test_spark_submit_cmd_connection_overrides(self):
+        config = self._config
+        # have to add this otherwise we can't run
+        # _build_spark_submit_command
+        config["use_krb5ccache"] = False
+        operator = SparkSubmitOperator(
+            task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **config
+        )
+        cmd = " ".join(operator._get_hook()._build_spark_submit_command("test"))
+        assert "--queue yarn_dev_queue2" in cmd
+        assert "--deploy-mode client2" in cmd
+        assert "sparky" in cmd
+
+        # if we don't pass any overrides in arguments
+        config["queue"] = None
+        config["deploy_mode"] = None
+        operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
+        cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
+        assert "--queue root.default" in cmd2
+        assert "--deploy-mode client2" not in cmd2
+        assert "spark-submit" in cmd2
+
+    @pytest.mark.db_test
     def test_render_template(self):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)

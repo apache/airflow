@@ -74,7 +74,7 @@ class SFTPOperator(BaseOperator):
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
                 create_intermediate_dirs=True,
-                dag=dag
+                dag=dag,
             )
 
     """
@@ -141,8 +141,8 @@ class SFTPOperator(BaseOperator):
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
-                    "Parameter `ssh_hook` is deprecated"
-                    "Please use `sftp_hook` instead."
+                    "Parameter `ssh_hook` is deprecated. "
+                    "Please use `sftp_hook` instead. "
                     "The old parameter `ssh_hook` will be removed in a future version.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
@@ -210,7 +210,7 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
                 exc_info=True,
             )
 

@@ -27,6 +27,145 @@
 Changelog
 ---------
 
+10.13.1
+.......
+
+Misc
+~~~~
+
+* ``Remove backcompat code for stackdriver (#36442)``
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``
+   * ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)``
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)" (#36440)``
+
+10.13.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``GCP Secrets Backend Impersonation (#36072)``
+* ``Add OpenLineage support to GcsOperators - Delete, Transform and TimeSpanTransform (#35838)``
+* ``Add support for service account impersonation with computeEngineSSHHook (google provider) and IAP tunnel (#35136)``
+* ``Add Datascan Profiling (#35696)``
+* ``Add overrides to template fields of Google Cloud Run Jobs Execute Operator (#36133)``
+* ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
+* ``Add ability to run streaming Job for BeamRunPythonPipelineOperator in non deferrable mode (#36108)``
+* ``Add use_glob to GCSObjectExistenceSensor (#34137)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
+* ``Fix CloudRunExecuteJobOperator not able to retrieve the Cloud Run job status in deferrable mode (#36012)``
+* ``Fix gcs listing - ensure blobs are loaded (#34919)``
+* ``allow multiple elements in impersonation chain (#35694)``
+* ``Change retry type for Google Dataflow Client to async one (#36141)``
+* ``Minor fix to DataprocCreateClusterOperator operator docs. (#36322)``
+* ``fix(bigquery.py): pass correct project_id to triggerer (#35200)``
+* ``iterate through blobs before checking prefixes (#36202)``
+* ``Fix incompatibility with google-cloud-monitoring 2.18.0 (#36200)``
+   * ``Update 'retry' param typing in PubSubAsyncHook (#36198)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Deprecate 'CloudComposerEnvironmentSensor' in favor of 'CloudComposerCreateEnvironmentOperator' with defer mode (#35775)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``Allow storage options to be passed (#35820)``
+* ``Add feature to build "chicken-egg" packages from sources (#35890)``
+* ``Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade to latest pre-commit plugins (#36163)``
+   * ``Review and mark found potential SSH security issues by bandit (#36162)``
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+   * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+
+10.12.0
+.......
+
+Features
+~~~~~~~~
+
+* ``added Topic params for schema_settings and message_retention_duration. (#35767)``
+* ``Add OpenLineage support to GCSToBigQueryOperator (#35778)``
+* ``Add OpenLineage support to BigQueryToGCSOperator (#35660)``
+* ``Add support for driver pool, instance flexibility policy, and min_num_instances for Dataproc (#34172)``
+* ``Add "NON_PREEMPTIBLE" as a valid preemptibility type for Dataproc workers (#35669)``
+* ``Add ability to pass impersonation_chain to BigQuery triggers (#35629)``
+* ``Add a filter for local files in GoogleDisplayVideo360CreateQueryOperator (#35635)``
+* ``Extend task context logging support for remote logging using GCP GCS (#32970)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Fix the logic of checking dataflow job state (#34785)``
+
+Misc
+~~~~
+
+* ``Remove usage of deprecated method from BigQueryToBigQueryOperator (#35605)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+* ``Restore delegate_to param in GoogleDiscoveryApiHook (#35728)``
+* ``Remove usage of deprecated methods from BigQueryCursor (#35606)``
+* ``Align documentation of 'MSSQLToGCSOperator' (#35715)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+
+10.11.1
+.......
+
+Misc
+~~~~
+
+* ``Update Google Ads API version from v14 to v15 (#35295)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+10.11.0
+.......
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Improve Dataprep hook (#34880)``
+
+Misc
+~~~~
+
+* ``Added 'overrides' parameter to CloudRunExecuteJobOperator (#34874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Update gcs.py Create and List comment Examples (#35028)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 10.10.1
 .......
 

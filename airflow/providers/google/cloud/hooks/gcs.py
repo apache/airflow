@@ -45,6 +45,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 
@@ -54,14 +55,6 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from google.api_core.retry import Retry
 
-try:
-    # Airflow 2.3 doesn't have this yet
-    from airflow.typing_compat import ParamSpec
-except ImportError:
-    try:
-        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
-    except ImportError:
-        from typing_extensions import ParamSpec
 
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
@@ -829,10 +822,12 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
+            blob_names = [blob.name for blob in blobs]
+
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(blob.name for blob in blobs)
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -940,14 +935,16 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
+            blob_names = [
+                blob.name
+                for blob in blobs
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+            ]
+
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(
-                    blob.name
-                    for blob in blobs
-                    if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
-                )
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:

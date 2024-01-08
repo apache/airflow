@@ -22,6 +22,7 @@ import pytest
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 
 
+@pytest.mark.db_test
 def test_suppress_function(caplog):
     @return_on_error("error")
     def fn(value: str, exc: Exception | None = None) -> str:

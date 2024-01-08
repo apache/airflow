@@ -67,6 +67,16 @@ Storing and Retrieving Variables
 If you have set ``variables_prefix`` as ``airflow-variables``, then for an Variable key of ``hello``,
 you would want to store your Variable at ``airflow-variables-hello``.
 
+
+Authentication
+""""""""""""""
+There are 3 ways to authenticate Azure Key Vault  backend.
+
+1. Set ``tenant_id``, ``client_id``, ``client_secret`` (using `ClientSecretCredential <https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.clientsecretcredential?view=azure-python>`_)
+2. Set ``managed_identity_client_id``, ``workload_identity_tenant_id`` (using `DefaultAzureCredential <https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python>`_ with these arguments)
+3. Not providing extra connection configuration for falling back to `DefaultAzureCredential <https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python>`_
+
+
 Reference
 """""""""
 

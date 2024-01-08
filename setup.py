@@ -105,6 +105,8 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
             dependencies = json.load(f)
         provider_dict = {}
         for key, value in dependencies.items():
+            if value["state"] in ["suspended", "removed"]:
+                continue
             if value.get(DEPS):
                 apply_pypi_suffix_to_airflow_packages(value[DEPS])
             if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:
@@ -286,15 +288,6 @@ cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
     "cgroupspy>=0.2.2",
 ]
-dask = [
-    # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
-    # Supporting it in the future
-    "cloudpickle>=1.4.1",
-    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
-    # See https://github.com/dask/dask/issues/10279
-    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
-    "distributed>=2.11.1,!=2023.5.0",
-]
 deprecated_api = [
     "requests>=2.26.0",
 ]
@@ -315,6 +308,7 @@ doc = [
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
     "sphinx-copybutton",
+    "sphinx-design>=0.5.0",
     "sphinx-jinja>=2.0",
     "sphinx-rtd-theme>=0.1.6",
     "sphinx>=5.2.0",
@@ -324,12 +318,14 @@ doc = [
 ]
 doc_gen = [
     "eralchemy2",
+    "graphviz>=0.12",
 ]
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.9",
+    "flask-appbuilder[oauth]==4.3.10",
 ]
+graphviz = ["graphviz>=0.12"]
 kerberos = [
     "pykerberos>=1.1.13",
     "requests_kerberos>=0.10.0",
@@ -353,7 +349,13 @@ ldap = [
 ]
 leveldb = ["plyvel"]
 otel = ["opentelemetry-exporter-prometheus"]
-pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
+pandas = [
+    "pandas>=0.17.1",
+    # Use pyarrow-hotfix to fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
+    # We should remove it once Apache Beam frees us to upgrade to pyarrow 14.0.1
+    "pyarrow-hotfix",
+    "pyarrow>=9.0.0",
+]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
@@ -363,7 +365,9 @@ rabbitmq = [
 ]
 sentry = [
     "blinker>=1.1",
-    "sentry-sdk>=1.32.0",
+    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
+    # See https://github.com/getsentry/sentry-python/issues/2473
+    "sentry-sdk>=1.32.0,!=1.33.0",
 ]
 statsd = [
     "statsd>=3.3.0",
@@ -385,6 +389,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
@@ -406,15 +411,15 @@ mypy_dependencies = [
 ]
 
 # make sure to update providers/amazon/provider.yaml botocore min version when you update it here
-_MIN_BOTO3_VERSION = "1.28.0"
+_MIN_BOTO3_VERSION = "1.33.0"
 
 _devel_only_amazon = [
-    "aws_xray_sdk",
-    "moto[cloudformation,glue]>=4.2.5",
+    "aws_xray_sdk>=2.12.0",
+    "moto[cloudformation,glue]>=4.2.12",
+    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
-    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
 ]
 
 _devel_only_azure = [
@@ -429,20 +434,33 @@ _devel_only_debuggers = [
     "ipdb",
 ]
 
+_devel_only_deltalake = [
+    "deltalake>=0.12.0",
+]
+
 _devel_only_devscripts = [
     "click>=8.0",
     "gitpython",
     "pipdeptree",
     "pygithub",
     "rich-click>=1.7.0",
+    "restructuredtext-lint",
     "semver",
     "towncrier",
     "twine",
     "wheel",
 ]
 
+_devel_only_duckdb = [
+    "duckdb>=0.9.0",
+]
+
 _devel_only_mongo = [
     "mongomock",
+]
+
+_devel_only_iceberg = [
+    "pyiceberg>=0.5.0",
 ]
 
 _devel_only_sentry = [
@@ -452,7 +470,7 @@ _devel_only_sentry = [
 _devel_only_static_checks = [
     "pre-commit",
     "black",
-    "ruff>=0.0.219",
+    "ruff==0.1.11",
     "yamllint",
 ]
 
@@ -461,11 +479,13 @@ _devel_only_tests = [
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
-    "pytest",
-    "pytest-asyncio",
-    "pytest-capture-warnings",
+    "pytest>=7.1",
+    # Pytest-asyncio 0.23.0 and 0.23.1 break test collection
+    # See https://github.com/pytest-dev/pytest-asyncio/issues/703 for details.
+    "pytest-asyncio!=0.23.0,!=0.23.1",
     "pytest-cov",
     "pytest-httpx",
+    "pytest-icdiff",
     "pytest-instafail",
     "pytest-mock",
     "pytest-rerunfailures",
@@ -481,8 +501,11 @@ devel_only = [
     *_devel_only_azure,
     *_devel_only_breeze,
     *_devel_only_debuggers,
+    *_devel_only_deltalake,
     *_devel_only_devscripts,
+    *_devel_only_duckdb,
     *_devel_only_mongo,
+    *_devel_only_iceberg,
     *_devel_only_sentry,
     *_devel_only_static_checks,
     *_devel_only_tests,
@@ -494,6 +517,17 @@ aiobotocore = [
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
     # boto3 have native aync support and we move away from aio aiobotocore
     "aiobotocore>=2.1.1",
+]
+
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned above
+    "s3fs>=2023.10.0",
+]
+
+saml = [
+    # This is required for support of SAML which might be used by some providers (e.g. Amazon)
+    "python3-saml>=1.16.0",
 ]
 
 
@@ -522,6 +556,8 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        s3fs,
+        saml,
     ]
 )
 
@@ -556,10 +592,10 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "celery": celery,  # TODO: remove and move to a regular provider package in a separate PR
     "cgroups": cgroups,
     "cncf.kubernetes": kubernetes,  # TODO: remove and move to a regular provider package in a separate PR
-    "dask": dask,  # TODO: remove and move to a provider package in a separate PR
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
+    "graphviz": graphviz,
     "kerberos": kerberos,
     "ldap": ldap,
     "leveldb": leveldb,
@@ -567,6 +603,8 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
+    "s3fs": s3fs,
+    "saml": saml,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,
@@ -610,7 +648,6 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "azure": "microsoft.azure",
     "cassandra": "apache.cassandra",
     "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
-    "dask": "daskexecutor",
     "druid": "apache.druid",
     "gcp": "google",
     "gcp_api": "google",
@@ -619,7 +656,6 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "kubernetes": "cncf.kubernetes",
     "mssql": "microsoft.mssql",
     "pinot": "apache.pinot",
-    "qds": "qubole",
     "s3": "amazon",
     "spark": "apache.spark",
     "webhdfs": "apache.webhdfs",
@@ -795,9 +831,12 @@ def sort_extras_dependencies() -> dict[str, list[str]]:
 EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 
 # Those providers are pre-installed always when airflow is installed.
-# Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
-# This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
+# TODO: Sync them with the ones in dev/breeze/src/airflow_breeze/util/packages.py
 PREINSTALLED_PROVIDERS = [
+    #   Until we cut off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
+    #   Keep common.io commented out in order ot be able to generate PyPI constraints because
+    #   The version from PyPI has requirement of apache-airflow>=2.8.0
+    #   "common.io",
     "common.sql",
     "ftp",
     "http",
@@ -866,6 +905,10 @@ class AirflowDistribution(Distribution):
                     provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow")
                 )
                 self.package_data["airflow"].append(provider_relative_path)
+            # Add python_kubernetes_script.jinja2 to package data
+            self.package_data["airflow"].append("providers/cncf/kubernetes/python_kubernetes_script.jinja2")
+            # Add default email template to package data
+            self.package_data["airflow"].append("providers/smtp/notifications/templates/email.html")
         else:
             self.install_requires.extend(
                 [
@@ -914,7 +957,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )

@@ -59,6 +59,8 @@ CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = "job-name"
+PIPELINE_NAME = "some pipeline name"
+PIPELINE_ID = "its-a-pipeline-id"
 DEFAULT_RETRY_NUMBER = 3
 DEFAULT_RETRY_ARGS = dict(
     wait=tenacity.wait_none(),
@@ -100,11 +102,38 @@ LIST_JOBS_RESPONSE = {
     ],
     "has_more": False,
 }
+LIST_PIPELINES_RESPONSE = {
+    "statuses": [
+        {
+            "pipeline_id": PIPELINE_ID,
+            "state": "DEPLOYING",
+            "cluster_id": "string",
+            "name": PIPELINE_NAME,
+            "latest_updates": [{"update_id": "string", "state": "QUEUED", "creation_time": "string"}],
+            "creator_user_name": "string",
+            "run_as_user_name": "string",
+        }
+    ]
+}
 LIST_SPARK_VERSIONS_RESPONSE = {
     "versions": [
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
 }
+
+
+def create_endpoint(host):
+    """
+    Utility function to generate the create endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/create"
+
+
+def reset_endpoint(host):
+    """
+    Utility function to generate the reset endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/reset"
 
 
 def run_now_endpoint(host):
@@ -212,6 +241,13 @@ def list_jobs_endpoint(host):
     return f"https://{host}/api/2.1/jobs/list"
 
 
+def list_pipelines_endpoint(host):
+    """
+    Utility function to generate the list jobs endpoint given the host
+    """
+    return f"https://{host}/api/2.0/pipelines"
+
+
 def list_spark_versions_endpoint(host):
     """Utility function to generate the list spark versions endpoint given the host"""
     return f"https://{host}/api/2.0/clusters/spark-versions"
@@ -254,6 +290,7 @@ def setup_mock_requests(mock_requests, exception, status_code=500, error_count=N
         ]
 
 
+@pytest.mark.db_test
 class TestDatabricksHook:
     """
     Tests for DatabricksHook.
@@ -381,6 +418,43 @@ class TestDatabricksHook:
         mock_requests.patch.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={"cluster_name": "new_name"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_create(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {"job_id": JOB_ID}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        job_id = self.hook.create_job(json)
+
+        assert job_id == JOB_ID
+
+        mock_requests.post.assert_called_once_with(
+            create_endpoint(HOST),
+            json={"name": "test"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_reset(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        self.hook.reset_job(JOB_ID, json)
+
+        mock_requests.post.assert_called_once_with(
+            reset_endpoint(HOST),
+            json={"job_id": JOB_ID, "new_settings": {"name": "test"}},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -864,6 +938,92 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_pipeline_id_by_name_success(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_PIPELINES_RESPONSE
+
+        pipeline_id = self.hook.find_pipeline_id_by_name(PIPELINE_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={"filter": f"name LIKE '{PIPELINE_NAME}'", "max_results": 25},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert pipeline_id == PIPELINE_ID
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_list_pipelines_success_multiple_pages(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({**LIST_PIPELINES_RESPONSE, "next_page_token": "PAGETOKEN"}),
+            create_successful_response_mock(LIST_PIPELINES_RESPONSE),
+        ]
+
+        pipelines = self.hook.list_pipelines(pipeline_name=PIPELINE_NAME)
+
+        assert mock_requests.get.call_count == 2
+
+        first_call_args = mock_requests.method_calls[0]
+        assert first_call_args[1][0] == list_pipelines_endpoint(HOST)
+        assert first_call_args[2]["params"] == {"filter": f"name LIKE '{PIPELINE_NAME}'", "max_results": 25}
+
+        second_call_args = mock_requests.method_calls[1]
+        assert second_call_args[1][0] == list_pipelines_endpoint(HOST)
+        assert second_call_args[2]["params"] == {
+            "filter": f"name LIKE '{PIPELINE_NAME}'",
+            "max_results": 25,
+            "page_token": "PAGETOKEN",
+        }
+
+        assert len(pipelines) == 2
+        assert pipelines == LIST_PIPELINES_RESPONSE["statuses"] * 2
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_pipeline_id_by_name_not_found(self, mock_requests):
+        empty_response = {"statuses": []}
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = empty_response
+
+        ne_pipeline_name = "Non existing pipeline"
+        pipeline_id = self.hook.find_pipeline_id_by_name(ne_pipeline_name)
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={"filter": f"name LIKE '{ne_pipeline_name}'", "max_results": 25},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert pipeline_id is None
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_list_pipelines_raise_exception_with_duplicates(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            **LIST_PIPELINES_RESPONSE,
+            "statuses": LIST_PIPELINES_RESPONSE["statuses"] * 2,
+        }
+
+        exception_message = f"There are more than one pipelines with name {PIPELINE_NAME}."
+        with pytest.raises(AirflowException, match=exception_message):
+            self.hook.find_pipeline_id_by_name(pipeline_name=PIPELINE_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={"filter": f"name LIKE '{PIPELINE_NAME}'", "max_results": 25},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_connection_success(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_SPARK_VERSIONS_RESPONSE
@@ -898,6 +1058,7 @@ class TestDatabricksHook:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookToken:
     """
     Tests for DatabricksHook when auth is done with token.
@@ -927,6 +1088,7 @@ class TestDatabricksHookToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenInPassword:
     """
     Tests for DatabricksHook.
@@ -958,6 +1120,7 @@ class TestDatabricksHookTokenInPassword:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
     def setup_method(self, method, session=None):
@@ -1051,6 +1214,7 @@ def create_aad_token_for_resource(resource: str) -> dict:
     }
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadToken:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
@@ -1088,6 +1252,7 @@ class TestDatabricksHookAadToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenOtherClouds:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
@@ -1135,6 +1300,7 @@ class TestDatabricksHookAadTokenOtherClouds:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenSpOutside:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
@@ -1188,6 +1354,7 @@ class TestDatabricksHookAadTokenSpOutside:
         assert kwargs["headers"]["X-Databricks-Azure-SP-Management-Token"] == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenManagedIdentity:
     """
     Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
@@ -1231,6 +1398,7 @@ class TestDatabricksHookAadTokenManagedIdentity:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncMethods:
     """
     Tests for async functionality of DatabricksHook.
@@ -1368,6 +1536,7 @@ class TestDatabricksHookAsyncMethods:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadToken:
     """
     Tests for DatabricksHook using async methods when
@@ -1410,6 +1579,7 @@ class TestDatabricksHookAsyncAadToken:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenOtherClouds:
     """
     Tests for DatabricksHook using async methodswhen auth is done with AAD token
@@ -1462,6 +1632,7 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenSpOutside:
     """
     Tests for DatabricksHook using async methods when auth is done with AAD token for SP outside of workspace.
@@ -1528,6 +1699,7 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenManagedIdentity:
     """
     Tests for DatabricksHook using async methods when
@@ -1577,6 +1749,7 @@ def create_sp_token_for_resource() -> dict:
     }
 
 
+@pytest.mark.db_test
 class TestDatabricksHookSpToken:
     """
     Tests for DatabricksHook when auth is done with Service Principal Oauth token.
@@ -1613,6 +1786,7 @@ class TestDatabricksHookSpToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncSpToken:
     """
     Tests for DatabricksHook using async methods when auth is done with Service

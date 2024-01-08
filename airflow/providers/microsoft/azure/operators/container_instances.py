@@ -93,29 +93,29 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     **Example**::
 
-                AzureContainerInstancesOperator(
-                    ci_conn_id = "azure_service_principal",
-                    registry_conn_id = "azure_registry_user",
-                    resource_group = "my-resource-group",
-                    name = "my-container-name-{{ ds }}",
-                    image = "myprivateregistry.azurecr.io/my_container:latest",
-                    region = "westeurope",
-                    environment_variables = {"MODEL_PATH":  "my_value",
-                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
-                     "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
-                     "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
-                    secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_container_instance_conn_id",
-                            "my_storage_container",
-                            "my_fileshare",
-                            "/input-data",
-                        True),],
-                    memory_in_gb=14.0,
-                    cpu=4.0,
-                    gpu=GpuResource(count=1, sku='K80'),
-                    command=["/bin/echo", "world"],
-                    task_id="start_container"
-                )
+        AzureContainerInstancesOperator(
+            ci_conn_id="azure_service_principal",
+            registry_conn_id="azure_registry_user",
+            resource_group="my-resource-group",
+            name="my-container-name-{{ ds }}",
+            image="myprivateregistry.azurecr.io/my_container:latest",
+            region="westeurope",
+            environment_variables={
+                "MODEL_PATH": "my_value",
+                "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
+                "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
+                "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}",
+            },
+            secured_variables=["POSTGRES_PASSWORD"],
+            volumes=[
+                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+            ],
+            memory_in_gb=14.0,
+            cpu=4.0,
+            gpu=GpuResource(count=1, sku="K80"),
+            command=["/bin/echo", "world"],
+            task_id="start_container",
+        )
     """
 
     template_fields: Sequence[str] = ("name", "image", "command", "environment_variables", "volumes")
@@ -278,12 +278,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.on_kill()
 
     def on_kill(self) -> None:
-        if self.remove_on_error:
-            self.log.info("Deleting container group")
-            try:
-                self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:
-                self.log.exception("Could not delete container group")
+        self.log.info("Deleting container group")
+        try:
+            self._ci_hook.delete(self.resource_group, self.name)
+        except Exception:
+            self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None

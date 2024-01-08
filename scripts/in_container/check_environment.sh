@@ -86,6 +86,9 @@ function check_db_backend {
         check_service "MSSQL Login Check" "airflow db check" "${max_check}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
+    elif [[ ${BACKEND} == "none" ]]; then
+        echo "${COLOR_YELLOW}WARNING: Using no database backend!${COLOR_RESET}"
+        return
     else
         echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
         exit 1

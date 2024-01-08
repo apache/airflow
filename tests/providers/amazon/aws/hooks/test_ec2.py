@@ -78,6 +78,14 @@ class TestEC2Hook:
         assert created_instance_id == existing_instance.instance_id
 
     @mock_ec2
+    def test_get_instance_client_type(self):
+        ec2_hook = EC2Hook(api_type="client_type")
+        created_instance_id = self._create_instance(ec2_hook)
+        # test get_instance method
+        existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
+        assert created_instance_id == existing_instance["InstanceId"]
+
+    @mock_ec2
     def test_get_instance_state(self):
         ec2_hook = EC2Hook()
         created_instance_id = self._create_instance(ec2_hook)

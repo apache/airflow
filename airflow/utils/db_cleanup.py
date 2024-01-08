@@ -118,6 +118,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="trigger", recency_column_name="created_date"),
 ]
 
 if conf.get("webserver", "session_backend") == "database":
@@ -228,11 +229,6 @@ class CreateTableAs(Executable, ClauseElement):
 @compiles(CreateTableAs)
 def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
-
-
-@compiles(CreateTableAs, "mssql")
-def _compile_create_table_as__mssql(element, compiler, **kw):
-    return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
 def _build_query(

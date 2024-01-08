@@ -20,9 +20,12 @@
 /* global moment */
 
 import { Box, Button, Flex, Input, Select } from "@chakra-ui/react";
+import MultiSelect from "src/components/MultiSelect";
 import React from "react";
 import type { DagRun, RunState, TaskState } from "src/types";
 import AutoRefresh from "src/components/AutoRefresh";
+import type { Size } from "chakra-react-select";
+import { useChakraSelectProps } from "chakra-react-select";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
@@ -43,6 +46,7 @@ const FilterBar = () => {
     onRunTypeChange,
     onRunStateChange,
     clearFilters,
+    transformArrayToMultiSelectOptions,
   } = useFilters();
 
   const { timezone } = useTimezone();
@@ -51,7 +55,26 @@ const FilterBar = () => {
   // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
-  const inputStyles = { backgroundColor: "white", size: "lg" };
+  const inputStyles: { backgroundColor: string; size: Size } = {
+    backgroundColor: "white",
+    size: "lg",
+  };
+
+  const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
+  const multiSelectStyles = useChakraSelectProps({
+    ...inputStyles,
+    isMulti: true,
+    tagVariant: "solid",
+    hideSelectedOptions: false,
+    isClearable: false,
+    selectedOptionStyle: "check",
+    chakraStyles: {
+      container: (provided) => ({
+        ...provided,
+        bg: "white",
+      }),
+    },
+  });
 
   return (
     <Flex
@@ -83,38 +106,44 @@ const FilterBar = () => {
             ))}
           </Select>
         </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            value={filters.runType || ""}
-            onChange={(e) => onRunTypeChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run Types
-            </option>
-            {filtersOptions.runTypes.map((value) => (
-              <option value={value.toString()} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+        <Box px={2} style={multiSelectBoxStyle}>
+          <MultiSelect
+            {...multiSelectStyles}
+            value={transformArrayToMultiSelectOptions(filters.runType)}
+            onChange={(typeOptions) => {
+              if (
+                Array.isArray(typeOptions) &&
+                typeOptions.every((typeOption) => "value" in typeOption)
+              ) {
+                onRunTypeChange(
+                  typeOptions.map((typeOption) => typeOption.value)
+                );
+              }
+            }}
+            options={transformArrayToMultiSelectOptions(filters.runTypeOptions)}
+            placeholder="All Run Types"
+          />
         </Box>
         <Box />
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            value={filters.runState || ""}
-            onChange={(e) => onRunStateChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run States
-            </option>
-            {filtersOptions.dagStates.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+        <Box px={2} style={multiSelectBoxStyle}>
+          <MultiSelect
+            {...multiSelectStyles}
+            value={transformArrayToMultiSelectOptions(filters.runState)}
+            onChange={(stateOptions) => {
+              if (
+                Array.isArray(stateOptions) &&
+                stateOptions.every((stateOption) => "value" in stateOption)
+              ) {
+                onRunStateChange(
+                  stateOptions.map((stateOption) => stateOption.value)
+                );
+              }
+            }}
+            options={transformArrayToMultiSelectOptions(
+              filters.runStateOptions
+            )}
+            placeholder="All Run States"
+          />
         </Box>
         <Box px={2}>
           <Button

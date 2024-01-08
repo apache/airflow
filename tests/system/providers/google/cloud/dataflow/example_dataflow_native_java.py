@@ -48,12 +48,12 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataflow_native_java"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-PUBLIC_BUCKET = "system-tests-resources"
+PUBLIC_BUCKET = "airflow-system-tests-resources"
 
 JAR_FILE_NAME = "word-count-beam-bundled-0.1.jar"
-REMOTE_JAR_FILE_PATH = f"{DAG_ID}/{JAR_FILE_NAME}"
+REMOTE_JAR_FILE_PATH = f"dataflow/java/{JAR_FILE_NAME}"
 GCS_OUTPUT = f"gs://{BUCKET_NAME}"
-GCS_JAR = f"gs://{PUBLIC_BUCKET}/{REMOTE_JAR_FILE_PATH}"
+GCS_JAR = f"gs://{PUBLIC_BUCKET}/dataflow/java/{JAR_FILE_NAME}"
 LOCATION = "europe-west3"
 
 with DAG(
@@ -105,11 +105,38 @@ with DAG(
     )
     # [END howto_operator_start_java_job_jar_on_gcs]
 
+    # [START howto_operator_start_java_job_jar_on_gcs_deferrable]
+    start_java_deferrable = BeamRunJavaPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
+        task_id="start-java-job-deferrable",
+        jar=GCS_JAR,
+        pipeline_options={
+            "output": GCS_OUTPUT,
+        },
+        job_class="org.apache.beam.examples.WordCount",
+        dataflow_config={
+            "check_if_running": CheckJobRunning.WaitForRun,
+            "location": LOCATION,
+            "poll_sleep": 10,
+            "append_job_name": False,
+        },
+        deferrable=True,
+    )
+    # [END howto_operator_start_java_job_jar_on_gcs_deferrable]
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    create_bucket >> download_file >> [start_java_job_local, start_java_job] >> delete_bucket
+    (
+        # TEST SETUP
+        create_bucket
+        >> download_file
+        # TEST BODY
+        >> [start_java_job_local, start_java_job, start_java_deferrable]
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
 
     from tests.system.utils.watcher import watcher
 

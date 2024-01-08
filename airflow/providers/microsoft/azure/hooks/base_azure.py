@@ -24,7 +24,10 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+)
 
 
 class AzureBaseHook(BaseHook):
@@ -44,8 +47,9 @@ class AzureBaseHook(BaseHook):
     conn_type = "azure"
     hook_name = "Azure"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -56,8 +60,8 @@ class AzureBaseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -133,7 +137,12 @@ class AzureBaseHook(BaseHook):
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            credentials = AzureIdentityCredentialAdapter()
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credentials = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         return self.sdk_client(
             credentials=credentials,

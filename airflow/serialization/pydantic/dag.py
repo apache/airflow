@@ -16,12 +16,74 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List, Optional
+import pathlib
+from datetime import datetime, timedelta
+from typing import Any, List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from dateutil import relativedelta
+from pydantic import (
+    BaseModel as BaseModelPydantic,
+    ConfigDict,
+    PlainSerializer,
+    PlainValidator,
+    ValidationInfo,
+)
+from typing_extensions import Annotated
 
+from airflow import DAG, settings
 from airflow.configuration import conf as airflow_conf
+from airflow.utils.sqlalchemy import Interval
+
+
+def serialize_interval(value: Interval) -> Interval:
+    interval = Interval()
+    return interval.process_bind_param(value, None)
+
+
+def validate_interval(value: Interval | Any, _info: ValidationInfo) -> Any:
+    if (
+        isinstance(value, Interval)
+        or isinstance(value, timedelta)
+        or isinstance(value, relativedelta.relativedelta)
+    ):
+        return value
+    interval = Interval()
+    try:
+        return interval.process_result_value(value, None)
+    except ValueError as e:
+        # Interval may be provided in string format (cron),
+        # so it must be returned as valid value.
+        if isinstance(value, str):
+            return value
+        raise e
+
+
+PydanticInterval = Annotated[
+    Interval,
+    PlainValidator(validate_interval),
+    PlainSerializer(serialize_interval, return_type=Interval),
+]
+
+
+def serialize_operator(x: DAG) -> dict:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    return SerializedDAG.serialize_dag(x)
+
+
+def validate_operator(x: DAG | dict[str, Any], _info: ValidationInfo) -> Any:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    if isinstance(x, DAG):
+        return x
+    return SerializedDAG.deserialize_dag(x)
+
+
+PydanticDag = Annotated[
+    DAG,
+    PlainValidator(validate_operator),
+    PlainSerializer(serialize_operator, return_type=dict),
+]
 
 
 class DagOwnerAttributesPydantic(BaseModelPydantic):
@@ -30,12 +92,7 @@ class DagOwnerAttributesPydantic(BaseModelPydantic):
     owner: str
     link: str
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class DagTagPydantic(BaseModelPydantic):
@@ -44,12 +101,7 @@ class DagTagPydantic(BaseModelPydantic):
     name: str
     dag_id: str
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class DagModelPydantic(BaseModelPydantic):
@@ -60,7 +112,7 @@ class DagModelPydantic(BaseModelPydantic):
     is_paused_at_creation: bool = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: bool = is_paused_at_creation
     is_subdag: Optional[bool] = False
-    is_active: bool = False
+    is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
     last_pickled: Optional[datetime]
     last_expired: Optional[datetime]
@@ -71,10 +123,11 @@ class DagModelPydantic(BaseModelPydantic):
     owners: Optional[str]
     description: Optional[str]
     default_view: Optional[str]
-    schedule_interval: Optional[str]
+    schedule_interval: Optional[PydanticInterval]
     timetable_description: Optional[str]
     tags: List[DagTagPydantic]  # noqa
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa
+    parent_dag: Optional[PydanticDag]
 
     max_active_tasks: int
     max_active_runs: Optional[int]
@@ -82,9 +135,20 @@ class DagModelPydantic(BaseModelPydantic):
     has_task_concurrency_limits: bool
     has_import_errors: Optional[bool] = False
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
+    _processor_dags_folder: Optional[str] = None
 
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+    @property
+    def relative_fileloc(self) -> pathlib.Path:
+        """File location of the importable dag 'file' relative to the configured DAGs folder."""
+        path = pathlib.Path(self.fileloc)
+        try:
+            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
+            if rel_path == pathlib.Path("."):
+                return path
+            else:
+                return rel_path
+        except ValueError:
+            # Not relative to DAGS_FOLDER.
+            return path

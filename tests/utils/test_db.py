@@ -53,6 +53,8 @@ from airflow.utils.db import (
 )
 from airflow.utils.session import NEW_SESSION
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
@@ -79,15 +81,6 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "taskset_id"),
             # from test_security unit test
             lambda t: (t[0] == "remove_table" and t[1].name == "some_model"),
-            # MSSQL default tables
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_monitor"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_db"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_usg"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "MSreplication_options"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_dev"),
-            # MSSQL foreign keys where CASCADE has been removed
-            lambda t: (t[0] == "remove_fk" and t[1].name == "task_reschedule_dr_fkey"),
-            lambda t: (t[0] == "add_fk" and t[1].name == "task_reschedule_dr_fkey"),
             # Ignore flask-session table/index
             lambda t: (t[0] == "remove_table" and t[1].name == "session"),
             lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),

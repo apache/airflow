@@ -25,9 +25,10 @@ from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs, clear_db_variables
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+
+pytestmark = pytest.mark.db_test
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -89,11 +90,6 @@ def clean_db():
     clear_db_variables()
     yield
     clear_db_variables()
-
-
-@action_has_dag_edit_access
-def some_view_action_which_requires_dag_edit_access(*args) -> bool:
-    return True
 
 
 def test_action_logging_get(session, admin_client):
@@ -183,8 +179,3 @@ def test_calendar(admin_client, dagruns):
     datestr = bash_dagrun.execution_date.date().isoformat()
     expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
-
-
-def test_action_has_dag_edit_access_exception():
-    with pytest.raises(ValueError):
-        some_view_action_which_requires_dag_edit_access(None, "some_incorrect_value")

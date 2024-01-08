@@ -192,15 +192,14 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
     The **minimum** required to define a cluster to create is:
 
     ``dict()`` ::
-        cluster_def = {'name': 'my-cluster-name',
-                       'initial_node_count': 1}
+        cluster_def = {"name": "my-cluster-name", "initial_node_count": 1}
 
     or
 
     ``Cluster`` proto ::
         from google.cloud.container_v1.types import Cluster
 
-        cluster_def = Cluster(name='my-cluster-name', initial_node_count=1)
+        cluster_def = Cluster(name="my-cluster-name", initial_node_count=1)
 
     **Operator Creation**: ::
 

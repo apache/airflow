@@ -31,6 +31,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 def test_index_redirect(admin_client):
     resp = admin_client.get("/")
@@ -66,7 +68,7 @@ def heartbeat_healthy():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
@@ -86,7 +88,7 @@ def heartbeat_too_slow():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.query(Job).filter(
             Job.job_type == "SchedulerJob",

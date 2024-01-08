@@ -19,9 +19,10 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.sensors.base import BaseSensorOperator
 
@@ -32,6 +33,11 @@ if TYPE_CHECKING:
 class CloudComposerEnvironmentSensor(BaseSensorOperator):
     """
     Check the status of the Cloud Composer Environment task.
+
+    This Sensor is deprecated. You can achieve the same functionality by using Cloud Composer Operators
+    CloudComposerCreateEnvironmentOperator, CloudComposerDeleteEnvironmentOperator and
+    CloudComposerUpdateEnvironmentOperator in  deferrable or non-deferrable mode, since every operator
+    gives user a possibility to wait (asynchronously or synchronously) until Operation will be finished.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -59,6 +65,13 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
         pooling_period_seconds: int = 30,
         **kwargs,
     ):
+        warnings.warn(
+            f"The `{self.__class__.__name__}` operator is deprecated. You can achieve the same functionality "
+            f"by using operators in deferrable or non-deferrable mode, since every operator for Cloud "
+            f"Composer will wait for the operation to complete.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region

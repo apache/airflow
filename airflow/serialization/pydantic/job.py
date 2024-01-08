@@ -16,15 +16,12 @@
 # under the License.
 import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-
-if TYPE_CHECKING:
-    from airflow.jobs.job import Job
 
 
 def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:
@@ -47,11 +44,7 @@ class JobPydantic(BaseModelPydantic):
     hostname: Optional[str]
     unixname: Optional[str]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
     @cached_property
     def executor(self):
@@ -59,11 +52,15 @@ class JobPydantic(BaseModelPydantic):
 
     @cached_property
     def heartrate(self) -> float:
+        from airflow.jobs.job import Job
+
         assert self.job_type is not None
         return Job._heartrate(self.job_type)
 
     def is_alive(self, grace_multiplier=2.1) -> bool:
         """Is this job currently alive."""
+        from airflow.jobs.job import Job
+
         return Job._is_alive(
             job_type=self.job_type,
             heartrate=self.heartrate,

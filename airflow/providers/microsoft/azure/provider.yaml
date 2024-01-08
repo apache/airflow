@@ -19,8 +19,15 @@ package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
-suspended: false
+state: ready
+source-date-epoch: 1703747626
 versions:
+  - 8.5.1
+  - 8.5.0
+  - 8.4.0
+  - 8.3.0
+  - 8.2.0
+  - 8.1.0
   - 8.0.0
   - 7.0.0
   - 6.3.0
@@ -65,7 +72,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
+  - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.0.0
   - azure-mgmt-cosmosdb
@@ -79,6 +87,7 @@ dependencies:
   - azure-storage-file-share
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
+  - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
   - azure-kusto-data>=4.1.0
@@ -189,6 +198,9 @@ sensors:
     python-modules:
       - airflow.providers.microsoft.azure.sensors.data_factory
 
+filesystems:
+  - airflow.providers.microsoft.azure.fs.adls
+
 hooks:
   - integration-name: Microsoft Azure Container Instances
     python-modules:
@@ -273,15 +285,13 @@ connection-types:
     connection-type: azure_fileshare
   - hook-class-name: airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
     connection-type: azure_container_volume
-  - hook-class-name: >-
-      airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
     connection-type: azure_container_instance
   - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
     connection-type: wasb
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
     connection-type: azure_data_factory
-  - hook-class-name: >-
-      airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
@@ -289,6 +299,8 @@ connection-types:
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
+    connection-type: azure_synapse_pipeline
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
@@ -298,6 +310,7 @@ logging:
 
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
+  - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink
 
 config:
   azure_remote_logging:

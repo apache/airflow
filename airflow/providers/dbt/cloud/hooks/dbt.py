@@ -174,8 +174,8 @@ class DbtCloudHook(HttpHook):
     conn_type = "dbt_cloud"
     hook_name = "dbt Cloud"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Build custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
