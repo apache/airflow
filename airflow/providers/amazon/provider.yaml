@@ -939,6 +939,13 @@ config:
         type: string
         example: "aws_default"
         default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Verified Permissions is configured. Required.
+        version_added: "8.10"
+        type: string
+        example: "us-east-1"
+        default: ~
       saml_metadata_url:
         description: |
           SAML metadata XML file provided by AWS Identity Center.
