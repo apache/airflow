@@ -257,6 +257,19 @@ class TestPgbouncer:
             },
         } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
 
+    def test_disabling_metrics_exporter(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {"enabled": False},
+                }
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[1]", docs[0]) is None
+
     def test_default_command_and_args(self):
         docs = render_chart(
             values={"pgbouncer": {"enabled": True}},
