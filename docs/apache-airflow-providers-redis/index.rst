@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Logging <logging/index>
 
 .. toctree::
@@ -76,7 +77,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.5.0
+Release: 3.6.0
 
 Provider package
 ----------------

@@ -36,7 +36,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
-from airflow.models.base import Base, StringID
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
 
-class RenderedTaskInstanceFields(Base):
+class RenderedTaskInstanceFields(TaskInstanceDependencies):
     """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
@@ -68,7 +68,6 @@ class RenderedTaskInstanceFields(Base):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
-            mssql_clustered=True,
         ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],

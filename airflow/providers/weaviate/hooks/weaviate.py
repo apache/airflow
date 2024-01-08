@@ -21,7 +21,7 @@ import contextlib
 import json
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
 import weaviate.exceptions
@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Callable, Collection, Literal, Sequence
+    from typing import Callable, Collection, Literal
 
     import pandas as pd
     from weaviate.types import UUID
@@ -280,9 +280,7 @@ class WeaviateHook(BaseHook):
         intersection_classes = set__exiting_classes.intersection(set__to_be_added_classes)
         classes_to_create = set()
         if existing == "fail" and intersection_classes:
-            raise ValueError(
-                f"Trying to create class {intersection_classes}" f" but this class already exists."
-            )
+            raise ValueError(f"Trying to create class {intersection_classes} but this class already exists.")
         elif existing == "ignore":
             classes_to_create = set__to_be_added_classes - set__exiting_classes
         elif existing == "replace":
@@ -385,7 +383,6 @@ class WeaviateHook(BaseHook):
         self,
         class_name: str,
         data: list[dict[str, Any]] | pd.DataFrame,
-        insertion_errors: list,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
@@ -397,7 +394,6 @@ class WeaviateHook(BaseHook):
 
         :param class_name: The name of the class that objects belongs to.
         :param data: list or dataframe of objects we want to add.
-        :param insertion_errors: list to hold errors while inserting.
         :param batch_config_params: dict of batch configuration option.
             .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
         :param vector_col: name of the column containing the vector.
@@ -408,6 +404,7 @@ class WeaviateHook(BaseHook):
         data = self._convert_dataframe_to_list(data)
         total_results = 0
         error_results = 0
+        insertion_errors: list = []
 
         def _process_batch_errors(
             results: list,
@@ -975,10 +972,10 @@ class WeaviateHook(BaseHook):
         if len(data) == 0:
             return []
 
-        if isinstance(data, list) and isinstance(data[0], dict):
+        if isinstance(data, Sequence) and isinstance(data[0], dict):
             # This is done to narrow the type to List[Dict[str, Any].
             data = pd.json_normalize(cast(List[Dict[str, Any]], data))
-        elif isinstance(data, list) and isinstance(data[0], pd.DataFrame):
+        elif isinstance(data, Sequence) and isinstance(data[0], pd.DataFrame):
             # This is done to narrow the type to List[pd.DataFrame].
             data = pd.concat(cast(List[pd.DataFrame], data), ignore_index=True)
         else:
@@ -1070,7 +1067,6 @@ class WeaviateHook(BaseHook):
             insertion_errors = self.batch_data(
                 class_name=class_name,
                 data=data,
-                insertion_errors=insertion_errors,
                 batch_config_params=batch_config_params,
                 vector_col=vector_column,
                 uuid_col=uuid_column,

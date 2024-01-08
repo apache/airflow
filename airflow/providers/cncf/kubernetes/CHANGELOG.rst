@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+7.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow changing of 'config_file' in 'KubernetesResourceBaseOperator' (#36397)``
+
+Misc
+~~~~
+
+* ``Add reminder about update stub file in case of change KubernetesPodOperator's arguments (#36434)``
+* ``Don't get pod status in KubernetesPodOperator if skip_on_exit_code is not set (#36355)``
+* ``Remove deprecated input parameters in the k8s pod operator (#36433)``
+* ``Delete get_python_source from Kubernetes decorator after bumping min airflow version to 2.6.0 (#36426)``
+* ``Remove duplicated methods in K8S pod operator module and import them from helper function (#36427)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.12.0
 ......
 

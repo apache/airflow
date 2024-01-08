@@ -35,6 +35,7 @@ class AvpEntities(Enum):
     # Resource types
     CONFIGURATION = "Configuration"
     CONNECTION = "Connection"
+    DAG = "Dag"
     DATASET = "Dataset"
     POOL = "Pool"
     VARIABLE = "Variable"

@@ -1591,7 +1591,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         lifecycle_config_name: str | None = None,
         direct_internet_access: str | None = None,
         root_access: str | None = None,
-        create_instance_kwargs: dict[str, Any] = {},
+        create_instance_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -1607,7 +1607,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         self.root_access = root_access
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
-        self.create_instance_kwargs = create_instance_kwargs
+        self.create_instance_kwargs = create_instance_kwargs or {}
 
         if self.create_instance_kwargs.get("tags") is not None:
             self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])

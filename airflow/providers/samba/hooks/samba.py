@@ -20,7 +20,7 @@ from __future__ import annotations
 import posixpath
 from functools import wraps
 from shutil import copyfileobj
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import smbclient
 
@@ -249,3 +249,11 @@ class SambaHook(BaseHook):
         """Push local file to samba server."""
         with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
             copyfileobj(f, g)
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {"schema": "Share"},
+        }

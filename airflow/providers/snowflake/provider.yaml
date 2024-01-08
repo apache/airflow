@@ -21,7 +21,7 @@ name: Snowflake
 description: |
     `Snowflake <https://www.snowflake.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288173
 versions:
   - 5.2.1

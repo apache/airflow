@@ -30,5 +30,6 @@ metadata:
   labels:
     release: {{ $Global.Release.Name }}
 preemptionPolicy: {{ default "PreemptLowerPriority" $e.preemptionPolicy }}
-value: {{ $e.value | required "value is required" }}
+value: {{ $e.value | required "value is required for priority classes" }}
+description: "This priority class will not cause other pods to be preempted."
 {{- end }}

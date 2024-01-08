@@ -20,6 +20,29 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add WeaviateDocumentIngestOperator (#36402)``
+* ``Add 'uuid_column', 'tenant' params to WeaviateIngestOperator (#36387)``
+* ``Add create_or_replace_document_objects method to weaviate provider (#36177)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'insertion_errors' as required argument (#36435)``
+* ``Handle  list like input objects in weavaite's 'create_or_replace_document_objects' hook method (#36475)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+
 1.2.0
 .....
 

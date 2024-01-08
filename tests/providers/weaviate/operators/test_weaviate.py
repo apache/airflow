@@ -54,7 +54,6 @@ class TestWeaviateIngestOperator:
             data=[{"data": "sample_data"}],
             batch_config_params={},
             vector_col="Vector",
-            insertion_errors=[],
             uuid_col="id",
             tenant=None,
         )

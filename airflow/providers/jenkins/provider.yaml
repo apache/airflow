@@ -21,7 +21,7 @@ name: Jenkins
 description: |
     `Jenkins <https://jenkins.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288144
 versions:
   - 3.5.1

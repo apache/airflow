@@ -35,14 +35,51 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.16.0
+......
+
+Latest change: 2024-01-06
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`1d41fc7ddb <https://github.com/apache/airflow/commit/1d41fc7ddbc0c5564f354f066b47155444013898>`_  2024-01-06   ``Check redshift cluster state before deferring to triggerer (#36416)``
+`365f206a32 <https://github.com/apache/airflow/commit/365f206a32fe36de54dcb26eb204dd4a23709787>`_  2024-01-05   ``Select ruff B006 to detect the usage of mutable values as argument default (#36626)``
+`16d16e2933 <https://github.com/apache/airflow/commit/16d16e2933c67c34a3825ed20ca362a65f0a29cc>`_  2024-01-05   ``Use base aws classes in Amazon SQS Operators/Sensors/Triggers (#36613)``
+`034e618347 <https://github.com/apache/airflow/commit/034e618347d7ae5084e693e778ab7ce1b425980c>`_  2024-01-05   ``Use base aws classes in Amazon SNS Operators (#36615)``
+`c1bba9906c <https://github.com/apache/airflow/commit/c1bba9906c4923bcb80364afc5450eaaba4c0a21>`_  2024-01-05   ``Fix assignment of template field in '__init__' in 'AwsToAwsBaseOperator' (#36604)``
+`a877bde5a3 <https://github.com/apache/airflow/commit/a877bde5a35e060f3e6d8edcf8079cfdbfaf14d1>`_  2024-01-05   ``Fix assignment of template field in '__init__' in 'DataSyncOperator' (#36605)``
+`ebd588b9f4 <https://github.com/apache/airflow/commit/ebd588b9f416ae37e46e9a0877c81215f5519afb>`_  2024-01-04   ``Add AWS Step Functions links (#36599)``
+`44b97e1687 <https://github.com/apache/airflow/commit/44b97e168733b08b308f16b2738b6c15e8a35862>`_  2024-01-04   ``Add OpenLineage support for Redshift SQL. (#35794)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+`22294abf68 <https://github.com/apache/airflow/commit/22294abf68f17eefc00ec9b363bfcf1ca21f145a>`_  2023-12-28   ``Use base aws classes in AWS Step Functions Operators/Sensors/Triggers (#36468)``
+=================================================================================================  ===========  =======================================================================================
+
+8.15.0
+......
+
+Latest change: 2023-12-28
+
+=================================================================================================  ===========  =============================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================================================
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
+`d73bef2a43 <https://github.com/apache/airflow/commit/d73bef2a435ad5bf9e482986614c1e349beb5137>`_  2023-12-27   ``Add Amazon Athena query results extra link (#36447)``
+`73d87945e9 <https://github.com/apache/airflow/commit/73d87945e9a78195278d0a4b495483062ddc9b35>`_  2023-12-26   ``Use base aws classes in Amazon ECS Operators/Sensors/Triggers (#36393)``
+`7bd998e2ec <https://github.com/apache/airflow/commit/7bd998e2ec34ade8b4b360690c10f527c209452b>`_  2023-12-25   ``fix(providers/amazon): remove event['message'] call in EmrContainerOperator.execute_complete|as the key message no longer exists (#36417)``
+`a1e1dc60fb <https://github.com/apache/airflow/commit/a1e1dc60fb70d102451a6a819ccc78c079b65ddd>`_  2023-12-25   ``handle tzinfo in S3Hook.is_keys_unchanged_async (#36363)``
+=================================================================================================  ===========  =============================================================================================================================================
+
 8.14.0
 ......
 
-Latest change: 2023-12-21
+Latest change: 2023-12-23
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `0b32613480 <https://github.com/apache/airflow/commit/0b326134801c8f6e1e9ad685ffb20b899c85c9ec>`_  2023-12-21   ``Increase ConflictException retries to 4 total (#36337)``
 `30afa46e90 <https://github.com/apache/airflow/commit/30afa46e90cd1ee17d03e6fa9fa3022223374ccf>`_  2023-12-21   ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
 `2b31f373ef <https://github.com/apache/airflow/commit/2b31f373ef92c2b793f3f484192aa7b7fc88a7b6>`_  2023-12-20   ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
@@ -51,7 +88,7 @@ Commit                                                                          
 `e37fe8f576 <https://github.com/apache/airflow/commit/e37fe8f5769ec6509b82774493b0b3dd6316c03b>`_  2023-12-11   ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
 `cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
 `aba58adb83 <https://github.com/apache/airflow/commit/aba58adb83435e96e66027de5163756301a6ddf5>`_  2023-12-08   ``Allow storage options to be passed (#35820)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 8.13.0
 ......

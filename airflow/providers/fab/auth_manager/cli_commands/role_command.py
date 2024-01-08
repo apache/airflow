@@ -21,6 +21,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+from argparse import Namespace
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -155,30 +156,36 @@ def roles_del_perms(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_export(args):
-    """
-    Export all the roles from the database to a file.
-
-    Note, this function does not export the permissions associated for each role.
-    Strictly, it exports the role names into the passed role json file.
-    """
+    """Export all the roles from the database to a file including permissions."""
     with get_application_builder() as appbuilder:
         roles = appbuilder.sm.get_all_roles()
-        exporting_roles = [role.name for role in roles if role.name not in EXISTING_ROLES]
+        exporting_roles = [role for role in roles if role.name not in EXISTING_ROLES]
     filename = os.path.expanduser(args.file)
-    kwargs = {} if not args.pretty else {"sort_keys": True, "indent": 4}
+
+    permission_map: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for role in exporting_roles:
+        if role.permissions:
+            for permission in role.permissions:
+                permission_map[(role.name, permission.resource.name)].append(permission.action.name)
+        else:
+            permission_map[(role.name, "")].append("")
+    export_data = [
+        {"name": role, "resource": resource, "action": ",".join(sorted(permissions))}
+        for (role, resource), permissions in permission_map.items()
+    ]
+    kwargs = {} if not args.pretty else {"sort_keys": False, "indent": 4}
     with open(filename, "w", encoding="utf-8") as f:
-        json.dump(exporting_roles, f, **kwargs)
-    print(f"{len(exporting_roles)} roles successfully exported to {filename}")
+        json.dump(export_data, f, **kwargs)
+    print(f"{len(export_data)} roles with permissions successfully exported to {filename}")
 
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_import(args):
     """
-    Import all the roles into the db from the given json file.
+    Import all the roles into the db from the given json file including their permissions.
 
-    Note, this function does not import the permissions for different roles and import them as well.
-    Strictly, it imports the role names in the role json file passed.
+    Note, if a role already exists in the db, it is not overwritten, even when the permissions change.
     """
     json_file = args.file
     try:
@@ -193,7 +200,30 @@ def roles_import(args):
 
     with get_application_builder() as appbuilder:
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]
-        roles_to_import = [role for role in role_list if role not in existing_roles]
-        for role_name in roles_to_import:
-            appbuilder.sm.add_role(role_name)
-    print(f"roles '{roles_to_import}' successfully imported")
+        roles_to_import = [role_dict for role_dict in role_list if role_dict["name"] not in existing_roles]
+        for role_dict in roles_to_import:
+            if role_dict["name"] not in appbuilder.sm.get_all_roles():
+                if role_dict["action"] == "" or role_dict["resource"] == "":
+                    appbuilder.sm.add_role(role_dict["name"])
+                else:
+                    appbuilder.sm.add_role(role_dict["name"])
+                    role_args = Namespace(
+                        subcommand="add-perms",
+                        role=[role_dict["name"]],
+                        resource=[role_dict["resource"]],
+                        action=role_dict["action"].split(","),
+                    )
+                __roles_add_or_remove_permissions(role_args)
+
+            if role_dict["name"] in appbuilder.sm.get_all_roles():
+                if role_dict["action"] == "" or role_dict["resource"] == "":
+                    pass
+                else:
+                    role_args = Namespace(
+                        subcommand="add-perms",
+                        role=[role_dict["name"]],
+                        resource=[role_dict["resource"]],
+                        action=role_dict["action"].split(","),
+                    )
+                __roles_add_or_remove_permissions(role_args)
+        print("roles and permissions successfully imported")

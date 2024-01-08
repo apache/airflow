@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import csv
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
@@ -33,6 +35,10 @@ if TYPE_CHECKING:
 class GoogleAnalyticsListAccountsOperator(BaseOperator):
     """
     Lists all accounts to which the user has access.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminListAccountsOperator`:
 
     .. seealso::
         Check official API docs:
@@ -70,6 +76,13 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            f"The `{type(self).__name__}` operator is deprecated, please use "
+            f"`GoogleAnalyticsAdminListAccountsOperator` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
+
         super().__init__(**kwargs)
 
         self.api_version = api_version
@@ -89,6 +102,10 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
 class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
     """
     Returns a web property-Google Ads link to which the user has access.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminGetGoogleAdsLinkOperator`:
 
     .. seealso::
         Check official API docs:
@@ -132,6 +149,12 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        warnings.warn(
+            f"The `{type(self).__name__}` operator is deprecated, please use "
+            f"`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
 
         self.account_id = account_id
         self.web_property_ad_words_link_id = web_property_ad_words_link_id
@@ -157,6 +180,10 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     """
     Lists webProperty-Google Ads links for a given web property.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminListGoogleAdsLinksOperator`:
 
     .. seealso::
         Check official API docs:
@@ -197,6 +224,12 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        warnings.warn(
+            f"The `{type(self).__name__}` operator is deprecated, please use "
+            f"`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
 
         self.account_id = account_id
         self.web_property_id = web_property_id
@@ -220,6 +253,10 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
     """
     Take a file from Cloud Storage and uploads it to GA via data import API.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminCreateDataStreamOperator`:
 
     :param storage_bucket: The Google cloud storage bucket where the file is stored.
     :param storage_name_object: The name of the object in the desired Google cloud
@@ -266,6 +303,12 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            f"The `{type(self).__name__}` operator is deprecated, please use "
+            f"`GoogleAnalyticsAdminCreateDataStreamOperator` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
         super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
@@ -317,6 +360,10 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
     """
     Deletes previous GA uploads to leave the latest file to control the size of the Data Set Quota.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminDeleteDataStreamOperator`:
+
     :param account_id: The GA account Id (long) to which the data upload belongs.
     :param web_property_id: The web property UA-string associated with the upload.
     :param custom_data_source_id: The id to which the data import belongs.
@@ -348,6 +395,12 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            f"The `{type(self).__name__}` operator is deprecated, please use "
+            f"`GoogleAnalyticsAdminDeleteDataStreamOperator` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
         super().__init__(**kwargs)
 
         self.account_id = account_id

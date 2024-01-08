@@ -38,11 +38,11 @@ Get Mentoring Support
 
 If you are new to the project, you might need some help in understanding how the dynamics
 of the community works and you might need to get some mentorship from other members of the
-community - mostly committers. Mentoring new members of the community is part of committers
-job so do not be afraid of asking committers to help you. You can do it
-via comments in your Pull Request, asking on a devlist or via Slack. For your convenience,
+community - mostly Airflow committers (maintainers). Mentoring new members of the community is part of
+maintainers job so do not be afraid of asking them to help you. You can do it
+via comments in your PR, asking on a devlist or via Slack. For your convenience,
 we have a dedicated #development-first-pr-support Slack channel where you can ask any questions
-about making your first pull request contribution to the Airflow codebase - it's a safe space
+about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
 where it is expected that people asking questions do not know a lot Airflow (yet!).
 If you need help with Airflow see the Slack channel #troubleshooting.
 
@@ -136,8 +136,18 @@ and guidelines.
 Committers/Maintainers
 ----------------------
 
-Committers are community members that have write access to the project's repositories, i.e., they can modify the code,
-documentation, and website by themselves and also accept other contributions.
+You will often see the term "committer" or "maintainer" in the context of the Airflow project. This is a person
+who has write access to the Airflow repository and can merge pull requests. Committers (also known as maintainers)
+are also responsible for reviewing pull requests and guiding contributors to make their first contribution.
+They are also responsible for making sure that the project is moving forward and that the quality of the
+code is maintained.
+
+The term "committer" and "maintainer" is used interchangeably. The term "committer" is the official term used by the
+Apache Software Foundation, while "maintainer" is more commonly used in the Open Source community and is used
+in context of GitHub in a number of guidelines and documentation, so this document will mostly use "maintainer",
+when speaking about Github, Pull Request, Github Issues and Discussions. On the other hand, "committer" is more
+often used in devlist discussions, official communications, Airflow website and every time when we formally
+refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
@@ -286,7 +296,7 @@ In general, your contribution includes the following stages:
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
 
-4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
+4. Make the change and create a `Pull Request (PR) from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
 
 5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
 
@@ -449,9 +459,32 @@ Step 4: Prepare PR
 3. Re-run static code checks again.
 
 4. Make sure your commit has a good title and description of the context of your change, enough
-   for the committer reviewing it to understand why you are proposing a change. Make sure to follow other
-   PR guidelines described in `pull request guidelines <#pull-request-guidelines>`_.
+   for maintainers reviewing it to understand why you are proposing a change. Make sure to follow other
+   PR guidelines described in `Pull Request guidelines <#pull-request-guidelines>`_.
    Create Pull Request! Make yourself ready for the discussion!
+
+5. The ``static checks`` and ``tests`` in your PR serve as a first-line-of-check, whether the PR
+   passes the quality bar for Airflow. It basically means that until you get your PR green, it is not
+   likely to get reviewed by maintainers unless you specifically ask for it and explain that you would like
+   to get first pass of reviews and explain why achieving ``green`` status for it is not easy/feasible/desired.
+   Similarly if your PR contains ``[WIP]`` in the title or it is marked as ``Draft`` it is not likely to get
+   reviewed by maintainers unless you specifically ask for it and explain why and what specifically you want
+   to get reviewed before it reaches ``Ready for review`` status. This might happen if you want to get initial
+   feedback on the direction of your PR or if you want to get feedback on the design of your PR.
+
+6. Avoid @-mentioning individual maintainers in your PR, unless you have good reason to believe that they are
+   available, have time and/or interest in your PR. Generally speaking there are no "exclusive" reviewers for
+   different parts of the code. Reviewers review PRs and respond when they have some free time to spare and
+   when they feel they can provide some valuable feedback. If you want to get attention of maintainers, you can just
+   follow-up on your PR and ask for review in general, however be considerate and do not expect "immediate"
+   reviews. People review when they have time, most of the maintainers do such reviews in their
+   free time, which is taken away from their families and other interests, so allow sufficient time before you
+   follow-up - but if you see no reaction in several days, do follow-up, as with the number of PRs we have
+   daily, some of them might simply fall through the cracks, and following up shows your interest in completing
+   the PR as well as puts it at the top of "Recently commented" PRs. However, be considerate and mindful of
+   the time zones, holidays, busy periods, and expect that some discussions and conversation might take time
+   and get stalled occasionally. Generally speaking it's the author's responsibility to follow-up on the PR when
+   they want to get it reviewed and merged.
 
 
 Step 5: Pass PR Review
@@ -461,52 +494,160 @@ Step 5: Pass PR Review
     :align: center
     :alt: PR Review
 
-Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
+Note that maintainers will use **Squash and Merge** instead of **Rebase and Merge**
 when merging PRs and your commit will be squashed to single commit.
 
-You need to have review of at least one committer (if you are committer yourself, it has to be
-another committer). Ideally you should have 2 or more committers reviewing the code that touches
-the core of Airflow.
+When a reviewer starts a conversation it is expected that you respond to questions, suggestions, doubts,
+and generally it's great if all such conversations seem to converge to a common understanding. You do not
+necessarily have to apply all the suggestions (often they are just opinions and suggestions even if they are
+coming from seasoned maintainers) - it's perfectly ok that you respond to it with your own opinions and
+understanding of the problem and your approach and if you have good arguments, presenting them is a good idea.
+
+The reviewers might leave several types of responses:
+
+* ``General PR comment`` - which usually means that there is a question/opinion/suggestion on how the PR can be
+  improved, or it's an ask to explain how you understand the PR. You can usually quote some parts of such
+  general comment and respond to it in your comments. Often comments that are raising questions in general
+  might lead to different discussions, even a request to move the discussion to the devlist or even lead to
+  completely new PRs created as a spin-off of the discussion.
+
+* ``Comment/Conversation around specific lines of code`` - such conversation usually flags a potential
+  improvement, or a potential problem with the code. It's a good idea to respond to such comments and explain
+  your approach and understanding of the problem. The whole idea of a conversation is try to reach a consensus
+  on a good way to address the problem. As an author you can resolve the conversation if you think the
+  problem raised in the comment is resolved or ask the reviewer to re-review, confirm If you do not understand
+  the comment, you can ask for clarifications. Generally assume good intention of the person who is reviewing
+  your code and resolve conversations also having good intentions. Understand that it's not a person that
+  is criticised or argued with, but rather the code and the approach. The important thing is to take care
+  about quality of the the code and the project and want to make sure that the code is good.
+
+  It's ok to mark the conversation resolved by anyone who can do it - it could be the author, who thinks
+  the arguments are changes implemented make the conversation resolved, or the maintainer/person who
+  started the conversation or it can be even marked as resolved by the maintainer who attempts to merge the
+  PR and thinks that all conversations are resolved. However if you want to make sure attention and decision
+  on merging the PR is given by maintainer, make sure you monitor, follow-up and close the conversations when
+  you think they are resolved (ideally explaining why you think the conversation is resolved).
+
+* ``Request changes`` - this is where maintainer is pretty sure that you should make a change to your PR
+  because it contains serious flaw, design misconception, or a bug or it is just not in-line with the common
+  approach Airflow community took on the issue. Usually you should respond to such request and either fix
+  the problem or convince the maintainer that they were wrong (it happens more often than you think).
+  Sometimes even if you do not agree with the request, it's a good idea to make the change anyway, because
+  it might be a good idea to follow the common approach in the project. Sometimes it might even happen that
+  two maintainers will have completely different opinions on the same issue and you will have to lead the
+  discussion to try to achieve consensus. If you cannot achieve consensus and you think it's an important
+  issue, you can ask for a vote on the issue by raising a devlist discussion - where you explain your case
+  and follow up the discussion with a vote when you cannot achieve consensus there. The ``Request changes``
+  status can be withdrawn by the maintainer, but if they don't - such PR cannot be merged - maintainers have
+  the right to veto any code modification according to the `Apache Software Foundation rules <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_.
+
+* ``Approval`` - this is given by a maintainer after the code has been reviewed and the maintainer agrees that
+  it is a good idea to merge it. There might still be some unresolved conversations, requests and questions on
+  such PR and you are expected to resolve them before the PR is merged. But the ``Approval`` status is a sign
+  of trust from the maintainer who gave the approval that they think the PR is good enough as long as their
+  comments will be resolved and they put the trust in the hands of the author and - possibly - other
+  maintainers who will merge the request that they can do that without follow-up re-review and verification.
 
 
-Pull Request Guidelines
+You need to have ``Approval`` of at least one maintainer (if you are maintainer yourself, it has to be
+another maintainer). Ideally you should have 2 or more maintainers reviewing the code that touches
+the core of Airflow - we do not have enforcement about ``2+`` reviewers required for Core of Airflow,
+but maintainers will generally ask in the PR if they think second review is needed.
+
+Your PR can be merged by a maintainer who will see that the PR is approved, all conversations are resolved
+and the code looks good. The criteria for PR being merge-able are:
+
+* ``green status for static checks and tests``
+* ``conversations resolved``
+* ``approval from 1 (or more for core changes) maintainers``
+* no unresolved ``Request changes``
+
+Once you reach the status, you do not need to do anything to get the PR merged. One of the maintainers
+will merge such PRs. However if you see that for a few days such a PR is not merged, do not hesitate to comment
+on your PR and mention that you think it is ready to be merged. Also, it's a good practice to rebase your PR
+to latest ``main``, because there could be other changes merged in the meantime that might cause conflicts or
+fail tests or static checks, so by rebasing a PR that has been build few days ago you make sure that it
+still passes the tests and static checks today.
+
+
+.. note:: |experimental|
+
+   In December 2023 we enabled - experimentally - the requirement to resolve all the open conversations in a
+   PR in order to make it merge-able. You will see in the status of the PR that it needs to have all the
+   conversations resolved before it can be merged.
+
+   This is an experiment and we will evaluate by the end of January 2024. If it turns out to be a good idea,
+   we will keep it enabled in the future.
+
+   The goal of this experiment is to make it easier to see when there are some conversations that are not
+   resolved for everyone involved in the PR - author, reviewers and maintainers who try to figure out if
+   the PR is ready to merge and - eventually - merge it. The goal is also to use conversations more as a "soft" way
+   to request changes and limit the use of ``Request changes`` status to only those cases when the maintainer
+   is sure that the PR should not be merged in the current state. That should lead to faster review/merge
+   cycle and less problems with stalled PRs that have ``Request changes`` status but all the issues are
+   already solved (assuming that maintainers will start treating the conversations this way).
+
+
+Pull Request guidelines
 =======================
 
-Before you submit a pull request (PR) from your forked repo, check that it meets
+Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
 
--   Include tests, either as doctests, unit tests, or both, to your pull
-    request.
+-   Include tests, either as doctests, unit tests, or both, to your pull request.
 
     The airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
+    Also we advise to install locally `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ to
+    apply various checks, code generation and formatting at the time you make a local commit - which
+    gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
+    many case it will even fix it for you locally so that you can add and commit it straight away.
 
--   Follow our project's `Coding style and best practices`_.
+-   Follow our project's `Coding style and best practices`_. Usually we attempt to enforce the practices by
+    having appropriate pre-commits. There are checks amongst them that aren't currently enforced
+    programmatically (either because they are too hard or just not yet done).
 
-    These are things that aren't currently enforced programmatically (either because they are too hard or just
-    not yet done.)
+-   We prefer that you ``rebase`` your PR (and do it quite often) rather than merge. It leads to
+    easier reviews and cleaner changes where you know exactly what changes you've done. You can learn more
+    about rebase vs. merge workflow in `Rebase and merge your pull request <https://github.blog/2016-09-26-rebase-and-merge-pull-requests/>`__
+    and `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__. Make sure to resolve all conflicts
+    during rebase.
 
--   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, and resolve all conflicts.
+-   When merging PRs, Maintainer will use **Squash and Merge** which means then your PR will be merged as one
+    commit, regardless of the number of commits in your PR. During the review cycle, you can keep a commit
+    history for easier review, but if you need to, you can also squash all commits to reduce the
+    maintenance burden during rebase.
 
--   When merging PRs, Committer will use **Squash and Merge** which means then your PR will be merged as one commit, regardless of the number of commits in your PR. During the review cycle, you can keep a commit history for easier review, but if you need to, you can also squash all commits to reduce the maintenance burden during rebase.
+-   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
+    have ``pre-commit`` installed, pre-commit will do it automatically for you. If you hesitate to install
+    pre-commit for your local repository - for example because it takes a few seconds to commit your changes,
+    this one thing might be a good reason to convince anyone to install pre-commit.
 
--   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
-    to all new files.
-
-    If you have `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ enabled, they automatically add
-    license headers during commit.
-
--   If your pull request adds functionality, make sure to update the docs as part
-    of the same PR. Doc string is often sufficient. Make sure to follow the
-    Sphinx compatible standards.
+-   If your PR adds functionality, make sure to update the docs as part of the same PR, not only
+    code and tests. Docstring is often sufficient. Make sure to follow the Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
     `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
-    to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
+    to make sure of that is - again - to install `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
--   Run tests locally before opening PR.
+-   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
+    adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
+    it easier for release managers if they decide that your change should be cherry-picked to release it in a
+    bug-fix release of Airflow. If you want to add a new feature and refactor the code, it's better to split the
+    PR to several smaller PRs. It's also quite a good and common idea to keep a big ``Draft`` PR if you have
+    a bigger change that you want to make and then create smaller PRs from it that are easier to review and
+    merge and cherry-pick. It takes a long time (and a lot of attention and focus of a reviewer to review
+    big PRs so by splitting it to smaller PRs you actually speed up the review process and make it easier
+    for your change to be eventually merged.
+
+-   Run relevant tests locally before opening PR. Often tests are placed in the files that are corresponding
+    to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
+    ``tests/cli/test_cli_parser.py``). However there are a number of cases where the tests that should run
+    are placed elsewhere - you can either run tests for the whole ``TEST_TYPE`` that is relevant (see
+    ``breeze testing tests --help`` output for available test types) or you can run all tests, or eventually
+    you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
     if it works for the oldest supported version (Python 3.8 currently). In rare cases
@@ -515,21 +656,20 @@ these guidelines:
     useful features from newer versions.
 
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
-    This makes the lives of those who come after you a lot easier.
+    This makes the lives of those who come after you (and your future self) a lot easier.
 
 Airflow Git Branches
 ====================
 
 All new development in Airflow happens in the ``main`` branch. All PRs should target that branch.
 
-
-We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where committers
+We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where maintainers
 cherry-pick selected commits from the main branch.
 
 Cherry-picking is done with the ``-x`` flag.
 
 The ``v2-*-test`` branch might be broken at times during testing. Expect force-pushes there so
-committers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
+maintainers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
 usually these are developers with the release manager permissions.
 
 The ``v2-*-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
@@ -716,13 +856,13 @@ arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cg
 cncf.kubernetes, cohere, common.io, common.sql, crypto, databricks, datadog, dbt.cloud,
 deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
 druid, elasticsearch, exasol, fab, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty,
-pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs,
-salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, weaviate,
-webhdfs, winrm, yandex, zendesk
+google_auth, graphviz, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos,
+kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
+mssql, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, otel,
+pagerduty, pandas, papermill, password, pgvector, pinecone, pinot, postgres, presto, rabbitmq,
+redis, s3, s3fs, salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp,
+snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
+weaviate, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1043,9 +1183,9 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by ruff and mypy (which are run automatically
-on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
-semantic than style
+Most of our coding style rules are enforced programmatically by ruff and mypy, which are run automatically
+with static checks and on every Pull Request (PR), but there are some rules that are not yet automated and
+are more Airflow specific or semantic than style.
 
 Don't Use Asserts Outside Tests
 -------------------------------
@@ -1518,7 +1658,7 @@ This means that communication plays a big role in it, and this chapter is all ab
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
 We have various channels of communication - starting from the official devlist, comments
-in the Pull Requests, Slack, wiki.
+in the PR, Slack, wiki.
 
 All those channels can be used for different purposes.
 You can join the channels via links at the `Airflow Community page <https://airflow.apache.org/community/>`_
@@ -1558,7 +1698,7 @@ redundancy but also promotes more efficient and effective communication for ever
 
 The devlist is the most important and official communication channel. Often at Apache project you can
 hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the
-community on something important for the community (including if it is with committer or PMC member) the
+community on something important for the community (including if it is with maintainer or PMC member) the
 discussion must be captured and reshared on devlist in order to give other members of the community to
 participate in it.
 
@@ -1580,7 +1720,7 @@ All of it makes Apache Airflow community a great space for open discussion and m
 for various opinions.
 
 Disagreements are expected, discussions might include strong opinions and contradicting statements.
-Sometimes you might get two committers asking you to do things differently. This all happened in the past
+Sometimes you might get two maintainers asking you to do things differently. This all happened in the past
 and will continue to happen. As a community we have some mechanisms to facilitate discussion and come to
 a consensus, conclusions or we end up voting to make important decisions. It is important that these
 decisions are not treated as personal wins or looses. At the end it's the community that we all care about
@@ -1605,12 +1745,12 @@ Here are a few rules that are important to keep in mind when you enter our commu
 * The communication is asynchronous - do not expect immediate answers, ping others on slack
   (#development channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
-* You can ask one of the committers to be a mentor for you, committers can guide within the community
+* You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
 * It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
-* It's your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-  it's OK to be slightly annoying with your change - it is also a sign for committers that you care
+* It's your responsibility as an author to ping maintainers to review your PR - be mildly annoying sometimes,
+  it's OK to be slightly annoying with your change - it is also a sign for maintainers that you care
 * Be considerate to the high code quality/test coverage requirements for Apache Airflow
 * If in doubt - ask the community for their opinion or propose to vote at the devlist
 * Discussions should concern subject matters - judge or criticise the merit but never criticise people

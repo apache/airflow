@@ -76,7 +76,8 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
     base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
-The username part of the URI is optional. It can alternatively be passed in as a separate keyword argument:
+The username part of the URI represents the Airflow connection id and is optional. It can alternatively be passed
+in as a separate keyword argument:
 
 .. code-block:: python
 
@@ -242,6 +243,11 @@ key
 
 Returns the object key.
 
+namespace
+^^^^^^^^^
+
+Returns the namespace of the object. Typically this is the protocol, like ``s3://`` with the
+bucket name.
 
 path
 ^^^^

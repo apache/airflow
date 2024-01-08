@@ -21,7 +21,7 @@ name: Windows Remote Management (WinRM)
 description: |
   `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288149
 versions:
   - 3.4.0

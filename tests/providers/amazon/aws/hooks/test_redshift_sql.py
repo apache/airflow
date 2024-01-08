@@ -31,6 +31,7 @@ LOGIN_PASSWORD = "password"
 LOGIN_HOST = "host"
 LOGIN_PORT = 5439
 LOGIN_SCHEMA = "dev"
+MOCK_REGION_NAME = "eu-north-1"
 
 
 class TestRedshiftSQLHookConn:
@@ -240,3 +241,46 @@ class TestRedshiftSQLHookConn:
                 ClusterIdentifier=expected_cluster_identifier,
                 AutoCreate=False,
             )
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
+    @pytest.mark.parametrize(
+        "connection_host, connection_extra, expected_identity",
+        [
+            # test without a connection host but with a cluster_identifier in connection extra
+            (
+                None,
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                f"cluster_identifier_from_extra.{MOCK_REGION_NAME}",
+            ),
+            # test with a connection host and without a cluster_identifier in connection extra
+            (
+                "cluster_identifier_from_host.id.my_region.redshift.amazonaws.com",
+                {"iam": True},
+                "cluster_identifier_from_host.my_region",
+            ),
+            # test with both connection host and cluster_identifier in connection extra
+            (
+                "cluster_identifier_from_host.x.y",
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                f"cluster_identifier_from_extra.{MOCK_REGION_NAME}",
+            ),
+            # test when hostname doesn't match pattern
+            (
+                "1.2.3.4",
+                {},
+                "1.2.3.4",
+            ),
+        ],
+    )
+    def test_get_openlineage_redshift_authority_part(
+        self,
+        connection_host,
+        connection_extra,
+        expected_identity,
+    ):
+        self.connection.host = connection_host
+        self.connection.extra = json.dumps(connection_extra)
+
+        assert f"{expected_identity}:{LOGIN_PORT}" == self.db_hook._get_openlineage_redshift_authority_part(
+            self.connection
+        )

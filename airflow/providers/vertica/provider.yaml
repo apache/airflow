@@ -21,7 +21,7 @@ name: Vertica
 description: |
     `Vertica <https://www.vertica.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288181
 versions:
   - 3.7.0

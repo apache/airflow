@@ -185,6 +185,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         [
             "extra_provider_files_with_substitutions",
             "autoapi.extension",
+            "providers_extensions",
         ]
     )
 else:
