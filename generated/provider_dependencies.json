@@ -56,7 +56,8 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "apache-beam>=2.47.0"
+      "apache-beam>=2.53.0",
+      "pyarrow>=14.0.1"
     ],
     "cross-providers-deps": [
       "google"
