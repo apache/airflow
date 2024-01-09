@@ -133,7 +133,7 @@ class HttpHookMixin:
 
         Load the settings from the Connection and update the class.
         Returns the headers and auth which are later passed into a request.Session
-        (for the HttpHook) or an aiohttp.Session (for the AsyncHttpHook).
+        (for the HttpHook) or an aiohttp.Session (for the HttpAsyncHook).
         """
         _headers = {}
         _auth = None
