@@ -111,9 +111,6 @@ class BaseAzureSynapseHook(BaseHook):
 
 class AzureSynapseHook(BaseHook):
     """
-
-    This claas is deprecated. Please use `AzureSynapseSparkHook` instead.
-
     A hook to interact with Azure Synapse.
 
     :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
