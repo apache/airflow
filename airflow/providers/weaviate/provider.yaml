@@ -42,7 +42,7 @@ integrations:
 dependencies:
   - apache-airflow>=2.6.0
   - weaviate-client>=3.24.2
-  - pandas>=0.17.1
+  - pandas>=1.2.5
 
 hooks:
   - integration-name: Weaviate
