@@ -45,7 +45,7 @@ DEFAULT_AUTH_TYPES = frozenset(
         "requests.auth.HTTPBasicAuth",
         "requests.auth.HTTPProxyAuth",
         "requests.auth.HTTPDigestAuth",
-        "aiohttp.BasicAuth"
+        "aiohttp.BasicAuth",
     }
 )
 
@@ -153,7 +153,6 @@ class HttpHookMixin:
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
-            print(conn_extra)
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = (
@@ -490,7 +489,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
-        headers, auth = await sync_to_async(self.load_connection_settings)(headers)
+        headers, auth = await sync_to_async(self.load_connection_settings)(headers=headers)
 
         base_url = (self.base_url or "").rstrip("/")
         endpoint = (endpoint or "").lstrip("/")

@@ -362,6 +362,32 @@ class TestHttpHook:
         HttpHook().get_conn({})
         auth.assert_called_once()
 
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_string_headers_and_auth_kwargs(self, auth, mock_get_connection):
+        """When passed via the UI, the 'headers' and 'auth_kwargs' fields' data is
+        saved as string.
+        """
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra=r"""
+                {"auth_kwargs": "{\r\n    \"endpoint\": \"http://localhost\"\r\n}",
+                "headers": "{\r\n    \"some\": \"headers\"\r\n}"}
+                """,
+        )
+        mock_get_connection.return_value = conn
+
+        hook = HttpHook(auth_type=CustomAuthBase)
+        session = hook.get_conn({})
+
+        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
+        assert "auth_kwargs" not in session.headers
+        assert "some" in session.headers
+
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):
         obj1 = {"a": 1, "b": "abc", "c": [1, 2, {"d": 10}]}
@@ -602,7 +628,7 @@ class TestHttpAsyncHook:
     async def test_async_request_uses_connection_extra(self, aioresponse):
         """Test api call asynchronously with a connection that has extra field."""
 
-        connection_extra = {"bearer": "test"}
+        connection_extra = {"bearer": "test", "some": "header"}
 
         aioresponse.post(
             "http://test:8080/v1/test",
