@@ -1300,3 +1300,13 @@ class SageMakerHook(AwsBaseHook):
             if "BestCandidate" in res:
                 return res["BestCandidate"]
         return None
+
+    async def describe_training_job_async(self, job_name: str) -> dict[str, Any]:
+        """
+        Return the training job info associated with the name.
+
+        :param job_name: the name of the training job
+        """
+        async with await self.async_conn as client:
+            response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
+            return response
