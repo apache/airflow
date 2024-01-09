@@ -280,8 +280,8 @@
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
       "google-re2>=1.0",
-      "kubernetes>=21.7.0,<24",
-      "kubernetes_asyncio>=18.20.1,<25"
+      "kubernetes>=23.6.0,<29",
+      "kubernetes_asyncio>=23.6.0,<29"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
