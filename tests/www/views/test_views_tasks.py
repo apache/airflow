@@ -68,7 +68,7 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
     with time_machine.travel(DEFAULT_DATE, tick=False):
-        app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        app.app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -83,7 +83,7 @@ def init_dagruns(app, reset_dagruns):
             dag_id="example_bash_operator",
             execution_date=DEFAULT_DATE,
         )
-        app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+        app.app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -91,7 +91,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("example_xcom").create_dagrun(
+        app.app.dag_bag.get_dag("example_xcom").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -99,7 +99,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("latest_only").create_dagrun(
+        app.app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -107,7 +107,7 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-        app.dag_bag.get_dag("example_task_group").create_dagrun(
+        app.app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -123,7 +123,7 @@ def init_dagruns(app, reset_dagruns):
 @pytest.fixture(scope="module")
 def client_ti_without_dag_edit(app):
     create_user(
-        app,
+        app.app,
         username="all_ti_permissions_except_dag_edit",
         role_name="all_ti_permissions_except_dag_edit",
         permissions=[
@@ -144,8 +144,8 @@ def client_ti_without_dag_edit(app):
         password="all_ti_permissions_except_dag_edit",
     )
 
-    delete_user(app, username="all_ti_permissions_except_dag_edit")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="all_ti_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.mark.parametrize(
@@ -368,7 +368,7 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -384,7 +384,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -400,7 +400,7 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -430,6 +430,22 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     assert resp.status_code == 200
     assert resp.request.url == "http://localhost/home"
     check_content_in_response("Access is Denied", resp)
+
+
+def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
+    app.app.dag_bag.get_dag("test_graph_view").create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = "/dags/test_graph_view/details"
+    resp = admin_client.get(url, follow_redirects=True)
+    params = {"origin": "/dags/test_graph_view/details"}
+    href = f"/dags/test_graph_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    check_content_in_response(href, resp)
 
 
 def test_last_dagruns(admin_client):
@@ -613,13 +629,13 @@ def new_dag_to_delete():
 
 @pytest.fixture
 def per_dag_perm_user_client(app, new_dag_to_delete):
-    sm = app.appbuilder.sm
+    sm = app.app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
 
     sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
 
     create_user(
-        app,
+        app.app,
         username="test_user_per_dag_perms",
         role_name="User with some perms",
         permissions=[
@@ -637,21 +653,21 @@ def per_dag_perm_user_client(app, new_dag_to_delete):
         password="test_user_per_dag_perms",
     )
 
-    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.fixture
 def one_dag_perm_user_client(app):
     username = "test_user_one_dag_perm"
     dag_id = "example_bash_operator"
-    sm = app.appbuilder.sm
+    sm = app.app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
 
     sm.create_permission(permissions.ACTION_CAN_READ, perm)
 
     create_user(
-        app,
+        app.app,
         username=username,
         role_name="User with permission to access only one dag",
         permissions=[
@@ -671,8 +687,8 @@ def one_dag_perm_user_client(app):
         password=username,
     )
 
-    delete_user(app, username=username)  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username=username)  # type: ignore
+    delete_roles(app.app)
 
 
 def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
@@ -1009,6 +1025,49 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     assert session.query(TaskReschedule).count() == 0
 
 
+def test_task_fail_duration(app, admin_client, dag_maker, session):
+    """Task duration page with a TaskFail entry should render without error."""
+    with dag_maker() as dag:
+        op1 = BashOperator(task_id="fail", bash_command="exit 1")
+        op2 = BashOperator(task_id="success", bash_command="exit 0")
+
+    with pytest.raises(AirflowException):
+        op1.run()
+    op2.run()
+
+    op1_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == "fail",
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    op2_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == "success",
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    assert len(op1_fails) == 1
+    assert len(op2_fails) == 0
+
+    with unittest.mock.patch.object(app.app, "dag_bag") as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
+        html = resp.get_data().decode()
+        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
+        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
+
+        assert resp.status_code == 200
+        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
+        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
+
+
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
     from airflow.models.baseoperator import chain
@@ -1022,7 +1081,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
             for i in range(1, 1000 + 1)
         ]
         chain(*tasks)
-    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
+    with unittest.mock.patch.object(app.app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag
         url = f"/dags/{dag.dag_id}/graph"
         resp = admin_client.get(url, follow_redirects=True)

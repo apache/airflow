@@ -48,9 +48,9 @@ QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -61,13 +61,13 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_roles(app)
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_roles(connexion_app.app)
 
 
 class TestMappedTaskInstanceEndpoint:
@@ -87,8 +87,9 @@ class TestMappedTaskInstanceEndpoint:
             "queue": "default_queue",
             "job_id": 0,
         }
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
         clear_rendered_ti_fields()
@@ -132,9 +133,9 @@ class TestMappedTaskInstanceEndpoint:
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
-            self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-            self.app.dag_bag.dags = {dag_id: dag_maker.dag}  # type: ignore
-            self.app.dag_bag.sync_to_db()  # type: ignore
+            self.flask_app.dag_bag = DagBag(os.devnull, include_examples=False)
+            self.flask_app.dag_bag.dags = {dag_id: dag_maker.dag}  # type: ignore
+            self.flask_app.dag_bag.sync_to_db()  # type: ignore
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)

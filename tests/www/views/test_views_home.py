@@ -139,7 +139,7 @@ def client_no_importerror(app, user_no_importerror):
 def user_single_dag(app):
     """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return create_user(
-        app,
+        app.app,
         username="user_single_dag",
         role_name="role_single_dag",
         permissions=[
@@ -164,7 +164,7 @@ def client_single_dag(app, user_single_dag):
 def user_single_dag_edit(app):
     """Create User that can edit DAG resource only a single DAG"""
     return create_user(
-        app,
+        app.app,
         username="user_single_dag_edit",
         role_name="role_single_dag",
         permissions=[
