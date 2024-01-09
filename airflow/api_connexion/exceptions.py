@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from connexion import ProblemException, problem
 
