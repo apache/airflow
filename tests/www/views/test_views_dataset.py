@@ -289,7 +289,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             ):
                 EmptyOperator(task_id="task1", outlets=[datasets[4]])
 
-            m.setattr(app, "dag_bag", dag_maker.dagbag)
+            m.setattr(app.app, "dag_bag", dag_maker.dagbag)
 
             ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
             ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
