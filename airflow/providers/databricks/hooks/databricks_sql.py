@@ -278,6 +278,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        if not result:
+            return []
         if isinstance(result, list):
             rows: list[Row] = result
             rows_fields = rows[0].__fields__
