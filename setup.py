@@ -350,7 +350,7 @@ ldap = [
 leveldb = ["plyvel"]
 otel = ["opentelemetry-exporter-prometheus"]
 pandas = [
-    "pandas>=0.17.1",
+    "pandas>=1.2.5",
 ]
 password = [
     "bcrypt>=2.0.0",

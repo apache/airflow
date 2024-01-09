@@ -55,7 +55,7 @@ dependencies:
   - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.10.0
   - pyexasol>=0.5.1
-  - pandas>=0.17.1
+  - pandas>=1.2.5
 
 integrations:
   - integration-name: Exasol
