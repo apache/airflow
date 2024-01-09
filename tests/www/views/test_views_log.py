@@ -84,7 +84,7 @@ def log_app(backup_modules, log_path):
     )
     def factory():
         app = create_app(testing=True)
-        app.config["WTF_CSRF_ENABLED"] = False
+        app.app.config["WTF_CSRF_ENABLED"] = False
         settings.configure_orm()
         security_manager = app.appbuilder.sm
         if not security_manager.find_user(username="test"):
@@ -142,7 +142,7 @@ def dags(log_app, create_dummy_dag, session):
     bag.bag_dag(dag=dag, root_dag=dag)
     bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
     bag.sync_to_db(session=session)
-    log_app.dag_bag = bag
+    log_app.app.dag_bag = bag
 
     yield dag, dag_removed
 

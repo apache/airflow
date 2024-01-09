@@ -50,9 +50,9 @@ QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -65,7 +65,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_dag_read_only",
         role_name="TestDagReadOnly",
         permissions=[
@@ -76,7 +76,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_task_read_only",
         role_name="TestTaskReadOnly",
         permissions=[
@@ -87,7 +87,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_read_only_one_dag",
         role_name="TestReadOnlyOneDag",
         permissions=[
@@ -97,7 +97,7 @@ def configured_app(minimal_app_for_api):
     )
     # For some reason, "DAG:example_python_operator" is not synced when in the above list of perms,
     # so do it manually here:
-    app.appbuilder.sm.bulk_sync_roles(
+    connexion_app.app.appbuilder.sm.bulk_sync_roles(
         [
             {
                 "role": "TestReadOnlyOneDag",
@@ -105,16 +105,16 @@ def configured_app(minimal_app_for_api):
             }
         ]
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_dag_read_only")  # type: ignore
-    delete_user(app, username="test_task_read_only")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_read_only_one_dag")  # type: ignore
-    delete_roles(app)
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_dag_read_only")  # type: ignore
+    delete_user(connexion_app.app, username="test_task_read_only")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_read_only_one_dag")  # type: ignore
+    delete_roles(connexion_app.app)
 
 
 class TestTaskInstanceEndpoint:
@@ -134,8 +134,9 @@ class TestTaskInstanceEndpoint:
             "queue": "default_queue",
             "job_id": 0,
         }
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
         clear_rendered_ti_fields()
@@ -1233,7 +1234,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db()
+        self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1248,7 +1249,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
-        self.app.dag_bag.sync_to_db()
+        self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1256,7 +1257,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         mock_clearti.assert_called_once_with(
-            [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
+            [], session, dag=self.flask_app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
         )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, session):
@@ -1267,7 +1268,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.app.dag_bag.sync_to_db()
+        self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1695,7 +1696,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db()
+        self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
