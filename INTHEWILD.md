@@ -391,6 +391,7 @@ Currently, **officially** using Airflow:
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [REA Group](https://www.rea-group.com/)
 1. [Reddit](https://www.reddit.com/) [[@reddit](https://github.com/reddit/)]
+1. [Restb.ai](https://restb.ai/) [[@ferrannoguera](https://github.com/ferrannoguera)]
 1. [Retailink](https://retailink.fr/) [[@Harisonm](https://github.com/Harisonm)]
 1. [ReUp Education](https://reupeducation.com/) [[@Reup-Education](https://github.com/Reup-Education)]
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
