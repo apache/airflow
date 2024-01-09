@@ -57,10 +57,10 @@ def dagbag_to_db():
 class TestApiKerberos:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app_for_kerberos, dagbag_to_db):
-        self.app = app_for_kerberos
+        self.connexion_app = app_for_kerberos
 
     def test_trigger_dag(self):
-        with self.app.test_client() as client:
+        with self.connexion_app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
                 url_template.format("example_bash_operator"),
@@ -95,7 +95,7 @@ class TestApiKerberos:
             assert 200 == response2.status_code
 
     def test_unauthorized(self):
-        with self.app.test_client() as client:
+        with self.connexion_app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
                 url_template.format("example_bash_operator"),
