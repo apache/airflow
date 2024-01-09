@@ -1466,6 +1466,9 @@ class DAG(LoggingMixin):
             # context for the callback.
             if dag.partial:
                 tis = [ti for ti in tis if not ti.state == State.NONE]
+            # filter out removed tasks
+            tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
+            print(f"tis: {tis}")
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
