@@ -36,8 +36,8 @@ pytestmark = pytest.mark.db_test
 class TestHealthTestBase:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, minimal_app_for_api) -> None:
-        self.app = minimal_app_for_api
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = minimal_app_for_api
+        self.client = self.connexion_app.test_client()  # type:ignore
         with create_session() as session:
             session.query(Job).delete()
 
