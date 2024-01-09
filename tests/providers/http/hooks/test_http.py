@@ -309,9 +309,10 @@ class TestHttpHook:
         auth_types = get_auth_types()
         assert auth_types == frozenset(
             {
-                "request.auth.HTTPBasicAuth",
-                "request.auth.HTTPProxyAuth",
-                "request.auth.HTTPDigestAuth",
+                "requests.auth.HTTPBasicAuth",
+                "requests.auth.HTTPProxyAuth",
+                "requests.auth.HTTPDigestAuth",
+                "aiohttp.BasicAuth",
                 "tests.providers.http.hooks.test_http.CustomAuthBase",
             }
         )

@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import warnings
+from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 import aiohttp
@@ -32,7 +34,6 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.utils.json import none_safe_loads
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -44,6 +45,7 @@ DEFAULT_AUTH_TYPES = frozenset(
         "requests.auth.HTTPBasicAuth",
         "requests.auth.HTTPProxyAuth",
         "requests.auth.HTTPDigestAuth",
+        "aiohttp.BasicAuth"
     }
 )
 
@@ -63,54 +65,35 @@ def get_auth_types() -> frozenset[str]:
     return auth_types
 
 
-class HttpHook(BaseHook):
-    """Interact with HTTP servers.
+def json_safe_loads(obj: str | dict | None, default: Any = None) -> Any:
+    """Safely loads optional JSON.
 
-    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
-        * set the `auth_type` parameter in the Connection settings.
-        * define extra parameters passed to the `auth_type` class via the `auth_kwargs`, in the Connection
-            settings. The class will be instantiated with those parameters.
+    Returns 'default' (None) if the object is None.
+    Return the object as-is if it is a dictionary.
 
-    See :doc:`/connections/http` for full documentation.
+    This method is used to parse parameters passed in 'extra' into dict.
+    Those parameters can be None (when they are omitted), dict (when the Connection
+    is created via the API) or str (when Connection is created via the UI).
+    """
+    if isinstance(obj, dict):
+        return obj
+    if obj is not None:
+        return json.loads(obj)
+    return default
 
-    :param method: the API method to be called
-    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
-        API url i.e https://www.google.com/ and optional authentication credentials. Default
-        headers can also be specified in the Extra field in json format.
-    :param auth_type: The auth type for the service
-    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
-    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
-    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
-    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
-        ``socket.TCP_KEEPINTVL``)
+
+class HttpHookMixin:
+    """Common superclass for the HttpHook and HttpAsyncHook.
+
+    Implements methods to create a Connection.
     """
 
-    conn_name_attr = "http_conn_id"
-    default_conn_name = "http_default"
-    conn_type = "http"
-    hook_name = "HTTP"
-
-    def __init__(
-        self,
-        method: str = "POST",
-        http_conn_id: str = default_conn_name,
-        auth_type: Any = None,
-        tcp_keep_alive: bool = True,
-        tcp_keep_alive_idle: int = 120,
-        tcp_keep_alive_count: int = 20,
-        tcp_keep_alive_interval: int = 30,
-    ) -> None:
-        super().__init__()
-        self.http_conn_id = http_conn_id
-        self.method = method.upper()
-        self.base_url: str = ""
-        self._retry_obj: Callable[..., Any]
-        self._is_auth_type_setup: bool = auth_type is not None
-        self.auth_type: Any = auth_type
-        self.tcp_keep_alive = tcp_keep_alive
-        self.keep_alive_idle = tcp_keep_alive_idle
-        self.keep_alive_count = tcp_keep_alive_count
-        self.keep_alive_interval = tcp_keep_alive_interval
+    default_auth_type: Any
+    http_conn_id: str
+    base_url: str
+    auth_type: Any
+    get_connection: Callable
+    log: Logger
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -145,14 +128,15 @@ class HttpHook(BaseHook):
             ),
         }
 
-    # headers may be passed through directly or in the "extra" field in the connection
-    # definition
-    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
-        """Create a Requests HTTP session.
+    def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any]:
+        """Load and update the class with Connection Settings.
 
-        :param headers: additional headers to be passed through as a dictionary
+        Load the settings from the Connection and update the class.
+        Returns the headers and auth which are later passed into a request.Session
+        (for the HttpHook) or an aiohttp.Session (for the AsyncHttpHook).
         """
-        session = requests.Session()
+        _headers = {}
+        _auth = None
 
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
@@ -169,36 +153,42 @@ class HttpHook(BaseHook):
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
+            print(conn_extra)
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = (
                 self.auth_type
                 or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
-                or HTTPBasicAuth
+                or self.default_auth_type
             )
 
             if any(auth_args) or auth_kwargs:
-                session.auth = auth_type(*auth_args, **auth_kwargs)
+                _auth = auth_type(*auth_args, **auth_kwargs)
             elif self._is_auth_type_setup:
-                session.auth = auth_type()
+                _auth = auth_type()
 
             extra_headers = conn_extra["headers"]
             if extra_headers:
                 try:
-                    session.headers.update(extra_headers)
+                    _headers.update(extra_headers)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
-            session.headers.update(headers)
+            _headers.update(headers)
 
-        return session
+        return _headers, _auth
 
     @staticmethod
     def _parse_extra(conn_extra: dict) -> dict:
+        """Parse the settings from 'extra' into dict.
+
+        The "auth_kwargs" and "headers" data from TextAreaField are returned as
+        string via the 'extra' field. This method converts the data to dict.
+        """
         extra = conn_extra.copy()
         auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs = cast(dict, none_safe_loads(extra.pop("auth_kwargs", None), default={}))
-        headers = cast(dict, none_safe_loads(extra.pop("headers", None), default={}))
+        auth_kwargs = cast(dict, json_safe_loads(extra.pop("auth_kwargs", None), default={}))
+        headers = cast(dict, json_safe_loads(extra.pop("headers", None), default={}))
 
         if extra:
             warnings.warn(
@@ -213,7 +203,11 @@ class HttpHook(BaseHook):
         return {"auth_type": auth_type, "auth_kwargs": auth_kwargs, "headers": headers}
 
     def _load_conn_auth_type(self, module_name: str | None) -> Any:
-        """Load auth_type module from extra Connection parameters."""
+        """Load auth_type module from extra Connection parameters.
+
+        Check if the auth_type module is listed in 'extra_auth_types' and load it.
+        This method protects against the execution of random modules.
+        """
         if module_name:
             if module_name in get_auth_types():
                 try:
@@ -231,6 +225,74 @@ class HttpHook(BaseHook):
                     module_name,
                 )
         return None
+
+
+class HttpHook(HttpHookMixin, BaseHook):
+    """Interact with HTTP servers.
+
+    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
+        * set the `auth_type` parameter in the Connection settings.
+        * define extra parameters passed to the `auth_type` class via the `auth_kwargs`, in the Connection
+            settings. The class will be instantiated with those parameters.
+
+    See :doc:`/connections/http` for full documentation.
+
+    :param method: the API method to be called
+    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
+    :param auth_type: The auth type for the service
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
+    """
+
+    conn_name_attr = "http_conn_id"
+    default_conn_name = "http_default"
+    conn_type = "http"
+    hook_name = "HTTP"
+    default_auth_type = HTTPBasicAuth
+
+    def __init__(
+        self,
+        method: str = "POST",
+        http_conn_id: str = default_conn_name,
+        auth_type: Any = None,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
+    ) -> None:
+        super().__init__()
+        self.http_conn_id = http_conn_id
+        self.method = method.upper()
+        self.base_url: str = ""
+        self._retry_obj: Callable[..., Any]
+        self._is_auth_type_setup: bool = auth_type is not None
+        self.auth_type: Any = auth_type
+        self.tcp_keep_alive = tcp_keep_alive
+        self.keep_alive_idle = tcp_keep_alive_idle
+        self.keep_alive_count = tcp_keep_alive_count
+        self.keep_alive_interval = tcp_keep_alive_interval
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        return super().get_connection_form_widgets()
+
+    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
+        """Create a Requests HTTP session.
+
+        :param headers: Additional headers to be passed through as a dictionary.
+            Note: Headers may also be passed in the "Headers" field in the Connection definition
+        """
+        headers, auth = self.load_connection_settings(headers=headers)
+
+        session = requests.Session()
+        session.auth = auth
+        session.headers.update(headers)
+        return session
 
     def run(
         self,
@@ -252,7 +314,6 @@ class HttpHook(BaseHook):
             For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
         extra_options = extra_options or {}
-
         session = self.get_conn(headers)
 
         url = self.url_from_endpoint(endpoint)
@@ -372,7 +433,7 @@ class HttpHook(BaseHook):
             return False, str(e)
 
 
-class HttpAsyncHook(BaseHook):
+class HttpAsyncHook(HttpHookMixin, BaseHook):
     """Interact with HTTP servers asynchronously.
 
     :param method: the API method to be called
@@ -386,12 +447,13 @@ class HttpAsyncHook(BaseHook):
     default_conn_name = "http_default"
     conn_type = "http"
     hook_name = "HTTP"
+    default_auth_type = aiohttp.BasicAuth
 
     def __init__(
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = aiohttp.BasicAuth,
+        auth_type: Any = None,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
@@ -399,11 +461,16 @@ class HttpAsyncHook(BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
+        self._is_auth_type_setup: bool = auth_type is not None
         self.auth_type: Any = auth_type
         if retry_limit < 1:
             raise ValueError("Retry limit must be greater than equal to 1")
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        return super().get_connection_form_widgets()
 
     async def run(
         self,
@@ -417,39 +484,13 @@ class HttpAsyncHook(BaseHook):
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
         :param headers: Additional headers to be passed through as a dict.
+            Note: Headers may also be passed in the "Headers" field in the Connection definition.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
-
-        # headers may be passed through directly or in the "extra" field in the connection
-        # definition
-        _headers = {}
-        auth = None
-
-        if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
-            if conn.extra:
-                try:
-                    _headers.update(conn.extra_dejson)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
-            _headers.update(headers)
+        headers, auth = await sync_to_async(self.load_connection_settings)(headers)
 
         base_url = (self.base_url or "").rstrip("/")
         endpoint = (endpoint or "").lstrip("/")
@@ -478,7 +519,7 @@ class HttpAsyncHook(BaseHook):
                     url,
                     json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
-                    headers=_headers,
+                    headers=headers,
                     auth=auth,
                     **extra_options,
                 )
