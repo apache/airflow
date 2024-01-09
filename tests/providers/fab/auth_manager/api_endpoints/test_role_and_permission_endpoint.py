@@ -35,9 +35,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
-    app = minimal_app_for_auth_api
+    connexion_app = minimal_app_for_auth_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -48,30 +48,31 @@ def configured_app(minimal_app_for_auth_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    yield app
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestRoleEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self):
         """
         Delete all roles except these ones.
         Test and TestNoPermissions are deleted by delete_user above
         """
-        session = self.app.appbuilder.get_session
+        session = self.flask_app.appbuilder.get_session
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(["Test", "TestNoPermissions"])
         roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
         for role in roles:
-            delete_role(self.app, role.name)
+            delete_role(self.flask_app, role.name)
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
@@ -168,7 +169,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test"})
-        actions = {i[0] for i in self.app.appbuilder.sm.get_all_permissions() if i}
+        actions = {i[0] for i in self.flask_app.appbuilder.sm.get_all_permissions() if i}
         assert response.status_code == 200
         assert response.json["total_entries"] == len(actions)
         returned_actions = {perm["name"] for perm in response.json["actions"]}
@@ -195,7 +196,7 @@ class TestPostRole(TestRoleEndpoint):
             "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        role = self.app.appbuilder.sm.find_role("Test2")
+        role = self.flask_app.appbuilder.sm.find_role("Test2")
         assert role is not None
 
     @pytest.mark.parametrize(
@@ -316,7 +317,7 @@ class TestPostRole(TestRoleEndpoint):
 
 class TestDeleteRole(TestRoleEndpoint):
     def test_delete_should_respond_204(self, session):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         response = self.client.delete(
             f"/auth/fab/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -364,7 +365,7 @@ class TestPatchRole(TestRoleEndpoint):
         ],
     )
     def test_patch_should_respond_200(self, payload, expected_name, expected_actions):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -373,8 +374,8 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.json["actions"] == expected_actions
 
     def test_patch_should_update_correct_roles_permissions(self):
-        create_role(self.app, "role_to_change")
-        create_role(self.app, "already_exists")
+        create_role(self.flask_app, "role_to_change")
+        create_role(self.flask_app, "already_exists")
 
         response = self.client.patch(
             "/auth/fab/v1/roles/role_to_change",
@@ -386,12 +387,12 @@ class TestPatchRole(TestRoleEndpoint):
         )
         assert response.status_code == 200
 
-        updated_permissions = self.app.appbuilder.sm.find_role("role_to_change").permissions
+        updated_permissions = self.flask_app.appbuilder.sm.find_role("role_to_change").permissions
         assert len(updated_permissions) == 1
         assert updated_permissions[0].resource.name == "XComs"
         assert updated_permissions[0].action.name == "can_delete"
 
-        assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
+        assert len(self.flask_app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
     @pytest.mark.parametrize(
         "update_mask, payload, expected_name, expected_actions",
@@ -419,7 +420,7 @@ class TestPatchRole(TestRoleEndpoint):
     def test_patch_should_respond_200_with_update_mask(
         self, update_mask, payload, expected_name, expected_actions
     ):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         assert role.permissions == []
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}{update_mask}",
@@ -431,7 +432,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.json["actions"] == expected_actions
 
     def test_patch_should_respond_400_for_invalid_fields_in_update_mask(self):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         payload = {"name": "testme"}
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}?update_mask=invalid_name",
@@ -492,7 +493,7 @@ class TestPatchRole(TestRoleEndpoint):
         ],
     )
     def test_patch_should_respond_400_for_invalid_update(self, payload, expected_error):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}",
             json=payload,
