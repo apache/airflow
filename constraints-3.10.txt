@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-08T23:41:48.367629
+# This constraints file was automatically generated on 2024-01-09T06:58:54.585798
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -287,7 +287,7 @@ exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
 facebook-business==18.0.5
-fastavro==1.9.2
+fastavro==1.9.3
 fasteners==0.19
 fastjsonschema==2.19.1
 filelock==3.13.1
@@ -457,7 +457,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.6.1
+openai==1.7.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.7.0
@@ -606,7 +606,7 @@ setproctitle==1.3.3
 shapely==2.0.2
 simple-salesforce==1.12.5
 six==1.16.0
-slack-sdk==3.26.1
+slack_sdk==3.26.2
 smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
