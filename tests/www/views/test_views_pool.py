@@ -83,7 +83,7 @@ def test_list(app, admin_client, pool_factory):
 
     resp = admin_client.get("/pool/list/")
     # We should see this link
-    with app.test_request_context():
+    with app.app.test_request_context():
         description_tag = markupsafe.Markup("<td>{description}</td>").format(
             description="test-pool-description"
         )
