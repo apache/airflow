@@ -234,6 +234,8 @@ class OdbcHook(DbApiHook):
         # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
         field_names: list[tuple[str, type]] | None = None
         if isinstance(result, Sequence):
+            if not result:
+                return []
             field_names = [col[:2] for col in result[0].cursor_description]
             row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
             return cast(List[tuple], [row_object(*row) for row in result])
