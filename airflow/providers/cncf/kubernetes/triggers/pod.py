@@ -23,7 +23,7 @@ import warnings
 from asyncio import CancelledError
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator, Type, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
@@ -33,9 +33,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
-
-
-C = TypeVar("C", bound=Type[KubernetesPodOperatorCallback])
 
 
 class ContainerState(str, Enum):
@@ -92,7 +89,7 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: C = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
     ):
         super().__init__()
         self.pod_name = pod_name

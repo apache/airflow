@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.cloud.container_v1.types import Operation
 
@@ -38,8 +38,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
-
-C = TypeVar("C", bound=KubernetesPodOperatorCallback)
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -84,7 +82,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: C = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
         *args,
         **kwargs,
     ):

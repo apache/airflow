@@ -27,7 +27,7 @@ import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -84,8 +84,6 @@ if TYPE_CHECKING:
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-
-C = TypeVar("C", bound=Type[KubernetesPodOperatorCallback])
 
 
 class PodReattachFailure(AirflowException):
@@ -295,7 +293,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
-        callbacks: C = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
