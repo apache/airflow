@@ -79,8 +79,8 @@ def clean_plugins():
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
-        self.app = app
-        self.appbuilder = app.appbuilder
+        self.connexion_app = app
+        self.appbuilder = app.app.appbuilder
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -138,12 +138,15 @@ class TestPluginsRBAC:
         from tests.plugins.test_plugin import bp
 
         # Blueprint should be present in the app
-        assert "test_plugin" in self.app.blueprints
-        assert self.app.blueprints["test_plugin"].name == bp.name
+        assert "test_plugin" in self.connexion_app.app.blueprints
+        assert self.connexion_app.app.blueprints["test_plugin"].name == bp.name
 
     def test_app_static_folder(self):
         # Blueprint static folder should be properly set
-        assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
+        assert (
+            AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static"
+            == Path(self.connexion_app.app.static_folder).resolve()
+        )
 
 
 @pytest.mark.db_test
@@ -156,7 +159,7 @@ def test_flaskappbuilder_nomenu_views():
     appbuilder_class_name = str(v_nomenu_appbuilder_package["view"].__class__.__name__)
 
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder
+        appbuilder = application.create_app(testing=True).app.appbuilder
 
         plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 

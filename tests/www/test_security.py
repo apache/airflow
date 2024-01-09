@@ -161,16 +161,16 @@ def clear_db_before_test():
 @pytest.fixture(scope="module")
 def app():
     _app = application.create_app(testing=True)
-    _app.config["WTF_CSRF_ENABLED"] = False
+    _app.app.config["WTF_CSRF_ENABLED"] = False
     return _app
 
 
 @pytest.fixture(scope="module")
 def app_builder(app):
-    app_builder = app.appbuilder
+    app_builder = app.app.appbuilder
     app_builder.add_view(SomeBaseView, "SomeBaseView", category="BaseViews")
     app_builder.add_view(SomeModelView, "SomeModelView", category="ModelViews")
-    return app.appbuilder
+    return app.app.appbuilder
 
 
 @pytest.fixture(scope="module")
@@ -185,7 +185,7 @@ def session(app_builder):
 
 @pytest.fixture(scope="module")
 def db(app):
-    return SQLA(app)
+    return SQLA(app.app)
 
 
 @pytest.fixture(scope="function")
@@ -197,7 +197,7 @@ def role(request, app, security_manager):
         security_manager.bulk_sync_roles(params["mock_roles"])
         _role = security_manager.find_role(params["name"])
     yield _role, params
-    delete_role(app, params["name"])
+    delete_role(app.app, params["name"])
 
 
 @pytest.fixture(scope="function")
@@ -336,10 +336,10 @@ def test_verify_public_role_has_no_permissions(security_manager):
 def test_verify_default_anon_user_has_no_accessible_dag_ids(
     mock_is_logged_in, app, session, security_manager
 ):
-    with app.app_context():
+    with app.app.app_context():
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
-        app.config["AUTH_ROLE_PUBLIC"] = "Public"
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Public"
         assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
 
         with _create_dag_model_context("test_dag_id", session, security_manager):
@@ -349,9 +349,9 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(
 
 
 def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, security_manager, has_dag_perm):
-    with app.app_context():
+    with app.app.app_context():
         user = AnonymousUser()
-        app.config["AUTH_ROLE_PUBLIC"] = "Public"
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Public"
         assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
 
         dag_id = "test_dag_id"
@@ -374,8 +374,8 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
     mock_is_logged_in, app, security_manager, mock_dag_models
 ):
     test_dag_ids = mock_dag_models
-    with app.app_context():
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+    with app.app.app_context():
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
 
@@ -389,9 +389,9 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
 def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
     app, session, security_manager, has_dag_perm
 ):
-    with app.app_context():
+    with app.app.app_context():
         user = AnonymousUser()
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
 
         # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
         user.roles = security_manager.get_user_roles(user)
@@ -453,9 +453,9 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
     }
-    app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+    app.app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
 
-    with app.app_context():
+    with app.app.app_context():
         user = AnonymousUser()
 
         perms_views = set()
@@ -468,9 +468,9 @@ def test_get_current_user_permissions(app):
     action = "can_some_action"
     resource = "SomeBaseView"
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="get_current_user_permissions",
             role_name="MyRole5",
             permissions=[
@@ -480,7 +480,7 @@ def test_get_current_user_permissions(app):
             assert user.perms == {(action, resource)}
 
         with create_user_scope(
-            app,
+            app.app,
             username="no_perms",
         ) as user:
             assert len(user.perms) == 0
@@ -493,9 +493,9 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
     dag_id = "dag_id"
     username = "ElUser"
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
             permissions=[
@@ -525,9 +525,9 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
             permissions=[
@@ -566,9 +566,9 @@ def test_sync_perm_for_dag_creates_permissions_for_specified_roles(app, security
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
     security_manager.bulk_sync_roles([{"role": test_role, "perms": []}])
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="test_user",
             role_name=test_role,
             permissions=[],
@@ -585,9 +585,9 @@ def test_sync_perm_for_dag_removes_existing_permissions_if_empty(app, security_m
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="test_user",
             role_name=test_role,
             permissions=[],
@@ -623,9 +623,9 @@ def test_sync_perm_for_dag_removes_permissions_from_other_roles(app, security_ma
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="test_user",
             role_name=test_role,
             permissions=[],
@@ -662,9 +662,9 @@ def test_sync_perm_for_dag_does_not_prune_roles_when_access_control_unset(app, s
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="test_user",
             role_name=test_role,
             permissions=[],
@@ -695,35 +695,35 @@ def test_sync_perm_for_dag_does_not_prune_roles_when_access_control_unset(app, s
 
 def test_has_all_dag_access(app, security_manager):
     for role_name in ["Admin", "Viewer", "Op", "User"]:
-        with app.app_context():
+        with app.app.app_context():
             with create_user_scope(
-                app,
+                app.app,
                 username="user",
                 role_name=role_name,
             ) as user:
                 assert _has_all_dags_access(user)
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="user",
             role_name="read_all",
             permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
         ) as user:
             assert _has_all_dags_access(user)
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="user",
             role_name="edit_all",
             permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],
         ) as user:
             assert _has_all_dags_access(user)
 
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username="user",
             role_name="nada",
             permissions=[],
@@ -745,9 +745,9 @@ def test_access_control_with_non_existent_role(security_manager):
 def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
     username = "dag_access_user"
     role_name = "dag_access_role"
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
             permissions=[
@@ -769,7 +769,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
     username = "LaUser"
     rolename = "team-a"
     with create_user_scope(
-        app,
+        app.app,
         username=username,
         role_name=rolename,
     ):
@@ -791,9 +791,9 @@ def test_access_control_is_set_on_init(
     username = "access_control_is_set_on_init"
     role_name = "team-a"
     negated_role = "NOT-team-a"
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
             permissions=[],
@@ -809,7 +809,7 @@ def test_access_control_is_set_on_init(
             )
 
             security_manager.bulk_sync_roles([{"role": negated_role, "perms": []}])
-            set_user_single_role(app, user, role_name=negated_role)
+            set_user_single_role(app.app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
                 perms=["PUT", "GET"],
                 dag_id="access_control_test",
@@ -825,14 +825,14 @@ def test_access_control_stale_perms_are_revoked(
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"
-    with app.app_context():
+    with app.app.app_context():
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
             permissions=[],
         ) as user:
-            set_user_single_role(app, user, role_name="team-a")
+            set_user_single_role(app.app, user, role_name="team-a")
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_WRITE}
             )
@@ -976,7 +976,7 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
     parent_dag_name = "parent_dag"
     subdag_name = parent_dag_name + ".subdag"
     subsubdag_name = parent_dag_name + ".subdag.subsubdag"
-    with app.app_context():
+    with app.app.app_context():
         mock_roles = [
             {
                 "role": role_name,
@@ -987,7 +987,7 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             }
         ]
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
         ) as user:
@@ -1017,7 +1017,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
     role_name = "dag_permission_role"
     dag_id = "dag_id_1"
     dag_id_2 = "dag_id_1.with_dot"
-    with app.app_context():
+    with app.app.app_context():
         mock_roles = [
             {
                 "role": role_name,
@@ -1028,7 +1028,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             }
         ]
         with create_user_scope(
-            app,
+            app.app,
             username=username,
             role_name=role_name,
         ) as user:
@@ -1117,14 +1117,14 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
 
 def test_users_can_be_found(app, security_manager, session, caplog):
     """Test that usernames are case insensitive"""
-    create_user(app, "Test")
-    create_user(app, "test")
-    create_user(app, "TEST")
-    create_user(app, "TeSt")
+    create_user(app.app, "Test")
+    create_user(app.app, "test")
+    create_user(app.app, "TEST")
+    create_user(app.app, "TeSt")
     assert security_manager.find_user("Test")
     users = security_manager.get_all_users()
     assert len(users) == 1
-    delete_user(app, "Test")
+    delete_user(app.app, "Test")
     assert "Error adding new user to database" in caplog.text
 
 

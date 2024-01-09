@@ -34,13 +34,13 @@ def app():
         return create_app(testing=True)
 
     app = factory()
-    app.config["WTF_CSRF_ENABLED"] = False
+    app.app.config["WTF_CSRF_ENABLED"] = False
     return app
 
 
 @pytest.fixture()
 def client(app):
-    return werkzeug.test.Client(app, werkzeug.wrappers.response.Response)
+    return werkzeug.test.Client(app.app, werkzeug.wrappers.response.Response)
 
 
 def test_mount(client):

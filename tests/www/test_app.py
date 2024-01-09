@@ -56,8 +56,8 @@ class TestApp:
     )
     @dont_initialize_flask_app_submodules
     def test_should_respect_proxy_fix(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+        flask_app = application.cached_app(testing=True).app
+        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -70,7 +70,7 @@ class TestApp:
 
             return Response("success")
 
-        app.view_functions["debug"] = debug_view
+        flask_app.view_functions["debug"] = debug_view
 
         new_environ = {
             "PATH_INFO": "/debug",
@@ -84,7 +84,7 @@ class TestApp:
         }
         environ = create_environ(environ_overrides=new_environ)
 
-        response = Response.from_app(app, environ)
+        response = Response.from_app(flask_app, environ)
 
         assert b"success" == response.get_data()
         assert response.status_code == 200
@@ -104,11 +104,11 @@ class TestApp:
         with conf_vars({("webserver", "base_url"): base_url}):
             if expected_exception:
                 with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
-                    app = application.cached_app(testing=True)
-                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                    flask_app = application.cached_app(testing=True).app
+                    flask_app.url_map.add(Rule("/debug", endpoint="debug"))
                 return
-            app = application.cached_app(testing=True)
-            app.url_map.add(Rule("/debug", endpoint="debug"))
+            flask_app = application.cached_app(testing=True).app
+            flask_app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -121,7 +121,7 @@ class TestApp:
 
             return Response("success")
 
-        app.view_functions["debug"] = debug_view
+        flask_app.view_functions["debug"] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",
@@ -135,7 +135,7 @@ class TestApp:
         }
         environ = create_environ(environ_overrides=new_environ)
 
-        response = Response.from_app(app, environ)
+        response = Response.from_app(flask_app, environ)
 
         assert b"success" == response.get_data()
         assert response.status_code == 200
@@ -167,11 +167,11 @@ class TestApp:
         with conf_vars({("webserver", "base_url"): base_url}):
             if expected_exception:
                 with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
-                    app = application.cached_app(testing=True)
-                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                    flask_app = application.cached_app(testing=True).app
+                    flask_app.url_map.add(Rule("/debug", endpoint="debug"))
                 return
-            app = application.cached_app(testing=True)
-            app.url_map.add(Rule("/debug", endpoint="debug"))
+            flask_app = application.cached_app(testing=True).app
+            flask_app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -183,7 +183,7 @@ class TestApp:
 
             return Response("success")
 
-        app.view_functions["debug"] = debug_view
+        flask_app.view_functions["debug"] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",
@@ -192,7 +192,7 @@ class TestApp:
         }
         environ = create_environ(environ_overrides=new_environ)
 
-        response = Response.from_app(app, environ)
+        response = Response.from_app(flask_app, environ)
 
         assert b"success" == response.get_data()
         assert response.status_code == 200
@@ -210,8 +210,8 @@ class TestApp:
     )
     @dont_initialize_flask_app_submodules
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+        flask_app = application.cached_app(testing=True).app
+        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -224,7 +224,7 @@ class TestApp:
 
             return Response("success")
 
-        app.view_functions["debug"] = debug_view
+        flask_app.view_functions["debug"] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",
@@ -238,7 +238,7 @@ class TestApp:
         }
         environ = create_environ(environ_overrides=new_environ)
 
-        response = Response.from_app(app, environ)
+        response = Response.from_app(flask_app, environ)
 
         assert b"success" == response.get_data()
         assert response.status_code == 200
@@ -250,16 +250,16 @@ class TestApp:
     )
     @dont_initialize_flask_app_submodules
     def test_should_set_permanent_session_timeout(self):
-        app = application.cached_app(testing=True)
-        assert app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(minutes=3600)
+        flask_app = application.cached_app(testing=True).app
+        assert flask_app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(minutes=3600)
 
     @conf_vars({("webserver", "cookie_samesite"): ""})
     @dont_initialize_flask_app_submodules
     def test_correct_default_is_set_for_cookie_samesite(self):
         """An empty 'cookie_samesite' should be corrected to 'Lax' with a deprecation warning."""
         with pytest.deprecated_call():
-            app = application.cached_app(testing=True)
-        assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+            flask_app = application.cached_app(testing=True).app
+        assert flask_app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
 
     @pytest.mark.parametrize(
         "hash_method, result, exception",
@@ -279,10 +279,10 @@ class TestApp:
         with conf_vars({("webserver", "caching_hash_method"): hash_method}):
             if exception:
                 with pytest.raises(expected_exception=exception):
-                    app = application.cached_app(testing=True)
+                    flask_app = application.cached_app(testing=True).app
             else:
-                app = application.cached_app(testing=True)
-                assert next(iter(app.extensions["cache"])).cache._hash_method == result
+                flask_app = application.cached_app(testing=True).app
+                assert next(iter(flask_app.extensions["cache"])).cache._hash_method == result
 
 
 class TestFlaskCli:
@@ -306,5 +306,5 @@ def test_app_can_json_serialize_k8s_pod():
     k8s = pytest.importorskip("kubernetes.client.models")
 
     pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
-    app = application.cached_app(testing=True)
-    assert app.json.dumps(pod) == '{"spec": {"containers": [{"name": "base"}]}}'
+    flask_app = application.cached_app(testing=True).app
+    assert flask_app.json.dumps(pod) == '{"spec": {"containers": [{"name": "base"}]}}'

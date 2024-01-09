@@ -59,7 +59,7 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
 
 @pytest.fixture()
 def autoclean_admin_user(configured_app, autoclean_user_payload):
-    security_manager = configured_app.appbuilder.sm
+    security_manager = configured_app.app.appbuilder.sm
     return security_manager.add_user(
         role=security_manager.find_role("Admin"),
         **autoclean_user_payload,
@@ -82,9 +82,9 @@ def autoclean_email():
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -100,28 +100,29 @@ def configured_app(minimal_app_for_api):
         ],
     )
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
 
 
 class TestFABforwarding:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = configured_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self):
         """
         Delete all roles except these ones.
         Test and TestNoPermissions are deleted by delete_user above
         """
-        session = self.app.appbuilder.get_session
+        session = self.flask_app.appbuilder.get_session
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(["Test", "TestNoPermissions"])
         roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
         for role in roles:
-            delete_role(self.app, role.name)
+            delete_role(self.flask_app, role.name)
         users = session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME))
         users.delete(synchronize_session=False)
         session.commit()
@@ -130,7 +131,7 @@ class TestFABforwarding:
 class TestFABRoleForwarding(TestFABforwarding):
     @mock.patch("airflow.api_connexion.endpoints.forward_to_fab_endpoint.get_auth_manager")
     def test_raises_400_if_manager_is_not_fab(self, mock_get_auth_manager):
-        mock_get_auth_manager.return_value = BaseAuthManager(self.app.appbuilder)
+        mock_get_auth_manager.return_value = BaseAuthManager(self.flask_app.appbuilder)
         response = self.client.get("api/v1/roles", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert (
@@ -147,12 +148,12 @@ class TestFABRoleForwarding(TestFABforwarding):
         assert resp.status_code == 200
 
     def test_delete_role_forwards_to_fab(self):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         resp = self.client.delete(f"api/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"})
         assert resp.status_code == 204
 
     def test_patch_role_forwards_to_fab(self):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         resp = self.client.patch(
             f"api/v1/roles/{role.name}", json={"name": "Test2"}, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -192,7 +193,7 @@ class TestFABUserForwarding(TestFABforwarding):
 
     def test_get_user_forwards_to_fab(self):
         users = self._create_users(1)
-        session = self.app.appbuilder.get_session
+        session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
         resp = self.client.get("api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
@@ -200,7 +201,7 @@ class TestFABUserForwarding(TestFABforwarding):
 
     def test_get_users_forwards_to_fab(self):
         users = self._create_users(2)
-        session = self.app.appbuilder.get_session
+        session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
         resp = self.client.get("api/v1/users", environ_overrides={"REMOTE_USER": "test"})
@@ -214,7 +215,7 @@ class TestFABUserForwarding(TestFABforwarding):
         )
         assert response.status_code == 200, response.json
 
-        security_manager = self.app.appbuilder.sm
+        security_manager = self.flask_app.appbuilder.sm
         user = security_manager.find_user(autoclean_username)
         assert user is not None
         assert user.roles == [security_manager.find_role("Public")]
@@ -231,7 +232,7 @@ class TestFABUserForwarding(TestFABforwarding):
 
     def test_delete_user_forwards_to_fab(self):
         users = self._create_users(1)
-        session = self.app.appbuilder.get_session
+        session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
         resp = self.client.delete("api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})

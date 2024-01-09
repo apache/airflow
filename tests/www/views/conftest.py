@@ -67,11 +67,11 @@ def app(examples_dag_bag):
             return create_app(testing=True)
 
     app = factory()
-    app.config["WTF_CSRF_ENABLED"] = False
-    app.dag_bag = examples_dag_bag
-    app.jinja_env.undefined = jinja2.StrictUndefined
+    app.app.config["WTF_CSRF_ENABLED"] = False
+    app.app.dag_bag = examples_dag_bag
+    app.app.jinja_env.undefined = jinja2.StrictUndefined
 
-    security_manager = app.appbuilder.sm
+    security_manager = app.app.appbuilder.sm
 
     test_users = [
         {
@@ -107,7 +107,7 @@ def app(examples_dag_bag):
     yield app
 
     for user_dict in test_users:
-        delete_user(app, user_dict["username"])
+        delete_user(app.app, user_dict["username"])
 
 
 @pytest.fixture()
@@ -190,11 +190,11 @@ def capture_templates(app):
         def record(sender, template, context, **extra):
             recorded.append(_TemplateWithContext(template, context))
 
-        flask.template_rendered.connect(record, app)  # type: ignore
+        flask.template_rendered.connect(record, app.app)  # type: ignore
         try:
             yield recorded
         finally:
-            flask.template_rendered.disconnect(record, app)  # type: ignore
+            flask.template_rendered.disconnect(record, app.app)  # type: ignore
 
         assert recorded, "Failed to catch the templates"
 

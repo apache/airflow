@@ -26,24 +26,25 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
+    flask_app = minimal_app_for_api.app
     create_user(
-        app,  # type:ignore
+        flask_app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)],  # type: ignore
     )
 
-    yield minimal_app_for_api
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
+    delete_user(flask_app, username="test")  # type: ignore
 
 
 class TestSession:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def test_session_not_created_on_api_request(self):
         self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})

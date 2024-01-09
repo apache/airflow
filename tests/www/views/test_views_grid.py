@@ -80,7 +80,7 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
             with TaskGroup(group_id="group"):
                 MockOperator.partial(task_id="mapped").expand(arg1=["a", "b", "c", "d"])
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
         yield dag_maker
 
 
@@ -429,7 +429,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             EmptyOperator(task_id="task3", outlets=[Dataset("foo"), lineagefile])
             EmptyOperator(task_id="task4", outlets=[Dataset("foo")])
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
     def _expected_task_details(task_id, has_outlet_datasets):
@@ -470,7 +470,7 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         with dag_maker(dag_id=DAG_ID, schedule=datasets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
 
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()

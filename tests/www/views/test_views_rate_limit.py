@@ -49,7 +49,7 @@ def app_with_rate_limit_one(examples_dag_bag):
             return create_app(testing=True)
 
     app = factory()
-    app.config["WTF_CSRF_ENABLED"] = False
+    app.app.config["WTF_CSRF_ENABLED"] = False
     return app
 
 

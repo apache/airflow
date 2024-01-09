@@ -50,10 +50,10 @@ DAG3_ID = "test_dag3"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -62,13 +62,13 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
@@ -91,13 +91,13 @@ def configured_app(minimal_app_for_api):
     dag_bag = DagBag(os.devnull, include_examples=False)
     dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
 
-    app.dag_bag = dag_bag
+    connexion_app.app.dag_bag = dag_bag
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_granular_permissions")  # type: ignore
 
 
 class TestDagEndpoint:
@@ -110,8 +110,9 @@ class TestDagEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.clean_db()
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = configured_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
         self.dag_id = DAG_ID
         self.dag2_id = DAG2_ID
         self.dag3_id = DAG3_ID
@@ -426,11 +427,11 @@ class TestGetDagDetails(TestDagEndpoint):
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         self._create_dag_model_for_details_endpoint(self.dag_id)
         # Get the dag out of the dagbag before we patch it to an empty one
-        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
+        SerializedDagModel.write_dag(self.flask_app.dag_bag.get_dag(self.dag_id))
 
         # Create empty app with empty dagbag to check if DAG is read from db
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)
+        patcher = unittest.mock.patch.object(self.flask_app, "dag_bag", dag_bag)
         patcher.start()
 
         expected = {

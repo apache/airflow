@@ -52,7 +52,7 @@ class TestBase:
     @pytest.fixture(autouse=True)
     def _setup_attrs_base(self, experiemental_api_app, configured_session):
         self.app = experiemental_api_app
-        self.appbuilder = self.app.appbuilder
+        self.appbuilder = self.app.app.appbuilder
         self.client = self.app.test_client()
         self.session = configured_session
 

@@ -32,24 +32,25 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_role(
-        app,
+        connexion_app.app,
         name="TestRole",
         permissions=[],
     )
-    yield app
+    yield connexion_app
 
-    delete_role(app, "TestRole")  # type:ignore
+    delete_role(connexion_app.app, "TestRole")  # type:ignore
 
 
 class TestUserBase:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
-        self.role = self.app.appbuilder.sm.find_role("TestRole")
-        self.session = self.app.appbuilder.get_session
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
+        self.role = self.flask_app.appbuilder.sm.find_role("TestRole")
+        self.session = self.flask_app.appbuilder.get_session
 
     def teardown_method(self):
         user = self.session.query(User).filter(User.email == TEST_EMAIL).first()

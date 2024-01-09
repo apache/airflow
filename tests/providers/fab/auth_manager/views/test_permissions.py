@@ -33,7 +33,7 @@ def fab_app():
 @pytest.fixture(scope="module")
 def user_permissions_reader(fab_app):
     return create_user(
-        fab_app,
+        fab_app.app,
         username="user_permissions",
         role_name="role_permissions",
         permissions=[
@@ -47,7 +47,7 @@ def user_permissions_reader(fab_app):
 
 @pytest.fixture()
 def client_permissions_reader(fab_app, user_permissions_reader):
-    fab_app.config["WTF_CSRF_ENABLED"] = False
+    fab_app.app.config["WTF_CSRF_ENABLED"] = False
     return client_with_login(
         fab_app,
         username="user_permissions",

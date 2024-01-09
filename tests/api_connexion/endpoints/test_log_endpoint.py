@@ -41,10 +41,10 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,
+        connexion_app.app,
         username="test",
         role_name="Test",
         permissions=[
@@ -52,12 +52,12 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
+    delete_user(connexion_app.app, username="test")
+    delete_user(connexion_app.app, username="test_no_permissions")
 
 
 class TestGetLog:
@@ -71,8 +71,9 @@ class TestGetLog:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, configure_loggers, dag_maker, session) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
@@ -92,7 +93,7 @@ class TestGetLog:
             start_date=timezone.parse(self.default_time),
         )
 
-        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
@@ -105,7 +106,7 @@ class TestGetLog:
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
-        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+        self.flask_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
 
         for ti in dr.task_instances:
             ti.try_number = 1
@@ -153,7 +154,7 @@ class TestGetLog:
         clear_db_runs()
 
     def test_should_respond_200_json(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
@@ -191,7 +192,7 @@ class TestGetLog:
     def test_should_respond_200_text_plain(self, request_url, expected_filename, extra_query_string):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
@@ -226,12 +227,12 @@ class TestGetLog:
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
-        dagbag = self.app.dag_bag
+        dagbag = self.flask_app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
@@ -249,7 +250,7 @@ class TestGetLog:
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
@@ -290,7 +291,7 @@ class TestGetLog:
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
         type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
 
@@ -336,7 +337,7 @@ class TestGetLog:
         }
 
     def test_should_raises_401_unauthenticated(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
 
@@ -349,7 +350,7 @@ class TestGetLog:
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
@@ -362,7 +363,7 @@ class TestGetLog:
         assert response.status_code == 403
 
     def test_should_raise_404_when_missing_map_index_param_for_mapped_task(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
@@ -376,7 +377,7 @@ class TestGetLog:
         assert response.json["title"] == "TaskInstance not found"
 
     def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
-        key = self.app.config["SECRET_KEY"]
+        key = self.flask_app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
