@@ -52,7 +52,7 @@ def clear_variables():
 def user_variable_reader(app):
     """Create User that can only read variables"""
     return create_user(
-        app,
+        app.app,
         username="user_variable_reader",
         role_name="role_variable_reader",
         permissions=[
