@@ -86,16 +86,15 @@ class TestSFTPSensor:
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_not_new_enough(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101112233"
-        tz = timezone("Europe/Paris")
+        sftp_hook_mock.return_value.get_mod_time.return_value = "20240101112233"
         sftp_sensor = SFTPSensor(
             task_id="unit_test",
-            path="/path/to/file/1970-01-01-11-22-33.txt",
-            newer_than=tz.convert(pendulum_datetime(2020, 1, 2, 11, 22, 32)),
+            path="/path/to/file/2024-01-01-11-22-33.txt",
+            newer_than='{{ dag_run.logical_date.add(days=1, hours=-2) }}',
         )
-        context = {"ds": "1970-01-00"}
+        context = {"ds": "2024-01-01"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01-11-22-33.txt")
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/2024-01-02-11-20-33.txt")
         assert not output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
