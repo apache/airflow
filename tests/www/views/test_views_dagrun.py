@@ -34,7 +34,7 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module")
 def client_dr_without_dag_edit(app):
     create_user(
-        app,
+        app.app,
         username="all_dr_permissions_except_dag_edit",
         role_name="all_dr_permissions_except_dag_edit",
         permissions=[
@@ -54,14 +54,14 @@ def client_dr_without_dag_edit(app):
         password="all_dr_permissions_except_dag_edit",
     )
 
-    delete_user(app, username="all_dr_permissions_except_dag_edit")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="all_dr_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.fixture(scope="module")
 def client_dr_without_dag_run_create(app):
     create_user(
-        app,
+        app.app,
         username="all_dr_permissions_except_dag_run_create",
         role_name="all_dr_permissions_except_dag_run_create",
         permissions=[
@@ -80,8 +80,8 @@ def client_dr_without_dag_run_create(app):
         password="all_dr_permissions_except_dag_run_create",
     )
 
-    delete_user(app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
-    delete_roles(app)
+    delete_user(app.app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
+    delete_roles(app.app)
 
 
 @pytest.fixture(scope="module", autouse=True)
