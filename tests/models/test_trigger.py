@@ -26,7 +26,6 @@ from cryptography.fernet import Fernet
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner
 from airflow.models import TaskInstance, Trigger
-from airflow.models.crypto import get_fernet
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -375,10 +374,8 @@ def test_serialize_sensitive_kwargs():
     trigger_row: Trigger = Trigger.from_object(trigger_instance)
 
     assert trigger_row.kwargs["param1"] == "value1"
-    assert (
-        get_fernet().decrypt(trigger_row.kwargs["encrypted__param2"].encode("utf-8")).decode("utf-8")
-        == "value2"
-    )
+    assert "param2" not in trigger_row.kwargs
+    assert trigger_row.kwargs["encrypted__param2"] != "value2"
 
     loaded_trigger: SensitiveKwargsTrigger = TriggerRunner().trigger_row_to_trigger_instance(
         trigger_row, SensitiveKwargsTrigger
