@@ -16,17 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import sys
 from copy import deepcopy
 
 import click
 
-from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_image_options import (
     option_additional_airflow_extras,
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
@@ -36,50 +31,61 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
-    option_answer,
     option_build_progress,
-    option_builder,
-    option_commit_sha,
     option_debian_version,
-    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
-    option_dry_run,
-    option_github_repository,
-    option_github_token,
-    option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
-    option_include_success_outputs,
+    option_install_mysql_client_type,
     option_install_providers_from_sources,
-    option_parallelism,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
     option_push,
-    option_python,
     option_python_image,
-    option_python_versions,
-    option_run_in_parallel,
     option_runtime_apt_command,
     option_runtime_apt_deps,
-    option_skip_cleanup,
     option_tag_as_latest,
-    option_verbose,
     option_verify,
-    option_version_suffix_for_pypi,
     option_wait_for_image,
 )
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_builder,
+    option_commit_sha,
+    option_debug_resources,
+    option_docker_host,
+    option_dry_run,
+    option_github_repository,
+    option_github_token,
+    option_image_name,
+    option_include_success_outputs,
+    option_parallelism,
+    option_python,
+    option_python_versions,
+    option_run_in_parallel,
+    option_skip_cleanup,
+    option_verbose,
+    option_version_suffix_for_pypi,
+)
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_prod,
+)
+from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
+from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     check_remote_ghcr_io_commands,
+    get_docker_build_env,
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
@@ -155,33 +161,6 @@ def prod_image():
 
 
 @prod_image.command(name="build")
-@option_python
-@option_debian_version
-@option_platform_multiple
-@option_github_token
-@option_docker_cache
-@option_image_tag_for_building
-@option_prepare_buildx_cache
-@option_push
-@option_install_providers_from_sources
-@click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
-@option_additional_airflow_extras
-@option_additional_dev_apt_deps
-@option_additional_runtime_apt_deps
-@option_additional_python_deps
-@option_additional_dev_apt_command
-@option_additional_dev_apt_env
-@option_additional_runtime_apt_env
-@option_additional_runtime_apt_command
-@option_builder
-@option_build_progress
-@option_commit_sha
-@option_dev_apt_command
-@option_dev_apt_deps
-@option_runtime_apt_command
-@option_runtime_apt_deps
-@option_airflow_constraints_location
-@option_airflow_constraints_mode_prod
 @click.option(
     "--installation-method",
     help="Install Airflow from: sources or PyPI.",
@@ -225,73 +204,102 @@ def prod_image():
     "--install-airflow-reference",
     help="Install Airflow using GitHub tag or branch.",
 )
-@option_airflow_constraints_reference_build
-@option_tag_as_latest
+@click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
+@option_additional_airflow_extras
+@option_additional_dev_apt_command
+@option_additional_dev_apt_deps
+@option_additional_dev_apt_env
 @option_additional_pip_install_flags
-@option_github_repository
-@option_python_image
-@option_version_suffix_for_pypi
-@option_run_in_parallel
-@option_parallelism
-@option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_python_versions
-@option_verbose
-@option_dry_run
+@option_additional_python_deps
+@option_additional_runtime_apt_command
+@option_additional_runtime_apt_deps
+@option_additional_runtime_apt_env
+@option_airflow_constraints_location
+@option_airflow_constraints_mode_prod
+@option_airflow_constraints_reference_build
 @option_answer
+@option_build_progress
+@option_builder
+@option_commit_sha
+@option_debian_version
+@option_debug_resources
+@option_dev_apt_command
+@option_dev_apt_deps
+@option_docker_cache
+@option_docker_host
+@option_dry_run
+@option_github_repository
+@option_github_token
+@option_image_tag_for_building
+@option_include_success_outputs
+@option_install_mysql_client_type
+@option_install_providers_from_sources
+@option_parallelism
+@option_platform_multiple
+@option_prepare_buildx_cache
+@option_push
+@option_python
+@option_python_image
+@option_python_versions
+@option_run_in_parallel
+@option_runtime_apt_command
+@option_runtime_apt_deps
+@option_skip_cleanup
+@option_tag_as_latest
+@option_verbose
+@option_version_suffix_for_pypi
 def build(
-    # build options
-    python: str,
-    debian_version: str,
-    platform: str | None,
-    github_token: str | None,
-    docker_cache: str,
-    image_tag: str,
-    prepare_buildx_cache: bool,
-    push: bool,
-    install_providers_from_sources: bool,
-    install_airflow_version: str | None,
     additional_airflow_extras: str | None,
-    additional_dev_apt_deps: str | None,
-    additional_runtime_apt_deps: str | None,
-    additional_python_deps: str | None,
     additional_dev_apt_command: str | None,
+    additional_dev_apt_deps: str | None,
     additional_dev_apt_env: str | None,
+    additional_pip_install_flags: str | None,
+    additional_python_deps: str | None,
     additional_runtime_apt_command: str | None,
+    additional_runtime_apt_deps: str | None,
     additional_runtime_apt_env: str | None,
-    builder: str,
-    build_progress: str,
-    commit_sha: str | None,
-    dev_apt_command: str | None,
-    dev_apt_deps: str | None,
-    runtime_apt_command: str | None,
-    runtime_apt_deps: str | None,
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
-    installation_method: str,
-    install_packages_from_context: bool,
-    use_constraints_for_context_packages: bool,
-    cleanup_context: bool,
-    airflow_extras: str,
-    disable_mysql_client_installation: bool,
-    disable_mssql_client_installation: bool,
-    disable_postgres_client_installation: bool,
-    disable_airflow_repo_cache: bool,
-    install_airflow_reference: str | None,
     airflow_constraints_reference: str | None,
-    tag_as_latest: bool,
-    additional_pip_install_flags: str | None,
-    github_repository: str,
-    python_image: str | None,
-    version_suffix_for_pypi: str,
-    # Parallel building
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
+    airflow_extras: str,
+    build_progress: str,
+    builder: str,
+    cleanup_context: bool,
+    commit_sha: str | None,
+    debian_version: str,
     debug_resources: bool,
+    dev_apt_command: str | None,
+    dev_apt_deps: str | None,
+    disable_airflow_repo_cache: bool,
+    disable_mssql_client_installation: bool,
+    disable_mysql_client_installation: bool,
+    disable_postgres_client_installation: bool,
+    docker_cache: str,
+    docker_host: str | None,
+    github_repository: str,
+    github_token: str | None,
+    image_tag: str,
     include_success_outputs,
+    install_airflow_reference: str | None,
+    install_airflow_version: str | None,
+    install_mysql_client_type: str,
+    install_packages_from_context: bool,
+    install_providers_from_sources: bool,
+    installation_method: str,
+    parallelism: int,
+    platform: str | None,
+    prepare_buildx_cache: bool,
+    push: bool,
+    python: str,
+    python_image: str | None,
     python_versions: str,
+    run_in_parallel: bool,
+    runtime_apt_command: str | None,
+    runtime_apt_deps: str | None,
+    skip_cleanup: bool,
+    tag_as_latest: bool,
+    use_constraints_for_context_packages: bool,
+    version_suffix_for_pypi: str,
 ):
     """
     Build Production image. Include building multiple images for all or selected Python versions sequentially.
@@ -307,47 +315,49 @@ def build(
     check_remote_ghcr_io_commands()
 
     base_build_params = BuildProdParams(
-        python=python,
-        debian_version=debian_version,
-        github_token=github_token,
-        docker_cache=docker_cache,
-        image_tag=image_tag,
-        prepare_buildx_cache=prepare_buildx_cache,
-        push=push,
-        install_providers_from_sources=install_providers_from_sources,
-        install_airflow_version=install_airflow_version,
         additional_airflow_extras=additional_airflow_extras,
-        additional_dev_apt_deps=additional_dev_apt_deps,
-        additional_runtime_apt_deps=additional_runtime_apt_deps,
-        additional_python_deps=additional_python_deps,
         additional_dev_apt_command=additional_dev_apt_command,
+        additional_dev_apt_deps=additional_dev_apt_deps,
         additional_dev_apt_env=additional_dev_apt_env,
+        additional_pip_install_flags=additional_pip_install_flags,
+        additional_python_deps=additional_python_deps,
         additional_runtime_apt_command=additional_runtime_apt_command,
+        additional_runtime_apt_deps=additional_runtime_apt_deps,
         additional_runtime_apt_env=additional_runtime_apt_env,
-        builder=builder,
-        build_progress=build_progress,
-        commit_sha=commit_sha,
-        dev_apt_command=dev_apt_command,
-        dev_apt_deps=dev_apt_deps,
-        runtime_apt_command=runtime_apt_command,
-        runtime_apt_deps=runtime_apt_deps,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
-        installation_method=installation_method,
-        install_packages_from_context=install_packages_from_context,
-        use_constraints_for_context_packages=use_constraints_for_context_packages,
-        cleanup_context=cleanup_context,
-        airflow_extras=airflow_extras,
-        disable_mysql_client_installation=disable_mysql_client_installation,
-        disable_mssql_client_installation=disable_mssql_client_installation,
-        disable_postgres_client_installation=disable_postgres_client_installation,
-        disable_airflow_repo_cache=disable_airflow_repo_cache,
-        install_airflow_reference=install_airflow_reference,
         airflow_constraints_reference=airflow_constraints_reference,
-        tag_as_latest=tag_as_latest,
-        additional_pip_install_flags=additional_pip_install_flags,
+        airflow_extras=airflow_extras,
+        build_progress=build_progress,
+        builder=builder,
+        cleanup_context=cleanup_context,
+        commit_sha=commit_sha,
+        debian_version=debian_version,
+        dev_apt_command=dev_apt_command,
+        dev_apt_deps=dev_apt_deps,
+        docker_host=docker_host,
+        disable_airflow_repo_cache=disable_airflow_repo_cache,
+        disable_mssql_client_installation=disable_mssql_client_installation,
+        disable_mysql_client_installation=disable_mysql_client_installation,
+        disable_postgres_client_installation=disable_postgres_client_installation,
+        docker_cache=docker_cache,
         github_repository=github_repository,
+        github_token=github_token,
+        image_tag=image_tag,
+        install_airflow_reference=install_airflow_reference,
+        install_airflow_version=install_airflow_version,
+        install_mysql_client_type=install_mysql_client_type,
+        install_packages_from_context=install_packages_from_context,
+        install_providers_from_sources=install_providers_from_sources,
+        installation_method=installation_method,
+        prepare_buildx_cache=prepare_buildx_cache,
+        push=push,
+        python=python,
         python_image=python_image,
+        runtime_apt_command=runtime_apt_command,
+        runtime_apt_deps=runtime_apt_deps,
+        tag_as_latest=tag_as_latest,
+        use_constraints_for_context_packages=use_constraints_for_context_packages,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -543,7 +553,7 @@ def verify(
     )
     if (pull or image_name) and run_in_parallel:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:
@@ -675,8 +685,7 @@ def run_build_production_image(
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:
-        env = os.environ.copy()
-        env["DOCKER_BUILDKIT"] = "1"
+        env = get_docker_build_env(prod_image_params)
         build_command_result = run_command(
             prepare_docker_build_command(
                 image_params=prod_image_params,

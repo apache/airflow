@@ -65,11 +65,11 @@ class TrinoOperator(SQLExecuteQueryOperator):
         )
 
     def on_kill(self) -> None:
-        if self._hook is not None and isinstance(self._hook, TrinoHook):
-            query_id = "'" + self._hook.query_id + "'"
+        if self._hook is not None and isinstance(self._hook, TrinoHook):  # type: ignore[attr-defined]
+            query_id = "'" + self._hook.query_id + "'"  # type: ignore[attr-defined]
             try:
-                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)
-                self._hook.run(
+                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)  # type: ignore[attr-defined]
+                self._hook.run(  # type: ignore[attr-defined]
                     sql=f"CALL system.runtime.kill_query(query_id => {query_id},message => 'Job "
                     f"killed by "
                     f"user');",

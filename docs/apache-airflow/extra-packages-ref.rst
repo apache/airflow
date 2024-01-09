@@ -52,6 +52,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
@@ -144,8 +146,6 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.spark        | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.sqoop        | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks            |
-+---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.webhdfs      | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 
@@ -204,8 +204,6 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pinecone            | ``pip install 'apache-airflow[pinecone]'``          | Pinecone Operators and Hooks                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform    |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | salesforce          | ``pip install 'apache-airflow[salesforce]'``        | Salesforce hook                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | sendgrid            | ``pip install 'apache-airflow[sendgrid]'``          | Send email using sendgrid                           |
@@ -247,13 +245,13 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes client libraries, KubernetesPodOperator & friends    | KubernetesExecutor, LocalKubernetesExecutor  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| daskexecutor        | ``pip install 'apache-airflow[daskexecutor]'``      | Dask libraries including ``distributed`` execution library      | DaskExecutor                                 |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                      |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                             |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                      |                                              |
++---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
+| fab                 | ``pip install 'apache-airflow[fab]'``               | FAB auth manager                                                |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | github              | ``pip install 'apache-airflow[github]'``            | GitHub operators and hook                                       |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
@@ -391,8 +389,6 @@ so there is no replacement for ``crypto`` extra.
 | cassandra           | apache.cassandra            |
 +---------------------+-----------------------------+
 | crypto              |                             |
-+---------------------+-----------------------------+
-| dask                | daskexecutor                |
 +---------------------+-----------------------------+
 | druid               | apache.druid                |
 +---------------------+-----------------------------+

@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add skip_on_exit_code to SSHOperator (#36303)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow SSHOperator.skip_on_exit_code to be zero (#36358)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+
+Misc
+~~~~
+
+* ``Review and mark found potential SSH security issues by bandit (#36162)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 3.8.1
 .....
 

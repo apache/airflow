@@ -27,7 +27,7 @@
 Package apache-airflow-providers-dbt-cloud
 ------------------------------------------------------
 
-`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
+`dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``dbt.cloud``.
@@ -35,14 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.5.1
+.....
+
+Latest change: 2023-12-11
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+=================================================================================================  ===========  ================================================================================
+
+3.5.0
+.....
+
+Latest change: 2023-12-08
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`c905fe88de <https://github.com/apache/airflow/commit/c905fe88de6382cbf610b1fffa0159a7a0b5558f>`_  2023-11-25   ``Update information about links into the provider.yaml files (#35837)``
+=================================================================================================  ===========  ========================================================================
+
 3.4.1
 .....
 
-Latest change: 2023-11-19
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `a8bc6c551d <https://github.com/apache/airflow/commit/a8bc6c551d84dea4f57cd6d2a9807250cb187997>`_  2023-11-13   ``added cancelled handling in dbt deferred (#35597)``

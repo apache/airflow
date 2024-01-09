@@ -60,11 +60,14 @@ class AwsToAwsBaseOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.source_aws_conn_id = source_aws_conn_id
+        self.dest_aws_conn_id = dest_aws_conn_id
         if not isinstance(aws_conn_id, ArgNotSet):
             warnings.warn(_DEPRECATION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
             self.source_aws_conn_id = aws_conn_id
         else:
             self.source_aws_conn_id = source_aws_conn_id
-        self.dest_aws_conn_id = (
-            self.source_aws_conn_id if isinstance(dest_aws_conn_id, ArgNotSet) else dest_aws_conn_id
-        )
+        if isinstance(dest_aws_conn_id, ArgNotSet):
+            self.dest_aws_conn_id = self.source_aws_conn_id
+        else:
+            self.dest_aws_conn_id = dest_aws_conn_id

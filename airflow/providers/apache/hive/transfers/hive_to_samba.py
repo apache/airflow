@@ -61,9 +61,10 @@ class HiveToSambaOperator(BaseOperator):
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id
         self.destination_filepath = destination_filepath
-        self.hql = hql.strip().rstrip(";")
+        self.hql = hql
 
     def execute(self, context: Context):
+        self.hql = self.hql.strip().rstrip(";")
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)

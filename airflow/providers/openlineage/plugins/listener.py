@@ -77,7 +77,10 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                task.task_id, task_instance.execution_date, task_instance.try_number
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
             )
 
             task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
@@ -101,7 +104,6 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **task_metadata.run_facets,
                     **get_custom_facets(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
@@ -115,13 +117,19 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
-
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
-        )
+        dag = task.dag
 
         @print_warning(self.log)
         def on_success():
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number - 1,
+            )
+
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
             )
@@ -131,6 +139,8 @@ class OpenLineageListener:
             self.adapter.complete_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
             )
@@ -143,13 +153,19 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
-
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
-        )
+        dag = task.dag
 
         @print_warning(self.log)
         def on_failure():
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
+            )
+
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
             )
@@ -159,6 +175,8 @@ class OpenLineageListener:
             self.adapter.fail_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
             )

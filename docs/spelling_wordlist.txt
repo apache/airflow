@@ -481,6 +481,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -686,6 +687,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+graphviz
 greenlet
 Groupalia
 groupId
@@ -861,6 +863,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -1083,6 +1086,8 @@ Oozie
 openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch

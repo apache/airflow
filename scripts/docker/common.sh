@@ -43,7 +43,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3.1"
+            export AIRFLOW_PIP_VERSION="23.3.2"
         fi
     fi
 }
@@ -82,4 +82,34 @@ function common::install_pip_version() {
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
+}
+
+function common::import_trusted_gpg() {
+    common::get_colors
+
+    local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
+    local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
+    # Please note that not all servers could be used for retrieve keys
+    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
+    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
+    #  keyring.debian.org: Only accept keys in Debian keyring.
+    #  pgp.mit.edu: High response time.
+    local keyservers=(
+        "hkps://keyserver.ubuntu.com"
+        "hkps://pgp.surf.nl"
+    )
+
+    GNUPGHOME="$(mktemp -d)"
+    export GNUPGHOME
+    set +e
+    for keyserver in $(shuf -e "${keyservers[@]}"); do
+        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
+        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
+        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
+    done
+    set -e
+    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
+    gpgconf --kill all
+    rm -rf "${GNUPGHOME}"
+    unset GNUPGHOME
 }

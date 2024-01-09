@@ -20,10 +20,10 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
+import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
-from pendulum.tz.timezone import Timezone
 
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
@@ -33,6 +33,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -41,6 +42,7 @@ from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
@@ -140,7 +142,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (1, None, equals),
         (datetime.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
-        (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
+        (pendulum.tz.timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
@@ -277,6 +279,12 @@ def test_backcompat_deserialize_connection(conn_uri):
             DagModelPydantic,
             DAT.DAG_MODEL,
             lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
+        ),
+        (
+            LogTemplate(id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()),
+            LogTemplatePydantic,
+            DAT.LOG_TEMPLATE,
+            lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
         ),
     ],
 )

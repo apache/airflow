@@ -125,6 +125,7 @@ class ClassifiedChanges:
 
     def __init__(self):
         self.fixes: list[Change] = []
+        self.misc: list[Change] = []
         self.features: list[Change] = []
         self.breaking_changes: list[Change] = []
         self.other: list[Change] = []
@@ -347,7 +348,7 @@ def _get_all_changes_for_package(
         )
     else:
         get_console().print(
-            f"[info]New version of the '{provider_package_id}' " f"package is ready to be released!\n"
+            f"[info]New version of the '{provider_package_id}' package is ready to be released!\n"
         )
     next_version_tag = f"{HTTPS_REMOTE}/{base_branch}"
     changes_table = ""
@@ -412,7 +413,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
         if given_answer in type_of_changes_array:
             return TypeOfChange(given_answer)
         get_console().print(
-            f"[warning] Wrong answer given: '{given_answer}'. " f"Should be one of {display_answers}"
+            f"[warning] Wrong answer given: '{given_answer}'. Should be one of {display_answers}"
         )
 
 
@@ -679,7 +680,7 @@ def update_release_notes(
                 answer = user_confirm(f"Provider {provider_package_id} marked for release. Proceed?")
             if answer == Answer.NO:
                 get_console().print(
-                    f"\n[warning]Skipping provider: {provider_package_id} " f"on user request![/]\n"
+                    f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
                 )
                 raise PrepareReleaseDocsUserSkippedException()
             elif answer == Answer.QUIT:
@@ -777,8 +778,14 @@ def _get_changes_classified(
     """
     classified_changes = ClassifiedChanges()
     for change in changes:
-        if "fix" in change.message.lower():
+        # Special cases
+        if "bump minimum Airflow version in providers" in change.message.lower():
+            classified_changes.misc.append(change)
+        # General cases
+        elif "fix" in change.message.lower():
             classified_changes.fixes.append(change)
+        elif "misc" in change.message.lower():
+            classified_changes.misc.append(change)
         elif "add" in change.message.lower() and maybe_with_new_features:
             classified_changes.features.append(change)
         elif "breaking" in change.message.lower() and with_breaking_changes:
@@ -986,6 +993,8 @@ def update_min_airflow_version(
     :return:
     """
     provider_details = get_provider_details(provider_package_id)
+    if provider_details.removed:
+        return
     jinja_context = get_provider_documentation_jinja_context(
         provider_id=provider_package_id,
         with_breaking_changes=with_breaking_changes,

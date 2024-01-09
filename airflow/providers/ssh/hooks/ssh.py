@@ -93,8 +93,8 @@ class SSHHook(BaseHook):
     conn_type = "ssh"
     hook_name = "SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
@@ -298,7 +298,7 @@ class SSHHook(BaseHook):
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             # to avoid BadHostKeyException, skip loading and saving host keys
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):

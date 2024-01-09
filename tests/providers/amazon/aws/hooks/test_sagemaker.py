@@ -813,13 +813,15 @@ class TestSageMakerHook:
         mock_conn().stop_pipeline_execution.side_effect = [
             conflict_error,
             conflict_error,
+            conflict_error,
+            conflict_error,
             None,
         ]
 
         hook = SageMakerHook(aws_conn_id="aws_default")
         hook.stop_pipeline(pipeline_exec_arn="test")
 
-        assert mock_conn().stop_pipeline_execution.call_count == 3
+        assert mock_conn().stop_pipeline_execution.call_count == 5
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_pipeline_fails_if_all_retries_error(self, mock_conn):
@@ -833,7 +835,7 @@ class TestSageMakerHook:
         with pytest.raises(ClientError) as raised_exception:
             hook.stop_pipeline(pipeline_exec_arn="test")
 
-        assert mock_conn().stop_pipeline_execution.call_count == 3
+        assert mock_conn().stop_pipeline_execution.call_count == 5
         assert raised_exception.value == conflict_error
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)

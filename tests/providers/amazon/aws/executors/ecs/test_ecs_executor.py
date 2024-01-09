@@ -118,6 +118,7 @@ def set_env_vars():
 def mock_executor(set_env_vars) -> AwsEcsExecutor:
     """Mock ECS to a repeatable starting state.."""
     executor = AwsEcsExecutor()
+    executor.IS_BOTO_CONNECTION_HEALTHY = True
 
     # Replace boto3 ECS client with mock.
     ecs_mock = mock.Mock(spec=executor.ecs)

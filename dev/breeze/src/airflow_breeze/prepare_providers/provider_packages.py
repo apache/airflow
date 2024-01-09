@@ -22,12 +22,13 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import copytree, rmtree
-from typing import IO, Any
+from typing import Any, TextIO
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     get_available_packages,
     get_latest_provider_tag,
+    get_not_ready_provider_ids,
     get_provider_details,
     get_provider_jinja_context,
     get_removed_provider_ids,
@@ -85,7 +86,7 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_SOURCES_ROOT)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
-        f"[info]Copying provider sources: " f"{source_provider_sources_path} -> {target_providers_sub_folder}"
+        f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
     )
     copytree(source_provider_sources_path, target_providers_sub_folder)
     shutil.copy(AIRFLOW_SOURCES_ROOT / "LICENSE", target_providers_sub_folder / "LICENSE")
@@ -154,19 +155,34 @@ def generate_build_files(provider_id: str, version_suffix: str, target_provider_
     get_console().print(f"\n[info]Generated package build files for {provider_id}[/]\n")
 
 
-def should_skip_the_package(provider_id: str, version_suffix: str) -> bool:
-    """Return True if the package should be skipped.
+def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool, str]:
+    """Return True, version if the package should be skipped and False, good version suffix if not.
 
     For RC and official releases we check if the "officially released" version exists
     and skip the released if it was. This allows to skip packages that have not been
     marked for release in this wave. For "dev" suffixes, we always build all packages.
     """
-    if version_suffix.startswith("rc") or version_suffix == "":
-        current_tag = get_latest_provider_tag(provider_id, version_suffix)
+    if version_suffix != "" and not version_suffix.startswith("rc"):
+        return False, version_suffix
+    if version_suffix == "":
+        current_tag = get_latest_provider_tag(provider_id, "")
         if tag_exists_for_provider(provider_id, current_tag):
-            get_console().print(f"[warning]The tag {current_tag} exists. Skipping the package.[/]")
-            return True
-    return False
+            get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
+            return True, version_suffix
+        return False, version_suffix
+    # version_suffix starts with "rc"
+    current_version = int(version_suffix[2:])
+    release_tag = get_latest_provider_tag(provider_id, "")
+    if tag_exists_for_provider(provider_id, release_tag):
+        get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
+        return True, ""
+    while True:
+        current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
+        if tag_exists_for_provider(provider_id, current_tag):
+            current_version += 1
+            get_console().print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
+        else:
+            return False, f"rc{current_version}"
 
 
 def cleanup_build_remnants(target_provider_root_sources_path: Path):
@@ -198,9 +214,7 @@ def build_provider_package(provider_id: str, target_provider_root_sources_path: 
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()
-    get_console().print(
-        f"\n[info]Prepared provider package {provider_id} in " f"format {package_format}[/]\n"
-    )
+    get_console().print(f"\n[info]Prepared provider package {provider_id} in format {package_format}[/]\n")
 
 
 def move_built_packages_and_cleanup(
@@ -228,7 +242,10 @@ def move_built_packages_and_cleanup(
 
 
 def get_packages_list_to_act_on(
-    package_list_file: IO | None, provider_packages: tuple[str, ...]
+    package_list_file: TextIO | None,
+    provider_packages: tuple[str, ...],
+    include_not_ready: bool = False,
+    include_removed: bool = False,
 ) -> list[str]:
     if package_list_file and provider_packages:
         get_console().print(
@@ -237,11 +254,13 @@ def get_packages_list_to_act_on(
         sys.exit(1)
     if package_list_file:
         removed_provider_ids = get_removed_provider_ids()
+        not_ready_provider_ids = get_not_ready_provider_ids()
         return [
             package.strip()
             for package in package_list_file.readlines()
-            if package.strip() not in removed_provider_ids
+            if (package.strip() not in removed_provider_ids or include_removed)
+            and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
     elif provider_packages:
         return list(provider_packages)
-    return get_available_packages()
+    return get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)

@@ -40,6 +40,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from airflow.utils.types import ArgNotSet
+
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
@@ -167,7 +169,7 @@ class S3Hook(AwsBaseHook):
 
     def __init__(
         self,
-        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
         transfer_config_args: dict | None = None,
         extra_args: dict | None = None,
         *args,
@@ -713,7 +715,9 @@ class S3Hook(AwsBaseHook):
             }
 
         if last_activity_time:
-            inactivity_seconds = int((datetime.now() - last_activity_time).total_seconds())
+            inactivity_seconds = int(
+                (datetime.now(last_activity_time.tzinfo) - last_activity_time).total_seconds()
+            )
         else:
             # Handles the first poke where last inactivity time is None.
             last_activity_time = datetime.now()
@@ -805,7 +809,7 @@ class S3Hook(AwsBaseHook):
         _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
-        self.object_filter_usr = object_filter
+        object_filter_usr = object_filter
         config = {
             "PageSize": page_size,
             "MaxItems": max_items,
@@ -827,8 +831,8 @@ class S3Hook(AwsBaseHook):
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-        if self.object_filter_usr is not None:
-            return self.object_filter_usr(keys, from_datetime, to_datetime)
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
@@ -1233,6 +1237,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        **kwargs,
     ) -> None:
         """
         Create a copy of an object that is already stored in S3.
@@ -1274,7 +1279,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
         )
         return response
 

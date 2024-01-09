@@ -21,9 +21,11 @@ name: Atlassian Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
-suspended: false
-source-date-epoch: 1700827447
+state: ready
+source-date-epoch: 1704610485
 versions:
+  - 2.5.0
+  - 2.4.0
   - 2.3.0
   - 2.2.0
   - 2.1.1
@@ -34,7 +36,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - atlassian-python-api>=1.14.2
 
 integrations:

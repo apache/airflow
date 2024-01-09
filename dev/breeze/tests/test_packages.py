@@ -104,7 +104,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.5.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.6.0", "asana>=0.10,<4.0.0"]
 
 
 def test_get_removed_providers():
@@ -163,7 +163,7 @@ def test_get_install_requirements():
     assert (
         get_install_requirements("asana", "").strip()
         == """
-    "apache-airflow>=2.5.0",
+    "apache-airflow>=2.6.0",
     "asana>=0.10,<4.0.0",
 """.strip()
     )
@@ -313,7 +313,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.5.0"),
+        ("amazon", "2.6.0"),
         ("common.io", "2.8.0"),
     ],
 )
@@ -340,7 +340,7 @@ def test_get_provider_info_dict():
     assert provider_info_dict["name"] == "Amazon"
     assert provider_info_dict["package-name"] == "apache-airflow-providers-amazon"
     assert "Amazon" in provider_info_dict["description"]
-    assert provider_info_dict["suspended"] is False
+    assert provider_info_dict["state"] == "ready"
     assert provider_info_dict["filesystems"] == ["airflow.providers.amazon.aws.fs.s3"]
     assert len(provider_info_dict["versions"]) > 45
     assert len(provider_info_dict["dependencies"]) > 10
@@ -378,7 +378,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.5.0",
+        "MIN_AIRFLOW_VERSION": "2.6.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

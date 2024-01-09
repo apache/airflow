@@ -45,7 +45,6 @@ class TestHasAccessDecorator:
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",
     [
-        ("has_access_cluster_activity", "is_authorized_cluster_activity"),
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_dataset", "is_authorized_dataset"),
         ("has_access_view", "is_authorized_view"),
@@ -112,16 +111,31 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
+@pytest.fixture()
+def get_connection():
+    return [Connection("conn_1"), Connection("conn_2")]
+
+
+@pytest.fixture()
+def get_pool():
+    return [Pool(pool="pool_1"), Pool(pool="pool_2")]
+
+
+@pytest.fixture()
+def get_variable():
+    return [Variable("var_1"), Variable("var_2")]
+
+
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name, items",
     [
         (
             "has_access_connection",
             "batch_is_authorized_connection",
-            [Connection("conn_1"), Connection("conn_2")],
+            "get_connection",
         ),
-        ("has_access_pool", "batch_is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
-        ("has_access_variable", "batch_is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
+        ("has_access_pool", "batch_is_authorized_pool", "get_pool"),
+        ("has_access_variable", "batch_is_authorized_variable", "get_variable"),
     ],
 )
 class TestHasAccessWithDetails:
@@ -134,8 +148,9 @@ class TestHasAccessWithDetails:
 
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = True
@@ -150,8 +165,9 @@ class TestHasAccessWithDetails:
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
-        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = False
@@ -206,7 +222,23 @@ class TestHasAccessDagEntities:
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()
-        assert result.status_code == 302
+        assert result.headers["Location"] == "/home"
+
+    @pytest.mark.db_test
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_dag_entities_when_logged_out(self, mock_get_auth_manager, app, dag_access_entity):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_dag.return_value = False
+        auth_manager.is_logged_in.return_value = False
+        auth_manager.get_url_login.return_value = "login_url"
+        mock_get_auth_manager.return_value = auth_manager
+        items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
+
+        with app.test_request_context():
+            result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
+
+        mock_call.assert_not_called()
+        assert result.headers["Location"] == "login_url"
 
 
 @pytest.mark.db_test
@@ -257,7 +289,7 @@ class TestHasAccessDagDecorator:
                 permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
             ) as user:
                 with patch(
-                    "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager.get_user"
+                    "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.get_user"
                 ) as mock_get_user:
                     mock_get_user.return_value = user
 

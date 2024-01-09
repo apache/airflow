@@ -55,51 +55,51 @@ If you still have doubts about building your provider, we recommend that you rea
 open a issue on GitHub so the community can help you.
 
 The folders are optional: example_dags, hooks, links, logs, notifications, operators, secrets, sensors, transfers,
-triggers, waiters (and the list changes continuously).
+triggers (and the list changes continuously).
 
   .. code-block:: bash
 
       airflow/
-      ├── providers/<NEW_PROVIDER>/
-      │   ├── __init__.py
-      │   ├── example_dags/
-      │   │   ├── __init__.py
-      │   │   └── example_<NEW_PROVIDER>.py
-      │   ├── executors/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── hooks/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── operators/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      ....
-      │   ├── transfers/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   └── triggers/
-      │       ├── __init__.py
-      │       └── <NEW_PROVIDER>.py
-      └── tests/providers/<NEW_PROVIDER>/
-          ├── __init__.py
-          ├── executors/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── hooks/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── operators/
-          │   ├── __init__.py
-          │   ├── test_<NEW_PROVIDER>.py
-          │   └── test_<NEW_PROVIDER>_system.py
-          ...
-          ├── transfers/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          └── triggers/
-              ├── __init__.py
-              └── test_<NEW_PROVIDER>.py
+             ├── providers/<NEW_PROVIDER>/
+             │              ├── __init__.py
+             │              ├── executors/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── hooks/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── operators/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── transfers/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              └── triggers/
+             │                  ├── __init__.py
+             │                  └── *.py
+             └── tests
+                     ├── providers/<NEW_PROVIDER>/
+                     │              ├── __init__.py
+                     │              ├── executors/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              ├── hooks/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*>.py
+                     │              ├── operators/
+                     │              │   ├── __init__.py
+                     │              │   ├── test_*.py
+                     │              ...
+                     │              ├── transfers/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              └── triggers/
+                     │                  ├── __init__.py
+                     │                  └── test_*.py
+                     └── system/providers/<NEW_PROVIDER>/
+                                           ├── __init__.py
+                                           └── example_*.py
+
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -107,7 +107,81 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
+      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/test_*.py
+
+Adding chicken-egg providers
+----------------------------
+
+Sometimes we want to release provider that depends on the version of airflow that has not yet been released
+- for example when we released ``common.io`` provider it had ``apache-airflow>=2.8.0`` dependency.
+
+Add chicken-egg-provider to compatibility checks
+................................................
+
+Providers that have "min-airflow-version" set to the new, upcoming versions should be excluded in
+all previous versions of compatibility check matrix in ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` in
+``src/airflow_breeze/global_constants.py``. Please add it to all previous versions
+
+Add chicken-egg-provider to constraint generation
+..................................................
+
+This is controlled by ``chicken_egg_providers`` property in Selective Checks - and our CI will automatically
+build and use those chicken-egg providers during the CI process if pre-release version of Airflow is built.
+
+The short provider id (``common.io`` for example) for such a provider should be added
+to ``CHICKEN_EGG_PROVIDERS`` list in ``src/airflow_breeze/utils/selective_checks.py``:
+
+This list will be kept here until the official version of Airflow the chicken-egg-providers depend on
+is released and the version of airflow is updated in the ``main`` and ``v2-X-Y`` branch to ``2.X+1.0.dev0``
+and ``2.X.1.dev0`` respectively. After that the chicken-egg providers will be correctly installed because
+both ``2.X.1.dev0`` and ``2.X+1.0.dev0`` are considered by ``pip`` as ``>2.X.0`` (unlike ``2.X.0.dev0``).
+
+The release process for Airflow includes cleaning the list after Airflow release is published, so the
+provider will be removed from the list by release manager.
+
+
+Why do we need to add chicken-egg providers to constraints generation
+.....................................................................
+
+The problem when generating constraints with chicken-eggo providers and building docker image for
+pre-release versions of Airflow - because ``pip`` does not recognize the ``.dev0`` or ``.b1``
+suffixes of those packages as valid in the ``>=X.Y.Z`` comparison.
+
+When you want to install a provider package with ``apache-airflow>=2.8.0`` requirement and you have
+``2.9.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
+``2.9.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
+currently implements the minimum version selection algorithm requirement specified in packaging as
+described in the packaging version specification
+https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases
+
+Currently ``pip`` only allows to include pre-release versions for all installed packages using ``--pre``
+flag, but it does not have the possibility of selectively using this flag to only one package.
+In order to implement our desired behaviour, we need the case where only ``apache-airflow`` is considered
+as pre-release version while all the other dependencies only have stable versions and this is currently
+not possible.
+
+To work around this limitation, we have introduced the concept of "chicken-egg" providers. Those providers
+are providers that are released together with the version of Airflow they depend on. They are released
+with the same version number as the Airflow version they depend on, but with a different suffix. For example
+``apache-airflow-providers-common-io==2.9.0.dev0`` is a chicken-egg provider for ``apache-airflow==2.9.0.dev0``.
+
+However - we should not release providers with such exclusion to ``pypi``, so in order to allow our
+CI to work with pre-release versions and perform both - constraint generation and image releasing,
+we introduced workarounds in our tooling where in case we build a pre-release version of Airflow,
+we will locally build the chicken-egg providers from sources and they are installed from local
+directory instead of from PyPI.
+
+This workaround might be removed if ``pip`` implements the possibility of selectively using ``--pre`` flag
+for only one package (Which is foreseen as a possibility in the packaging specification but not implemented
+by ``pip``).
+
+.. note::
+
+   The current solution of building pre-release images will not work well if the chicken-egg-provider is
+   pre-installed package because slim imges will not use the chicken-egg-provider. This could be solved
+   by adding ``--chicken-egg-providers`` flag to slim image building step in ``released_dockerhub_image.yml``
+   but it would also require filtering out the non-pre-installed packages from it, so the current solution
+   is to assume pre-installed packages are not chicken-egg providers.
 
 Integration tests
 -----------------
@@ -285,43 +359,6 @@ main Airflow documentation that involves some steps with the providers is also w
     breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
     breeze build-docs --package-filter apache-airflow
 
-
-Suspending providers
-====================
-
-As of April 2023, we have the possibility to suspend individual providers, so that they are not holding
-back dependencies for Airflow and other providers. The process of suspending providers is described
-in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
-
-Technically, suspending a provider is done by setting ``suspended : true``, in the provider.yaml of the
-provider. This should be followed by committing the change and either automatically or manually running
-pre-commit checks that will either update derived configuration files or ask you to update them manually.
-Note that you might need to run pre-commit several times until all the static checks pass,
-because modification from one pre-commit might impact other pre-commits.
-
-If you have pre-commit installed, pre-commit will be run automatically on commit. If you want to run it
-manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
-because suspension of the provider might cause changes in the dependencies, so if you see errors about
-missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
-via ``breeze build-image --python 3.8 --upgrade-to-newer-dependencies`` after the first pre-commit run
-and then run the static checks again.
-
-If you want to be absolutely sure to run all static checks you can always do this via
-``pre-commit run --all-files`` or ``breeze static-checks --all-files``.
-
-Some of the manual modifications you will have to do (in both cases ``pre-commit`` will guide you on what
-to do.
-
-* You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
-* you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -
-  ``setup.py`` to remove the provider from list of dependencies.
-
-What happens under-the-hood as a result, is that ``generated/providers.json`` file is updated with
-the information about available providers and their dependencies and it is used by our tooling to
-exclude suspended providers from all relevant parts of the build and CI system (such as building CI image
-with dependencies, building documentation, running tests, etc.)
-
-
 Additional changes needed for cross-dependent providers
 =======================================================
 
@@ -412,6 +449,52 @@ The fix for that is to turn the feature into an optional provider feature (in th
   Those tests should be adjusted (but this is not very likely to happen, because the tests are using only
   the most common providers that we will not be likely to suspend).
 
+Bumping min airflow version
+===========================
+
+We regularly bump min airflow version for all providers we release. This bump is done according to our
+`Provider policies <https://github.com/apache/airflow/blob/main/PROVIDERS.rst>`_ and it is only applied
+to non-suspended/removed providers. We are running basic import compatibility checks in our CI and
+the compatibility checks should be updated when min airflow version is updated.
+
+Details on how this should be done are described in
+`Provider policies <https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md>`_
+
+Suspending providers
+====================
+
+As of April 2023, we have the possibility to suspend individual providers, so that they are not holding
+back dependencies for Airflow and other providers. The process of suspending providers is described
+in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
+
+Technically, suspending a provider is done by setting ``state: suspended``, in the provider.yaml of the
+provider. This should be followed by committing the change and either automatically or manually running
+pre-commit checks that will either update derived configuration files or ask you to update them manually.
+Note that you might need to run pre-commit several times until all the static checks pass,
+because modification from one pre-commit might impact other pre-commits.
+
+If you have pre-commit installed, pre-commit will be run automatically on commit. If you want to run it
+manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
+because suspension of the provider might cause changes in the dependencies, so if you see errors about
+missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
+via ``breeze build-image --python 3.8 --upgrade-to-newer-dependencies`` after the first pre-commit run
+and then run the static checks again.
+
+If you want to be absolutely sure to run all static checks you can always do this via
+``pre-commit run --all-files`` or ``breeze static-checks --all-files``.
+
+Some of the manual modifications you will have to do (in both cases ``pre-commit`` will guide you on what
+to do.
+
+* You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
+* you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -
+  ``setup.py`` to remove the provider from list of dependencies.
+
+What happens under-the-hood as a result, is that ``generated/providers.json`` file is updated with
+the information about available providers and their dependencies and it is used by our tooling to
+exclude suspended providers from all relevant parts of the build and CI system (such as building CI image
+with dependencies, building documentation, running tests, etc.)
+
 
 Resuming providers
 ==================
@@ -426,19 +509,20 @@ Removing providers
 
 When removing providers from Airflow code, we need to make one last release where we mark the provider as
 removed - in documentation and in description of the PyPI package. In order to that release manager has to
-add "removed: true" flag in the provider yaml file and include the provider in the next wave of the
+add "state: removed" flag in the provider yaml file and include the provider in the next wave of the
 providers (and then remove all the code and documentation related to the provider).
 
-The "removed: true" flag will cause the provider to be available for the following commands (note that such
+The "removed: removed" flag will cause the provider to be available for the following commands (note that such
 provider has to be explicitly added as selected to the package - such provider will not be included in
-the available list of providers):
+the available list of providers or when documentation is built unless --include-removed-providers
+flag is used):
 
 * ``breeze build-docs``
 * ``breeze release-management prepare-provider-documentation``
 * ``breeze release-management prepare-provider-packages``
 * ``breeze release-management publish-docs``
 
-For all those commands, release manager needs to specify such to-be-removed provider explicitly as extra
-command during the release process. Except the changelog that needs to be maintained manually, all other
-documentation (main page of the provider documentation, PyPI README), will be automatically updated
-to include removal notice.
+For all those commands, release manager needs to specify ``--include-removed-providers`` when all providers
+are built or must add the provider id explicitly during the release process.
+Except the changelog that needs to be maintained manually, all other documentation (main page of the provider
+documentation, PyPI README), will be automatically updated to include removal notice.

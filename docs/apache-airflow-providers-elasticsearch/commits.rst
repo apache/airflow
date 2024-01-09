@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.3.1
+.....
+
+Latest change: 2023-12-26
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`e3938899e1 <https://github.com/apache/airflow/commit/e3938899e1022420360727f247ba38c82f98a211>`_  2023-12-26   ``Remove getattr in es task handler when airflow min version bumped to 2.6 (#36431)``
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+=================================================================================================  ===========  =====================================================================================
+
+5.3.0
+.....
+
+Latest change: 2023-12-08
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`396b1ba34e <https://github.com/apache/airflow/commit/396b1ba34e7df28eebfafc174494812aa50af966>`_  2023-12-01   ``Cleanup code for elasticsearch<8 (#35707)``
+=================================================================================================  ===========  =======================================================================
+
 5.2.0
 .....
 
-Latest change: 2023-11-21
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `2a06e278d2 <https://github.com/apache/airflow/commit/2a06e278d290e36e861bd3c40fdc9318e620aa16>`_  2023-11-21   ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
 `2a469b3713 <https://github.com/apache/airflow/commit/2a469b3713d95ab15df8e9090abdb9d15e50cbb9>`_  2023-11-21   ``Remove backcompat inheritance for DbApiHook (#35754)``
 `747f00f2aa <https://github.com/apache/airflow/commit/747f00f2aa159642f3b2dddbb9908c01b8b3b91c>`_  2023-11-21   ``Extend task context logging support for remote logging using Elasticsearch (#32977)``

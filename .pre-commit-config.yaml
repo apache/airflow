@@ -33,7 +33,7 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
@@ -173,18 +173,6 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.4
-    hooks:
-      # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
-      # host CPU to it's fullest
-      - id: ruff
-        name: ruff-lint
-        args: [--fix]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
-      - id: ruff-format
-        name: ruff-format
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
     hooks:
@@ -250,7 +238,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.32.0
+    rev: v1.33.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -300,6 +288,26 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local pre-commits are run
     hooks:
+      - id: ruff
+        name: Run 'ruff' for extremely fast Python linting
+        description: "Run 'ruff' for extremely fast Python linting"
+        entry: ruff check --force-exclude
+        language: python
+        types_or: [python, pyi]
+        args: [--fix]
+        require_serial: true
+        additional_dependencies: ["ruff==0.1.11"]
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+      - id: ruff-format
+        name: Run 'ruff format' for extremely fast Python formatting
+        description: "Run 'ruff format' for extremely fast Python formatting"
+        entry: ./scripts/ci/pre_commit/pre_commit_ruff_format.py
+        language: python
+        types_or: [python, pyi]
+        args: []
+        require_serial: true
+        additional_dependencies: ["ruff==0.1.11"]
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
         entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
@@ -340,6 +348,13 @@ repos:
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-providers-bug-report-template
+        name: Check airflow-bug-report provider list is sorted/unique
+        language: python
+        files: ^.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        require_serial: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_bug_report_template.py
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
         language: python
@@ -378,8 +393,8 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-common-sql-dependency-make-serializable
-        name: Check dependency of SQL Providers with '_make_serializable'
+      - id: check-sql-dependency-common-data-structure
+        name: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
         language: python
         files: ^airflow/providers/.*/hooks/.*\.py$
@@ -405,6 +420,13 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-airflow-diagrams
+        name: Generate airflow diagrams
+        entry: ./scripts/ci/pre_commit/pre_commit_generate_airflow_diagrams.py
+        language: python
+        files: ^docs/.*/diagram_[^/]*\.py$
+        pass_filenames: true
+        additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_supported_versions.py
@@ -427,7 +449,7 @@ repos:
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
         language: python
-        files: ^docs
+        files: ^docs|^airflow/__init__.py$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
@@ -510,7 +532,6 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/config_templates/|
@@ -525,6 +546,7 @@ repos:
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
+          ^airflow/providers/fab/auth_manager/security_manager/|
           ^airflow/providers/google/cloud/hooks/bigquery.py$|
           ^airflow/providers/google/cloud/operators/cloud_build.py$|
           ^airflow/providers/google/cloud/operators/dataproc.py$|
@@ -533,7 +555,6 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
@@ -551,6 +572,7 @@ repos:
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -722,7 +744,7 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-www-assets
-        name: Compile www assets
+        name: Compile www assets (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -731,7 +753,7 @@ repos:
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
       - id: compile-www-assets-dev
-        name: Compile www assets in dev mode
+        name: Compile www assets in dev mode (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -760,6 +782,14 @@ repos:
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
+        require_serial: true
+        pass_filenames: false
+      - id: check-integrations-list-consistent
+        name: Sync integrations list with docs
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
+        language: python
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -798,7 +828,7 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
-        additional_dependencies: ['markdownlint-cli']
+        additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -1008,7 +1038,7 @@ repos:
         language: python
         language_version: python3
         types: [ python ]
-        additional_dependencies: ['bandit>=1.7.5']
+        additional_dependencies: ['bandit==1.7.6']
         require_serial: true
         files: ^airflow/.*
         exclude:
@@ -1018,6 +1048,38 @@ repos:
           - "B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-fab-migrations
+        language: pygrep
+        name: Check no migration is done on FAB related table
+        description: >
+          FAB tables are no longer used in core Airflow but in FAB provider.
+          As such, it is forbidden to create migrations related to FAB tables in core Airflow.
+          Such migrations should be in FAB provider. To achieve this, a new capability must be implemented:
+          support migrations for providers. In other words, providers need to be able to specify migrations
+          so that, any FAB related migration (besides the legacy ones) is defined in FAB provider.
+          See https://github.com/apache/airflow/issues/32210
+        entry: >
+          (?ix)
+          \bab_permission\b|
+          \bab_view_menu\b|
+          \bab_role\b|
+          \bab_permission_view\b|
+          \bab_permission_view_role\b|
+          \bab_user\b|
+          \bab_user_role\b|
+          \bab_register_user\b
+        pass_filenames: true
+        files: ^airflow/migrations/versions/.*\.py$
+        # These migrations contain FAB related changes but existed before moving FAB auth manager
+        # to its own provider
+        exclude: >
+          (?ix)
+          ^airflow/migrations/versions/00.*\.py$|
+          ^airflow/migrations/versions/0106.*\.py$|
+          ^airflow/migrations/versions/0118.*\.py$|
+          ^airflow/migrations/versions/0119.*\.py$|
+          ^airflow/migrations/versions/0121.*\.py$|
+          ^airflow/migrations/versions/0124.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1049,6 +1111,15 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy
+        stages: ['manual']
+        name: Run mypy for specified packages (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
+        pass_filenames: false
+        files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: check-provider-yaml-valid

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -25,15 +26,18 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_precommit_utils import (
     console,
-    filter_out_providers_on_non_main_branch,
     initialize_breeze_precommit,
+    pre_process_files,
     run_command_via_breeze_shell,
 )
 
 initialize_breeze_precommit(__name__, __file__)
 
-files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
-if files_to_test == ["--namespace-packages"]:
+files_to_test = pre_process_files(sys.argv[1:])
+mypy_packages = os.environ.get("MYPY_PACKAGES")
+if mypy_packages:
+    files_to_test += shlex.split(mypy_packages)
+if files_to_test == ["--namespace-packages"] or files_to_test == []:
     print("No files to tests. Quitting")
     sys.exit(0)
 
@@ -45,21 +49,32 @@ res = run_command_via_breeze_shell(
     warn_image_upgrade_needed=True,
     extra_env={
         "INCLUDE_MYPY_VOLUME": "true",
+        # Need to mount local sources when running it - to not have to rebuild the image
+        # and to let CI work on it when running on PRs from forks - because mypy-dev uses files
+        # that are not available at the time when image is built in CI
+        "MOUNT_SOURCES": "selected",
     },
 )
+ci_environment = os.environ.get("CI")
 if res.returncode != 0:
+    if mypy_packages and ci_environment:
+        console.print(
+            "[yellow]You are running mypy with the packages selected. If you want to"
+            "reproduce it locally, you need to run the following command:\n"
+        )
+        console.print(
+            f'MYPY_PACKAGES="{mypy_packages}" pre-commit run --hook-stage manual mypy --all-files\n'
+        )
     upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
     if upgrading:
         console.print(
-            "[yellow]You are running mypy with the image that has dependencies upgraded automatically."
+            "[yellow]You are running mypy with the image that has dependencies upgraded automatically.\n"
         )
     flag = " --upgrade-to-newer-dependencies" if upgrading else ""
     console.print(
-        "[yellow]If you see strange stacktraces above, "
-        f"run `breeze ci-image build --python 3.8{flag}` and try again. "
-        "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used. "
-        "Still sometimes diff heuristic in mypy is behaving abnormal, to double check you can "
-        "call `breeze static-checks --type mypy-[dev|core|providers|docs] --all-files` "
-        'and then commit via `git commit --no-verify -m "commit message"`. CI will do a full check.'
+        "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
+        " this command and try again:\n"
     )
+    console.print(f"breeze ci-image build --python 3.8{flag}\n")
+    console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
 sys.exit(res.returncode)

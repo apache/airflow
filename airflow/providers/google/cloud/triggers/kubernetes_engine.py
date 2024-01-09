@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, TypeVar
 
 from google.cloud.container_v1.types import Operation
@@ -143,7 +144,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
             },
         )
 
-    def _get_async_hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
+    @cached_property
+    def hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
         return GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,

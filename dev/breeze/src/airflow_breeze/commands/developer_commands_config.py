@@ -45,6 +45,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
@@ -53,7 +54,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -87,6 +87,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
@@ -105,7 +106,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -137,12 +137,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--install-selected-providers",
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -195,6 +202,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--project-name",
                 "--restart",
+                "--docker-host",
             ],
         },
         {
@@ -203,7 +211,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -240,11 +247,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -276,6 +291,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--clean-build",
                 "--one-pass-only",
                 "--package-filter",
+                "--include-not-ready-providers",
+                "--include-removed-providers",
                 "--github-repository",
                 "--builder",
             ],

@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+version: "3.8"
 services:
   statsd-exporter:
     image: apache/airflow:airflow-statsd-exporter-2020.09.05-v0.17.0
+    labels:
+      breeze.description: "Integration required for Satsd hooks."
     container_name: "breeze-statsd-exporter"
     ports:
       - "9125:9125"

@@ -43,6 +43,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
@@ -523,15 +524,36 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml"])
+        args = self.parser.parse_args(["dags", "list", "--output", "json"])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
-        assert "owner" in out
-        assert "airflow" in out
-        assert "paused" in out
-        assert "airflow/example_dags/example_complex.py" in out
-        assert "- dag_id:" in out
+            dag_list = json.loads(out)
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+            assert key in dag_list[0]
+        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_list_dags_custom_cols(self):
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
+        )
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+            dag_list = json.loads(out)
+        for key in ["dag_id", "last_parsed_time"]:
+            assert key in dag_list[0]
+        for key in ["fileloc", "owners", "is_paused"]:
+            assert key not in dag_list[0]
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_list_dags_invalid_cols(self):
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
+        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+            dag_command.dag_list_dags(args)
+            out = temp_stderr.getvalue()
+        assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_import_errors(self):
@@ -746,6 +768,16 @@ class TestCliDags:
                 ),
             ]
         )
+
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_fail_raise_error(self, mock_get_dag):
+        execution_date_str = DEFAULT_DATE.isoformat()
+        mock_get_dag.return_value.test.return_value = DagRun(
+            dag_id="example_bash_operator", execution_date=DEFAULT_DATE, state=DagRunState.FAILED
+        )
+        cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", execution_date_str])
+        with pytest.raises(SystemExit, match=r"DagRun failed"):
+            dag_command.dag_test(cli_args)
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")

@@ -176,14 +176,13 @@ The pipx tool
 We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
-Note that ``pipx`` >= 1.2.1 is needed in order to deal with breaking ``packaging`` release in September
-2023 that broke earlier versions of ``pipx``.
+Note that ``pipx`` >= 1.4.1 is used.
 
 Install pipx
 
 .. code-block:: bash
 
-    pip install --user "pipx>=1.2.1"
+    pip install --user "pipx>=1.4.1"
 
 Breeze, is not globally accessible until your PATH is updated. Add <USER FOLDER>\.local\bin as a variable
 environments. This can be done automatically by the following command (follow instructions printed).
@@ -1004,7 +1003,7 @@ Running single test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class:
 
@@ -2368,6 +2367,22 @@ These are all available flags of ``update-constraints`` command:
 You can read more details about what happens when you update constraints in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
+
+Cleaning up of old providers
+""""""""""""""""""""""""""""
+
+During the provider releases, we need to clean up the older provider versions in the SVN release folder.
+Earlier this was done using a script, but now it is being migrated to a breeze command to ease the life of
+release managers for providers. This can be achieved using ``breeze release-management clean-old-provider-artifacts``
+command.
+
+
+These are all available flags of ``clean-old-provider-artifacts`` command:
+
+.. image:: ./images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :width: 100%
+  :alt: Breeze Clean Old Provider Artifacts
 
 SBOM generation tasks
 ----------------------

@@ -57,7 +57,8 @@ result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
 class TestAthenaOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
@@ -76,6 +77,10 @@ class TestAthenaOperator:
         self.athena = AthenaOperator(
             **self.default_op_kwargs, output_location="s3://test_s3_bucket/", aws_conn_id=None, dag=self.dag
         )
+
+        with mock.patch("airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink.persist") as m:
+            self.mocked_athena_result_link = m
+            yield
 
     def test_base_aws_op_attributes(self):
         op = AthenaOperator(**self.default_op_kwargs)
@@ -137,6 +142,15 @@ class TestAthenaOperator:
             MOCK_DATA["workgroup"],
         )
         assert mock_check_query_status.call_count == 1
+
+        # Validate call persist Athena Query result link
+        self.mocked_athena_result_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            query_execution_id=ATHENA_QUERY_ID,
+        )
 
     @mock.patch.object(
         AthenaHook,
@@ -240,6 +254,15 @@ class TestAthenaOperator:
             self.athena.execute(None)
 
         assert isinstance(deferred.value.trigger, AthenaTrigger)
+
+        # Validate call persist Athena Query result link
+        self.mocked_athena_result_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            query_execution_id=ATHENA_QUERY_ID,
+        )
 
     @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
     @mock.patch.object(AthenaHook, "get_conn")

@@ -18,25 +18,23 @@
 from __future__ import annotations
 
 import logging
-import re
 import warnings
+from typing import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    _get_target_principal_and_delegates,
+    get_credentials_and_project_id,
+)
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
-
-
-def _parse_version(val):
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
-    return tuple(int(x) for x in match.groups())
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -76,6 +74,14 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
     :param sep: Separator used to concatenate connections_prefix and conn_id. Default: "-"
+    :param impersonation_chain: Optional service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the
+        access token of the last account in the list, which will be impersonated
+        in the request. If set as a string, the account must grant the
+        originating account the Service Account Token Creator IAM role. If set
+        as a sequence, the identities from the list must grant Service Account
+        Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
     """
 
     def __init__(
@@ -89,6 +95,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         gcp_scopes: str | None = None,
         project_id: str | None = None,
         sep: str = "-",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -103,11 +110,19 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                     f"follows that pattern {SECRET_ID_PATTERN}"
                 )
         try:
+            if impersonation_chain:
+                target_principal, delegates = _get_target_principal_and_delegates(impersonation_chain)
+            else:
+                target_principal = None
+                delegates = None
+
             self.credentials, self.project_id = get_credentials_and_project_id(
                 keyfile_dict=gcp_keyfile_dict,
                 key_path=gcp_key_path,
                 credential_config_file=gcp_credential_config_file,
                 scopes=gcp_scopes,
+                target_principal=target_principal,
+                delegates=delegates,
             )
         except (DefaultCredentialsError, FileNotFoundError):
             log.exception(

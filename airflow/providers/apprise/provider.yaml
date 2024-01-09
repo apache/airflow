@@ -23,10 +23,12 @@ name: Apprise
 description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
-suspended: false
-source-date-epoch: 1700827445
+state: ready
+source-date-epoch: 1703288116
 
 versions:
+  - 1.2.1
+  - 1.2.0
   - 1.1.0
   - 1.0.2
   - 1.0.1
@@ -38,7 +40,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apprise
 
 hooks:

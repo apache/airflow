@@ -21,9 +21,10 @@ name: Papermill
 description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
-suspended: false
-source-date-epoch: 1700827486
+state: ready
+source-date-epoch: 1703288159
 versions:
+  - 3.6.0
   - 3.5.0
   - 3.4.0
   - 3.2.1
@@ -43,8 +44,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
-  - papermill[all]>=1.2.1
+  - apache-airflow>=2.6.0
+  - papermill[all]>=2.4.0
   - scrapbook[all]
   - ipykernel
 

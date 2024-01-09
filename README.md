@@ -35,6 +35,13 @@
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
+<picture width="500">
+  <img
+    src="https://github.com/apache/airflow/blob/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635/docs/apache-airflow/img/logos/wordmark_1.png?raw=true"
+    alt="Apache Airflow logo"
+  />
+</picture>
+
 [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
@@ -90,19 +97,16 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.3)       |
-|-------------|------------------------|------------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
-| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
-| SQLite      | 3.15.0+                | 3.15.0+                      |
-| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
+|             | Main version (dev)           | Stable version (2.8.0)       |
+|-------------|------------------------------|------------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11         |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28       |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
+| MySQL       | 8.0, Innovation              | 8.0, Innovation              |
+| SQLite      | 3.15.0+                      | 3.15.0+                      |
 
 \* Experimental
-
-\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -175,15 +179,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow==2.8.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.8.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -288,7 +292,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.8.0                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -388,14 +392,14 @@ The important dependencies are:
 
 * `SQLAlchemy`: upper-bound to specific MINOR version (SQLAlchemy is known to remove deprecations and
    introduce breaking changes especially that support for different Databases varies and changes at
-   various speed (example: SQLAlchemy 1.4 broke MSSQL integration for Airflow)
+   various speed)
 * `Alembic`: it is important to handle our migrations in predictable and performant way. It is developed
    together with SQLAlchemy. Our experience with Alembic is that it very stable in MINOR version
 * `Flask`: We are using Flask as the back-bone of our web UI and API. We know major version of Flask
    are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
 * `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
    libraries, and we should update them together
-* `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
+* `celery`: Celery is a crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
    [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
    we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
    we should make sure Celery Provider minimum Airflow version is updated.

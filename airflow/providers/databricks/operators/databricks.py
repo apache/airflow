@@ -521,7 +521,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         ):
             # If pipeline_id is not provided, we need to fetch it from the pipeline_name
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
-            self.json["pipeline_task"]["pipeline_id"] = self._hook.get_pipeline_id(pipeline_name)
+            self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
@@ -580,26 +580,20 @@ class DatabricksRunNowOperator(BaseOperator):
     For example ::
 
         json = {
-          "job_id": 42,
-          "notebook_params": {
-            "dry-run": "true",
-            "oldest-time-to-consider": "1457570074236"
-          }
+            "job_id": 42,
+            "notebook_params": {"dry-run": "true", "oldest-time-to-consider": "1457570074236"},
         }
 
-        notebook_run = DatabricksRunNowOperator(task_id='notebook_run', json=json)
+        notebook_run = DatabricksRunNowOperator(task_id="notebook_run", json=json)
 
     Another way to accomplish the same thing is to use the named parameters
     of the ``DatabricksRunNowOperator`` directly. Note that there is exactly
     one named parameter for each top level parameter in the ``run-now``
     endpoint. In this method, your code would look like this: ::
 
-        job_id=42
+        job_id = 42
 
-        notebook_params = {
-            "dry-run": "true",
-            "oldest-time-to-consider": "1457570074236"
-        }
+        notebook_params = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 
         python_params = ["douglas adams", "42"]
 
@@ -612,7 +606,7 @@ class DatabricksRunNowOperator(BaseOperator):
             notebook_params=notebook_params,
             python_params=python_params,
             jar_params=jar_params,
-            spark_submit_params=spark_submit_params
+            spark_submit_params=spark_submit_params,
         )
 
     In the case where both the json parameter **AND** the named parameters

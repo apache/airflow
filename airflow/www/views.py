@@ -72,7 +72,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -1055,7 +1055,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/cluster_activity")
-    @auth.has_access_cluster_activity("GET")
+    @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
     def cluster_activity(self):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
@@ -2047,7 +2047,9 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
+        if request.method == "GET" or (
+            not request_conf and (ui_fields_defined or show_trigger_form_if_no_params)
+        ):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -2888,14 +2890,6 @@ class Airflow(AirflowBaseView):
     @provide_session
     def calendar(self, dag_id: str, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
-
-        def _convert_to_date(session, column):
-            """Convert column to date."""
-            if session.bind.dialect.name == "mssql":
-                return column.cast(Date)
-            else:
-                return func.date(column)
-
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -2911,15 +2905,15 @@ class Airflow(AirflowBaseView):
 
         dag_states = session.execute(
             select(
-                _convert_to_date(session, DagRun.execution_date).label("date"),
+                func.date(DagRun.execution_date).label("date"),
                 DagRun.state,
                 func.max(DagRun.data_interval_start).label("data_interval_start"),
                 func.max(DagRun.data_interval_end).label("data_interval_end"),
                 func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag.dag_id)
-            .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
-            .order_by(_convert_to_date(session, DagRun.execution_date).asc())
+            .group_by(func.date(DagRun.execution_date), DagRun.state)
+            .order_by(func.date(DagRun.execution_date).asc())
         ).all()
 
         data_dag_states = [
@@ -3011,6 +3005,9 @@ class Airflow(AirflowBaseView):
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for("Airflow.index"))
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
@@ -3527,13 +3524,13 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
 
-        run_type = request.args.get("run_type")
-        if run_type:
-            query = query.where(DagRun.run_type == run_type)
+        run_types = request.args.getlist("run_type")
+        if run_types:
+            query = query.where(DagRun.run_type.in_(run_types))
 
-        run_state = request.args.get("run_state")
-        if run_state:
-            query = query.where(DagRun.state == run_state)
+        run_states = request.args.getlist("run_state")
+        if run_states:
+            query = query.where(DagRun.state.in_(run_states))
 
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
@@ -3551,7 +3548,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/historical_metrics_data")
-    @auth.has_access_cluster_activity("GET")
+    @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
     def historical_metrics_data(self):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
@@ -5445,7 +5442,6 @@ class TaskInstanceModelView(AirflowModelView):
         "action_clear": "edit",
         "action_clear_downstream": "edit",
         "action_muldelete": "delete",
-        "action_set_running": "edit",
         "action_set_failed": "edit",
         "action_set_success": "edit",
         "action_set_retry": "edit",
@@ -5721,15 +5717,6 @@ class TaskInstanceModelView(AirflowModelView):
             flash(f"{count} task instances were set to '{target_state}'")
         except Exception:
             flash("Failed to set state", "error")
-
-    @action("set_running", "Set state to 'running'", "", single=False)
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
-    def action_set_running(self, tis):
-        """Set state to 'running'."""
-        self.set_task_instance_state(tis, TaskInstanceState.RUNNING)
-        self.update_redirect()
-        return redirect(self.get_redirect())
 
     @action("set_failed", "Set state to 'failed'", "", single=False)
     @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)

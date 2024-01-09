@@ -21,9 +21,11 @@ name: Apache Livy
 description: |
   `Apache Livy <https://livy.apache.org/>`__
 
-suspended: false
-source-date-epoch: 1700827440
+state: ready
+source-date-epoch: 1704610403
 versions:
+  - 3.7.1
+  - 3.7.0
   - 3.6.0
   - 3.5.4
   - 3.5.3
@@ -46,7 +48,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-http
   - aiohttp
   - asgiref
