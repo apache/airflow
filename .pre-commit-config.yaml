@@ -259,6 +259,8 @@ repos:
          # so the user is informed to take action.
          - --line-length
          - '99999'
+         # avoid logging text to be converted to f-string which conflicts check-lazy-logging
+         - --no-transform-percent
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
