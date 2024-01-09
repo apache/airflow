@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-09T06:53:22.522049
+# This constraints file was automatically generated on 2024-01-09T19:47:47.130880
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -141,7 +141,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.40
+cohere==4.41
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -368,7 +368,7 @@ opentelemetry-proto==1.22.0
 opentelemetry-sdk==1.22.0
 opentelemetry-semantic-conventions==0.43b0
 opsgenie-sdk==2.1.5
-oracledb==2.0.0
+oracledb==2.0.1
 ordered-set==4.1.0
 orjson==3.9.10
 oss2==2.18.4
@@ -596,7 +596,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.250.0
+yandexcloud==0.251.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.45
