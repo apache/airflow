@@ -37,9 +37,9 @@ TEST_DAG_IDS = ["test_dag", "test_dag2"]
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -47,16 +47,16 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         ],  # type: ignore
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test_single_dag",
         role_name="TestSingleDAG",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)],  # type: ignore
     )
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     # For some reason, DAG level permissions are not synced when in the above list of perms,
     # so do it manually here:
-    app.appbuilder.sm.bulk_sync_roles(
+    connexion_app.app.appbuilder.sm.bulk_sync_roles(
         [
             {
                 "role": "TestSingleDAG",
@@ -65,11 +65,11 @@ def configured_app(minimal_app_for_api):
         ]
     )
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_single_dag")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_single_dag")  # type: ignore
 
 
 class TestBaseImportError:
@@ -77,8 +77,8 @@ class TestBaseImportError:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
         clear_db_import_errors()
         clear_db_dags()

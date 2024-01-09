@@ -29,8 +29,8 @@ class TestGetHealthTest:
         """
         Setup For XCom endpoint TC
         """
-        self.app = minimal_app_for_api
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = minimal_app_for_api
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
     @mock.patch(
