@@ -161,7 +161,7 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                     },
                 ),
                 job=Job(
-                    namespace="default",
+                    namespace=_DAG_NAMESPACE,
                     name="job",
                     facets={"documentation": DocumentationJobFacet(description="description")},
                 ),
@@ -222,18 +222,18 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                         ),
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "externalQuery1": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                         "externalQuery2": ExternalQueryRunFacet(externalQueryId="999", source="source"),
                     },
                 ),
                 job=Job(
-                    namespace="default",
+                    namespace=_DAG_NAMESPACE,
                     name="job",
                     facets={
                         "documentation": DocumentationJobFacet(description="description"),
@@ -284,7 +284,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
                 eventType=RunState.COMPLETE,
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
-                job=Job(namespace="default", name="job", facets={}),
+                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={}),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -329,16 +329,16 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     facets={
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
                 ),
-                job=Job(namespace="default", name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
+                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
                 producer=_PRODUCER,
                 inputs=[
                     Dataset(namespace="bigquery", name="a.b.c"),
@@ -377,7 +377,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
                 eventType=RunState.FAIL,
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
-                job=Job(namespace="default", name="job", facets={}),
+                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={}),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -422,16 +422,16 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                     facets={
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": "default", "name": "parent_job_name"},
+                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
                         ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
                 ),
-                job=Job(namespace="default", name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
+                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
                 producer=_PRODUCER,
                 inputs=[
                     Dataset(namespace="bigquery", name="a.b.c"),
@@ -485,7 +485,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
                         )
                     },
                 ),
-                job=Job(namespace="default", name="dag_id", facets={}),
+                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -527,7 +527,7 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
                 eventType=RunState.COMPLETE,
                 eventTime=event_time.isoformat(),
                 run=Run(runId=random_uuid, facets={}),
-                job=Job(namespace="default", name="dag_id", facets={}),
+                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -576,7 +576,7 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
                         )
                     },
                 ),
-                job=Job(namespace="default", name="dag_id", facets={}),
+                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -627,25 +627,23 @@ def test_build_dag_run_id_uses_correct_methods_underneath():
 
 
 def test_build_task_instance_run_id_is_valid_uuid():
-    task_id = "task_1"
-    execution_date = "2023-01-01"
-    try_number = 1
-    result = OpenLineageAdapter.build_task_instance_run_id(task_id, execution_date, try_number)
+    result = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task_1", "2023-01-01", 1)
     assert uuid.UUID(result)
 
 
 def test_build_task_instance_run_id_different_inputs_gives_different_results():
-    result1 = OpenLineageAdapter.build_task_instance_run_id("task1", "2023-01-01", 1)
-    result2 = OpenLineageAdapter.build_task_instance_run_id("task2", "2023-01-02", 2)
+    result1 = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task1", "2023-01-01", 1)
+    result2 = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task2", "2023-01-02", 2)
     assert result1 != result2
 
 
 def test_build_task_instance_run_id_uses_correct_methods_underneath():
+    dag_id = "dag_1"
     task_id = "task_1"
     execution_date = "2023-01-01"
     try_number = 1
     expected = str(
-        uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{task_id}.{execution_date}.{try_number}")
+        uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{task_id}.{execution_date}.{try_number}")
     )
-    actual = OpenLineageAdapter.build_task_instance_run_id(task_id, execution_date, try_number)
+    actual = OpenLineageAdapter.build_task_instance_run_id(dag_id, task_id, execution_date, try_number)
     assert actual == expected
