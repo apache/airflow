@@ -1589,7 +1589,7 @@ def test_runs_on(
             id="No migrations",
         ),
         pytest.param(
-            ("airflow/migrations/test_sql", "aiflow/test.py"),
+            ("airflow/migrations/test_sql", "airflow/test.py"),
             True,
             id="With migrations",
         ),

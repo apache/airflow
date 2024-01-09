@@ -473,7 +473,7 @@ This is a step-by-step instruction on how to use it:
 
 4. Verify manually if the change is visible as expected by inspecting the constraints at:
 
-https://github.com/apache/airflow/tree/constraints-<airfow-version>
+https://github.com/apache/airflow/tree/constraints-<airflow-version>
 
 ## Is it safe to update constraints manually?
 
