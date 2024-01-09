@@ -88,7 +88,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                             f"{operator.task_id} failed with terminal state: {run_state} "
                             f"and with the error {run_state.state_message}"
                         )
-                    if operator.repair_run:
+                    if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
                         operator.repair_run = False
                         log.warn(error_message + "but since repair run is set, repairing the run with all "
                                                  "failed tasks")
