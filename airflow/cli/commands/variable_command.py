@@ -61,8 +61,25 @@ def variables_get(args):
 @providers_configuration_loaded
 def variables_set(args):
     """Create new variable with a given name, value and description."""
-    Variable.set(args.key, args.value, args.description, serialize_json=args.json)
-    print(f"Variable {args.key} created")
+    if args.json_file:
+        try:
+            with open(args.json_file) as json_file:
+                var_json = json.load(json_file)
+        except (JSONDecodeError, FileNotFoundError) as e:
+            raise SystemExit(f"Failed to load JSON file: {e}")
+
+        with create_session() as session:
+            try:
+                for key, value in var_json.items():
+                    Variable.set(key, value, serialize_json=not isinstance(value, str), session=session)
+                print(f"Variables from {args.json_file} successfully created")
+            except Exception as e:
+                print(f"Failed to create variables: {e}")
+                session.rollback()
+                raise SystemExit(f"Transaction rolled back due to an error: {e}")
+    else:
+        Variable.set(args.key, args.value, args.description, serialize_json=args.json)
+        print(f"Variable {args.key} created")
 
 
 @cli_utils.action_cli
