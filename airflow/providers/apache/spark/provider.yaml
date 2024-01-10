@@ -55,7 +55,7 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - pyspark
-  - grpcio-status
+  - grpcio-status>=1.59.0
 
 integrations:
   - integration-name: Apache Spark

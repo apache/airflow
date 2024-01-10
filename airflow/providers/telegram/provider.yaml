@@ -43,7 +43,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - python-telegram-bot>=20.0.0
+  - python-telegram-bot>=20.2
 
 integrations:
   - integration-name: Telegram

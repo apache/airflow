@@ -77,7 +77,10 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                task.task_id, task_instance.execution_date, task_instance.try_number
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
             )
 
             task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
@@ -116,13 +119,16 @@ class OpenLineageListener:
         task = task_instance.task
         dag = task.dag
 
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
-        )
-
         @print_warning(self.log)
         def on_success():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number - 1,
+            )
 
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
@@ -149,13 +155,16 @@ class OpenLineageListener:
         task = task_instance.task
         dag = task.dag
 
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number
-        )
-
         @print_warning(self.log)
         def on_failure():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
+            )
 
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
