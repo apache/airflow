@@ -214,7 +214,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         )
         return header, params, url
     
-    def get_headers(self, code: str, refresh_token:str) -> dict[str, Any]:
+    def get_headers_oauth(self, code: str, refresh_token:str) -> dict[str, Any]:
         conn_config = self._get_conn_params()
         oauth_token = self.get_oauth_token(conn_config["client_id"], conn_config["client_secret"], code, refresh_token, conn_config["redirect_uri"])
         headers = {
