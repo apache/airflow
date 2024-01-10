@@ -56,8 +56,8 @@ class SmtpHook(BaseHook):
     conn_type = "smtp"
     hook_name = "SMTP"
 
-    def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, smtp_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.smtp_conn_id = smtp_conn_id
         self.smtp_connection: Connection | None = None
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None

@@ -42,8 +42,8 @@ class AppriseHook(BaseHook):
     conn_type = "apprise"
     hook_name = "Apprise"
 
-    def __init__(self, apprise_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, apprise_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.apprise_conn_id = apprise_conn_id
 
     def get_config_from_conn(self):

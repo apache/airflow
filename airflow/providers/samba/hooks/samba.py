@@ -47,8 +47,8 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
-        super().__init__()
+    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
         conn = self.get_connection(samba_conn_id)
 
         if not conn.login:
