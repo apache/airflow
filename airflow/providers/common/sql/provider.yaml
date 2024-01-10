@@ -54,7 +54,7 @@ dependencies:
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=0.17.1
+      - pandas>=1.2.5
 
 integrations:
   - integration-name: Common SQL

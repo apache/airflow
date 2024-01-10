@@ -163,7 +163,6 @@ class TestProjectStructure:
             "tests/providers/openlineage/extractors/test_manager.py",
             "tests/providers/openlineage/plugins/test_adapter.py",
             "tests/providers/openlineage/plugins/test_facets.py",
-            "tests/providers/openlineage/plugins/test_macros.py",
             "tests/providers/openlineage/test_sqlparser.py",
             "tests/providers/redis/operators/test_redis_publish.py",
             "tests/providers/redis/sensors/test_redis_key.py",
