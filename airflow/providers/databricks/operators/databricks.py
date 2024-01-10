@@ -90,8 +90,10 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         )
                     if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
                         operator.repair_run = False
-                        log.warn(error_message + "but since repair run is set, repairing the run with all "
-                                                 "failed tasks")
+                        log.warn(
+                            error_message + "but since repair run is set, repairing the run with all "
+                            "failed tasks"
+                        )
 
                         latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                         repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
