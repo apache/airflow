@@ -20,12 +20,13 @@ from __future__ import annotations
 import asyncio
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, Type
 
+import packaging.version
 from google.cloud.container_v1.types import Operation
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes import __version__ as cnfc_kubernetes_version
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
@@ -38,6 +39,20 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+# TODO: Remove this check when we drop support for cncf-kubernetes < 7.14.0
+callbacks_type: Any
+default_callbacks: Any
+if packaging.version.parse(cnfc_kubernetes_version) >= packaging.version.parse("7.14.0"):
+    from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
+
+    is_generic_callbacks_supported = True
+    callbacks_type = Type[KubernetesPodOperatorCallback]
+    default_callbacks = KubernetesPodOperatorCallback
+else:
+    is_generic_callbacks_supported = False
+    callbacks_type = Any
+    default_callbacks = None
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -82,7 +97,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
+        callbacks: callbacks_type = default_callbacks,
         *args,
         **kwargs,
     ):

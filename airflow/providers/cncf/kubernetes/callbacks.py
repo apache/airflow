@@ -95,7 +95,7 @@ class KubernetesPodOperatorCallback:
     def on_operator_resuming(
         *, pod: k8s.V1Pod, event: dict, client: client_type, mode: str, **kwargs
     ) -> None:
-        """Callback method called resuming the `KubernetesPodOperator` from deferred state.
+        """Callback method called when resuming the `KubernetesPodOperator` from deferred state.
 
         :param pod: the current state of the pod.
         :param event: the returned event from the Trigger.

@@ -41,7 +41,13 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEnginePodLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import (
+    GKEOperationTrigger,
+    GKEStartPodTrigger,
+    callbacks_type,
+    default_callbacks,
+    is_generic_callbacks_supported,
+)
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
@@ -456,6 +462,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         regional: bool | None = None,
         on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
+        callbacks: callbacks_type = default_callbacks,
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is not None:
@@ -489,6 +496,17 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+
+        if not is_generic_callbacks_supported and callbacks is not None:
+            warnings.warn(
+                "The `callbacks` parameter is not supported in this version of cncf.kubernetes."
+                "Please upgrade to version 7.14.0 or newer.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.callbacks: Any = callbacks
+        else:
+            kwargs["callbacks"] = callbacks
 
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -581,6 +599,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 in_cluster=self.in_cluster,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action,
+                callbacks=self.callbacks,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},

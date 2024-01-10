@@ -29,7 +29,7 @@ from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
 from airflow.triggers.base import TriggerEvent
 
 TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
@@ -61,6 +61,17 @@ EXC_MSG = "test error msg"
 
 @pytest.fixture
 def trigger():
+    # This is a workaround for `is_generic_callbacks_supported` check.
+    # TODO: Remove this workaround after releasing cncf.kubernetes=7.14.0
+    import importlib
+
+    from airflow.providers.google.cloud.triggers import kubernetes_engine
+
+    mock.patch("packaging.version.parse", mock.MagicMock(return_value=1)).start()
+    importlib.reload(kubernetes_engine)
+
+    from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEStartPodTrigger
+
     return GKEStartPodTrigger(
         pod_name=POD_NAME,
         pod_namespace=NAMESPACE,

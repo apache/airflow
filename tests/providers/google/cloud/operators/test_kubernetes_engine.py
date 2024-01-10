@@ -25,6 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
@@ -465,6 +466,7 @@ class TestGKEPodOperatorAsync:
         with pytest.raises(TaskDeferred) as exc:
             self.gke_op._cluster_url = CLUSTER_URL
             self.gke_op._ssl_ca_cert = SSL_CA_CERT
+            self.gke_op.callbacks = KubernetesPodOperatorCallback
             self.gke_op.execute(context=mock.MagicMock())
             fetch_cluster_info_mock.assert_called_once()
         assert isinstance(exc.value.trigger, GKEStartPodTrigger)
