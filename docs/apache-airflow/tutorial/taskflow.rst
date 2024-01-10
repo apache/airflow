@@ -428,8 +428,8 @@ Tasks can also infer multiple outputs by using dict Python typing.
    def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
-By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
-is automatically set to true.
+By using the typing ``dict``, or any other class that conforms to the ``typing.Mapping`` protocol,
+for the function return type, the ``multiple_outputs`` parameter is automatically set to true.
 
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.

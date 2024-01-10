@@ -97,6 +97,19 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
 
+    @pytest.mark.skipif(sys.version_info < (3, 8), reason="PEP 589 is implemented in Python 3.8")
+    def test_infer_multiple_outputs_typed_dict(self):
+        from typing import TypedDict
+
+        class TypeDictClass(TypedDict):
+            pass
+
+        @task_decorator
+        def t1() -> TypeDictClass:
+            return {}
+
+        assert t1().operator.multiple_outputs is True
+
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
 
