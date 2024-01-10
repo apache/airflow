@@ -259,19 +259,20 @@ class TestGetDag(TestDagEndpoint):
             "/api/v1/dags/TEST_DAG_2", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
         )
         assert response.status_code == 403
-    
+
     @pytest.mark.parametrize(
         "fields",
         [
-            [],         # empty test
-            ["dag_id"], # only one
-            ["fileloc", "file_token", "owners"], # fields.Method and other
-            ["schedule_interval", "tags"],       # fields.List
+            ["dag_id"],  # only one
+            ["fileloc", "file_token", "owners"],  # auto_field and fields.Method
+            ["schedule_interval", "tags"],  # fields.List
         ],
     )
     def test_should_return_specified_fields(self, fields):
         self._create_dag_models(1)
-        response = self.client.get(f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
         res_json = response.json
         for field in fields:
             assert field in res_json
@@ -305,6 +306,21 @@ class TestGetDag(TestDagEndpoint):
         }.keys():
             if field not in fields:
                 assert field not in res_json
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            [],  # empty test
+            ["#caw&c"],  # field which not exists
+            ["dag_id", "#caw&c"],  # field which not exists
+        ],
+    )
+    def test_should_respond_400_with_not_exists_fields(self, fields):
+        self._create_dag_models(1)
+        response = self.client.get(
+            f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
 
 
 class TestGetDagDetails(TestDagEndpoint):
@@ -606,6 +622,35 @@ class TestGetDagDetails(TestDagEndpoint):
             "title": "DAG not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         }
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            ["dag_id"],  # only one
+            ["doc_md", "file_token", "owners"],  # fields.String and fields.Method
+            ["schedule_interval", "tags"],  # fields.List
+        ],
+    )
+    def test_should_return_specified_fields(self, fields):
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        res_json = response.json
+        assert len(res_json.keys()) == len(fields)
+        for field in fields:
+            assert field in res_json
+
+    def test_should_respond_400_with_not_exists_fields(self):
+        fields = ["#caw&c"]
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
 
 
 class TestGetDags(TestDagEndpoint):
@@ -1093,6 +1138,32 @@ class TestGetDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+
+    def test_should_return_specified_fields(self):
+        self._create_dag_models(2)
+        self._create_deactivated_dag()
+
+        fields = ["dag_id", "file_token", "owners"]
+        response = self.client.get(
+            f"api/v1/dags?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
+    def test_should_respond_400_with_not_exists_fields(self):
+        self._create_dag_models(1)
+        self._create_deactivated_dag()
+        fields = ["#caw&c"]
+        response = self.client.get(
+            f"api/v1/dags?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 400, f"Current code: {response.status_code}"
 
 
 class TestPatchDag(TestDagEndpoint):

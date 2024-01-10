@@ -1471,8 +1471,8 @@ export interface components {
      */
     DAGDetail: components["schemas"]["DAG"] & {
       timezone?: components["schemas"]["Timezone"] | null;
-      catchup?: boolean;
-      orientation?: string;
+      catchup?: boolean | null;
+      orientation?: string | null;
       concurrency?: number | null;
       /**
        * Format: date-time

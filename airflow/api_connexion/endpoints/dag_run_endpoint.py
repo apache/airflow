@@ -104,11 +104,12 @@ def get_dag_run(
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
     try:
-        dagrun_schema = DAGRunSchema(only=fields) if fields else DAGRunSchema()
+        # parse fields to Schema @post_dump
+        dagrun_schema = DAGRunSchema(context={"fields": fields}) if fields else DAGRunSchema()
+        return dagrun_schema.dump(dag_run)
     except ValueError as e:
         # Invalid fields
-        raise BadRequest("DAGRunSchema init error", detail=str(e))
-    return dagrun_schema.dump(dag_run)
+        raise BadRequest("DAGRunSchema error", detail=str(e))
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
@@ -253,13 +254,11 @@ def get_dag_runs(
     )
     try:
         dagrun_collection_schema = (
-            DAGRunCollectionSchema(only=[f"dag_runs.{field}" for field in fields])
-            if fields
-            else DAGRunCollectionSchema()
+            DAGRunCollectionSchema(context={"fields": fields}) if fields else DAGRunCollectionSchema()
         )
+        return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
     except ValueError as e:
-        raise BadRequest("DAGRunCollectionSchema init error", detail=str(e))
-    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+        raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)

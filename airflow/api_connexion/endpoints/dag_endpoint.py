@@ -133,10 +133,9 @@ def get_dags(
             if fields
             else DAGCollectionSchema()
         )
+        return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
     except ValueError as e:
-        raise BadRequest("DAGCollectionSchema init error", detail=str(e))
-
-    return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
+        raise BadRequest("DAGCollectionSchema error", detail=str(e))
 
 
 @security.requires_access_dag("PUT")
