@@ -151,14 +151,13 @@ Pyenv and setting up virtual-env
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
    if your operating system is MacOS or another flavour of Linux
 
-
 .. code-block:: bash
 
   sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
-like system, this command will install all necessary dependencies that should be installed when you use ``devel_all``
-extra while installing airflow.
+like system, this command will install all necessary dependencies that should be installed when you use
+``devel-all`` extra while installing airflow.
 
 .. code-block:: bash
 

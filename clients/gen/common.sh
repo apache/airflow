@@ -59,8 +59,7 @@ function validate_input {
 git_push.sh
 .gitlab-ci.yml
 requirements.txt
-setup.cfg
-setup.py
+pyproject.toml
 test-requirements.txt
 tox.ini
 EOF

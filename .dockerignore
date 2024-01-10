@@ -49,7 +49,6 @@
 !.dockerignore
 !RELEASE_NOTES.rst
 !LICENSE
-!MANIFEST.in
 !NOTICE
 !.github
 !empty
@@ -69,8 +68,6 @@
 !.bash_completion.d
 
 # Setup/version configuration
-!setup.cfg
-!setup.py
 !pyproject.toml
 !manifests
 !generated

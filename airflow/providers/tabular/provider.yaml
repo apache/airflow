@@ -36,6 +36,9 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
 
+devel-dependencies:
+  - pyiceberg>=0.5.0
+
 integrations:
   - integration-name: Tabular
     external-doc-url: https://tabular.io/docs/

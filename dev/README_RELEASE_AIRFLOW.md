@@ -76,7 +76,7 @@ For obvious reasons, you can't cherry-pick every change from `main` into the rel
 some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
 
 In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release;
-also changes in dependencies (setup.py, setup.cfg) resulting from releasing newer versions of packages that Airflow depends on.
+also changes in dependencies (pyproject.toml) resulting from releasing newer versions of packages that Airflow depends on.
 Other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport
 (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported),
 it's OK to leave it out of the release at your sole discretion as the release manager -
@@ -772,7 +772,7 @@ that have min-airflow version set to X.Y.0
 
 * NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
 
-1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
+1. Checkout the ``constraints-2-*`` branch and update the ``constraints-3*.txt`` file with the new provider
    version. Find the place where the provider should be added, add it with the latest provider version.
 
 ```
@@ -793,7 +793,7 @@ git push -f apache constraints-X.Y.Z
    that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 
-3. In case the provider should also be installed in the image (it is part of ``airflow/providers/installed_providers.txt``)
+3. In case the provider should also be installed in the image (it is part of ``dev/prod_image_installed_providers.txt``)
    it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
 
 ```Dockerfile

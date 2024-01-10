@@ -106,7 +106,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``hmsclient``                            ``>=0.1.0``
 ``pandas``                               ``>=0.17.1``
-``pyhive[hive_pure_sasl]``               ``>=0.7.0``
+``pyhive[hive-pure-sasl]``               ``>=0.7.0``
 ``thrift``                               ``>=0.9.2``
 =======================================  ==================
 

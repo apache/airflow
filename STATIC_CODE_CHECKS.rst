@@ -262,11 +262,11 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-pyproject-toml-order                                | Check order of dependencies in pyproject.toml                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -392,7 +392,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update cross-dependencies for providers packages             |         |
+| update-providers-dependencies                             | Update dependencies for provider packages                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -401,8 +401,6 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| validate-pyproject                                        | Validate pyproject.toml                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

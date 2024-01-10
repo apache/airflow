@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Test for an order of dependencies in setup.py
+Check if extras in Dockerfile are reflected in docker build-arg-ref.rst and global constants.
 """
 from __future__ import annotations
 

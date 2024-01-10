@@ -84,19 +84,19 @@ List of default extras in the production Dockerfile:
 * amazon
 * async
 * celery
-* cncf.kubernetes
-* common.io
+* cncf-kubernetes
+* common-io
 * docker
 * elasticsearch
 * ftp
 * google
-* google_auth
+* google-auth
 * graphviz
 * grpc
 * hashicorp
 * http
 * ldap
-* microsoft.azure
+* microsoft-azure
 * mysql
 * odbc
 * openlineage
@@ -225,12 +225,6 @@ You can see some examples of those in:
 |                                    |                                          | for Airflow version installation - for   |
 |                                    |                                          | example ``<2.0.2`` for automated builds. |
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_PROVIDERS_FROM_SOURCES`` | ``false``                                | If set to ``true`` and image is built    |
-|                                    |                                          | from sources, all provider packages are  |
-|                                    |                                          | installed from sources rather than from  |
-|                                    |                                          | packages. It has no effect when          |
-|                                    |                                          | installing from PyPI or GitHub repo.     |
-+------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_LOCATION``   |                                          | If not empty, it will override the       |
 |                                    |                                          | source of the constraints with the       |
 |                                    |                                          | specified URL or file. Note that the     |
@@ -260,7 +254,7 @@ Pre-caching PIP dependencies
 ............................
 
 When image is build from PIP, by default pre-caching of PIP dependencies is used. This is in order to speed-up incremental
-builds during development. When pre-cached PIP dependencies are used and ``setup.py`` or ``setup.cfg`` changes, the
+builds during development. When pre-cached PIP dependencies are used and ``pyproject.toml`` changes, the
 PIP dependencies are already pre-installed, thus resulting in much faster image rebuild. This is purely an optimization
 of time needed to build the images and should be disabled if you want to install Airflow from
 Docker context files.

@@ -260,7 +260,8 @@ def get_packages_list_to_act_on(
         return [
             package.strip()
             for package in package_list_file.readlines()
-            if (package.strip() not in removed_provider_ids or include_removed)
+            if not package.strip().startswith("#")
+            and (package.strip() not in removed_provider_ids or include_removed)
             and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
     elif provider_packages:

@@ -60,6 +60,11 @@ dependencies:
   - mysqlclient>=1.3.6
   - mysql-connector-python>=8.0.29
 
+additional-extras:
+  # only needed for backwards compatibility
+  - name: mysql-connector-python
+    dependencies: []
+
 integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/
@@ -97,8 +102,3 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
     connection-type: mysql
-
-additional-extras:
-  # only needed for backwards compatibility
-  - name: mysql-connector-python
-    dependencies: []
