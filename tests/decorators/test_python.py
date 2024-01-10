@@ -97,7 +97,6 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="PEP 589 is implemented in Python 3.8")
     def test_infer_multiple_outputs_typed_dict(self):
         from typing import TypedDict
 
@@ -109,6 +108,17 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {}
 
         assert t1().operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_union_type(self):
+        @task_decorator
+        def t1() -> str | None:
+            # Before PEP 604 which are implemented in Python 3.10 `str | None`
+            # returns `types.UnionType` which are class and could be check in `issubclass()`.
+            # However in Python 3.10+ this construction returns object `typing.Union`
+            # which can not be used in `issubclass()`
+            return "foo"
+
+        assert t1().operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
