@@ -109,6 +109,7 @@ from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.datasets import DatasetTimetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
     ContinuousTimetable,
@@ -595,6 +596,8 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
+            if isinstance(timetable, DatasetTimetable):
+                self.dataset_triggers = timetable.event
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
