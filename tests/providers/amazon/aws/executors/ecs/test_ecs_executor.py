@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     _recursive_flatten_dict,
     parse_assign_public_ip,
 )
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 
@@ -943,8 +944,10 @@ class TestEcsExecutorConfig:
 
         assert task_kwargs["platformVersion"] == templated_version
 
-    def test_count_can_not_be_modified_by_the_user(self, assign_subnets):
+    @mock.patch.object(EcsHook, "conn")
+    def test_count_can_not_be_modified_by_the_user(self, mock_conn, assign_subnets):
         """The ``count`` parameter must always be 1; verify that the user can not override this value."""
+        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
 
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
@@ -1099,8 +1102,9 @@ class TestEcsExecutorConfig:
             AwsEcsExecutor()
 
     def test_providing_capacity_provider(self, set_env_vars):
-        valid_capacity_provider = \
+        valid_capacity_provider = (
             "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        )
 
         os.environ[
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
@@ -1108,8 +1112,8 @@ class TestEcsExecutorConfig:
         os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
 
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
         task_kwargs = ecs_executor_config.build_task_kwargs()
 
         assert "launchType" not in task_kwargs
         assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
-

@@ -78,7 +78,7 @@ def build_task_kwargs() -> dict:
             if not cluster.get("defaultCapacityProviderStrategy"):
                 task_kwargs["launch_type"] = "FARGATE"
 
-    except IndexError:
+    except KeyError:
         pass
 
     # There can only be 1 count of these containers
