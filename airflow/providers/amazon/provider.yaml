@@ -832,12 +832,12 @@ config:
         description: |
           The capacity provider strategy to use for the task.
 
-          If a capacityProviderStrategy is specified, the launchType parameter must be omitted. If
-          no capacityProviderStrategy or launchType is specified, the defaultCapacityProviderStrategy
+          If a Capacity Provider Strategy is specified, the Launch Type parameter must be omitted. If
+          no Capacity Provider Strategy or Launch Type is specified, the Default CapacityProvider Strategy
           for the cluster is used, if present.
 
-          When you use cluster auto scaling, you must specify capacityProviderStrategy and not launchType.
-        version_added: "8.13"
+          When you use cluster auto scaling, you must specify Capacity Provider Strategy and not Launch Type.
+        version_added: "8.17"
         type: string
         example: "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         default: ~
