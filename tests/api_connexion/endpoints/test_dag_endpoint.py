@@ -274,38 +274,9 @@ class TestGetDag(TestDagEndpoint):
             f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
         )
         res_json = response.json
+        assert len(res_json.keys()) == len(fields)
         for field in fields:
             assert field in res_json
-        for field in {
-            "dag_id": "TEST_DAG_1",
-            "description": None,
-            "fileloc": "/tmp/dag_1.py",
-            "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
-            "is_paused": False,
-            "is_active": True,
-            "is_subdag": False,
-            "owners": [],
-            "root_dag_id": None,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
-            "tags": [],
-            "next_dagrun": None,
-            "has_task_concurrency_limits": True,
-            "next_dagrun_data_interval_start": None,
-            "next_dagrun_data_interval_end": None,
-            "max_active_runs": 16,
-            "next_dagrun_create_after": None,
-            "last_expired": None,
-            "max_active_tasks": 16,
-            "last_pickled": None,
-            "default_view": None,
-            "last_parsed_time": None,
-            "scheduler_lock": None,
-            "timetable_description": None,
-            "has_import_errors": False,
-            "pickle_id": None,
-        }.keys():
-            if field not in fields:
-                assert field not in res_json
 
     @pytest.mark.parametrize(
         "fields",
