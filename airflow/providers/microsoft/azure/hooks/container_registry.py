@@ -84,8 +84,8 @@ class AzureContainerRegistryHook(BaseHook):
             },
         }
 
-    def __init__(self, conn_id: str = "azure_registry") -> None:
-        super().__init__()
+    def __init__(self, conn_id: str = "azure_registry", **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = conn_id
 
     def _get_field(self, extras, name):
