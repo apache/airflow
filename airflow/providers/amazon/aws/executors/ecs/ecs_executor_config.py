@@ -62,8 +62,8 @@ def build_task_kwargs() -> dict:
     task_kwargs.update(_fetch_templated_kwargs())
 
     try:
-        has_launch_type: bool = task_kwargs.get("launch_type") is not None
-        has_capacity_provider: bool = task_kwargs.get("capacity_provider_strategy") is not None
+        has_launch_type: bool = "launch_type" in task_kwargs
+        has_capacity_provider: bool = "capacity_provider_strategy" in task_kwargs
 
         if has_capacity_provider and has_launch_type:
             raise ValueError(

@@ -945,10 +945,8 @@ class TestEcsExecutorConfig:
         assert task_kwargs["platformVersion"] == templated_version
 
     @mock.patch.object(EcsHook, "conn")
-    def test_count_can_not_be_modified_by_the_user(self, mock_conn, assign_subnets):
+    def test_count_can_not_be_modified_by_the_user(self, _, assign_subnets):
         """The ``count`` parameter must always be 1; verify that the user can not override this value."""
-        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
-
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
         provided_run_task_kwargs = {
