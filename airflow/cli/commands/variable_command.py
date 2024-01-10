@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from json import JSONDecodeError
 
 from sqlalchemy import select
@@ -60,27 +61,21 @@ def variables_get(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_set(args):
-    """Create new variable with a given name, value and description."""
-    if args.json_file:
-        try:
-            with open(args.json_file) as json_file:
-                var_json = json.load(json_file)
-        except (JSONDecodeError, FileNotFoundError) as e:
-            raise SystemExit(f"Failed to load JSON file: {e}")
+    """Create or update variables from a JSON file."""
+    session = create_session()
 
-        with create_session() as session:
-            try:
-                for key, value in var_json.items():
-                    Variable.set(key, value, serialize_json=not isinstance(value, str), session=session)
-                print(f"Variables from {args.json_file} successfully created")
-            except Exception as e:
-                print(f"Failed to create variables: {e}")
-                session.rollback()
-                raise SystemExit(f"Transaction rolled back due to an error: {e}")
-    else:
-        Variable.set(args.key, args.value, args.description, serialize_json=args.json)
-        print(f"Variable {args.key} created")
-
+    try:
+        if args.json_file:
+            with session.begin():
+                import_command_args = ["airflow", "variables", "import", args.json_file]
+                subprocess.run(import_command_args, check=True)
+                print(f"Variables from {args.json_file} successfully imported")
+        else:
+            print("No action specified. Use either --json-file or provide key, value, and description.")
+    except SQLAlchemyError as e:
+        print(f"Failed to create/update variables: {e}")
+        session.rollback()
+        raise SystemExit(f"Transaction rolled back due to an error: {e}")
 
 @cli_utils.action_cli
 @providers_configuration_loaded
