@@ -61,25 +61,21 @@ def build_task_kwargs() -> dict:
     task_kwargs = _fetch_config_values()
     task_kwargs.update(_fetch_templated_kwargs())
 
-    try:
-        has_launch_type: bool = "launch_type" in task_kwargs
-        has_capacity_provider: bool = "capacity_provider_strategy" in task_kwargs
+    has_launch_type: bool = "launch_type" in task_kwargs
+    has_capacity_provider: bool = "capacity_provider_strategy" in task_kwargs
 
-        if has_capacity_provider and has_launch_type:
-            raise ValueError(
-                "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
-            )
-        elif not (has_capacity_provider or has_launch_type):
-            # Default API behavior if neither is provided is to fall back on the default capacity
-            # provider if it exists. Since it is not a required value, check if there is one
-            # before using it, and if there is not then use the FARGATE launch_type as
-            # the final fallback.
-            cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])["clusters"][0]
-            if not cluster.get("defaultCapacityProviderStrategy"):
-                task_kwargs["launch_type"] = "FARGATE"
-
-    except KeyError:
-        pass
+    if has_capacity_provider and has_launch_type:
+        raise ValueError(
+            "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
+        )
+    elif "cluster" in task_kwargs and not (has_capacity_provider or has_launch_type):
+        # Default API behavior if neither is provided is to fall back on the default capacity
+        # provider if it exists. Since it is not a required value, check if there is one
+        # before using it, and if there is not then use the FARGATE launch_type as
+        # the final fallback.
+        cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])["clusters"][0]
+        if not cluster.get("defaultCapacityProviderStrategy"):
+            task_kwargs["launch_type"] = "FARGATE"
 
     # There can only be 1 count of these containers
     task_kwargs["count"] = 1  # type: ignore

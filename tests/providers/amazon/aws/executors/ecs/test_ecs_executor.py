@@ -1100,6 +1100,8 @@ class TestEcsExecutorConfig:
             AwsEcsExecutor()
 
     def test_providing_capacity_provider(self, set_env_vars):
+        # If a capacity provider strategy is supplied without a launch type, use the strategy.
+
         valid_capacity_provider = (
             "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         )
@@ -1115,3 +1117,33 @@ class TestEcsExecutorConfig:
 
         assert "launchType" not in task_kwargs
         assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_with_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, but the
+        # cluster has a default capacity provider strategy, use the cluster's default.
+        mock_conn.describe_clusters.return_value = {
+            "clusters": [{"defaultCapacityProviderStrategy": ["some_strategy"]}]
+        }
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert "launchType" not in task_kwargs
+        assert "capacityProviderStrategy" not in task_kwargs
+        assert mock_conn.describe_clusters.called_once()
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, and the cluster
+        # does not have a default capacity provider strategy, use the FARGATE launch type.
+
+        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
+
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert task_kwargs["launchType"] == "FARGATE"
