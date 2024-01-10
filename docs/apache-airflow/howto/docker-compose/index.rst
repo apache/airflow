@@ -319,14 +319,14 @@ you should do those steps:
 
 .. code-block:: docker
 
-    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
+    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.8.0}
     build: .
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
 .. code-block:: docker
 
-    FROM apache/airflow:2.6.1
+    FROM apache/airflow:2.8.0
     ADD requirements.txt .
     RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 
