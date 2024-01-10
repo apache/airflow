@@ -159,23 +159,13 @@ class DagRun(Base, LoggingMixin):
         Index("dag_id_state", dag_id, _state),
         UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
-        Index("idx_last_scheduling_decision", last_scheduling_decision),
         Index("idx_dag_run_dag_id", dag_id),
         Index(
-            "idx_dag_run_running_dags",
+            "idx_dag_run_running_queued",
             "state",
             "dag_id",
-            postgresql_where=text("state='running'"),
-            sqlite_where=text("state='running'"),
-        ),
-        # since mysql lacks filtered/partial indices, this creates a
-        # duplicate index on mysql. Not the end of the world
-        Index(
-            "idx_dag_run_queued_dags",
-            "state",
-            "dag_id",
-            postgresql_where=text("state='queued'"),
-            sqlite_where=text("state='queued'"),
+            postgresql_where=text("state IN ('running', 'queued')"),
+            sqlite_where=text("state IN ('running', 'queued')"),
         ),
     )
 
