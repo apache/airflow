@@ -1511,7 +1511,6 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-
     def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
         """
         Tests avoid crashes when a removed task is the last one in the list of task instance
