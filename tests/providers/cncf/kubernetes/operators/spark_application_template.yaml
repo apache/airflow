@@ -93,6 +93,11 @@ kubernetes:
     podAffinity: {}
     podAntiAffinity: {}
 
+  # example:
+  # node_selector:
+  #   karpenter.sh/provisioner-name: spark-group
+  node_selector: {}
+
   # example: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   # type: list
   # tolerations:

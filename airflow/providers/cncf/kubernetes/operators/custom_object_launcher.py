@@ -103,8 +103,8 @@ class SparkResources:
 
     def __init__(
         self,
-        driver: dict = None,
-        executor: dict = None,
+        driver: dict | None = None,
+        executor: dict | None = None,
     ):
         self.default = {
             "gpu": {"name": None, "quantity": 0},
