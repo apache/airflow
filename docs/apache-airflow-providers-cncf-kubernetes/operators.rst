@@ -193,6 +193,99 @@ included in the exception message if the task fails.
 
 Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/>`__.
 
+KubernetesPodOperator callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` supports different
+callbacks that can be used to trigger actions during the lifecycle of the pod. In order to use them, you need to
+create a subclass of :class:`~airflow.providers.cncf.kubernetes.callbacks.KubernetesPodOperatorCallback` and override
+the callbacks methods you want to use. Then you can pass your callback class to the operator using the ``callbacks``
+parameter.
+
+The following callbacks are supported:
+
+* on_sync_client_creation: called after creating the sync client
+* on_async_client_creation: called after creating the async client
+* on_pod_creation: called after creating the pod
+* on_pod_starting: called after the pod starts
+* on_pod_completion: called when the pod completes
+* on_pod_cleanup: called after cleaning/deleting the pod
+* on_operator_resuming: when resuming the task from deferred state
+* progress_callback: called on each line of containers logs
+
+Example:
+~~~~~~~~
+.. code-block:: python
+
+    import kubernetes.client as k8s
+    import kubernetes_asyncio.client as async_k8s
+
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
+
+
+    class MyCallback(KubernetesPodOperatorCallback):
+        @staticmethod
+        def on_pod_creation(*, pod: k8s.V1Pod, client: k8s.CoreV1Api, mode: str, **kwargs) -> None:
+            # currently, the pod is always created when the task is running, so the mode is always "sync"
+            client.create_namespaced_service(
+                namespace=pod.metadata.namespace,
+                body=k8s.V1Service(
+                    metadata=k8s.V1ObjectMeta(
+                        name=pod.metadata.name,
+                        labels=pod.metadata.labels,
+                        owner_references=[
+                            k8s.V1OwnerReference(
+                                api_version=pod.api_version,
+                                kind=pod.kind,
+                                name=pod.metadata.name,
+                                uid=pod.metadata.uid,
+                                controller=True,
+                                block_owner_deletion=True,
+                            )
+                        ],
+                    ),
+                    spec=k8s.V1ServiceSpec(
+                        selector=pod.metadata.labels,
+                        ports=[
+                            k8s.V1ServicePort(
+                                name="http",
+                                port=80,
+                                target_port=80,
+                            )
+                        ],
+                    ),
+                ),
+            )
+
+        @staticmethod
+        def on_pod_starting(
+            *, pod: k8s.V1Pod, client: k8s.CoreV1Api | async_k8s.CoreV1Api, mode: str, **kwargs
+        ) -> None:
+            # this callback can be called in sync or async mode, so we need to handle both cases and avoid blocking the event loop
+            import asyncio
+
+            def _some_sync_function():
+                ...
+
+            async def _some_async_function():
+                ...
+
+            if mode == "sync":
+                _some_sync_function()
+            else:
+                asyncio.get_event_loop().run_until_complete(_some_async_function())
+
+
+    k = KubernetesPodOperator(
+        task_id="test_callback",
+        image="alpine",
+        cmds=["/bin/sh"],
+        arguments=["-c", "echo hello world; echo Custom error > /dev/termination-log; exit 1;"],
+        name="test-callback",
+        callbacks=MyCallback,
+    )
+
 Reference
 ^^^^^^^^^
 For further information, look at:
