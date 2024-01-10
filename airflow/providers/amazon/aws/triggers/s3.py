@@ -39,6 +39,7 @@ class S3KeyTrigger(BaseTrigger):
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
     :param aws_conn_id: reference to the s3 connection
+    :param use_regex: whether to use regex to check bucket
     :param hook_params: params for hook its optional
     """
 
@@ -50,6 +51,7 @@ class S3KeyTrigger(BaseTrigger):
         aws_conn_id: str = "aws_default",
         poke_interval: float = 5.0,
         should_check_fn: bool = False,
+        use_regex: bool = False,
         **hook_params: Any,
     ):
         super().__init__()
@@ -60,6 +62,7 @@ class S3KeyTrigger(BaseTrigger):
         self.hook_params = hook_params
         self.poke_interval = poke_interval
         self.should_check_fn = should_check_fn
+        self.use_regex = use_regex
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize S3KeyTrigger arguments and classpath."""
@@ -73,6 +76,7 @@ class S3KeyTrigger(BaseTrigger):
                 "hook_params": self.hook_params,
                 "poke_interval": self.poke_interval,
                 "should_check_fn": self.should_check_fn,
+                "use_regex": self.use_regex,
             },
         )
 
@@ -86,7 +90,7 @@ class S3KeyTrigger(BaseTrigger):
             async with self.hook.async_conn as client:
                 while True:
                     if await self.hook.check_key_async(
-                        client, self.bucket_name, self.bucket_key, self.wildcard_match
+                        client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
                     ):
                         if self.should_check_fn:
                             s3_objects = await self.hook.get_files_async(
@@ -94,10 +98,11 @@ class S3KeyTrigger(BaseTrigger):
                             )
                             await asyncio.sleep(self.poke_interval)
                             yield TriggerEvent({"status": "running", "files": s3_objects})
-                        else:
-                            yield TriggerEvent({"status": "success"})
-                    await asyncio.sleep(self.poke_interval)
 
+                        yield TriggerEvent({"status": "success"})
+
+                    self.log.info("Sleeping for %s seconds", self.poke_interval)
+                    await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
