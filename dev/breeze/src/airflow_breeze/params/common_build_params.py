@@ -63,7 +63,6 @@ class CommonBuildParams:
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     image_tag: str | None = None
-    install_providers_from_sources: bool = False
     install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False

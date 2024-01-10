@@ -459,6 +459,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -516,6 +517,7 @@ dsn
 dttm
 dtypes
 du
+duckdb
 durations
 dylib
 Dynamodb

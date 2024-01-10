@@ -426,7 +426,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("setup.py",),
+                ("pyproject.toml",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
@@ -447,7 +447,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-packages": "['airflow', 'airflow/providers', 'docs', 'dev']",
                 },
                 id="Everything should run - including all providers and upgrading to "
-                "newer requirements as setup.py changed and all Python versions",
+                "newer requirements as pyproject.toml changed and all Python versions",
             )
         ),
         (
@@ -1168,20 +1168,12 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             id="Regular source changed",
         ),
         pytest.param(
-            ("setup.py",),
+            ("pyproject.toml",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },
             (),
-            id="Setup.py changed",
-        ),
-        pytest.param(
-            ("setup.cfg",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            id="Setup.cfg changed",
+            id="pyproject.toml changed",
         ),
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),

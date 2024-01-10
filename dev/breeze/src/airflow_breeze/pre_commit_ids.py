@@ -70,9 +70,9 @@ PRE_COMMIT_LIST = [
     "check-providers-init-file-missing",
     "check-providers-subpackages-init-file-exist",
     "check-pydevd-left-in-code",
+    "check-pyproject-toml-order",
     "check-revision-heads-map",
     "check-safe-filter-usage-in-html",
-    "check-setup-order",
     "check-sql-dependency-common-data-structure",
     "check-start-date-not-used-in-defaults",
     "check-system-tests-present",
@@ -133,6 +133,5 @@ PRE_COMMIT_LIST = [
     "update-supported-versions",
     "update-vendored-in-k8s-json-schema",
     "update-version",
-    "validate-pyproject",
     "yamllint",
 ]

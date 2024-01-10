@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from argparse import Action
 from collections import Counter
 from functools import lru_cache
@@ -72,9 +73,13 @@ except Exception:
 try:
     auth_mgr = get_auth_manager_cls()
     airflow_commands.extend(auth_mgr.get_cli_commands())
-except Exception:
-    log.exception("cannot load CLI commands from auth manager")
+except Exception as e:
+    log.warning("cannot load CLI commands from auth manager: %s", e)
+    log.warning("Authentication manager is not configured and webserver will not be able to start.")
     # do not re-raise for the same reason as above
+    if len(sys.argv) > 1 and sys.argv[1] == "webserver":
+        log.exception(e)
+        sys.exit(1)
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}

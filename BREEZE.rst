@@ -1569,7 +1569,7 @@ The CI image is built automatically as needed, however it can be rebuilt manuall
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
+However, changes to sensitive files like ``pyproject.toml`` or ``Dockerfile.ci`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 Breeze has built in mechanism to check if your local image has not diverged too much from the
@@ -2299,7 +2299,7 @@ These are all available flags of ``release-management add-back-references`` comm
 Generating constraints
 """"""""""""""""""""""
 
-Whenever setup.py gets modified, the CI main job will re-generate constraint files. Those constraint
+Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
@@ -2341,14 +2341,14 @@ These are all available flags of ``generate-constraints`` command:
   :width: 100%
   :alt: Breeze generate-constraints
 
-In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
+In case someone modifies ``pyproject.toml``, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
 the procedure described in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
-This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
-and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
+This bumps the constraint files to latest versions and stores hash of ``pyproject.toml``. The generated constraint
+and ``pyproject.toml`` hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
 Updating constraints
@@ -2697,17 +2697,17 @@ disappear when you exit Breeze shell.
 
 When you want to add dependencies permanently, then it depends what kind of dependency you add.
 
-If you want to add core dependency that should always be installed - you need to add it to ``setup.cfg``
-to ``install_requires`` section. If you want to add it to one of the optional core extras, you should
-add it in the extra definition in ``setup.py`` (you need to find out where it is defined). If you want
-to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
+If you want to add core dependency that should always be installed - you need to add it to ``pyproject.toml``
+to ``dependencies`` section. If you want to add it to one of the optional core extras, you should
+add it in the extra definition in ``pyproject.toml`` (you need to find out where it is defined).
+If you want to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
 directory - but remember that this should be followed by running pre-commit that will automatically update
-the ``generated/provider_dependencies.json`` directory with the new dependencies:
+the ``pyproject.toml`` with the new dependencies as the ``provider.yaml`` files are not used directly, they
+are used to update ``pyproject.toml`` file:
 
 .. code-block:: bash
 
     pre-commit run update-providers-dependencies  --all-files
-
 
 You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
 command - which provides autocomplete.

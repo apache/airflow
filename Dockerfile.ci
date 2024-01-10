@@ -599,10 +599,11 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
-            # Remove airflow and reinstall it using editable flag
+            # Remove airflow and all providers and reinstall it using editable flag
             # We can only do it when we install airflow from sources
             set -x
-            pip uninstall apache-airflow --yes
+            pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
+            pip uninstall apache-airflow --yes 2>/dev/null || true
             pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
@@ -624,7 +625,7 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         common::install_pip_version
-        # then upgrade if needed without using constraints to account for new limits in setup.py
+        # then upgrade if needed without using constraints to account for new limits in pyproject.toml
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
@@ -900,7 +901,7 @@ function check_download_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "sqlalchemy>=" setup.cfg | sed "s/.*>=\([0-9\.]*\).*/\1/")
+    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -1058,8 +1059,6 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="6"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-# By default in the image, we are installing all providers when installing from sources
-ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ARG AIRFLOW_PIP_VERSION=23.3.2
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1089,7 +1088,6 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
-    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # In the CI image we always:
@@ -1117,11 +1115,12 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
 #
-# Aiobotocore is limited for eager upgrade because it either causes a long backtracking or
-# conflict when we do not limit it. It seems that `pip` has a hard time figuring the right
-# combination of dependencies for aiobotocore, botocore, boto3 and s3fs together
+# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
+# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
+# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
+# We should update it every time a new version of aiobotocore is released supporting 1.34
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="aiobotocore>=2.5.4"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
@@ -1139,8 +1138,7 @@ COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_bra
 # In case of CI builds we want to pre-install main version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
-# The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
-# are uninstalled, only dependencies remain.
+# The Airflow and providers are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 RUN bash /scripts/docker/install_pip_version.sh; \
@@ -1159,21 +1157,22 @@ COPY --from=scripts install_pipx_tools.sh /scripts/docker/
 RUN bash /scripts/docker/install_pipx_tools.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
-# We copy setup.py and other files needed to perform setup of dependencies
-# So in case setup.py changes we can install latest dependencies required.
-COPY setup.py ${AIRFLOW_SOURCES}/setup.py
-COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
+# We copy pyproject.toml and other files needed to perform setup of dependencies
+# So in case pyproject.toml changes we can install latest dependencies required.
+COPY pyproject.toml ${AIRFLOW_SOURCES}/pyproject.toml
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
-COPY generated/provider_dependencies.json ${AIRFLOW_SOURCES}/generated/
+COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
-
+COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
+COPY dev/airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/dev/airflow_pre_installed_providers.txt
+COPY dev/hatch_build.py ${AIRFLOW_SOURCES}/dev/hatch_build.py
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
-# The goal of this line is to install the dependencies from the most current setup.py from sources
+# The goal of this line is to install the dependencies from the most current pyproject.toml from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-# Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
-# But in cron job we will install latest versions matching setup.py to see if there is no breaking change
+# Usually we will install versions based on the dependencies in pyproject.toml and upgraded only if needed.
+# But in cron job we will install latest versions matching pyproject.toml to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN bash /scripts/docker/install_airflow.sh
 
