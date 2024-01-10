@@ -540,7 +540,6 @@ class DatabricksHook(BaseDatabricksHook):
         else:
             return repair_history[-1]["id"]
 
-
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """
         Retrieve run state of the cluster.

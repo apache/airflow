@@ -750,7 +750,7 @@ class TestDatabricksHook:
                     "id": 52532060060836,
                     "task_run_ids": [396529700633015, 1111270934390307],
                 },
-            ]
+            ],
         }
         latest_repair_id = self.hook.get_latest_repair_id(RUN_ID)
 
