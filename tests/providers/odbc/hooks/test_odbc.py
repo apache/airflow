@@ -329,9 +329,7 @@ class TestOdbcHook:
             result = hook.run("SQL", handler=mock_handler)
         assert hook_result == result
 
-    def test_query_return_serializable_result_empty(
-        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
-    ):
+    def test_query_return_serializable_result_empty(self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck):
         """
         Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
         get converted into a list of tuples.
