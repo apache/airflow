@@ -350,11 +350,7 @@ ldap = [
 leveldb = ["plyvel"]
 otel = ["opentelemetry-exporter-prometheus"]
 pandas = [
-    "pandas>=0.17.1",
-    # Use pyarrow-hotfix to fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
-    # We should remove it once Apache Beam frees us to upgrade to pyarrow 14.0.1
-    "pyarrow-hotfix",
-    "pyarrow>=9.0.0",
+    "pandas>=1.2.5",
 ]
 password = [
     "bcrypt>=2.0.0",
