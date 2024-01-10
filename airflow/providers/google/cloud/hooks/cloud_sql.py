@@ -771,8 +771,9 @@ class CloudSQLDatabaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         default_gcp_project_id: str | None = None,
         sql_proxy_binary_path: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)

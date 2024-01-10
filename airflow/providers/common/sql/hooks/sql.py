@@ -148,7 +148,7 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
-        super().__init__()
+        super().__init__(logger_name=kwargs.pop("logger_name", None))
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
         elif len(args) == 1:

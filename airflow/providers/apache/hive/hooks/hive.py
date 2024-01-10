@@ -98,8 +98,9 @@ class HiveCliHook(BaseHook):
         hive_cli_params: str = "",
         auth: str | None = None,
         proxy_user: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
@@ -495,8 +496,8 @@ class HiveMetastoreHook(BaseHook):
     conn_type = "hive_metastore"
     hook_name = "Hive Metastore Thrift"
 
-    def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, metastore_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn = self.get_connection(metastore_conn_id)
         self.metastore = self.get_metastore_client()
 
