@@ -115,8 +115,8 @@ class TestAwsAuthManagerAuthenticationViews:
                     "email": ["email"],
                 }
                 mock_init_saml_auth.return_value = auth
-                app = application.create_app(testing=True)
-                with app.test_client() as client:
+                connexion_app = application.create_app(testing=True)
+                with connexion_app.test_client() as client:
                     response = client.get("/login_callback")
                     assert response.status_code == 302
                     assert response.location == url_for("Airflow.index")
@@ -145,8 +145,8 @@ class TestAwsAuthManagerAuthenticationViews:
                 auth = Mock()
                 auth.is_authenticated.return_value = False
                 mock_init_saml_auth.return_value = auth
-                app = application.create_app(testing=True)
-                with app.test_client() as client:
+                connexion_app = application.create_app(testing=True)
+                with connexion_app.test_client() as client:
                     with pytest.raises(AirflowException):
                         client.get("/login_callback")
 

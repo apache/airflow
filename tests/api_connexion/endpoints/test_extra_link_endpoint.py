@@ -42,10 +42,10 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -54,12 +54,12 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestGetExtraLinks:
@@ -70,13 +70,13 @@ class TestGetExtraLinks:
         clear_db_runs()
         clear_db_xcom()
 
-        self.app = configured_app
+        self.connexion_app = configured_app
 
         self.dag = self._create_dag()
 
-        self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
-        self.app.dag_bag.sync_to_db()  # type: ignore
+        self.connexion_app.app.dag_bag = DagBag(os.devnull, include_examples=False)
+        self.connexion_app.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
+        self.connexion_app.app.dag_bag.sync_to_db()  # type: ignore
 
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
@@ -88,7 +88,7 @@ class TestGetExtraLinks:
         )
         session.flush()
 
-        self.client = self.app.test_client()  # type:ignore
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self) -> None:
         clear_db_runs()

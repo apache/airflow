@@ -235,7 +235,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"accounts": param}):
             EmptyOperator(task_id="task1")
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"dags/{DAG_ID}/trigger")
 
     check_content_in_response(
@@ -276,7 +276,7 @@ def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypat
             ):
                 EmptyOperator(task_id="task1")
 
-            m.setattr(app, "dag_bag", dag_maker.dagbag)
+            m.setattr(app.app, "dag_bag", dag_maker.dagbag)
             resp = admin_client.get(f"dags/{DAG_ID}/trigger")
 
         if expect_escape:
@@ -340,7 +340,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"dag_param": param}):
             EmptyOperator(task_id="task1")
 
-        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        m.setattr(app.app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"dags/{DAG_ID}/trigger")
 
     check_content_in_response(

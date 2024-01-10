@@ -49,10 +49,10 @@ class CustomXCom(BaseXCom):
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -61,23 +61,23 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_granular_permissions",
         role_name="TestGranularDag",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "test-dag-id-1",
         access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 def _compare_xcom_collections(collection1: dict, collection_2: dict):
@@ -109,8 +109,8 @@ class TestXComEndpoint:
         """
         Setup For XCom endpoint TC
         """
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
         # clear existing xcoms
         self.clean_db()
 

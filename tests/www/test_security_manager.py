@@ -39,7 +39,7 @@ def app():
 
 @pytest.fixture()
 def app_builder(app):
-    return app.appbuilder
+    return app.app.appbuilder
 
 
 @pytest.fixture()

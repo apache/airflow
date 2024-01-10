@@ -49,27 +49,27 @@ MOCK_CONF_WITH_SENSITIVE_VALUE = {
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)],  # type: ignore
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     with conf_vars({("webserver", "expose_config"): "True"}):
         yield minimal_app_for_api
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestGetConfig:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_text_plain(self, mock_as_dict):
@@ -226,8 +226,8 @@ class TestGetConfig:
 class TestGetValue:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_text_plain(self, mock_as_dict):

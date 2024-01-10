@@ -161,7 +161,7 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
 
 @pytest.fixture()
 def patch_app(app, dag):
-    with mock.patch.object(app, "dag_bag") as mock_dag_bag:
+    with mock.patch.object(app.app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         yield app
 
@@ -321,7 +321,7 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
         Variable.set("plain_var", "banana")
         Variable.set("secret_var", "monkey")
 
-    dag: DAG = patch_app.dag_bag.get_dag("testdag")
+    dag: DAG = patch_app.app.dag_bag.get_dag("testdag")
     task_secret: BashOperator = dag.get_task(task_id="task1")
     task_secret.env = env
     date = quote_plus(str(DEFAULT_DATE))

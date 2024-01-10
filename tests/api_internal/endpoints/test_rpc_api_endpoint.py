@@ -68,8 +68,8 @@ def equals(a, b) -> bool:
 class TestRpcApiEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
-        self.app = minimal_app_for_internal_api
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = minimal_app_for_internal_api
+        self.client = self.connexion_app.test_client()  # type:ignore
         mock_test_method.reset_mock()
         mock_test_method.side_effect = None
         with mock.patch(

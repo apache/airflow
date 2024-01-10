@@ -34,7 +34,7 @@ def client_with_login(app, expected_response_code=302, **kwargs):
 
 def client_without_login(app):
     # Anonymous users can only view if AUTH_ROLE_PUBLIC is set to non-Public
-    app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+    app.app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
     client = app.test_client()
     return client
 

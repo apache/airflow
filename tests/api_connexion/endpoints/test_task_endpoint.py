@@ -36,9 +36,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -47,12 +47,12 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestTaskEndpoint:
@@ -80,7 +80,7 @@ class TestTaskEndpoint:
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag, mapped_dag.dag_id: mapped_dag}
-        configured_app.dag_bag = dag_bag  # type:ignore
+        configured_app.app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
     def clean_db():
@@ -91,8 +91,9 @@ class TestTaskEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, setup_dag) -> None:
         self.clean_db()
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self) -> None:
         self.clean_db()
@@ -180,10 +181,10 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_should_respond_200_serialized(self):
         # Get the dag out of the dagbag before we patch it to an empty one
-        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
+        SerializedDagModel.write_dag(self.flask_app.dag_bag.get_dag(self.dag_id))
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)
+        patcher = unittest.mock.patch.object(self.flask_app, "dag_bag", dag_bag)
         patcher.start()
 
         expected = {

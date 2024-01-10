@@ -150,8 +150,8 @@ def test_roles_read_unauthorized(viewer_client):
 @pytest.fixture(scope="module")
 def delete_role_if_exists(app):
     def func(role_name):
-        if app.appbuilder.sm.find_role(role_name):
-            app.appbuilder.sm.delete_role(role_name)
+        if app.app.appbuilder.sm.find_role(role_name):
+            app.app.appbuilder.sm.delete_role(role_name)
 
     return func
 
@@ -167,32 +167,32 @@ def non_exist_role_name(delete_role_if_exists):
 @pytest.fixture()
 def exist_role_name(app, delete_role_if_exists):
     role_name = "test_roles_create_role_new"
-    app.appbuilder.sm.add_role(role_name)
+    app.app.appbuilder.sm.add_role(role_name)
     yield role_name
     delete_role_if_exists(role_name)
 
 
 @pytest.fixture()
 def exist_role(app, exist_role_name):
-    return app.appbuilder.sm.find_role(exist_role_name)
+    return app.app.appbuilder.sm.find_role(exist_role_name)
 
 
 def test_roles_create(app, admin_client, non_exist_role_name):
     admin_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
-    assert app.appbuilder.sm.find_role(non_exist_role_name) is not None
+    assert app.app.appbuilder.sm.find_role(non_exist_role_name) is not None
 
 
 def test_roles_create_unauthorized(app, viewer_client, non_exist_role_name):
     resp = viewer_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
     check_content_in_response("Access is Denied", resp)
-    assert app.appbuilder.sm.find_role(non_exist_role_name) is None
+    assert app.app.appbuilder.sm.find_role(non_exist_role_name) is None
 
 
 def test_roles_edit(app, admin_client, non_exist_role_name, exist_role):
     admin_client.post(
         f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
     )
-    updated_role = app.appbuilder.sm.find_role(non_exist_role_name)
+    updated_role = app.app.appbuilder.sm.find_role(non_exist_role_name)
     assert exist_role.id == updated_role.id
 
 
@@ -201,19 +201,19 @@ def test_roles_edit_unauthorized(app, viewer_client, non_exist_role_name, exist_
         f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
     )
     check_content_in_response("Access is Denied", resp)
-    assert app.appbuilder.sm.find_role(exist_role_name)
-    assert app.appbuilder.sm.find_role(non_exist_role_name) is None
+    assert app.app.appbuilder.sm.find_role(exist_role_name)
+    assert app.app.appbuilder.sm.find_role(non_exist_role_name) is None
 
 
 def test_roles_delete(app, admin_client, exist_role_name, exist_role):
     admin_client.post(f"roles/delete/{exist_role.id}", follow_redirects=True)
-    assert app.appbuilder.sm.find_role(exist_role_name) is None
+    assert app.app.appbuilder.sm.find_role(exist_role_name) is None
 
 
 def test_roles_delete_unauthorized(app, viewer_client, exist_role, exist_role_name):
     resp = viewer_client.post(f"roles/delete/{exist_role.id}", follow_redirects=True)
     check_content_in_response("Access is Denied", resp)
-    assert app.appbuilder.sm.find_role(exist_role_name)
+    assert app.app.appbuilder.sm.find_role(exist_role_name)
 
 
 @pytest.mark.parametrize(
@@ -281,7 +281,7 @@ def test_views_post(admin_client, url, check_response):
     ids=["my-viewer", "pk-admin", "pk-viewer"],
 )
 def test_resetmypasswordview_edit(app, request, url, client, content, username):
-    user = app.appbuilder.sm.find_user(username)
+    user = app.app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
         url.format(user.id), data={"password": "blah", "conf_password": "blah"}, follow_redirects=True
     )
@@ -321,13 +321,13 @@ def test_views_post_access_denied(viewer_client, url):
 @pytest.fixture()
 def non_exist_username(app):
     username = "fake_username"
-    user = app.appbuilder.sm.find_user(username)
+    user = app.app.appbuilder.sm.find_user(username)
     if user is not None:
-        app.appbuilder.sm.del_register_user(user)
+        app.app.appbuilder.sm.del_register_user(user)
     yield username
-    user = app.appbuilder.sm.find_user(username)
+    user = app.app.appbuilder.sm.find_user(username)
     if user is not None:
-        app.appbuilder.sm.del_register_user(user)
+        app.app.appbuilder.sm.del_register_user(user)
 
 
 def test_create_user(app, admin_client, non_exist_username):
@@ -345,13 +345,13 @@ def test_create_user(app, admin_client, non_exist_username):
         follow_redirects=True,
     )
     check_content_in_response("Added Row", resp)
-    assert app.appbuilder.sm.find_user(non_exist_username)
+    assert app.app.appbuilder.sm.find_user(non_exist_username)
 
 
 @pytest.fixture()
 def exist_username(app, exist_role):
     username = "test_edit_user_user"
-    app.appbuilder.sm.add_user(
+    app.app.appbuilder.sm.add_user(
         username,
         "first_name",
         "last_name",
@@ -360,12 +360,12 @@ def exist_username(app, exist_role):
         password="password",
     )
     yield username
-    if app.appbuilder.sm.find_user(username):
-        app.appbuilder.sm.del_register_user(username)
+    if app.app.appbuilder.sm.find_user(username):
+        app.app.appbuilder.sm.del_register_user(username)
 
 
 def test_edit_user(app, admin_client, exist_username):
-    user = app.appbuilder.sm.find_user(exist_username)
+    user = app.app.appbuilder.sm.find_user(exist_username)
     resp = admin_client.post(
         f"users/edit/{user.id}",
         data={"first_name": "new_first_name"},
@@ -375,7 +375,7 @@ def test_edit_user(app, admin_client, exist_username):
 
 
 def test_delete_user(app, admin_client, exist_username):
-    user = app.appbuilder.sm.find_user(exist_username)
+    user = app.app.appbuilder.sm.find_user(exist_username)
     resp = admin_client.post(
         f"users/delete/{user.id}",
         follow_redirects=True,
@@ -419,5 +419,5 @@ def test_page_instance_name_with_markup(admin_client):
 
 @conf_vars(instance_name_with_markup_conf)
 def test_page_instance_name_with_markup_title():
-    appbuilder = application.create_app(testing=True).appbuilder
+    appbuilder = application.create_app(testing=True).app.appbuilder
     assert appbuilder.app_name == "Bold Site Title Test"

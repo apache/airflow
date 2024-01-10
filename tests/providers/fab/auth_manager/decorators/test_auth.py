@@ -53,7 +53,7 @@ def mock_auth_manager(mock_sm):
 @pytest.fixture
 def mock_app(mock_appbuilder):
     app = Mock()
-    app.appbuilder = mock_appbuilder
+    app.app.appbuilder = mock_appbuilder
     return app
 
 
@@ -76,11 +76,11 @@ class TestFabAuthManagerDecorators:
     def test_requires_access_fab_sync_resource_permissions(
         self, mock_get_auth_manager, mock_sm, mock_appbuilder, mock_auth_manager, app
     ):
-        app.appbuilder = mock_appbuilder
+        app.app.appbuilder = mock_appbuilder
         mock_appbuilder.update_perms = True
         mock_get_auth_manager.return_value = mock_auth_manager
 
-        with app.test_request_context():
+        with app.app.test_request_context():
 
             @_requires_access_fab()
             def decorated_requires_access_fab():
@@ -96,7 +96,7 @@ class TestFabAuthManagerDecorators:
         mock_sm.check_authorization.return_value = False
         mock_get_auth_manager.return_value = mock_auth_manager
 
-        with app.test_request_context():
+        with app.app.test_request_context():
 
             @_requires_access_fab(permissions)
             def decorated_requires_access_fab():
@@ -117,7 +117,7 @@ class TestFabAuthManagerDecorators:
         mock_sm.check_authorization.return_value = True
         mock_get_auth_manager.return_value = mock_auth_manager
 
-        with app.test_request_context():
+        with app.app.test_request_context():
 
             @_requires_access_fab(permissions)
             def decorated_requires_access_fab():
@@ -131,8 +131,8 @@ class TestFabAuthManagerDecorators:
 
     @patch("airflow.providers.fab.auth_manager.decorators.auth._has_access")
     def test_has_access_fab_with_no_dags(self, mock_has_access, mock_sm, mock_appbuilder, app):
-        app.appbuilder = mock_appbuilder
-        with app.test_request_context():
+        app.app.appbuilder = mock_appbuilder
+        with app.app.test_request_context():
             decorated_has_access_fab()
 
         mock_sm.check_authorization.assert_called_once_with(permissions, None)
@@ -143,8 +143,8 @@ class TestFabAuthManagerDecorators:
     def test_has_access_fab_with_multiple_dags_render_error(
         self, mock_has_access, mock_render_template, mock_sm, mock_appbuilder, app
     ):
-        app.appbuilder = mock_appbuilder
-        with app.test_request_context() as mock_context:
+        app.app.appbuilder = mock_appbuilder
+        with app.app.test_request_context() as mock_context:
             mock_context.request.args = {"dag_id": "dag1"}
             mock_context.request.form = {"dag_id": "dag2"}
             decorated_has_access_fab()

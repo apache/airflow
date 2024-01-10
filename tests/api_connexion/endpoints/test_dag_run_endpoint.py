@@ -44,10 +44,10 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -62,7 +62,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_dag_view_only",
         role_name="TestViewDags",
         permissions=[
@@ -74,7 +74,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_view_dags",
         role_name="TestViewDags",
         permissions=[
@@ -83,25 +83,25 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_granular_permissions",
         role_name="TestGranularDag",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_ID",
         access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_dag_view_only")  # type: ignore
-    delete_user(app, username="test_view_dags")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_roles(app)
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_dag_view_only")  # type: ignore
+    delete_user(connexion_app.app, username="test_view_dags")  # type: ignore
+    delete_user(connexion_app.app, username="test_granular_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_roles(connexion_app.app)
 
 
 class TestDagRunEndpoint:
@@ -111,8 +111,9 @@ class TestDagRunEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = configured_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
@@ -128,7 +129,7 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -1416,7 +1417,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1460,7 +1461,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dag_maker.create_dagrun(run_id=dag_run_id)
 
         response = self.client.patch(
@@ -1537,7 +1538,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1580,7 +1581,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
@@ -1601,7 +1602,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task

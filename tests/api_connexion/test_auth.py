@@ -32,9 +32,10 @@ pytestmark = pytest.mark.db_test
 class BaseTestAuth:
     @pytest.fixture(autouse=True)
     def set_attrs(self, minimal_app_for_api):
-        self.app = minimal_app_for_api
+        self.connexion_app = minimal_app_for_api
+        self.flask_app = self.connexion_app.app
 
-        sm = self.app.appbuilder.sm
+        sm = self.flask_app.appbuilder.sm
         tester = sm.find_user(username="test")
         if not tester:
             role_admin = sm.find_role("Admin")
@@ -53,20 +54,21 @@ class TestBasicAuth(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        flask_app = minimal_app_for_api.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_success(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
@@ -103,7 +105,7 @@ class TestBasicAuth(BaseTestAuth):
         ],
     )
     def test_malformed_headers(self, token):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
@@ -120,7 +122,7 @@ class TestBasicAuth(BaseTestAuth):
         ],
     )
     def test_invalid_auth_header(self, token):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
@@ -133,19 +135,20 @@ class TestSessionAuth(BaseTestAuth):
     def with_session_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        flask_app = minimal_app_for_api.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_success(self):
         clear_db_pools()
 
-        admin_user = client_with_login(self.app, username="test", password="test")
+        admin_user = client_with_login(self.connexion_app, username="test", password="test")
         response = admin_user.get("/api/v1/pools")
         assert response.status_code == 200
         assert response.json == {
@@ -167,7 +170,7 @@ class TestSessionAuth(BaseTestAuth):
         }
 
     def test_failure(self):
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools")
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
@@ -179,7 +182,8 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        flask_app = minimal_app_for_api.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars(
@@ -190,26 +194,26 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
                     ): "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
                 }
             ):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_basic_auth_fallback(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
         # request uses session
-        admin_user = client_with_login(self.app, username="test", password="test")
+        admin_user = client_with_login(self.connexion_app, username="test", password="test")
         response = admin_user.get("/api/v1/pools")
         assert response.status_code == 200
 
         # request uses basic auth
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 200
 
         # request without session or basic auth header
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools")
             assert response.status_code == 401

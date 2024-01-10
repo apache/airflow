@@ -42,38 +42,38 @@ TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        connexion_app.app,  # type:ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)],  # type: ignore
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         TEST_DAG_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         EXAMPLE_DAG_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         TEST_MULTIPLE_DAGS_ID,
         access_control={"Test": [permissions.ACTION_CAN_READ]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestGetSource:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
         self.clear_db()
 
     def teardown_method(self) -> None:

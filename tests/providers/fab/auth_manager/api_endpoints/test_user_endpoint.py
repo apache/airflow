@@ -36,9 +36,9 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
-    app = minimal_app_for_auth_api
+    connexion_app = minimal_app_for_auth_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -48,20 +48,21 @@ def configured_app(minimal_app_for_auth_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestUserEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
-        self.session = self.app.appbuilder.get_session
+        self.connexion_app = configured_app
+        self.flask_app = self.connexion_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
+        self.session = self.flask_app.appbuilder.get_session
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
@@ -363,7 +364,7 @@ def autoclean_email():
 @pytest.fixture()
 def user_with_same_username(configured_app, autoclean_username):
     user = create_user(
-        configured_app,
+        configured_app.app,
         username=autoclean_username,
         email="another_user@example.com",
         role_name="TestNoPermissions",
@@ -375,7 +376,7 @@ def user_with_same_username(configured_app, autoclean_username):
 @pytest.fixture()
 def user_with_same_email(configured_app, autoclean_email):
     user = create_user(
-        configured_app,
+        configured_app.app,
         username="another_user",
         email=autoclean_email,
         role_name="TestNoPermissions",
@@ -390,7 +391,7 @@ def user_different(configured_app):
     email = "another_user@example.com"
 
     _delete_user(username=username, email=email)
-    user = create_user(configured_app, username=username, email=email, role_name="TestNoPermissions")
+    user = create_user(configured_app.app, username=username, email=email, role_name="TestNoPermissions")
     assert user, "failed to create user 'another_user <another_user@example.com>'"
     yield user
     _delete_user(username=username, email=email)
@@ -409,7 +410,7 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
 
 @pytest.fixture()
 def autoclean_admin_user(configured_app, autoclean_user_payload):
-    security_manager = configured_app.appbuilder.sm
+    security_manager = configured_app.app.appbuilder.sm
     return security_manager.add_user(
         role=security_manager.find_role("Admin"),
         **autoclean_user_payload,
@@ -425,7 +426,7 @@ class TestPostUser(TestUserEndpoint):
         )
         assert response.status_code == 200, response.json
 
-        security_manager = self.app.appbuilder.sm
+        security_manager = self.flask_app.appbuilder.sm
         user = security_manager.find_user(autoclean_username)
         assert user is not None
         assert user.roles == [security_manager.find_role("Public")]
@@ -438,7 +439,7 @@ class TestPostUser(TestUserEndpoint):
         )
         assert response.status_code == 200, response.json
 
-        security_manager = self.app.appbuilder.sm
+        security_manager = self.flask_app.appbuilder.sm
         user = security_manager.find_user(autoclean_username)
         assert user is not None
         assert {r.name for r in user.roles} == {"User", "Viewer"}
@@ -534,7 +535,7 @@ class TestPostUser(TestUserEndpoint):
         }
 
     def test_internal_server_error(self, autoclean_user_payload):
-        with unittest.mock.patch.object(self.app.appbuilder.sm, "add_user", return_value=None):
+        with unittest.mock.patch.object(self.flask_app.appbuilder.sm, "add_user", return_value=None):
             response = self.client.post(
                 "/auth/fab/v1/users",
                 json=autoclean_user_payload,
