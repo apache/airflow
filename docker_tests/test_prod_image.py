@@ -158,6 +158,7 @@ class TestPythonPackages:
         "grpc": ["grpc", "google.auth", "google_auth_httplib2"],
         "hashicorp": ["hvac"],
         "ldap": ["ldap"],
+        "mysql": ["MySQLdb", *(["mysql"] if bool(find_spec("mysql")) else [])],
         "postgres": ["psycopg2"],
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
@@ -167,8 +168,6 @@ class TestPythonPackages:
         "statsd": ["statsd"],
         "virtualenv": ["virtualenv"],
     }
-    if bool(find_spec("mysql")):
-        PACKAGE_IMPORTS["mysql"] = ["mysql"]
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
