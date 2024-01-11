@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperati
 from airflow.triggers.base import TriggerEvent
 
 TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
-TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger"
+TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEPodAsyncHook"
 POD_NAME = "test-pod-name"
 NAMESPACE = "default"
