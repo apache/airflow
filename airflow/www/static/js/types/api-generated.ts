@@ -676,13 +676,13 @@ export interface paths {
     /**
      * Get a list of roles.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_roles"];
     /**
      * Create a new role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_role"];
   };
@@ -690,19 +690,19 @@ export interface paths {
     /**
      * Get a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_role"];
     /**
      * Delete a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_role"];
     /**
      * Update a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_role"];
     parameters: {
@@ -716,7 +716,7 @@ export interface paths {
     /**
      * Get a list of permissions.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_permissions"];
   };
@@ -724,13 +724,13 @@ export interface paths {
     /**
      * Get a list of users.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_users"];
     /**
      * Create a new user with unique username and email.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_user"];
   };
@@ -738,19 +738,19 @@ export interface paths {
     /**
      * Get a user with a specific username.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_user"];
     /**
      * Delete a user with a specific username.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_user"];
     /**
      * Update fields for a user.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_user"];
     parameters: {
@@ -4400,7 +4400,7 @@ export interface operations {
   /**
    * Get a list of roles.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_roles: {
     parameters: {
@@ -4432,7 +4432,7 @@ export interface operations {
   /**
    * Create a new role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_role: {
     responses: {
@@ -4455,7 +4455,7 @@ export interface operations {
   /**
    * Get a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_role: {
     parameters: {
@@ -4479,7 +4479,7 @@ export interface operations {
   /**
    * Delete a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_role: {
     parameters: {
@@ -4500,7 +4500,7 @@ export interface operations {
   /**
    * Update a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_role: {
     parameters: {
@@ -4537,7 +4537,7 @@ export interface operations {
   /**
    * Get a list of permissions.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_permissions: {
     parameters: {
@@ -4562,7 +4562,7 @@ export interface operations {
   /**
    * Get a list of users.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_users: {
     parameters: {
@@ -4594,7 +4594,7 @@ export interface operations {
   /**
    * Create a new user with unique username and email.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_user: {
     responses: {
@@ -4618,7 +4618,7 @@ export interface operations {
   /**
    * Get a user with a specific username.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_user: {
     parameters: {
@@ -4646,7 +4646,7 @@ export interface operations {
   /**
    * Delete a user with a specific username.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_user: {
     parameters: {
@@ -4671,7 +4671,7 @@ export interface operations {
   /**
    * Update fields for a user.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_user: {
     parameters: {

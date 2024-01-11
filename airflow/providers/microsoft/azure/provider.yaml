@@ -95,6 +95,9 @@ dependencies:
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=9.0.0
 
+devel-dependencies:
+  - pywinrm
+
 integrations:
   - integration-name: Microsoft Azure Batch
     external-doc-url: https://azure.microsoft.com/en-us/services/batch/

@@ -274,11 +274,6 @@ repos:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
-  - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.15
-    hooks:
-      - id: validate-pyproject
-        name: Validate pyproject.toml
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
@@ -333,13 +328,6 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
-      - id: check-setup-order
-        name: Check order of dependencies in setup.cfg and setup.py
-        language: python
-        files: ^setup\.cfg$|^setup\.py$
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-k8s-not-used
         name: Check airflow.kubernetes imports are not used
         language: python
@@ -362,14 +350,6 @@ repos:
         require_serial: true
         exclude: ^airflow/kubernetes/|^airflow/providers/
         entry: ./scripts/ci/pre_commit/pre_commit_check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-extra-packages-references
-        name: Checks setup extra packages
-        description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
-        language: python
-        files: ^setup\.py$|^docs/apache-airflow/extra-packages-ref\.rst$|^airflow/providers/.*/provider\.yaml$
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-provider-compatibility
         name: Check compatibility of Providers with Airflow
@@ -400,19 +380,34 @@ repos:
         files: ^airflow/providers/.*/hooks/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
-        name: Update cross-dependencies for providers packages
+        name: Update dependencies for provider packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
-        files: ^airflow/providers/.*\.py$|^airflow/providers/.*/provider\.yaml$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^airflow/providers/.*/provider\.yaml$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^scripts/ci/pre_commit/pre_commit_update_providers_dependencies\.py$
         pass_filenames: false
-        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
+        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
+      - id: check-extra-packages-references
+        name: Checks setup extra packages
+        description: Checks if all the extras defined in pyproject.toml are listed in extra-packages-ref.rst file
+        language: python
+        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^pyproject.toml
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_extra_packages_ref.py
+        additional_dependencies: ['rich>=12.4.4', 'tomli', 'tabulate']
+      - id: check-pyproject-toml-order
+        name: Check order of dependencies in pyproject.toml
+        language: python
+        files: ^pyproject\.toml$
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_pyproject_toml.py
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
         files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -712,7 +707,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^airflow/providers/installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^dev/.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted

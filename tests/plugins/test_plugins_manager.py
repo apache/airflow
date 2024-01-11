@@ -32,13 +32,14 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
 importlib_metadata_string = "importlib_metadata"
+
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 
 try:
     import importlib_metadata

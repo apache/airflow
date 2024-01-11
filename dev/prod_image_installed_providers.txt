@@ -1,3 +1,4 @@
+# List of all the providers installed in regular airflow PROD image
 amazon
 celery
 cncf.kubernetes

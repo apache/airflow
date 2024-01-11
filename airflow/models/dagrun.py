@@ -1040,8 +1040,8 @@ class DagRun(Base, LoggingMixin):
 
         duration = self.end_date - self.start_date
         timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:

@@ -56,6 +56,11 @@ dependencies:
   - apache-beam>=2.53.0
   - pyarrow>=14.0.1
 
+additional-extras:
+  - name: google
+    dependencies:
+      - apache-beam[gcp]
+
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/
@@ -77,8 +82,3 @@ triggers:
   - integration-name: Apache Beam
     python-modules:
       - airflow.providers.apache.beam.triggers.beam
-
-additional-extras:
-  - name: google
-    dependencies:
-      - apache-beam[gcp]

@@ -966,6 +966,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
+        except ImportError as e:
+            if "No module named 'flask_appbuilder'" in e.msg:
+                log.warning(
+                    "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
+                    "the 'flask_appbuilder' package is not installed, however it is not required for "
+                    "Airflow components to work",
+                    hook_class_name,
+                )
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",

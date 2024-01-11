@@ -56,9 +56,6 @@ services:
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
       - type: bind
-        source: ../../../MANIFEST.in
-        target: /opt/airflow/MANIFEST.in
-      - type: bind
         source: ../../../NOTICE
         target: /opt/airflow/NOTICE
       - type: bind
@@ -100,12 +97,6 @@ services:
       - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
-      - type: bind
-        source: ../../../setup.cfg
-        target: /opt/airflow/setup.cfg
-      - type: bind
-        source: ../../../setup.py
-        target: /opt/airflow/setup.py
       - type: bind
         source: ../../../tests
         target: /opt/airflow/tests

@@ -50,7 +50,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - hvac>=0.10
+  - hvac>=1.1.0
 
 integrations:
   - integration-name: Hashicorp Vault
