@@ -832,6 +832,25 @@ if PACKAGE_NAME == "apache-airflow":
     # Options for script updater
     redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
 
+elif PACKAGE_NAME == "apache-airflow-providers-fab":
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            "name": "Fab provider REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
 
 def skip_util_classes(app, what, name, obj, skip, options):
     if what == "data" and "STATICA_HACK" in name:
