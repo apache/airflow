@@ -43,7 +43,7 @@ Variable                                    Type                  Description
 ``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
-                                            KeyboardInterrupt     | 
+                                            KeyboardInterrupt     |
 ``{{ ts }}``                                str                   | Same as ``{{ dag_run.logical_date | ts }}``.
                                                                   | Example: ``2018-01-01T00:00:00+00:00``.
 ``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
