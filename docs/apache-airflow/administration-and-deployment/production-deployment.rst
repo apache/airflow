@@ -83,7 +83,6 @@ See :doc:`logging-monitoring/logging-tasks` for configurations.
     The logs only appear in your DFS after the task has finished. You can view the logs while the task is
     running in UI itself.
 
-
 Configuration
 =============
 
@@ -125,6 +124,73 @@ Helm Chart for Kubernetes
 
 `Helm <https://helm.sh/>`__ provides a simple mechanism to deploy software to a Kubernetes cluster. We maintain
 :doc:`an official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment. The Helm Chart uses :doc:`our official Docker image and Dockerfile <docker-stack:index>` that is also maintained and released by the community.
+
+
+Live-upgrading Airflow
+======================
+
+Airflow is by-design a distributed system and while the
+:ref:`basic Airflow deployment <overview-basic-airflow-architecture>` requires usually a complete Airflow
+restart to upgrade, it is possible to upgrade Airflow without any downtime when you run Airflow in a
+:ref:`distributed deployment <overview-basic-airflow-architecture>`.
+
+Such a live upgrade is possible when there are no changes in Airflow metadata database schema,
+so you should aim to do it when you upgrade Airflow patch-level (bugfix) versions of the same minor
+Airflow version or when upgrading between adjacent minor versions (feature) of Airflow after reviewing the
+:doc:`release notes <../release_notes>` and :doc:`../migrations-ref` and making sure there are no changes
+in the database schema between them.
+
+In some cases when database migration is not significant, such live migration could also potentially be
+possible with upgrading Airflow database first and between MINOR versions, however, this is not recommended
+and you should only do it on your own risk, carefully reviewing the modifications to be applied to the
+database schema and assessing the risk of such upgrade - it requires deep knowledge of Airflow
+database :doc:`../database-erd-ref` and reviewing the :doc:`../migrations-ref`. You should always thoroughly
+test such upgrade in a staging environment first. Usually cost connected with such live upgrade preparation
+will be higher than the cost of a short downtime of Airflow, so we strongly discourage such live upgrades.
+
+Make sure to test such live upgrade procedure in a staging environment before you do it in production,
+to avoid any surprises and side-effects.
+
+When it comes to live-upgrading the ``Webserver``, ``Triggerer`` components, if you run them in separate
+environments and have more than one instances for each of them, you can rolling-restart them one by one,
+without any downtime. This should usually be done as the first step in your upgrade procedure.
+
+When you are running a deployment with separate ``DAG processor``, in a
+:ref:`Separate DAG processing deployment <overview-separate-dag-processing-airflow-architecture>`
+the ``DAG processor`` is not horizontally scaled - even if you have more of them there is usually one
+``DAG processor`` running at a time per specific folder, so you can just stop it and start the new one -
+but since the ``DAG processor`` is not a critical component, it's ok for it to experience a short downtime.
+
+When it comes to upgrading the schedulers and workers, you can use the live upgrade capabilities
+of the executor you use:
+
+* For the :doc:`Local executor <../core-concepts/executor/local>` your tasks are running as subprocesses of
+  scheduler and you cannot upgrade the Scheduler without killing the tasks run by it. You can either
+  pause all your DAGs and wait for the running tasks to complete or just stop the scheduler and kill all
+  the tasks it runs - then you will need to clear and restart those tasks manually after the upgrade
+  is completed (or rely on ``retry`` being set for stopped tasks).
+
+* For the :doc:`Celery executor <../core-concepts/executor/celery>`, you have to first put your workers in
+  offline mode (usually by setting a single ``TERM`` signal to the workers), wait until the workers
+  finish all the running tasks, and then upgrade the code (for example by replacing the image the workers run
+  in and restart the workers). You can monitor your workers via ``flower`` monitoring tool and see the number
+  of running tasks going down to zero. Once the workers are upgraded, they will be automatically put in online
+  mode and start picking up new tasks. You can then upgrade the ``Scheduler`` in a rolling restart mode.
+
+* For the :doc:`Kubernetes executor <../core-concepts/executor/kubernetes>`, you can upgrade the scheduler
+  triggerer, webserver in a rolling restart mode, and generally you should not worry about the workers, as they
+  are managed by the Kubernetes cluster and will be automatically adopted by ``Schedulers`` when they are
+  upgraded and restarted.
+
+* For the :doc:``CeleryKubernetesExecutor <../core-concepts/executor/celery-kubernetes>``, you follow the
+  same procedure as for the ``CeleryExecutor`` - you put the workers in offline mode, wait for the running
+  tasks to complete, upgrade the workers, and then upgrade the scheduler, triggerer and webserver in a
+  rolling restart mode - which should also adopt tasks run via the ``KubernetesExecutor`` part of the
+  executor.
+
+Most of the rolling-restart upgrade scenarios are implemented in the :doc:`helm-chart:index`, so you can
+use it to upgrade your Airflow deployment without any downtime - especially in case you do patch-level
+upgrades of Airflow.
 
 .. _production-deployment:kerberos:
 

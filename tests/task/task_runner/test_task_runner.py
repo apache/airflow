@@ -24,6 +24,9 @@ from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.task.task_runner import CORE_TASK_RUNNERS, get_task_runner
 from airflow.utils.module_loading import import_string
 
+pytestmark = pytest.mark.db_test
+
+
 custom_task_runner = mock.MagicMock()
 
 

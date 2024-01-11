@@ -66,8 +66,9 @@ class HttpHook(BaseHook):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
@@ -291,7 +292,9 @@ class HttpAsyncHook(BaseHook):
         auth_type: Any = aiohttp.BasicAuth,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
+        **kwargs,
     ) -> None:
+        super().__init__(**kwargs)
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
@@ -373,7 +376,7 @@ class HttpAsyncHook(BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PATCH") else None,
+                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,

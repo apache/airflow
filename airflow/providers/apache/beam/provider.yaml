@@ -21,8 +21,12 @@ name: Apache Beam
 description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
-suspended: false
+state: ready
+source-date-epoch: 1703288103
 versions:
+  - 5.5.0
+  - 5.4.0
+  - 5.3.0
   - 5.2.3
   - 5.2.2
   - 5.2.1
@@ -47,8 +51,15 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - apache-beam>=2.47.0
+  - apache-airflow>=2.6.0
+  # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
+  - apache-beam>=2.53.0
+  - pyarrow>=14.0.1
+
+additional-extras:
+  - name: google
+    dependencies:
+      - apache-beam[gcp]
 
 integrations:
   - integration-name: Apache Beam
@@ -71,8 +82,3 @@ triggers:
   - integration-name: Apache Beam
     python-modules:
       - airflow.providers.apache.beam.triggers.beam
-
-additional-extras:
-  - name: google
-    dependencies:
-      - apache-beam[gcp]

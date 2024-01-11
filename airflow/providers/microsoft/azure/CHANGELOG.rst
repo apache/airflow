@@ -27,6 +27,193 @@
 Changelog
 ---------
 
+8.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``azurefilesharehook fix with connection type azure (#36309)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix reraise outside of try block in 'AzureSynapsePipelineRunLink.get_fields_from_url' (#36009)``
+* ``Do not catch too broad exception in 'WasbHook.delete_container' (#36034)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Synapse Pipeline connection-type in the UI (#35709)``
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Add operator to invoke Azure-Synapse pipeline (#35091)``
+* ``Extend task context logging support for remote logging using WASB (Azure Blob Storage) (#32972)``
+
+Misc
+~~~~
+
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+8.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
+* ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
+* ``feat(provider/azure): add managed identity support to wasb hook (#35326)``
+* ``feat(provider/azure): add managed identity support to asb hook (#35324)``
+* ``feat(provider/azure): add managed identity support to cosmos hook (#35323)``
+* ``feat(provider/azure): add managed identity support to container_volume hook (#35321)``
+* ``feat(provider/azure): add managed identity support to container_instance hook (#35319)``
+* ``feat(provider/azure): add managed identity support to adx hook (#35325)``
+* ``feat(provider/azure): add managed identity support to batch hook (#35327)``
+* ``feat(provider/azure): add managed identity support to data_factory hook (#35328)``
+* ``feat(provider/azure): add managed identity support to synapse hook (#35329)``
+* ``feat(provider/azure): add managed identity support to fileshare hook (#35330)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
+* ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+
+
+Misc
+~~~~
+
+* ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
+* ``Refactor azure managed identity (#35367)``
+* ``Reuse get_default_azure_credential method from Azure utils method (#35318)``
+* `` make DefaultAzureCredential configurable in AzureKeyVaultBackend (#35052)``
+* ``Make DefaultAzureCredential in AzureBaseHook configuration (#35051)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
+8.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   In this version of the provider, we have removed network_profile param from AzureContainerInstancesOperator and
+   AzureDataFactoryHook methods and AzureDataFactoryRunPipelineOperator arguments resource_group_name and factory_name
+   is now required instead of kwargs
+
+* resource_group_name and factory_name is now required argument in AzureDataFactoryHook method get_factory, update_factory,
+  create_factory, delete_factory, get_linked_service, delete_linked_service, get_dataset, delete_dataset, get_dataflow,
+  update_dataflow, create_dataflow, delete_dataflow, get_pipeline, delete_pipeline, run_pipeline, get_pipeline_run,
+  get_trigger, get_pipeline_run_status, cancel_pipeline_run, create_trigger, delete_trigger, start_trigger,
+  stop_trigger, get_adf_pipeline_run_status, cancel_pipeline_run
+* resource_group_name and factory_name is now required in AzureDataFactoryRunPipelineOperator
+* Remove class ``PipelineRunInfo`` from ``airflow.providers.microsoft.azure.hooks.data_factory``
+* Remove ``network_profile`` param from ``AzureContainerInstancesOperator``
+* Remove deprecated ``extra__azure__tenantId`` from azure_container_instance connection extras
+* Remove deprecated ``extra__azure__subscriptionId`` from azure_container_instance connection extras
+
+
+* ``Bump azure-mgmt-containerinstance (#34738)``
+* ``Upgrade azure-mgmt-datafactory in microsift azure provider (#34040)``
+
+Features
+~~~~~~~~
+
+* ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
+* ``allow providing credentials through keyword argument in AzureKeyVaultBackend (#34706)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Name params while invoking ClientSecretCredential (#34732)``
+* ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
+* ``Error handling for when Azure container log cannot be read in properly. (#34627)``
+* ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in AzureBatchOperator (#34437)``
+* ``Consolidate hook management in AzureDataExplorerQueryOperator (#34436)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor: reduce some conditions in providers (#34440)``
+
 7.0.0
 .....
 

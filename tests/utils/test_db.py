@@ -31,13 +31,15 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, Table
+from sqlalchemy.sql import Select
 
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
     _get_alembic_config,
+    check_bad_references,
     check_migrations,
     compare_server_default,
     compare_type,
@@ -49,6 +51,9 @@ from airflow.utils.db import (
     resetdb,
     upgradedb,
 )
+from airflow.utils.session import NEW_SESSION
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDb:
@@ -57,7 +62,7 @@ class TestDb:
 
         airflow.models.import_all_models()
         all_meta_data = MetaData()
-        for (table_name, table) in airflow_base.metadata.tables.items():
+        for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
@@ -76,15 +81,6 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "taskset_id"),
             # from test_security unit test
             lambda t: (t[0] == "remove_table" and t[1].name == "some_model"),
-            # MSSQL default tables
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_monitor"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_db"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_usg"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "MSreplication_options"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "spt_fallback_dev"),
-            # MSSQL foreign keys where CASCADE has been removed
-            lambda t: (t[0] == "remove_fk" and t[1].name == "task_reschedule_dr_fkey"),
-            lambda t: (t[0] == "add_fk" and t[1].name == "task_reschedule_dr_fkey"),
             # Ignore flask-session table/index
             lambda t: (t[0] == "remove_table" and t[1].name == "session"),
             lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
@@ -251,3 +247,82 @@ class TestDb:
         import airflow
 
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
+
+    @mock.patch("airflow.utils.db._move_dangling_data_to_new_table")
+    @mock.patch("airflow.utils.db.get_query_count")
+    @mock.patch("airflow.utils.db._dangling_against_task_instance")
+    @mock.patch("airflow.utils.db._dangling_against_dag_run")
+    @mock.patch("airflow.utils.db.reflect_tables")
+    @mock.patch("airflow.utils.db.inspect")
+    def test_check_bad_references(
+        self,
+        mock_inspect: MagicMock,
+        mock_reflect_tables: MagicMock,
+        mock_dangling_against_dag_run: MagicMock,
+        mock_dangling_against_task_instance: MagicMock,
+        mock_get_query_count: MagicMock,
+        mock_move_dangling_data_to_new_table: MagicMock,
+    ):
+        from airflow.models.dagrun import DagRun
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+        from airflow.models.taskfail import TaskFail
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskreschedule import TaskReschedule
+        from airflow.models.xcom import XCom
+
+        mock_session = MagicMock(spec=NEW_SESSION)
+        mock_bind = MagicMock()
+        mock_session.get_bind.return_value = mock_bind
+        task_instance_table = MagicMock(spec=Table)
+        task_instance_table.name = TaskInstance.__tablename__
+        dag_run_table = MagicMock(spec=Table)
+        task_fail_table = MagicMock(spec=Table)
+        task_fail_table.name = TaskFail.__tablename__
+
+        mock_reflect_tables.return_value = MagicMock(
+            tables={
+                DagRun.__tablename__: dag_run_table,
+                TaskInstance.__tablename__: task_instance_table,
+                TaskFail.__tablename__: task_fail_table,
+            }
+        )
+
+        # Simulate that there is a moved `task_instance` table from the
+        # previous run, but no moved `task_fail` table
+        dangling_task_instance_table_name = f"_airflow_moved__2_2__dangling__{task_instance_table.name}"
+        dangling_task_fail_table_name = f"_airflow_moved__2_3__dangling__{task_fail_table.name}"
+        mock_get_table_names = MagicMock(
+            return_value=[
+                TaskInstance.__tablename__,
+                DagRun.__tablename__,
+                TaskFail.__tablename__,
+                dangling_task_instance_table_name,
+            ]
+        )
+        mock_inspect.return_value = MagicMock(
+            get_table_names=mock_get_table_names,
+        )
+        mock_select = MagicMock(spec=Select)
+        mock_dangling_against_dag_run.return_value = mock_select
+        mock_dangling_against_task_instance.return_value = mock_select
+        mock_get_query_count.return_value = 1
+
+        # Should return a single error related to the dangling `task_instance` table
+        errs = list(check_bad_references(session=mock_session))
+        assert len(errs) == 1
+        assert dangling_task_instance_table_name in errs[0]
+
+        mock_reflect_tables.assert_called_once_with(
+            [TaskInstance, TaskReschedule, RenderedTaskInstanceFields, TaskFail, XCom, DagRun, TaskInstance],
+            mock_session,
+        )
+        mock_inspect.assert_called_once_with(mock_bind)
+        mock_get_table_names.assert_called_once()
+        mock_dangling_against_dag_run.assert_called_once_with(
+            mock_session, task_instance_table, dag_run=dag_run_table
+        )
+        mock_get_query_count.assert_called_once_with(mock_select, session=mock_session)
+        mock_move_dangling_data_to_new_table.assert_called_once_with(
+            mock_session, task_fail_table, mock_select, dangling_task_fail_table_name
+        )
+        mock_session.rollback.assert_called_once()

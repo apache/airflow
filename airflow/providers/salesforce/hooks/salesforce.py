@@ -72,8 +72,9 @@ class SalesforceHook(BaseHook):
         salesforce_conn_id: str = default_conn_name,
         session_id: str | None = None,
         session: Session | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.conn_id = salesforce_conn_id
         self.session_id = session_id
         self.session = session
@@ -91,8 +92,8 @@ class SalesforceHook(BaseHook):
         prefixed_name = f"{backcompat_prefix}{field_name}"
         return extras.get(prefixed_name) or None
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -114,8 +115,8 @@ class SalesforceHook(BaseHook):
             "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
@@ -242,6 +243,7 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
+        import numpy as np
         import pandas as pd
 
         try:
@@ -259,7 +261,7 @@ class SalesforceHook(BaseHook):
             try:
                 converted.append(value.timestamp())
             except (ValueError, AttributeError):
-                converted.append(pd.np.NaN)
+                converted.append(np.NaN)
 
         return pd.Series(converted, index=column.index)
 
@@ -366,8 +368,7 @@ class SalesforceHook(BaseHook):
         # that's because None/np.nan cannot exist in an integer column
         # we should write all of our timestamps as FLOATS in our final schema
         df = pd.DataFrame.from_records(query_results, exclude=["attributes"])
-
-        df.columns = [column.lower() for column in df.columns]
+        df.rename(columns=str.lower, inplace=True)
 
         # convert columns with datetime strings to datetimes
         # not all strings will be datetimes, so we ignore any errors that occur

@@ -26,7 +26,6 @@ from slugify import slugify
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.sensors.ecs import (
-    DEFAULT_CONN_ID,
     EcsBaseSensor,
     EcsClusterStates,
     EcsClusterStateSensor,
@@ -79,7 +78,7 @@ class TestEcsBaseSensor(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseSensor(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else DEFAULT_CONN_ID)
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
         assert op.region == (region_name if region_name is not NOTSET else None)
 
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
@@ -99,6 +98,7 @@ class TestEcsBaseSensor(EcsBaseTestCase):
         assert client is self.fake_client
 
 
+@pytest.mark.db_test
 class TestEcsClusterStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
@@ -159,6 +159,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
 
+@pytest.mark.db_test
 class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
@@ -191,6 +192,7 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(task_definition=TEST_TASK_DEFINITION_ARN)
 
 
+@pytest.mark.db_test
 class TestEcsTaskStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected",

@@ -18,16 +18,13 @@
 from __future__ import annotations
 
 from functools import cached_property
+from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
+if TYPE_CHECKING:
+    from slack_sdk.http_retry import RetryHandler
 
 
 class SlackWebhookNotifier(BaseNotifier):
@@ -45,9 +42,10 @@ class SlackWebhookNotifier(BaseNotifier):
     :param unfurl_links: Option to indicate whether text url should unfurl. Optional
     :param unfurl_media: Option to indicate whether media url should unfurl. Optional
     :param timeout: The maximum number of seconds the client will wait to connect. Optional
-        and receive a response from Slack. If not set than default WebhookClient value will use.
+        and receive a response from Slack. Optional
     :param proxy: Proxy to make the Slack Incoming Webhook call. Optional
-    :param attachments: A list of attachments to send with the message. Optional
+    :param attachments: (legacy) A list of attachments to send with the message. Optional
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``. Optional
     """
 
     template_fields = ("slack_webhook_conn_id", "text", "attachments", "blocks", "proxy", "timeout")
@@ -63,6 +61,7 @@ class SlackWebhookNotifier(BaseNotifier):
         proxy: str | None = None,
         timeout: int | None = None,
         attachments: list | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
     ):
         super().__init__()
         self.slack_webhook_conn_id = slack_webhook_conn_id
@@ -73,12 +72,16 @@ class SlackWebhookNotifier(BaseNotifier):
         self.unfurl_media = unfurl_media
         self.timeout = timeout
         self.proxy = proxy
+        self.retry_handlers = retry_handlers
 
     @cached_property
     def hook(self) -> SlackWebhookHook:
         """Slack Incoming Webhook Hook."""
         return SlackWebhookHook(
-            slack_webhook_conn_id=self.slack_webhook_conn_id, proxy=self.proxy, timeout=self.timeout
+            slack_webhook_conn_id=self.slack_webhook_conn_id,
+            proxy=self.proxy,
+            timeout=self.timeout,
+            retry_handlers=self.retry_handlers,
         )
 
     def notify(self, context):

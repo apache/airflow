@@ -1,4 +1,4 @@
-.[cncf.kubernetes]
+-e .[cncf.kubernetes]
 pytest
 pytest-cov
 pytest-instafail

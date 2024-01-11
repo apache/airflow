@@ -20,11 +20,14 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
 from airflow.models.dagwarning import DagWarning
 from tests.test_utils.db import clear_db_dags
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDagWarning:

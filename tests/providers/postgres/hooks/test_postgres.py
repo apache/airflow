@@ -429,8 +429,8 @@ class TestPostgresHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = (
-            "INSERT INTO {0} ({1}, {2}) VALUES (%s,%s) "
-            "ON CONFLICT ({1}) DO UPDATE SET {2} = excluded.{2}".format(table, fields[0], fields[1])
+            f"INSERT INTO {table} ({fields[0]}, {fields[1]}) VALUES (%s,%s) "
+            f"ON CONFLICT ({fields[0]}) DO UPDATE SET {fields[1]} = excluded.{fields[1]}"
         )
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)

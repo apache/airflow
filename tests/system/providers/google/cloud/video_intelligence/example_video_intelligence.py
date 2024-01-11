@@ -69,7 +69,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME_DST)
 
     copy_single_file = GCSToGCSOperator(

@@ -63,7 +63,7 @@ if PACKAGE_NAME == "apache-airflow":
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
-    ALL_PROVIDER_YAMLS = load_package_data()
+    ALL_PROVIDER_YAMLS = load_package_data(include_suspended=True)
     try:
         CURRENT_PROVIDER = next(
             provider_yaml
@@ -102,6 +102,12 @@ os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 # behavior of the utils.apply_default that was hiding function headers
 os.environ["BUILDING_AIRFLOW_DOCS"] = "TRUE"
 
+# Use for generate rst_epilog and other post-generation substitutions
+global_substitutions = {
+    "version": PACKAGE_VERSION,
+    "airflow-version": airflow.__version__,
+}
+
 # == Sphinx configuration ======================================================
 
 # -- Project information -------------------------------------------------------
@@ -114,17 +120,18 @@ version = PACKAGE_VERSION
 # The full version, including alpha/beta/rc tags.
 release = PACKAGE_VERSION
 
-rst_epilog = f"""
-.. |version| replace:: {version}
-.. |airflow-version| replace:: {airflow.__version__}
-.. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
-"""
-
-smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
-
-
 # -- General configuration -----------------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+rst_epilog = "\n".join(
+    f".. |{key}| replace:: {replace}"
+    for key, replace in {
+        **global_substitutions,
+        "experimental": "This is an :ref:`experimental feature <experimental>`.",
+    }.items()
+)
+
+smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -144,6 +151,7 @@ extensions = [
     "sphinx_airflow_theme",
     "redirects",
     "substitution_extensions",
+    "sphinx_design",
 ]
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
@@ -171,13 +179,13 @@ if PACKAGE_NAME == "apache-airflow-providers":
 elif PACKAGE_NAME == "helm-chart":
     extensions.append("sphinx_jinja")
 elif PACKAGE_NAME == "docker-stack":
-    # No extra extensions
-    pass
+    extensions.append("extra_files_with_substitutions")
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
         [
             "extra_provider_files_with_substitutions",
             "autoapi.extension",
+            "providers_extensions",
         ]
     )
 else:
@@ -242,8 +250,10 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
+        "dagrun.py",
         "dagbag.py",
         "param.py",
         "taskinstance.py",
@@ -309,6 +319,9 @@ if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
     html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []
+
+html_static_path.append("sphinx_design/static/")  # Style overrides for the sphinx-design extension.
+
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
@@ -323,18 +336,20 @@ if PACKAGE_NAME == "apache-airflow":
     ]
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/docker-compose.yaml",
-        f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
-    # Replace "|version|" in links
+    # Substitute in links
     manual_substitutions_in_generated_html = [
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
+        "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
     ]
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
-    # Replace "|version|" inside ```` quotes
+    # Substitute in links
     manual_substitutions_in_generated_html = ["build.html"]
+
+html_css_files = ["custom.css"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.

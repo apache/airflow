@@ -27,6 +27,81 @@
 Changelog
 ---------
 
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Slack: Remove parameter 'token' in SlackAPIPostOperator's docstring (#36121)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Reorganize SQL to Slack Operators (#35215)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Add missing examples into Slack Provider (#35495)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass additional arguments from Slack's Operators/Notifiers to Hooks (#35039)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+8.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Slack: use default_conn_name by default (#34548)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Docstring correction for 'SlackAPIOperator' (#34871)``
+
 8.1.0
 .....
 

@@ -29,6 +29,95 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+* ``change spark connection form and add spark connections docs (#36419)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SparkSubmit: Adding propertyfiles option (#36164)``
+* ``SparkSubmit Connection Extras can be overridden (#36151)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add pyspark decorator (#35247)``
+* ``Add use_krb5ccache option to SparkSubmitOperator (#35331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add information about Qubole removal and make it possible to release it (#35492)``
+
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'use_krb5ccache' option to 'SparkSubmitHook' (#34386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
 4.1.5
 .....
 
@@ -141,7 +230,7 @@ Breaking changes
 The ``spark-binary`` connection extra could be set to any binary, but with 4.0.0 version only two values
 are allowed for it ``spark-submit`` and ``spark2-submit``.
 
-The ``spark-home`` connection extra is not allowed any more - the binary should be available on the
+The ``spark-home`` connection extra is not allowed anymore - the binary should be available on the
 PATH in order to use SparkSubmitHook and SparkSubmitOperator.
 
 * ``Remove custom spark home and custom binaries for spark (#27646)``

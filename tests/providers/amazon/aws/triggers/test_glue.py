@@ -45,7 +45,7 @@ class TestGlueJobTrigger:
         ]
 
         generator = trigger.run()
-        event = await generator.asend(None)
+        event = await generator.asend(None)  # type:ignore[attr-defined]
 
         assert get_state_mock.call_count == 3
         assert event.payload["status"] == "success"
@@ -67,7 +67,7 @@ class TestGlueJobTrigger:
         ]
 
         with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+            await trigger.run().asend(None)  # type:ignore[attr-defined]
 
         assert get_state_mock.call_count == 3
 

@@ -17,12 +17,11 @@
 from __future__ import annotations
 
 import datetime
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+import pendulum
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
@@ -30,23 +29,35 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+    from pendulum.tz.timezone import Timezone
 
 
-def _is_schedule_fixed(expression: str) -> bool:
-    """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
+def _covers_every_hour(cron: croniter) -> bool:
+    """Check whether the given cron runs at least once an hour.
 
-    :return: True if the schedule has a fixed time, False if not.
+    This indicates whether we need to implement a workaround for (what I call)
+    the "fold hour problem". Folding happens when a region switches time
+    backwards, usually as a part of ending a DST period, causing a block of time
+    to occur twice in the wall clock. This is indicated by the ``fold`` flag on
+    datetime.
 
-    Detection is done by "peeking" the next two cron trigger time; if the
-    two times have the same minute and hour value, the schedule is fixed,
-    and we *don't* need to perform the DST fix.
+    As an example, Switzerland in 2023 ended DST on 3am (wall clock time, UTC+2)
+    by dialing back the clock to 2am (UTC+1). So for (say) ``30 * * * *``, if
+    the last run was 2:30am (UTC+2), the next needs to be 2:30am (UTC+1, folded)
+    instead of 3:30am.
 
-    This assumes DST happens on whole minute changes (e.g. 12:59 -> 12:00).
+    While this technically happens for all cron schedules (in such a timezone),
+    we only care about schedules that create at least one run every hour, and
+    can provide a somewhat reasonable rationale to skip the fold hour for things
+    such as ``*/2`` (every two hours). Therefore, we try to *minially* peak into
+    croniter internals to work around the issue.
+
+    The check is simple since croniter internally normalizes things to ``*``.
+    More edge cases can be added later as needed.
+
+    See also: https://github.com/kiorky/croniter/issues/56.
     """
-    cron = croniter(expression)
-    next_a = cron.get_next(datetime.datetime)
-    next_b = cron.get_next(datetime.datetime)
-    return next_b.minute == next_a.minute and next_b.hour == next_a.hour
+    return cron.expanded[1] == ["*"]
 
 
 class CronMixin:
@@ -56,13 +67,13 @@ class CronMixin:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
-            timezone = Timezone(timezone)
+            timezone = pendulum.tz.timezone(timezone)
         self._timezone = timezone
 
-        descriptor = ExpressionDescriptor(
-            expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
-        )
         try:
+            descriptor = ExpressionDescriptor(
+                expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            )
             # checking for more than 5 parameters in Cron and avoiding evaluation for now,
             # as Croniter has inconsistent evaluation with other libraries
             if len(croniter(self._expression).expanded) > 5:
@@ -91,18 +102,12 @@ class CronMixin:
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
-    @cached_property
-    def _should_fix_dst(self) -> bool:
-        # This is lazy so instantiating a schedule does not immediately raise
-        # an exception. Validity is checked with validate() during DAG-bagging.
-        return not _is_schedule_fixed(self._expression)
-
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        if not self._should_fix_dst:
+        if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = scheduled - naive
         return convert_to_utc(current.in_timezone(self._timezone) + delta)
@@ -112,7 +117,7 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        if not self._should_fix_dst:
+        if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = naive - scheduled
         return convert_to_utc(current.in_timezone(self._timezone) - delta)

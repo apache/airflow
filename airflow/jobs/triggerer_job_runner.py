@@ -28,16 +28,16 @@ from collections import deque
 from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import ENCRYPTED_KWARGS_PREFIX, Trigger
 from airflow.stats import Stats
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -60,7 +60,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models import TaskInstance
-    from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
 """
@@ -236,6 +235,9 @@ def setup_queue_listener():
         return None
 
 
+U = TypeVar("U", bound=BaseTrigger)
+
+
 class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     """
     Run active triggers in asyncio and update their dependent tests/DAGs once their events have fired.
@@ -300,7 +302,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
         This is used for the warning boxes in the UI.
         """
-        return session.query(func.count(Trigger.id)).scalar() > 0
+        return session.execute(select(func.count(Trigger.id))).scalar_one() > 0
 
     def on_kill(self):
         """
@@ -673,7 +675,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 continue
 
             try:
-                new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
+                new_trigger_instance = self.trigger_row_to_trigger_instance(new_trigger_orm, trigger_class)
             except TypeError as err:
                 self.log.error("Trigger failed; message=%s", err)
                 self.failed_triggers.append((new_id, err))
@@ -708,3 +710,18 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         if classpath not in self.trigger_cache:
             self.trigger_cache[classpath] = import_string(classpath)
         return self.trigger_cache[classpath]
+
+    def trigger_row_to_trigger_instance(self, trigger_row: Trigger, trigger_class: type[U]) -> U:
+        """Convert a Trigger row into a Trigger instance."""
+        from airflow.models.crypto import get_fernet
+
+        decrypted_kwargs = {}
+        fernet = get_fernet()
+        for k, v in trigger_row.kwargs.items():
+            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
+                decrypted_kwargs[k[len(ENCRYPTED_KWARGS_PREFIX) :]] = fernet.decrypt(
+                    v.encode("utf-8")
+                ).decode("utf-8")
+            else:
+                decrypted_kwargs[k] = v
+        return trigger_class(**decrypted_kwargs)

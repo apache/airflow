@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -25,16 +24,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from attrs import define
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField
 from openlineage.client.run import Dataset
-from sqlalchemy import Column, MetaData, Table, and_, union_all
+from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
-
-
-logger = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):
@@ -46,7 +42,7 @@ class ColumnIndex(IntEnum):
     ORDINAL_POSITION = 3
     # Use 'udt_name' which is the underlying type of column
     UDT_NAME = 4
-    # Database is optional as 5th column
+    # Database is optional as 6th column
     DATABASE = 5
 
 
@@ -149,54 +145,96 @@ def create_information_schema_query(
     information_schema_table_name: str,
     tables_hierarchy: TablesHierarchy,
     uppercase_names: bool = False,
+    use_flat_cross_db_query: bool = False,
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Creates query for getting table schemas from information schema."""
     metadata = MetaData(sqlalchemy_engine)
     select_statements = []
-    for db, schema_mapping in tables_hierarchy.items():
-        # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
-        # usually "information_schema.columns". In order to use table identifier correct for various table
-        # we need to pass first part of dot-separated identifier as `schema` argument to `sqlalchemy.Table`.
-        if db:
-            # Use database as first part of table identifier.
-            schema = db
-            table_name = information_schema_table_name
-        else:
-            # When no database passed, use schema as first part of table identifier.
-            schema, table_name = information_schema_table_name.split(".")
+    # Don't iterate over tables hierarchy, just pass it to query single information schema table
+    if use_flat_cross_db_query:
         information_schema_table = Table(
-            table_name,
+            information_schema_table_name,
             metadata,
             *[Column(column) for column in columns],
-            schema=schema,
             quote=False,
         )
-        filter_clauses = create_filter_clauses(schema_mapping, information_schema_table, uppercase_names)
-        select_statements.append(information_schema_table.select().filter(*filter_clauses))
+        filter_clauses = create_filter_clauses(
+            tables_hierarchy,
+            information_schema_table,
+            uppercase_names=uppercase_names,
+        )
+        select_statements.append(information_schema_table.select().filter(filter_clauses))
+    else:
+        for db, schema_mapping in tables_hierarchy.items():
+            # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
+            # usually "information_schema.columns". In order to use table identifier correct for various table
+            # we need to pass first part of dot-separated identifier as `schema` argument to `sqlalchemy.Table`.
+            if db:
+                # Use database as first part of table identifier.
+                schema = db
+                table_name = information_schema_table_name
+            else:
+                # When no database passed, use schema as first part of table identifier.
+                schema, table_name = information_schema_table_name.split(".")
+            information_schema_table = Table(
+                table_name,
+                metadata,
+                *[Column(column) for column in columns],
+                schema=schema,
+                quote=False,
+            )
+            filter_clauses = create_filter_clauses(
+                {None: schema_mapping},
+                information_schema_table,
+                uppercase_names=uppercase_names,
+            )
+            select_statements.append(information_schema_table.select().filter(filter_clauses))
     return str(
         union_all(*select_statements).compile(sqlalchemy_engine, compile_kwargs={"literal_binds": True})
     )
 
 
 def create_filter_clauses(
-    schema_mapping: dict, information_schema_table: Table, uppercase_names: bool = False
+    mapping: dict,
+    information_schema_table: Table,
+    uppercase_names: bool = False,
 ) -> ClauseElement:
     """
     Creates comprehensive filter clauses for all tables in one database.
 
-    :param schema_mapping: a dictionary of schema names and list of tables in each
+    :param mapping: a nested dictionary of database, schema names and list of tables in each
     :param information_schema_table: `sqlalchemy.Table` instance used to construct clauses
         For most SQL dbs it contains `table_name` and `table_schema` columns,
         therefore it is expected the table has them defined.
     :param uppercase_names: if True use schema and table names uppercase
     """
+    table_schema_column_name = information_schema_table.columns[ColumnIndex.SCHEMA].name
+    table_name_column_name = information_schema_table.columns[ColumnIndex.TABLE_NAME].name
+    try:
+        table_database_column_name = information_schema_table.columns[ColumnIndex.DATABASE].name
+    except IndexError:
+        table_database_column_name = ""
+
     filter_clauses = []
-    for schema, tables in schema_mapping.items():
-        filter_clause = information_schema_table.c.table_name.in_(
-            name.upper() if uppercase_names else name for name in tables
-        )
-        if schema:
-            filter_clause = and_(information_schema_table.c.table_schema == schema, filter_clause)
-        filter_clauses.append(filter_clause)
-    return filter_clauses
+    for db, schema_mapping in mapping.items():
+        schema_level_clauses = []
+        for schema, tables in schema_mapping.items():
+            filter_clause = information_schema_table.c[table_name_column_name].in_(
+                name.upper() if uppercase_names else name for name in tables
+            )
+            if schema:
+                schema = schema.upper() if uppercase_names else schema
+                filter_clause = and_(
+                    information_schema_table.c[table_schema_column_name] == schema, filter_clause
+                )
+            schema_level_clauses.append(filter_clause)
+        if db and table_database_column_name:
+            db = db.upper() if uppercase_names else db
+            filter_clause = and_(
+                information_schema_table.c[table_database_column_name] == db, or_(*schema_level_clauses)
+            )
+            filter_clauses.append(filter_clause)
+        else:
+            filter_clauses.extend(schema_level_clauses)
+    return or_(*filter_clauses)

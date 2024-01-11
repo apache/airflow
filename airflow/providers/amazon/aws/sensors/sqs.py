@@ -18,26 +18,25 @@
 """Reads and then deletes the message from SQS queue."""
 from __future__ import annotations
 
-from functools import cached_property
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from deprecated import deprecated
-from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
-from airflow.providers.amazon.aws.utils.sqs import process_response
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
     from airflow.utils.context import Context
-from datetime import timedelta
 
 
-class SqsSensor(BaseSensorOperator):
+class SqsSensor(AwsBaseSensor[SqsHook]):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
 
@@ -52,7 +51,6 @@ class SqsSensor(BaseSensorOperator):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsSensor`
 
-    :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url (templated)
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
     :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
@@ -60,9 +58,9 @@ class SqsSensor(BaseSensorOperator):
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
     :param message_filtering: Specified how received messages should be filtered. Supported options are:
-        `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
-        (message Body filtered using a JSONPath expression).
-        You may add further methods by overriding the relevant class methods.
+        `None` (no filtering, default), `'literal'` (message Body literal match), `'jsonpath'`
+        (message Body filtered using a JSONPath expression), or `'jsonpath-ext'` (like `'jsonpath'`, but with
+        an expanded query grammar). You may add further methods by overriding the relevant class methods.
     :param message_filtering_match_values: Optional value/s for the message filter to match on.
         For example, with literal matching, if a message body matches any of the specified values
         then it is included. For JSONPath matching, the result of the JSONPath expression is used
@@ -76,21 +74,32 @@ class SqsSensor(BaseSensorOperator):
     :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("sqs_queue", "max_messages", "message_filtering_config")
+    aws_hook_class = SqsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "sqs_queue", "max_messages", "message_filtering_config"
+    )
 
     def __init__(
         self,
         *,
         sqs_queue,
-        aws_conn_id: str = "aws_default",
         max_messages: int = 5,
         num_batches: int = 1,
         wait_time_seconds: int = 1,
         visibility_timeout: int | None = None,
-        message_filtering: Literal["literal", "jsonpath"] | None = None,
+        message_filtering: MessageFilteringType | None = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
@@ -99,7 +108,6 @@ class SqsSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
-        self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
         self.num_batches = num_batches
         self.wait_time_seconds = wait_time_seconds
@@ -136,6 +144,9 @@ class SqsSensor(BaseSensorOperator):
                     message_filtering_config=self.message_filtering_config,
                     delete_message_on_reception=self.delete_message_on_reception,
                     waiter_delay=int(self.poke_interval),
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.timeout),
@@ -197,7 +208,6 @@ class SqsSensor(BaseSensorOperator):
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [
@@ -222,7 +232,3 @@ class SqsSensor(BaseSensorOperator):
     def get_hook(self) -> SqsHook:
         """Create and return an SqsHook."""
         return self.hook
-
-    @cached_property
-    def hook(self) -> SqsHook:
-        return SqsHook(aws_conn_id=self.aws_conn_id)

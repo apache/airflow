@@ -32,7 +32,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
     """
-    Common method generating OpenLineage events from the DBT Cloud run.
+    Generate OpenLineage events from the DBT Cloud run.
 
     This function retrieves information about a DBT Cloud run, including the associated job,
     project, and execution details. It processes the run's artifacts, such as the manifest and run results,
@@ -83,7 +83,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         catalog = operator.hook.get_job_run_artifact(operator.run_id, path="catalog.json").json()["data"]
 
     async def get_artifacts_for_steps(steps, artifacts):
-        """Gets artifacts for a list of steps concurrently."""
+        """Get artifacts for a list of steps concurrently."""
         tasks = [
             operator.hook.get_job_run_artifacts_concurrently(
                 run_id=operator.run_id,
@@ -121,7 +121,10 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
         # generate same run id of current task instance
         parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
-            operator.task_id, task_instance.execution_date, task_instance.try_number - 1
+            dag_id=task_instance.dag_id,
+            task_id=operator.task_id,
+            execution_date=task_instance.execution_date,
+            try_number=task_instance.try_number - 1,
         )
 
         parent_job = ParentRunMetadata(

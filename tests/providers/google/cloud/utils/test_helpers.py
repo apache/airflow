@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+import pytest
+
+from airflow.providers.google.cloud.utils.helpers import normalize_directory_path, resource_path_to_dict
 
 
 class TestHelpers:
@@ -24,3 +26,18 @@ class TestHelpers:
         assert normalize_directory_path("dir_path") == "dir_path/"
         assert normalize_directory_path("dir_path/") == "dir_path/"
         assert normalize_directory_path(None) is None
+
+    def test_resource_path_to_dict(self):
+        resource_name = "key1/value1/key2/value2"
+        expected_dict = {"key1": "value1", "key2": "value2"}
+        actual_dict = resource_path_to_dict(resource_name=resource_name)
+        assert set(actual_dict.items()) == set(expected_dict.items())
+
+    def test_resource_path_to_dict_empty(self):
+        resource_name = ""
+        expected_dict = {}
+        assert resource_path_to_dict(resource_name=resource_name) == expected_dict
+
+    def test_resource_path_to_dict_fail(self):
+        with pytest.raises(ValueError):
+            resource_path_to_dict(resource_name="key/value/key")

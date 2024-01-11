@@ -24,6 +24,8 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.models.baseoperator import BaseOperator
 
+pytestmark = pytest.mark.db_test
+
 
 def cleared_tasks(dag, task_id):
     dag_ = dag.partial_subset(task_id, include_downstream=True, include_upstream=False)

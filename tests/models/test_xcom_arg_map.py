@@ -23,6 +23,8 @@ from airflow.exceptions import AirflowSkipException
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
 
 def test_xcom_map(dag_maker, session):
     results = set()

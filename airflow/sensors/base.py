@@ -48,6 +48,7 @@ from airflow.utils import timezone
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -211,14 +212,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if self.reschedule:
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
-            first_try_number = context["ti"].max_tries - self.retries + 1
-            task_reschedules = TaskReschedule.find_for_task_instance(
-                context["ti"], try_number=first_try_number
-            )
-            if not task_reschedules:
+            max_tries: int = context["ti"].max_tries or 0
+            retries: int = self.retries or 0
+            first_try_number = max_tries - retries + 1
+            with create_session() as session:
+                start_date = session.scalar(
+                    TaskReschedule.stmt_for_task_instance(
+                        context["ti"], try_number=first_try_number, descending=False
+                    )
+                    .with_only_columns(TaskReschedule.start_date)
+                    .limit(1)
+                )
+            if not start_date:
                 start_date = timezone.utcnow()
-            else:
-                start_date = task_reschedules[0].start_date
             started_at = start_date
 
             def run_duration() -> float:

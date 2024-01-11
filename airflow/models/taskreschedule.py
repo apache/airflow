@@ -18,13 +18,15 @@
 """TaskReschedule tracks rescheduled task instances."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -32,12 +34,14 @@ if TYPE_CHECKING:
     import datetime
 
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql import Select
 
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
-class TaskReschedule(Base):
+class TaskReschedule(TaskInstanceDependencies):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
@@ -97,6 +101,38 @@ class TaskReschedule(Base):
         self.reschedule_date = reschedule_date
         self.duration = (self.end_date - self.start_date).total_seconds()
 
+    @classmethod
+    def stmt_for_task_instance(
+        cls,
+        ti: TaskInstance | TaskInstancePydantic,
+        *,
+        try_number: int | None = None,
+        descending: bool = False,
+    ) -> Select:
+        """
+        Statement for task reschedules for a given the task instance.
+
+        :param ti: the task instance to find task reschedules for
+        :param descending: If True then records are returned in descending order
+        :param try_number: Look for TaskReschedule of the given try_number. Default is None which
+            looks for the same try_number of the given task_instance.
+        :meta private:
+        """
+        if try_number is None:
+            try_number = ti.try_number
+
+        return (
+            select(cls)
+            .where(
+                cls.dag_id == ti.dag_id,
+                cls.task_id == ti.task_id,
+                cls.run_id == ti.run_id,
+                cls.map_index == ti.map_index,
+                cls.try_number == try_number,
+            )
+            .order_by(desc(cls.id) if descending else asc(cls.id))
+        )
+
     @staticmethod
     @provide_session
     def query_for_task_instance(
@@ -106,7 +142,7 @@ class TaskReschedule(Base):
         try_number: int | None = None,
     ) -> Query:
         """
-        Return query for task reschedules for a given the task instance.
+        Return query for task reschedules for a given the task instance (deprecated).
 
         :param session: the database session object
         :param task_instance: the task instance to find task reschedules for
@@ -114,6 +150,12 @@ class TaskReschedule(Base):
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
         """
+        warnings.warn(
+            "Using this method is no longer advised, and it is expected to be removed in the future.",
+            category=RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
         if try_number is None:
             try_number = task_instance.try_number
 
@@ -145,18 +187,11 @@ class TaskReschedule(Base):
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
         """
-        return TaskReschedule.query_for_task_instance(
-            task_instance, session=session, try_number=try_number
+        warnings.warn(
+            "Using this method is no longer advised, and it is expected to be removed in the future.",
+            category=RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        return session.scalars(
+            TaskReschedule.stmt_for_task_instance(ti=task_instance, try_number=try_number, descending=False)
         ).all()
-
-
-@event.listens_for(TaskReschedule.__table__, "before_create")
-def add_ondelete_for_mssql(table, conn, **kw):
-    if conn.dialect.name != "mssql":
-        return
-
-    for constraint in table.constraints:
-        if constraint.name != "task_reschedule_dr_fkey":
-            continue
-        constraint.ondelete = "NO ACTION"
-        return

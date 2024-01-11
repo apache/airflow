@@ -17,8 +17,8 @@
 """This module contains the Apache Livy operator."""
 from __future__ import annotations
 
+import time
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated.classic import deprecated
@@ -63,9 +63,6 @@ class LivyOperator(BaseOperator):
     :param deferrable: Run operator in the deferrable mode
             See Tenacity documentation at https://github.com/jd/tenacity
     """
-
-    template_fields: Sequence[str] = ("spark_params",)
-    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
@@ -189,7 +186,7 @@ class LivyOperator(BaseOperator):
         state = self.hook.get_batch_state(batch_id, retry_args=self.retry_args)
         while state not in self.hook.TERMINAL_STATES:
             self.log.debug("Batch with id %s is in state: %s", batch_id, state.value)
-            sleep(self._polling_interval)
+            time.sleep(self._polling_interval)
             state = self.hook.get_batch_state(batch_id, retry_args=self.retry_args)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         self.hook.dump_batch_logs(batch_id)

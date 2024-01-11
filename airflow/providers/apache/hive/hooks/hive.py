@@ -80,6 +80,7 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
+    :param proxy_user: Run HQL code as this user.
     """
 
     conn_name_attr = "hive_cli_conn_id"
@@ -96,8 +97,10 @@ class HiveCliHook(BaseHook):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
@@ -105,7 +108,6 @@ class HiveCliHook(BaseHook):
         self.conn = conn
         self.run_as = run_as
         self.sub_process: Any = None
-
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
@@ -116,6 +118,7 @@ class HiveCliHook(BaseHook):
         self.mapred_queue = mapred_queue or conf.get("hive", "default_hive_mapred_queue")
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.proxy_user = proxy_user
 
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
@@ -126,6 +129,8 @@ class HiveCliHook(BaseHook):
             return f"hive.server2.proxy.user={conn.login}"
         if proxy_user_value == "owner" and self.run_as:
             return f"hive.server2.proxy.user={self.run_as}"
+        if proxy_user_value == "as_param" and self.proxy_user:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         if proxy_user_value != "":  # There is a custom proxy user
             return f"hive.server2.proxy.user={proxy_user_value}"
         return proxy_user_value  # The default proxy user (undefined)
@@ -302,7 +307,6 @@ class HiveCliHook(BaseHook):
         other_ = ";".join(other)
         for query_set in [create, insert]:
             for query in query_set:
-
                 query_preview = " ".join(query.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
@@ -492,8 +496,8 @@ class HiveMetastoreHook(BaseHook):
     conn_type = "hive_metastore"
     hook_name = "Hive Metastore Thrift"
 
-    def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, metastore_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn = self.get_connection(metastore_conn_id)
         self.metastore = self.get_metastore_client()
 
@@ -583,12 +587,11 @@ class HiveMetastoreHook(BaseHook):
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
-        :param partition: Expression that matches the partitions to check for
-            (eg `a = 'b' AND c = 'd'`)
+        :param partition: Expression that matches the partitions to check for (e.g. `a = 'b' AND c = 'd'`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_partition("airflow", t, "ds='2015-01-01'")
         True
         """
         with self.metastore as client:
@@ -607,10 +610,10 @@ class HiveMetastoreHook(BaseHook):
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_named_partition('airflow', t, "ds=2015-01-01")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_named_partition("airflow", t, "ds=2015-01-01")
         True
-        >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
+        >>> hh.check_for_named_partition("airflow", t, "ds=xxx")
         False
         """
         with self.metastore as client:
@@ -620,7 +623,7 @@ class HiveMetastoreHook(BaseHook):
         """Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = hh.get_table(db='airflow', table_name='static_babynames')
+        >>> t = hh.get_table(db="airflow", table_name="static_babynames")
         >>> t.tableName
         'static_babynames'
         >>> [col.name for col in t.sd.cols]
@@ -650,8 +653,8 @@ class HiveMetastoreHook(BaseHook):
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> parts = hh.get_partitions(schema='airflow', table_name=t)
+        >>> t = "static_babynames_partitioned"
+        >>> parts = hh.get_partitions(schema="airflow", table_name=t)
         >>> len(parts)
         1
         >>> parts
@@ -766,9 +769,9 @@ class HiveMetastoreHook(BaseHook):
         Check if table exists.
 
         >>> hh = HiveMetastoreHook()
-        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        >>> hh.table_exists(db="airflow", table_name="static_babynames")
         True
-        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        >>> hh.table_exists(db="airflow", table_name="does_not_exist")
         False
         """
         try:
@@ -887,7 +890,6 @@ class HiveServer2Hook(DbApiHook):
             sql = [sql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
-
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command

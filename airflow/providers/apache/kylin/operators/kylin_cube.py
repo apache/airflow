@@ -133,7 +133,6 @@ class KylinCubeOperator(BaseOperator):
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
     def execute(self, context: Context):
-
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command

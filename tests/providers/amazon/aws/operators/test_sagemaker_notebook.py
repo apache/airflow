@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Generator
 from unittest import mock
 
 import pytest
@@ -36,7 +37,7 @@ ROLE_ARN = "arn:aws:iam:role/role"
 
 
 @pytest.fixture
-def hook() -> SageMakerHook:
+def hook() -> Generator[SageMakerHook, None, None]:
     with mock_sagemaker():
         yield SageMakerHook(aws_conn_id="aws_default")
 

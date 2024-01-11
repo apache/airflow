@@ -32,39 +32,85 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
+                "--integration",
+                "--standalone-dag-processor",
+                "--database-isolation",
+            ],
+        },
+        {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
                 "--db-reset",
-                "--max-time",
+            ],
+        },
+        {
+            "name": "Build CI image (before entering shell)",
+            "options": [
                 "--github-repository",
                 "--builder",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
+                "--max-time",
             ],
         },
     ],
     "breeze shell": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
                 "--integration",
-                "--forward-credentials",
-                "--db-reset",
-                "--max-time",
+                "--standalone-dag-processor",
+                "--database-isolation",
             ],
         },
         {
-            "name": "Choosing executor",
+            "name": "Docker Compose project management",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Scripts execution",
+            "options": [
+                "--quiet",
+                "--skip-image-upgrade-check",
+                "--warn-image-upgrade-needed",
+                "--skip-environment-initialization",
+                "--tty",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
+                "--backend",
+                "--postgres-version",
+                "--mysql-version",
+                "--db-reset",
+            ],
+        },
+        {
+            "name": "Choose executor",
             "options": [
                 "--executor",
                 "--celery-broker",
@@ -72,7 +118,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Building image before entering shell",
+            "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
                 "--platform",
@@ -91,12 +137,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--install-selected-providers",
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
             ],
         },
         {
@@ -106,29 +159,58 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--downgrade-sqlalchemy",
             ],
         },
+        {
+            "name": "DB test flags",
+            "options": [
+                "--run-db-tests-only",
+                "--skip-db-tests",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
+                "--max-time",
+                "--verbose-commands",
+            ],
+        },
     ],
     "breeze compile-www-assets": [
         {
             "name": "Compile www assets flag",
             "options": [
                 "--dev",
+                "--force-clean",
             ],
         }
     ],
     "breeze start-airflow": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
+                "--platform",
+                "--integration",
+                "--standalone-dag-processor",
+                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
+            ],
+        },
+        {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
                 "--backend",
-                "--platform",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
                 "--db-reset",
             ],
         },
@@ -143,12 +225,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Asset compilation options",
             "options": [
-                "--skip-asset-compilation",
+                "--skip-assets-compilation",
                 "--dev-mode",
             ],
         },
         {
-            "name": "Building image before entering shell",
+            "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
                 "--image-tag",
@@ -165,11 +247,25 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Installing packages after entering shell",
             "options": [
-                "--use-airflow-version",
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--use-packages-from-dist",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
                 "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
             ],
         },
     ],
@@ -182,6 +278,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--project-name",
             ],
         },
     ],
@@ -194,6 +291,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--clean-build",
                 "--one-pass-only",
                 "--package-filter",
+                "--include-not-ready-providers",
+                "--include-removed-providers",
                 "--github-repository",
                 "--builder",
             ],
@@ -222,7 +321,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Building image before running checks",
             "options": [
-                "--skip-image-check",
+                "--skip-image-upgrade-check",
                 "--force-build",
                 "--image-tag",
                 "--github-repository",

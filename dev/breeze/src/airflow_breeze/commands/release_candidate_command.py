@@ -20,8 +20,8 @@ import os
 
 import click
 
+from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
-from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -90,13 +90,20 @@ def tarball_release(version, version_without_rc):
 
 
 def create_artifacts_with_sdist():
-    run_command(["python3", "setup.py", "compile_assets", "sdist", "bdist_wheel"], check=True)
+    run_command(["hatch", "build", "-t", "sdist", "-t", "wheel"], check=True)
     console_print("Artifacts created")
 
 
 def create_artifacts_with_breeze():
     run_command(
-        ["breeze", "release-management", "prepare-airflow-package", "--package-format", "both"], check=True
+        [
+            "breeze",
+            "release-management",
+            "prepare-airflow-package",
+            "--package-format",
+            "both",
+        ],
+        check=True,
     )
     console_print("Artifacts created")
 
@@ -348,7 +355,7 @@ def publish_release_candidate(version, previous_version, github_token):
     # Create the artifacts
     if confirm_action("Use breeze to create artifacts?"):
         create_artifacts_with_breeze()
-    elif confirm_action("Use setup.py to create artifacts?"):
+    elif confirm_action("Use hatch to create artifacts?"):
         create_artifacts_with_sdist()
     # Sign the release
     sign_the_release(airflow_repo_root)

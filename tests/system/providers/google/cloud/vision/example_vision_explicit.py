@@ -99,7 +99,6 @@ with DAG(
     catchup=False,
     tags=["example", "vision"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
     )

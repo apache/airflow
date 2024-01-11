@@ -26,6 +26,52 @@
 Changelog
 ---------
 
+4.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Add configuration ref to "providers.jdbc" (#35580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+4.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
 4.0.2
 .....
 
@@ -62,9 +108,9 @@ Breaking changes
 To configure driver parameters (driver path and driver class), you can use the following methods:
 
 1. Supply them as constructor arguments when instantiating the hook.
-2. Set the "driver_path" and/or "driver_class" parameters in the "hook_params" dictionary when creating the hook using SQL operators.
-3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the "providers.jdbc" section of the Airflow configuration.
-4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the "local_settings.py" file.
+2. Set the ``driver_path`` and/or ``driver_class`` parameters in the ``hook_params`` dictionary when creating the hook using SQL operators.
+3. Set the ``driver_path`` and/or ``driver_class`` extra in the connection and correspondingly enable the ``allow_driver_path_in_extra`` and/or ``allow_driver_class_in_extra`` options in the ``providers.jdbc`` section of the Airflow configuration.
+4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the ``local_settings.py`` file.
 
 * ``Restrict direct usage of driver params via extras for JDBC connection (#31849)``
 

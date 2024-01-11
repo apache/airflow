@@ -209,10 +209,16 @@ def _render_deferrable_operator_content(*, header_separator: str):
                         )
 
         if provider_info["operators"]:
+            provider_info["operators"] = sorted(provider_info["operators"])
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
             provider_info["name"] = provider_yaml_content["package-name"]
             providers.append(provider_info)
-    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
+
+    return _render_template(
+        "deferrable_operators_list.rst.jinja2",
+        providers=sorted(providers, key=lambda p: p["name"]),
+        header_separator=header_separator,
+    )
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -244,7 +250,7 @@ class BaseJinjaReferenceDirective(Directive):
 
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
-        raise NotImplementedError("Tou need to override render_content method.")
+        raise NotImplementedError("You need to override render_content method.")
 
 
 def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
@@ -314,7 +320,9 @@ class AuthConfigurations(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         tabular_data = [
-            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("config") is not None
         ]
         return _render_template(
             "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator

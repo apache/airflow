@@ -24,6 +24,8 @@ from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyEventsHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_CONN_ID = "pagerduty_events_default"
 
 

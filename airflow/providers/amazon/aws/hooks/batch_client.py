@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import itertools
 import random
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Callable
 
 import botocore.client
@@ -549,7 +549,7 @@ class BatchClientHook(AwsBaseHook):
             delay = random.uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
         else:
             delay = BatchClientHook.add_jitter(delay)
-        sleep(delay)
+        time.sleep(delay)
 
     @staticmethod
     def exponential_delay(tries: int) -> float:

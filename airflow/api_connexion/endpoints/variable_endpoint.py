@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "variable"
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("DELETE")
 @action_logging(
     event=action_event_from_permission(
         prefix=RESOURCE_EVENT_PREFIX,
@@ -57,7 +57,7 @@ def delete_variable(*, variable_key: str) -> Response:
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("GET")
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
     """Get a variable by key."""
@@ -67,7 +67,7 @@ def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Respon
     return variable_schema.dump(var)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_variables(
@@ -92,7 +92,7 @@ def get_variables(
     )
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("PUT")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -126,7 +126,7 @@ def patch_variable(
     return variable_schema.dump(variable)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("POST")
 @action_logging(
     event=action_event_from_permission(
         prefix=RESOURCE_EVENT_PREFIX,

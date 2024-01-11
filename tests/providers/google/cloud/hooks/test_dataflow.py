@@ -27,7 +27,7 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobsRequest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -55,7 +55,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
-TEST_ENVIRONMENT = {}
+TEST_ENVIRONMENT: dict[str, str] = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -89,6 +89,7 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAFLOW_STRING = "airflow.providers.google.cloud.hooks.dataflow.{}"
 TEST_PROJECT = "test-project"
 TEST_JOB_ID = "test-job-id"
+TEST_JOBS_FILTER = ListJobsRequest.Filter.ACTIVE
 TEST_LOCATION = "custom-location"
 DEFAULT_PY_INTERPRETER = "python3"
 TEST_FLEX_PARAMETERS = {
@@ -176,6 +177,7 @@ class TestFallbackToVariables:
             FixtureFallback().test_fn({"project": "TEST"}, "TEST2")
 
 
+@pytest.mark.db_test
 class TestDataflowHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -819,6 +821,7 @@ class TestDataflowHook:
         method_wait_for_done.assert_called_once_with()
 
 
+@pytest.mark.db_test
 class TestDataflowTemplateHook:
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
@@ -827,7 +830,6 @@ class TestDataflowTemplateHook:
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_start_template_dataflow(self, mock_conn, mock_controller, mock_uuid):
-
         launch_method = (
             mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
         )
@@ -1248,7 +1250,6 @@ class TestDataflowJob:
         ],
     )
     def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {
@@ -1285,7 +1286,6 @@ class TestDataflowJob:
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1356,7 +1356,6 @@ class TestDataflowJob:
         assert dataflow_job.get_jobs() == [job]
 
     def test_dataflow_job_is_job_running_with_no_job(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1419,6 +1418,10 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
+            # DONE
+            (DataflowJobStatus.JOB_STATE_DONE, None, True),
+            (DataflowJobStatus.JOB_STATE_DONE, True, True),
+            (DataflowJobStatus.JOB_STATE_DONE, False, True),
             # RUNNING
             (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
             (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
@@ -1719,13 +1722,8 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-
-        mock_list = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
-        )
-        mock_list_next = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
-        )
+        mock_list = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
+        mock_list_next = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
 
         mock_list.return_value.execute.return_value = "response_1"
         mock_list_next.return_value = None
@@ -1745,7 +1743,6 @@ class TestDataflowJob:
         assert result == ["response_1"]
 
     def test_fetch_all_jobs_when_no_jobs_returned(self):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {}
@@ -1953,7 +1950,7 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
     async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
         client = initialize_client_mock.return_value
         make_mock_awaitable(client.get_job, None)
@@ -1976,3 +1973,27 @@ class TestAsyncHook:
         client.get_job.assert_called_once_with(
             request=request,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_jobs(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.list_jobs(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            jobs_filter=TEST_JOBS_FILTER,
+        )
+
+        request = ListJobsRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "location": TEST_LOCATION,
+                "filter": TEST_JOBS_FILTER,
+                "page_size": None,
+                "page_token": None,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.list_jobs.assert_called_once_with(request=request)

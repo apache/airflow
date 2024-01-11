@@ -45,7 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
-from kubernetes_tests.test_base import BaseK8STest
+from kubernetes_tests.test_base import BaseK8STest, StringContainingId
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -53,8 +53,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
-    tzinfo = pendulum.tz.timezone("Europe/Amsterdam")
-    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=pendulum.tz.timezone("Europe/Amsterdam"))
     dag_run = DagRun(
         dag_id=dag.dag_id,
         execution_date=execution_date,
@@ -76,7 +75,7 @@ def create_context(task) -> Context:
 @pytest.fixture(scope="session")
 def kubeconfig_path():
     kubeconfig_path = os.environ.get("KUBECONFIG")
-    return kubeconfig_path if kubeconfig_path else os.path.expanduser("~/.kube/config")
+    return kubeconfig_path or os.path.expanduser("~/.kube/config")
 
 
 @pytest.fixture
@@ -518,7 +517,7 @@ class TestKubernetesPodOperatorSystem:
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", "retrieved from mount")
+            mock_logger.info.assert_any_call("[%s] %s", "base", StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -1163,28 +1162,6 @@ class TestKubernetesPodOperatorSystem:
                 k.execute(context)
             create_mock.assert_called_once()
 
-    def test_using_resources(self, mock_get_connection):
-        exception_message = (
-            "Specifying resources for the launched pod with 'resources' is deprecated. "
-            "Use 'container_resources' instead."
-        )
-        with pytest.raises(AirflowException, match=exception_message):
-            resources = k8s.V1ResourceRequirements(
-                requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-                limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
-            )
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels=self.labels,
-                task_id=str(uuid4()),
-                in_cluster=False,
-                do_xcom_push=False,
-                resources=resources,
-            )
-
     def test_changing_base_container_name_with_get_logs(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
@@ -1371,12 +1348,13 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
 class TestKubernetesPodOperator(BaseK8STest):
     @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
     def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+        ns = "default"
         k = KubernetesPodOperator(
             task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
             image="busybox",
             cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
-            namespace="default",
+            namespace=ns,
             on_finish_action="keep_pod",
         )
 
@@ -1385,11 +1363,11 @@ class TestKubernetesPodOperator(BaseK8STest):
         with pytest.raises(AirflowException):
             k.execute(context)
 
-        pod = k.find_pod("default", context, exclude_checked=False)
+        pod = k.find_pod(ns, context, exclude_checked=False)
 
         k8s_client = client.CoreV1Api()
 
-        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
+        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace=ns)
         phase = pod_status.status.phase
         reason = pod_status.status.reason
 

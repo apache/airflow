@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import traceback
 import warnings
 from asyncio import CancelledError
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -83,6 +85,7 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
+        startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
     ):
@@ -98,11 +101,13 @@ class KubernetesPodTrigger(BaseTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.startup_check_interval = startup_check_interval
 
         if should_delete_pod is not None:
             warnings.warn(
                 "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
@@ -112,11 +117,10 @@ class KubernetesPodTrigger(BaseTrigger):
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
-        self._hook: AsyncKubernetesHook | None = None
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes KubernetesCreatePodTrigger arguments and classpath."""
+        """Serialize KubernetesCreatePodTrigger arguments and classpath."""
         return (
             "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger",
             {
@@ -137,12 +141,11 @@ class KubernetesPodTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pod status and yields a TriggerEvent."""
-        hook = self._get_async_hook()
+        """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
             while True:
-                pod = await hook.get_pod(
+                pod = await self.hook.get_pod(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
@@ -182,9 +185,12 @@ class KubernetesPodTrigger(BaseTrigger):
                                 }
                             )
                             return
-
-                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                    await asyncio.sleep(self.poll_interval)
+                        else:
+                            self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
+                            await asyncio.sleep(self.startup_check_interval)
+                    else:
+                        self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                        await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent(
                         {
@@ -199,13 +205,13 @@ class KubernetesPodTrigger(BaseTrigger):
             # That means that task was marked as failed
             if self.get_logs:
                 self.log.info("Outputting container logs...")
-                await self._get_async_hook().read_logs(
+                await self.hook.read_logs(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
             if self.on_finish_action == OnFinishAction.DELETE_POD:
                 self.log.info("Deleting pod...")
-                await self._get_async_hook().delete_pod(
+                await self.hook.delete_pod(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
@@ -225,18 +231,22 @@ class KubernetesPodTrigger(BaseTrigger):
                     "namespace": self.pod_namespace,
                     "status": "error",
                     "message": str(e),
+                    "stack_trace": traceback.format_exc(),
                 }
             )
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
-        if self._hook is None:
-            self._hook = AsyncKubernetesHook(
-                conn_id=self.kubernetes_conn_id,
-                in_cluster=self.in_cluster,
-                config_file=self.config_file,
-                cluster_context=self.cluster_context,
-            )
-        return self._hook
+        # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
+        return AsyncKubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    @cached_property
+    def hook(self) -> AsyncKubernetesHook:
+        return self._get_async_hook()
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses

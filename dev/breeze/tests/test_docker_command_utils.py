@@ -53,7 +53,7 @@ def test_check_docker_version_unknown(
     mock_get_console.return_value.print.assert_called_with(
         """
 [warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
-[warning]install docker at least: 23.0.0 version.[/]
+[warning]install docker at least: 24.0.0 version.[/]
 """
     )
 
@@ -81,7 +81,7 @@ def test_check_docker_version_too_low(
     )
     mock_get_console.return_value.print.assert_called_with(
         """
-[error]Your version of docker is too old: 0.9.\n[/]\n[warning]Please upgrade to at least 23.0.0.\n[/]\n\
+[error]Your version of docker is too old: 0.9.\n[/]\n[warning]Please upgrade to at least 24.0.0.\n[/]\n\
 You can find installation instructions here: https://docs.docker.com/engine/install/
 """
     )
@@ -93,7 +93,7 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
 def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "23.0.0"
+    mock_run_command.return_value.stdout = "24.0.0"
     check_docker_version()
     mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
@@ -104,7 +104,7 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 23.0.0.[/]")
+    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
@@ -145,7 +145,7 @@ def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command
     mock_run_command.assert_has_calls(expected_run_command_calls)
     mock_get_console.return_value.print.assert_called_with(
         """
-[error]Unknown docker-compose version.[/]\n[warning]At least 2.14.0 needed! Please upgrade!\n[/]
+[error]Unknown docker-compose version.[/]\n[warning]At least 2.20.2 needed! Please upgrade!\n[/]
 See https://docs.docker.com/compose/install/ for installation instructions.\n
 Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
@@ -170,7 +170,7 @@ def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
     mock_get_console.return_value.print.assert_called_with(
         """
 [error]You have too old version of docker-compose: 1.28.5!\n[/]
-[warning]At least 2.14.0 needed! Please upgrade!\n[/]
+[warning]At least 2.20.2 needed! Please upgrade!\n[/]
 See https://docs.docker.com/compose/install/ for installation instructions.\n
 Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
@@ -181,7 +181,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.\n
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
 def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "2.14.0"
+    mock_run_command.return_value.stdout = "2.20.2"
     check_docker_compose_version()
     mock_run_command.assert_called_with(
         ["docker", "compose", "version"],
@@ -191,43 +191,50 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
         dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
-        "[success]Good version of docker-compose: 2.14.0[/]"
+        "[success]Good version of docker-compose: 2.20.2[/]"
     )
 
 
-def _fake_ctx(name: str) -> dict[str, str]:
-    return {
-        "Name": name,
-        "DockerEndpoint": f"unix://{name}",
-    }
+def _fake_ctx_output(*names: str) -> str:
+    return "\n".join(json.dumps({"Name": name, "DockerEndpoint": f"unix://{name}"}) for name in names)
 
 
 @pytest.mark.parametrize(
     "context_output, selected_context, console_output",
     [
         (
-            json.dumps([_fake_ctx("default")]),
+            _fake_ctx_output("default"),
             "default",
             "[info]Using default as context",
         ),
-        ("[]", "default", "[warning]Could not detect docker builder"),
+        ("\n", "default", "[warning]Could not detect docker builder"),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("b")]),
+            _fake_ctx_output("a", "b"),
             "a",
             "[warning]Could not use any of the preferred docker contexts",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("desktop-linux")]),
+            _fake_ctx_output("a", "desktop-linux"),
             "desktop-linux",
             "[info]Using desktop-linux as context",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("default")]),
+            _fake_ctx_output("a", "default"),
             "default",
             "[info]Using default as context",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("default"), _fake_ctx("desktop-linux")]),
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
             "desktop-linux",
             "[info]Using desktop-linux as context",
         ),

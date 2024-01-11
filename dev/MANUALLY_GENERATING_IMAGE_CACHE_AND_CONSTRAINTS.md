@@ -424,9 +424,10 @@ The slight risk is that if there is a constraint problem that impacts regular PR
 make all PRs "red" until the constraint is fixed. However, if this is the case then usually we should fix
 the problem by fixing the tests or dependencies and the automated CI process should be able to self-heal.
 The main build does not use constraints and it will attempt to upgrade (or downgrade) the dependencies to
-the latest version matching the dependency specification we have in setup.cfg/setup.py/provider.yaml files.
-Also the constraints are pushed without `--force` so there is no risk of destroying anything.
-The history is kept in Git, so you can always revert to the previous version if needed.
+the latest version matching the dependency specification we have in `pyproject.toml` files (note that provider
+dependencies in `pyproject.toml` are generated from provider.yaml files being the single source of truth for
+provider dependencies). Also, the constraints are pushed without `--force` so there is no risk of destroying
+anything. The history is kept in Git, so you can always revert to the previous version if needed.
 
 # Manually updating already tagged constraint files
 
@@ -517,7 +518,8 @@ Example of updating constraints for Airflow 2.5.0 - 2.6.3 and updating `pymssql`
 breeze release-management update-constraints --constraints-repo /home/user/airflow-constraints \
     --airflow-versions 2.5.0,2.5.1,2.5.2,2.5.3,2.6.0,2.6.1,2.6.2,2.6.3 \
     --updated-constraint pymssql==2.2.8 \
-    --commit-message "Update pymssql constraint to 2.2.8"
+    --commit-message "Update pymssql constraint to 2.2.8" \
+    --airflow-constraints-mode constraints
 ```
 
 Example of updating multiple constraints:
@@ -527,5 +529,6 @@ breeze release-management update-constraints --constraints-repo /home/user/airfl
     --airflow-versions 2.5.0,2.5.1,2.5.2,2.5.3,2.6.0,2.6.1,2.6.2,2.6.3 \
     --updated-constraint pymssql==2.2.8 \
     --updated-constraint Authlib==1.3.0 \
-    --commit-message "Update pymssql constraint to 2.2.8 and Authlib to 1.3.0"
+    --commit-message "Update pymssql constraint to 2.2.8 and Authlib to 1.3.0" \
+    --airflow-constraints-mode constraints
 ```

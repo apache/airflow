@@ -59,8 +59,8 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         *,
         run_id: str,
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:

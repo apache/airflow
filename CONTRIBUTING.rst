@@ -38,12 +38,13 @@ Get Mentoring Support
 
 If you are new to the project, you might need some help in understanding how the dynamics
 of the community works and you might need to get some mentorship from other members of the
-community - mostly committers. Mentoring new members of the community is part of committers
-job so do not be afraid of asking committers to help you. You can do it
-via comments in your Pull Request, asking on a devlist or via Slack. For your convenience,
-we have a dedicated #newbie-questions Slack channel where you can ask any questions
-you want - it's a safe space where it is expected that people asking questions do not know
-a lot about Airflow (yet!).
+community - mostly Airflow committers (maintainers). Mentoring new members of the community is part of
+maintainers job so do not be afraid of asking them to help you. You can do it
+via comments in your PR, asking on a devlist or via Slack. For your convenience,
+we have a dedicated #development-first-pr-support Slack channel where you can ask any questions
+about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
+where it is expected that people asking questions do not know a lot Airflow (yet!).
+If you need help with Airflow see the Slack channel #troubleshooting.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
@@ -101,6 +102,8 @@ Airflow could always use better documentation, whether as part of the official
 Airflow docs, in docstrings, ``docs/*.rst`` or even on the web as blog posts or
 articles.
 
+See the `Docs README <https://github.com/apache/airflow/blob/main/docs/README.rst>`__ for more information about contributing to Airflow docs.
+
 Submit Feedback
 ---------------
 
@@ -133,8 +136,18 @@ and guidelines.
 Committers/Maintainers
 ----------------------
 
-Committers are community members that have write access to the project's repositories, i.e., they can modify the code,
-documentation, and website by themselves and also accept other contributions.
+You will often see the term "committer" or "maintainer" in the context of the Airflow project. This is a person
+who has write access to the Airflow repository and can merge pull requests. Committers (also known as maintainers)
+are also responsible for reviewing pull requests and guiding contributors to make their first contribution.
+They are also responsible for making sure that the project is moving forward and that the quality of the
+code is maintained.
+
+The term "committer" and "maintainer" is used interchangeably. The term "committer" is the official term used by the
+Apache Software Foundation, while "maintainer" is more commonly used in the Open Source community and is used
+in context of GitHub in a number of guidelines and documentation, so this document will mostly use "maintainer",
+when speaking about Github, Pull Request, Github Issues and Discussions. On the other hand, "committer" is more
+often used in devlist discussions, official communications, Airflow website and every time when we formally
+refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
@@ -215,6 +228,45 @@ There are certain expectations from the members of the security team:
   `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
   Foundation Security team.
 
+Periodic Security team rotation
+-------------------------------
+
+Handling security issues is something of a chore, it takes vigilance, requires quick reaction and responses
+and often requires to act outside of the regular "day" job. This means that not everyone can keep up with
+being part of the security team for long while being engaged and active. While we do not expect all the
+security team members to be active all the time, and - since we are volunteers, it's perfectly understandable
+that work, personal life, family and generally life might not help with being active. And this is not a
+considered as being failure, it's more stating the fact of life.
+
+Also prolonged time of being exposed to handling "other's" problems and discussing similar kinds of problem
+and responses might be tiring and might lead to burnout.
+
+However, for those who have never done that before, participation in the security team might be an interesting
+experience and a way to learn a lot about security and security issue handling. We have a lot of
+established processes and tools that make the work of the security team members easier, so this can be
+treated as a great learning experience for some community members. And knowing that this is not
+a "lifetime" assignment, but rather a temporary engagement might make it easier for people to decide to
+join the security team.
+
+That's why introduced rotation of the security team members.
+
+Periodically - every 3-4 months (depending on actual churn of the security issues that are reported to us),
+we re-evaluate the engagement and activity of the security team members, and we ask them if they want to
+continue being part of the security team, taking into account their engagement since the last team refinement.
+Generally speaking if the engagement during the last period was marginal, the person is considered as a
+candidate for removing from the team and it requires a deliberate confirmation of re-engagement to take
+the person off-the-list.
+
+At the same time we open up the possibility to other people in the community to join the team and make
+a "call for new security team members" where community members can volunteer to join the security team.
+Such volunteering should happen on the private@ list. The current members of the security team as well
+as PMC members can also nominate other community members to join the team and those new team members
+have to be well recognized and trusted by the community and accepted by the PMC.
+
+The proposal of team refinement is passed to the PMC as LAZY CONSENSUS (or VOTE if consensus cannot
+be reached). In case the consensus cannot be reached for the whole list, we can split it and ask for
+lazy consensus for each person separately.
+
 Contribution Workflow
 =====================
 
@@ -244,7 +296,7 @@ In general, your contribution includes the following stages:
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
 
-4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
+4. Make the change and create a `Pull Request (PR) from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
 
 5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
 
@@ -407,9 +459,32 @@ Step 4: Prepare PR
 3. Re-run static code checks again.
 
 4. Make sure your commit has a good title and description of the context of your change, enough
-   for the committer reviewing it to understand why you are proposing a change. Make sure to follow other
-   PR guidelines described in `pull request guidelines <#pull-request-guidelines>`_.
+   for maintainers reviewing it to understand why you are proposing a change. Make sure to follow other
+   PR guidelines described in `Pull Request guidelines <#pull-request-guidelines>`_.
    Create Pull Request! Make yourself ready for the discussion!
+
+5. The ``static checks`` and ``tests`` in your PR serve as a first-line-of-check, whether the PR
+   passes the quality bar for Airflow. It basically means that until you get your PR green, it is not
+   likely to get reviewed by maintainers unless you specifically ask for it and explain that you would like
+   to get first pass of reviews and explain why achieving ``green`` status for it is not easy/feasible/desired.
+   Similarly if your PR contains ``[WIP]`` in the title or it is marked as ``Draft`` it is not likely to get
+   reviewed by maintainers unless you specifically ask for it and explain why and what specifically you want
+   to get reviewed before it reaches ``Ready for review`` status. This might happen if you want to get initial
+   feedback on the direction of your PR or if you want to get feedback on the design of your PR.
+
+6. Avoid @-mentioning individual maintainers in your PR, unless you have good reason to believe that they are
+   available, have time and/or interest in your PR. Generally speaking there are no "exclusive" reviewers for
+   different parts of the code. Reviewers review PRs and respond when they have some free time to spare and
+   when they feel they can provide some valuable feedback. If you want to get attention of maintainers, you can just
+   follow-up on your PR and ask for review in general, however be considerate and do not expect "immediate"
+   reviews. People review when they have time, most of the maintainers do such reviews in their
+   free time, which is taken away from their families and other interests, so allow sufficient time before you
+   follow-up - but if you see no reaction in several days, do follow-up, as with the number of PRs we have
+   daily, some of them might simply fall through the cracks, and following up shows your interest in completing
+   the PR as well as puts it at the top of "Recently commented" PRs. However, be considerate and mindful of
+   the time zones, holidays, busy periods, and expect that some discussions and conversation might take time
+   and get stalled occasionally. Generally speaking it's the author's responsibility to follow-up on the PR when
+   they want to get it reviewed and merged.
 
 
 Step 5: Pass PR Review
@@ -419,52 +494,160 @@ Step 5: Pass PR Review
     :align: center
     :alt: PR Review
 
-Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
+Note that maintainers will use **Squash and Merge** instead of **Rebase and Merge**
 when merging PRs and your commit will be squashed to single commit.
 
-You need to have review of at least one committer (if you are committer yourself, it has to be
-another committer). Ideally you should have 2 or more committers reviewing the code that touches
-the core of Airflow.
+When a reviewer starts a conversation it is expected that you respond to questions, suggestions, doubts,
+and generally it's great if all such conversations seem to converge to a common understanding. You do not
+necessarily have to apply all the suggestions (often they are just opinions and suggestions even if they are
+coming from seasoned maintainers) - it's perfectly ok that you respond to it with your own opinions and
+understanding of the problem and your approach and if you have good arguments, presenting them is a good idea.
+
+The reviewers might leave several types of responses:
+
+* ``General PR comment`` - which usually means that there is a question/opinion/suggestion on how the PR can be
+  improved, or it's an ask to explain how you understand the PR. You can usually quote some parts of such
+  general comment and respond to it in your comments. Often comments that are raising questions in general
+  might lead to different discussions, even a request to move the discussion to the devlist or even lead to
+  completely new PRs created as a spin-off of the discussion.
+
+* ``Comment/Conversation around specific lines of code`` - such conversation usually flags a potential
+  improvement, or a potential problem with the code. It's a good idea to respond to such comments and explain
+  your approach and understanding of the problem. The whole idea of a conversation is try to reach a consensus
+  on a good way to address the problem. As an author you can resolve the conversation if you think the
+  problem raised in the comment is resolved or ask the reviewer to re-review, confirm If you do not understand
+  the comment, you can ask for clarifications. Generally assume good intention of the person who is reviewing
+  your code and resolve conversations also having good intentions. Understand that it's not a person that
+  is criticised or argued with, but rather the code and the approach. The important thing is to take care
+  about quality of the the code and the project and want to make sure that the code is good.
+
+  It's ok to mark the conversation resolved by anyone who can do it - it could be the author, who thinks
+  the arguments are changes implemented make the conversation resolved, or the maintainer/person who
+  started the conversation or it can be even marked as resolved by the maintainer who attempts to merge the
+  PR and thinks that all conversations are resolved. However if you want to make sure attention and decision
+  on merging the PR is given by maintainer, make sure you monitor, follow-up and close the conversations when
+  you think they are resolved (ideally explaining why you think the conversation is resolved).
+
+* ``Request changes`` - this is where maintainer is pretty sure that you should make a change to your PR
+  because it contains serious flaw, design misconception, or a bug or it is just not in-line with the common
+  approach Airflow community took on the issue. Usually you should respond to such request and either fix
+  the problem or convince the maintainer that they were wrong (it happens more often than you think).
+  Sometimes even if you do not agree with the request, it's a good idea to make the change anyway, because
+  it might be a good idea to follow the common approach in the project. Sometimes it might even happen that
+  two maintainers will have completely different opinions on the same issue and you will have to lead the
+  discussion to try to achieve consensus. If you cannot achieve consensus and you think it's an important
+  issue, you can ask for a vote on the issue by raising a devlist discussion - where you explain your case
+  and follow up the discussion with a vote when you cannot achieve consensus there. The ``Request changes``
+  status can be withdrawn by the maintainer, but if they don't - such PR cannot be merged - maintainers have
+  the right to veto any code modification according to the `Apache Software Foundation rules <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_.
+
+* ``Approval`` - this is given by a maintainer after the code has been reviewed and the maintainer agrees that
+  it is a good idea to merge it. There might still be some unresolved conversations, requests and questions on
+  such PR and you are expected to resolve them before the PR is merged. But the ``Approval`` status is a sign
+  of trust from the maintainer who gave the approval that they think the PR is good enough as long as their
+  comments will be resolved and they put the trust in the hands of the author and - possibly - other
+  maintainers who will merge the request that they can do that without follow-up re-review and verification.
 
 
-Pull Request Guidelines
+You need to have ``Approval`` of at least one maintainer (if you are maintainer yourself, it has to be
+another maintainer). Ideally you should have 2 or more maintainers reviewing the code that touches
+the core of Airflow - we do not have enforcement about ``2+`` reviewers required for Core of Airflow,
+but maintainers will generally ask in the PR if they think second review is needed.
+
+Your PR can be merged by a maintainer who will see that the PR is approved, all conversations are resolved
+and the code looks good. The criteria for PR being merge-able are:
+
+* ``green status for static checks and tests``
+* ``conversations resolved``
+* ``approval from 1 (or more for core changes) maintainers``
+* no unresolved ``Request changes``
+
+Once you reach the status, you do not need to do anything to get the PR merged. One of the maintainers
+will merge such PRs. However if you see that for a few days such a PR is not merged, do not hesitate to comment
+on your PR and mention that you think it is ready to be merged. Also, it's a good practice to rebase your PR
+to latest ``main``, because there could be other changes merged in the meantime that might cause conflicts or
+fail tests or static checks, so by rebasing a PR that has been build few days ago you make sure that it
+still passes the tests and static checks today.
+
+
+.. note:: |experimental|
+
+   In December 2023 we enabled - experimentally - the requirement to resolve all the open conversations in a
+   PR in order to make it merge-able. You will see in the status of the PR that it needs to have all the
+   conversations resolved before it can be merged.
+
+   This is an experiment and we will evaluate by the end of January 2024. If it turns out to be a good idea,
+   we will keep it enabled in the future.
+
+   The goal of this experiment is to make it easier to see when there are some conversations that are not
+   resolved for everyone involved in the PR - author, reviewers and maintainers who try to figure out if
+   the PR is ready to merge and - eventually - merge it. The goal is also to use conversations more as a "soft" way
+   to request changes and limit the use of ``Request changes`` status to only those cases when the maintainer
+   is sure that the PR should not be merged in the current state. That should lead to faster review/merge
+   cycle and less problems with stalled PRs that have ``Request changes`` status but all the issues are
+   already solved (assuming that maintainers will start treating the conversations this way).
+
+
+Pull Request guidelines
 =======================
 
-Before you submit a pull request (PR) from your forked repo, check that it meets
+Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
 
--   Include tests, either as doctests, unit tests, or both, to your pull
-    request.
+-   Include tests, either as doctests, unit tests, or both, to your pull request.
 
     The airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
+    Also we advise to install locally `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ to
+    apply various checks, code generation and formatting at the time you make a local commit - which
+    gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
+    many case it will even fix it for you locally so that you can add and commit it straight away.
 
--   Follow our project's `Coding style and best practices`_.
+-   Follow our project's `Coding style and best practices`_. Usually we attempt to enforce the practices by
+    having appropriate pre-commits. There are checks amongst them that aren't currently enforced
+    programmatically (either because they are too hard or just not yet done).
 
-    These are things that aren't currently enforced programmatically (either because they are too hard or just
-    not yet done.)
+-   We prefer that you ``rebase`` your PR (and do it quite often) rather than merge. It leads to
+    easier reviews and cleaner changes where you know exactly what changes you've done. You can learn more
+    about rebase vs. merge workflow in `Rebase and merge your pull request <https://github.blog/2016-09-26-rebase-and-merge-pull-requests/>`__
+    and `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__. Make sure to resolve all conflicts
+    during rebase.
 
--   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, and resolve all conflicts.
+-   When merging PRs, Maintainer will use **Squash and Merge** which means then your PR will be merged as one
+    commit, regardless of the number of commits in your PR. During the review cycle, you can keep a commit
+    history for easier review, but if you need to, you can also squash all commits to reduce the
+    maintenance burden during rebase.
 
--   When merging PRs, Committer will use **Squash and Merge** which means then your PR will be merged as one commit, regardless of the number of commits in your PR. During the review cycle, you can keep a commit history for easier review, but if you need to, you can also squash all commits to reduce the maintenance burden during rebase.
+-   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
+    have ``pre-commit`` installed, pre-commit will do it automatically for you. If you hesitate to install
+    pre-commit for your local repository - for example because it takes a few seconds to commit your changes,
+    this one thing might be a good reason to convince anyone to install pre-commit.
 
--   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
-    to all new files.
-
-    If you have `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ enabled, they automatically add
-    license headers during commit.
-
--   If your pull request adds functionality, make sure to update the docs as part
-    of the same PR. Doc string is often sufficient. Make sure to follow the
-    Sphinx compatible standards.
+-   If your PR adds functionality, make sure to update the docs as part of the same PR, not only
+    code and tests. Docstring is often sufficient. Make sure to follow the Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
     `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
-    to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
+    to make sure of that is - again - to install `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
--   Run tests locally before opening PR.
+-   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
+    adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
+    it easier for release managers if they decide that your change should be cherry-picked to release it in a
+    bug-fix release of Airflow. If you want to add a new feature and refactor the code, it's better to split the
+    PR to several smaller PRs. It's also quite a good and common idea to keep a big ``Draft`` PR if you have
+    a bigger change that you want to make and then create smaller PRs from it that are easier to review and
+    merge and cherry-pick. It takes a long time (and a lot of attention and focus of a reviewer to review
+    big PRs so by splitting it to smaller PRs you actually speed up the review process and make it easier
+    for your change to be eventually merged.
+
+-   Run relevant tests locally before opening PR. Often tests are placed in the files that are corresponding
+    to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
+    ``tests/cli/test_cli_parser.py``). However there are a number of cases where the tests that should run
+    are placed elsewhere - you can either run tests for the whole ``TEST_TYPE`` that is relevant (see
+    ``breeze testing tests --help`` output for available test types) or you can run all tests, or eventually
+    you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
     if it works for the oldest supported version (Python 3.8 currently). In rare cases
@@ -473,21 +656,20 @@ these guidelines:
     useful features from newer versions.
 
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
-    This makes the lives of those who come after you a lot easier.
+    This makes the lives of those who come after you (and your future self) a lot easier.
 
 Airflow Git Branches
 ====================
 
 All new development in Airflow happens in the ``main`` branch. All PRs should target that branch.
 
-
-We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where committers
+We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where maintainers
 cherry-pick selected commits from the main branch.
 
 Cherry-picking is done with the ``-x`` flag.
 
 The ``v2-*-test`` branch might be broken at times during testing. Expect force-pushes there so
-committers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
+maintainers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
 usually these are developers with the release manager permissions.
 
 The ``v2-*-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
@@ -659,28 +841,66 @@ Extras
 ------
 
 There are a number of extras that can be specified when installing Airflow. Those
-extras can be specified after the usual pip install - for example
-``pip install -e .[ssh]``. For development purpose there is a ``devel`` extra that
-installs all development dependencies. There is also ``devel_ci`` that installs
-all dependencies needed in the CI environment.
+extras can be specified after the usual pip install - for example ``pip install -e.[ssh]`` for editable
+installation. Note that there are two kinds of those extras - ``regular`` extras (used when you install
+airflow as a user, but in ``editable`` mode you can also install ``devel`` extras that are necessary if
+you want to run airflow locally for testing and ``doc`` extras that install tools needed to build
+the documentation.
 
 This is the full list of those extras:
 
-  .. START EXTRAS HERE
-aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
-apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
-apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
-apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, common.sql, crypto, dask, daskexecutor, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
-druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
-password, pinot, plexus, postgres, presto, rabbitmq, redis, s3, salesforce, samba, segment,
-sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau,
-tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
-  .. END EXTRAS HERE
+Devel extras
+.............
+
+The ``devel`` extras are not available in the released packages. They are only available when you install
+Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing, also
+some providers have their own development-related extras tbat allow to install tools necessary to run tests,
+where the tools are specific for the provider.
+
+
+  .. START DEVEL EXTRAS HERE
+devel, devel-all, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-
+hadoop, devel-mypy, devel-sentry, devel-static-checks, devel-tests
+  .. END DEVEL EXTRAS HERE
+
+Doc extras
+...........
+
+The ``doc`` extras are not available in the released packages. They are only available when you install
+Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
+``devel`` extras installed for airflow and providers in order to build documentation for airflow and
+provider packages respectively). The ``doc`` package is enough to build regular documentation, where
+``doc_gen`` is needed to generate ER diagram we have describing our database.
+
+  .. START DOC EXTRAS HERE
+doc, doc-gen
+  .. END DOC EXTRAS HERE
+
+
+Regular extras
+..............
+
+Those extras are available as regular Airflow extras and are targeted to be used by Airflow users and
+contributors to select features of Airflow they want to use They might install additional providers or
+just install dependencies that are necessary to enable the feature.
+
+  .. START REGULAR EXTRAS HERE
+aiobotocore, airbyte, alibaba, all, all-core, all-dbs, amazon, apache-atlas, apache-beam, apache-
+cassandra, apache-drill, apache-druid, apache-flink, apache-hdfs, apache-hive, apache-impala,
+apache-kafka, apache-kylin, apache-livy, apache-pig, apache-pinot, apache-spark, apache-webhdfs,
+apprise, arangodb, asana, async, atlas, atlassian-jira, aws, azure, cassandra, celery, cgroups,
+cloudant, cncf-kubernetes, cohere, common-io, common-sql, crypto, databricks, datadog, dbt-cloud,
+deprecated-api, dingding, discord, docker, druid, elasticsearch, exasol, fab, facebook, ftp, gcp,
+gcp_api, github, github-enterprise, google, google-auth, graphviz, grpc, hashicorp, hdfs, hive,
+http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft-azure,
+microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, odbc, openai,
+openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
+pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, saml,
+segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
+tableau, tabular, telegram, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+  .. END REGULAR EXTRAS HERE
 
 Provider packages
 -----------------
@@ -702,29 +922,25 @@ of ``airflow\providers``. This file contains:
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
 * list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
   register them as they are needed by Airflow and to include them in documentation automatically).
+* and more ...
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
 and Airflow pre-commits and package generation commands will use them when preparing package information.
 
 In Airflow 1.10 all those providers were installed together within one single package and when you installed
 airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
-and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
-variable to ``true``.
+and not packaged together with the core when you build "apache-airflow" package, however when you install
+airflow project locally with ``pip install -e ".[devel]"`` they are available on the same
+environment as Airflow.
 
-In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--install-providers-from-sources=false`` flag to Breeze to install providers from PyPI instead of source files when
-building the images.
-
-One watch-out - providers are still always installed (or rather available) if you install airflow from
-sources using ``-e`` (or ``--editable``) flag. In such case airflow is read directly from the sources
-without copying airflow packages to the usual installation location, and since 'providers' folder is
-in this airflow folder - the providers package is importable.
+You should only update dependencies for the provider in the corresponding ``provider.yaml`` which is the
+source of truth for all information about the provider.
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
-data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``generated/provider_dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during PyPI packages generation.
+data between the providers. The list of dependencies is maintained (automatically with the
+``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
+Same pre-commit also updates generate dependencies in ``pyproject.toml``.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -733,8 +949,9 @@ the other provider package you can install it adding [extra] after the
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` so that
-the package extra dependencies are properly handled when package is installed.
+and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
+``pyproject.toml`` so that the package extra dependencies are properly handled when package
+might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
 
 Developing community managed provider packages
 ----------------------------------------------
@@ -744,33 +961,33 @@ They are part of the same repository as Apache Airflow (we use ``monorepo`` appr
 parts of the system are developed in the same repository but then they are packaged and released separately).
 All the community-managed providers are in 'airflow/providers' folder and they are all sub-packages of
 'airflow.providers' package. All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
-packages.
+packages when installed by users, but when you contribute to providers you can work on airflow main
+and install provider dependencies via ``editable`` extras - without having to manage and install providers
+separately, you can easily run tests for the providers and when you run airflow from the ``main``
+sources, all community providers are automatically available for you.
 
 The capabilities of the community-managed providers are the same as the third-party ones. When
 the providers are installed from PyPI, they provide the entry-point containing the metadata as described
 in the previous chapter. However when they are locally developed, together with Airflow, the mechanism
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
-the provider. Similarly as in case of the ``provider.yaml`` file is compliant with the
+the provider. The ``provider.yaml`` is the single source of truth for the provider metadata and it is
+there where you should add and remove dependencies for providers (following by running
+``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
+of Airflow).
+
+The ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
+
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
-Airflow sources, without preparing and releasing them as packages. This is achieved by:
-
-* When Airflow is installed locally in editable mode (``pip install -e``) the provider packages installed
-  from PyPI are uninstalled and the provider discovery mechanism finds the providers in the Airflow
-  sources by searching for provider.yaml files.
-
-* When you want to install Airflow from sources you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` variable
-  to ``true`` and then the providers will not be installed from PyPI packages, but they will be installed
-  from local sources as part of the ``apache-airflow`` package, but additionally the ``provider.yaml`` files
-  are copied together with the sources, so that capabilities and names of the providers can be discovered.
-  This mode is especially useful when you are developing a new provider, that cannot be installed from
-  PyPI and you want to check if it installs cleanly.
+Airflow sources, without preparing and releasing them as packages separately, which would be rather
+complicated.
 
 Regardless if you plan to contribute your provider, when you are developing your own, custom providers,
 you can use the above functionality to make your development easier. You can add your provider
 as a sub-folder of the ``airflow.providers`` package, add the ``provider.yaml`` file and install airflow
 in development mode - then capabilities of your provider will be discovered by airflow and you will see
 the provider among other providers in ``airflow providers`` command output.
+
 
 Documentation for the community managed providers
 -------------------------------------------------
@@ -797,12 +1014,13 @@ You can see for example ``google`` provider which has very comprehensive documen
 * `Documentation <docs/apache-airflow-providers-google>`_
 * `Example DAGs <airflow/providers/google/cloud/example_dags>`_
 
-Part of the documentation are example dags. We are using the example dags for various purposes in
-providers:
+Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
+they are in ``tests/system`` is because we are using the example dags for various purposes:
 
 * showing real examples of how your provider classes (Operators/Sensors/Transfers) can be used
 * snippets of the examples are embedded in the documentation via ``exampleinclude::`` directive
-* examples are executable as system tests
+* examples are executable as system tests and some of our stakeholders run them regularly to
+  check if ``system`` level instagration is still working, before releasing a new version of the provider.
 
 Testing the community managed providers
 ---------------------------------------
@@ -839,8 +1057,7 @@ be open to allow several different libraries with the same requirements to be in
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
 you are developing your own operators and DAGs.
 
-This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
-as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
+This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 
 Pinned constraint files
 =======================
@@ -904,7 +1121,7 @@ requirements).
 
 .. code-block:: bash
 
-  pip install -e . \
+  pip install -e ".[devel]" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
@@ -929,7 +1146,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
-will be automatically regenerated by CI job every time after the ``setup.py`` is updated and pushed
+will be automatically regenerated by CI job every time after the ``pyproject.toml`` is updated and pushed
 if the tests are successful.
 
 
@@ -939,6 +1156,51 @@ Documentation
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie.
 providers packages are in ``/docs/`` directory. For detailed information on documentation development,
 see: `docs/README.rst <docs/README.rst>`_
+
+Diagrams
+========
+
+We started to use (and gradually convert old diagrams to use it) `Diagrams <https://diagrams.mingrammer.com/>`_
+as our tool of choice to generate diagrams. The diagrams are generated from Python code and can be
+automatically updated when the code changes. The diagrams are generated using pre-commit hooks (See
+static checks below) but they can also be generated manually by running the corresponding Python code.
+
+To run the code you need to install the dependencies in the virtualenv you use to run it:
+* ``pip install diagrams rich``. You need to have graphviz installed in your
+system (``brew install graphviz`` on macOS for example).
+
+The source code of the diagrams are next to the generated diagram, the difference is that the source
+code has ``.py`` extension and the generated diagram has ``.png`` extension. The pre-commit hook
+ ``generate-airflow-diagrams`` will look for ``diagram_*.py`` files in the ``docs`` subdirectories
+to find them and runs them when the sources changed and the diagrams are not up to date (the
+pre-commit will automatically generate an .md5sum hash of the sources and store it next to the diagram
+file).
+
+In order to generate the diagram manually you can run the following command:
+
+.. code-block:: bash
+
+    python <path-to-diagram-file>.py
+
+You can also generate all diagrams by:
+
+.. code-block:: bash
+
+    pre-commit run generate-airflow-diagrams
+
+or with Breeze:
+
+.. code-block:: bash
+
+    breeze static-checks --type generate-airflow-diagrams --all-files
+
+When you iterate over a diagram, you can also setup a "save" action in your IDE to run the python
+file automatically when you save the diagram file.
+
+Once you've done iteration and you are happy with the diagram, you can commit the diagram, the source
+code and the .md5sum file. The pre-commit hook will then not run the diagram generation until the
+source code for it changes.
+
 
 Static code checks
 ==================
@@ -955,9 +1217,9 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by ruff and mypy (which are run automatically
-on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
-semantic than style
+Most of our coding style rules are enforced programmatically by ruff and mypy, which are run automatically
+with static checks and on every Pull Request (PR), but there are some rules that are not yet automated and
+are more Airflow specific or semantic than style.
 
 Don't Use Asserts Outside Tests
 -------------------------------
@@ -1430,7 +1692,7 @@ This means that communication plays a big role in it, and this chapter is all ab
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
 We have various channels of communication - starting from the official devlist, comments
-in the Pull Requests, Slack, wiki.
+in the PR, Slack, wiki.
 
 All those channels can be used for different purposes.
 You can join the channels via links at the `Airflow Community page <https://airflow.apache.org/community/>`_
@@ -1443,7 +1705,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
-   * information that can be re-used by others (for example instructions on preparing workshops)
+   * information that can be reused by others (for example instructions on preparing workshops)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
@@ -1470,7 +1732,7 @@ redundancy but also promotes more efficient and effective communication for ever
 
 The devlist is the most important and official communication channel. Often at Apache project you can
 hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the
-community on something important for the community (including if it is with committer or PMC member) the
+community on something important for the community (including if it is with maintainer or PMC member) the
 discussion must be captured and reshared on devlist in order to give other members of the community to
 participate in it.
 
@@ -1492,7 +1754,7 @@ All of it makes Apache Airflow community a great space for open discussion and m
 for various opinions.
 
 Disagreements are expected, discussions might include strong opinions and contradicting statements.
-Sometimes you might get two committers asking you to do things differently. This all happened in the past
+Sometimes you might get two maintainers asking you to do things differently. This all happened in the past
 and will continue to happen. As a community we have some mechanisms to facilitate discussion and come to
 a consensus, conclusions or we end up voting to make important decisions. It is important that these
 decisions are not treated as personal wins or looses. At the end it's the community that we all care about
@@ -1517,12 +1779,12 @@ Here are a few rules that are important to keep in mind when you enter our commu
 * The communication is asynchronous - do not expect immediate answers, ping others on slack
   (#development channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
-* You can ask one of the committers to be a mentor for you, committers can guide within the community
+* You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
 * It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
-* It's your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-  it's OK to be slightly annoying with your change - it is also a sign for committers that you care
+* It's your responsibility as an author to ping maintainers to review your PR - be mildly annoying sometimes,
+  it's OK to be slightly annoying with your change - it is also a sign for maintainers that you care
 * Be considerate to the high code quality/test coverage requirements for Apache Airflow
 * If in doubt - ask the community for their opinion or propose to vote at the devlist
 * Discussions should concern subject matters - judge or criticise the merit but never criticise people

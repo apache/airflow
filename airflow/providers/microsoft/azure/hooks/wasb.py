@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
     DefaultAzureCredential as AsyncDefaultAzureCredential,
@@ -47,6 +47,11 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties
@@ -76,8 +81,9 @@ class WasbHook(BaseHook):
     conn_type = "wasb"
     hook_name = "Azure Blob Storage"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -96,8 +102,8 @@ class WasbHook(BaseHook):
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
@@ -122,8 +128,9 @@ class WasbHook(BaseHook):
         self,
         wasb_conn_id: str = default_conn_name,
         public_read: bool = False,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.conn_id = wasb_conn_id
         self.public_read = public_read
 
@@ -181,7 +188,9 @@ class WasbHook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
+            token_credential = ClientSecretCredential(
+                tenant_id=tenant, client_id=app_id, client_secret=app_secret, **client_secret_auth_config
+            )
             return BlobServiceClient(account_url=account_url, credential=token_credential, **extra)
 
         if self.public_read:
@@ -205,7 +214,12 @@ class WasbHook(BaseHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=account_url,
@@ -474,9 +488,9 @@ class WasbHook(BaseHook):
             self._get_container_client(container_name).delete_container()
             self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
-            self.log.info("Unable to delete container %s (not found)", container_name)
-        except:
-            self.log.info("Error deleting container: %s", container_name)
+            self.log.warning("Unable to delete container %s (not found)", container_name)
+        except Exception:
+            self.log.error("Error deleting container: %s", container_name)
             raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
@@ -598,7 +612,9 @@ class WasbAsyncHook(WasbHook):
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
-                account_url=account_url, credential=token_credential, **extra  # type:ignore[arg-type]
+                account_url=account_url,
+                credential=token_credential,
+                **extra,  # type:ignore[arg-type]
             )
             return self.blob_service_client
 
@@ -630,7 +646,12 @@ class WasbAsyncHook(WasbHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = AsyncDefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
             account_url=account_url,

@@ -41,8 +41,9 @@ class LookerHook(BaseHook):
     def __init__(
         self,
         looker_conn_id: str,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.looker_conn_id = looker_conn_id
         # source is used to track origin of the requests
         self.source = f"airflow:{version}"
@@ -158,7 +159,6 @@ class LookerHook(BaseHook):
             JobStatus.CANCELLED.value,
             JobStatus.UNKNOWN.value,
         ):
-
             if timeout and start + timeout < time.monotonic():
                 self.stop_pdt_build(materialization_id=materialization_id)
                 raise AirflowException(
