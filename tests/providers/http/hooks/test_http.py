@@ -593,6 +593,29 @@ class TestHttpAsyncHook:
                     key in headers and headers[key] == value for key, value in connection_extra.items()
                 )
 
+    @pytest.mark.asyncio
+    async def test_async_request_uses_connection_extra_with_requests_parameters(self):
+        """Test api call asynchronously with a connection that has extra field."""
+        connection_extra = {"bearer": "test"}
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={**connection_extra, **{"proxies": proxy, "timeout": 60, "verify": False, "allow_redirects": False, "max_redirects": 3}}
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
+                assert mocked_function.call_args.kwargs.get("proxy") == proxy
+                assert mocked_function.call_args.kwargs.get("timeout") == 60
+                assert mocked_function.call_args.kwargs.get("verify_ssl") is False
+                assert mocked_function.call_args.kwargs.get("allow_redirects") is False
+                assert mocked_function.call_args.kwargs.get("max_redirects") == 3
+
     def test_process_extra_options_from_connection_when_stream_is_defined_just_ignore_it(self):
         extra_options = {}
         conn = get_airflow_connection_with_extra(extra={"bearer": "test", "stream": True})()
