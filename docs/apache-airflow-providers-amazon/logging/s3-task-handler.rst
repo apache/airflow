@@ -79,9 +79,9 @@ Example with sample inputs
 
 If you create your own IAM policy (as is strongly recommended), it should include the following permissions.
 
-- `s3:ListBucket` (for the S3 bucket to which logs are written)
-- `s3:GetObject` (for all objects in the prefix under which logs are written)
-- `s3:PutObject` (for all objects in the prefix under which logs are written)
+- ``s3:ListBucket`` (for the S3 bucket to which logs are written)
+- ``s3:GetObject`` (for all objects in the prefix under which logs are written)
+- ``s3:PutObject`` (for all objects in the prefix under which logs are written)
 
 
 Step2: Update Helm Chart values.yaml with Service Account
