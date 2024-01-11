@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
@@ -118,8 +118,9 @@ class AirflowConsole(Console):
             dict_data = data
         else:
             raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
-        dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data]
-        renderer(dict_data)
+        dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data if d]
+        if dict_data:
+            renderer(dict_data)
 
 
 class SimpleTable(Table):

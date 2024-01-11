@@ -375,8 +375,10 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
+    def get_dag_detail(dag: DAG) -> dict | None:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        if not dag_model:
+            return None
         dag_detail = dag_schema.dump(dag_model)
         return {col: dag_detail[col] for col in valid_cols}
 

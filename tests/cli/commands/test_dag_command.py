@@ -565,6 +565,16 @@ class TestCliDags:
             out = temp_stderr.getvalue()
         assert "Failed to load all files." in out
 
+    @conf_vars({("core", "load_examples"): "true"})
+    @mock.patch("airflow.models.DagModel.get_dagmodel")
+    def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel):
+        mock_get_dagmodel.return_value = None
+        args = self.parser.parse_args(["dags", "list", "--output", "json"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+        assert out == ""
+
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self):
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
