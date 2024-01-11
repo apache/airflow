@@ -62,9 +62,7 @@ def get_airflow_connection_with_port(conn_id: str = "http_default"):
 
 
 def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"):
-    return Connection(
-        conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass"
-    )
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
 
 
 class TestHttpHook:
@@ -127,8 +125,7 @@ class TestHttpHook:
             assert conn.headers.get("bearer") == "test"
 
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "max_redirects": 3})
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection",
                         side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -144,7 +141,8 @@ class TestHttpHook:
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "proxies": {"http":"http://proxy:80", "https":"https://proxy:80"}})
+            extra={"bearer": "test", "proxies": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+        )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection",
                         side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -159,8 +157,7 @@ class TestHttpHook:
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "verify": False})
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection",
                         side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -175,8 +172,7 @@ class TestHttpHook:
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "cert": "cert.crt"})
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection",
                         side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -618,30 +614,28 @@ class TestHttpAsyncHook:
     def test_process_extra_options_from_connection_when_proxies_is_defined(self):
         extra_options = {}
         conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "proxies": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+            extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         )()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
-        assert extra_options == {"proxy": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+        assert extra_options == {"proxy": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         assert actual == {"bearer": "test"}
 
     def test_process_extra_options_from_connection_when_proxy_is_defined(self):
         extra_options = {}
         conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "proxy": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+            extra={"bearer": "test", "proxy": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         )()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
-        assert extra_options == {"proxy": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+        assert extra_options == {"proxy": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         assert actual == {"bearer": "test"}
 
     def test_process_extra_options_from_connection_when_verify_is_defined(self):
         extra_options = {}
-        conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "verify": False}
-        )()
+        conn = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
@@ -650,9 +644,7 @@ class TestHttpAsyncHook:
 
     def test_process_extra_options_from_connection_when_verify_ssl_is_defined(self):
         extra_options = {}
-        conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "verify_ssl": False}
-        )()
+        conn = get_airflow_connection_with_extra(extra={"bearer": "test", "verify_ssl": False})()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
@@ -661,9 +653,7 @@ class TestHttpAsyncHook:
 
     def test_process_extra_options_from_connection_when_allow_redirects_is_defined(self):
         extra_options = {}
-        conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "allow_redirects": False}
-        )()
+        conn = get_airflow_connection_with_extra(extra={"bearer": "test", "allow_redirects": False})()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
@@ -672,9 +662,7 @@ class TestHttpAsyncHook:
 
     def test_process_extra_options_from_connection_when_max_redirects_is_defined(self):
         extra_options = {}
-        conn = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "max_redirects": 3}
-        )()
+        conn = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})()
 
         actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
