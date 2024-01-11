@@ -19,8 +19,8 @@ FAB CLI Commands
 ================
 
 .. note::
-   The CLI commands below are used from fab provider by Airflow 2.9.0+.
-   Previously they were part of the core Airflow, so if you are using Airflow below 2.9.0 look at
+   The CLI commands below are sourced from the FAB provider by Airflow 2.9.0+.
+   Previously, they were part of core Airflow, so if you are using Airflow below 2.9.0 please see
    the core Airflow documentation for the list of CLI commands and parameters available.
 
 .. argparse::
