@@ -33,13 +33,17 @@ revision = "88344c1d9134"
 down_revision = "10b52ebd31f7"
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = "2.9.0"
 
 
 def upgrade():
     """Apply refactor dag run indexes"""
     # This index may have been created in 2.7 but we've since removed it from migrations
-    op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
+    import sqlalchemy
+    from contextlib import suppress
+
+    with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
+        op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
 
 
 def downgrade():

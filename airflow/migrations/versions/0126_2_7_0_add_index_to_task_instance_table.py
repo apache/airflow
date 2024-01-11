@@ -45,4 +45,8 @@ def downgrade():
     """Unapply Add index to task_instance table"""
     # At 2.9 we removed this index as it is not used, and changed this migration not to add it
     # So we use drop if exists (cus it might not be there)
-    op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
+    import sqlalchemy
+    from contextlib import suppress
+
+    with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
+        op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
