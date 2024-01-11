@@ -116,7 +116,9 @@ class HttpHook(BaseHook):
                 session.auth = self.auth_type()
             if conn.extra:
                 extra = conn.extra_dejson
-                extra.pop("timeout", None)  # ignore this as timeout is only accepted in request method of Session
+                extra.pop(
+                    "timeout", None
+                )  # ignore this as timeout is only accepted in request method of Session
                 extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
                 session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
                 session.stream = extra.pop("stream", False)

@@ -126,8 +126,7 @@ class TestHttpHook:
 
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection",
-                        side_effect=airflow_connection):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -141,16 +140,15 @@ class TestHttpHook:
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "proxies": {"http":"http://proxy:80", "https":"https://proxy:80"}}
+            extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection",
-                        side_effect=airflow_connection):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("proxies") is None
-            assert conn.proxies == {"http":"http://proxy:80", "https":"https://proxy:80"}
+            assert conn.proxies == {"http": "http://proxy:80", "https": "https://proxy:80"}
             assert conn.stream is False
             assert conn.verify is True
             assert conn.cert is None
@@ -158,8 +156,7 @@ class TestHttpHook:
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection",
-                        side_effect=airflow_connection):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -173,8 +170,7 @@ class TestHttpHook:
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection",
-                        side_effect=airflow_connection):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -599,7 +595,16 @@ class TestHttpAsyncHook:
         connection_extra = {"bearer": "test"}
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
         airflow_connection = get_airflow_connection_with_extra(
-            extra={**connection_extra, **{"proxies": proxy, "timeout": 60, "verify": False, "allow_redirects": False, "max_redirects": 3}}
+            extra={
+                **connection_extra,
+                **{
+                    "proxies": proxy,
+                    "timeout": 60,
+                    "verify": False,
+                    "allow_redirects": False,
+                    "max_redirects": 3,
+                },
+            }
         )
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
@@ -691,5 +696,3 @@ class TestHttpAsyncHook:
 
         assert extra_options == {"max_redirects": 3}
         assert actual == {"bearer": "test"}
-
-
