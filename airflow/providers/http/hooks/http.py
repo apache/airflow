@@ -112,8 +112,15 @@ class HttpHook(BaseHook):
             elif self._auth_type:
                 session.auth = self.auth_type()
             if conn.extra:
+                extra_options = conn.extra_dejson
+                extra_options.pop("timeout", None)
+                extra_options.pop("allow_redirects", None)
+                extra_options.pop("proxies", None)
+                extra_options.pop("verify", None)
+                extra_options.pop("cert", None)
+
                 try:
-                    session.headers.update(conn.extra_dejson)
+                    session.headers.update(extra_options)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
