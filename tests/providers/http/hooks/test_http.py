@@ -31,6 +31,7 @@ import tenacity
 from aioresponses import aioresponses
 from requests.adapters import Response
 from requests.auth import AuthBase, HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -125,19 +126,9 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
             assert conn.headers.get("bearer") == "test"
 
-    def test_hook_ignore_timeout_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "timeout": 60})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection",
-                        side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers.get("bearer") == "test"
-            assert conn.headers.get("timeout") is None
-
-    def test_hook_ignore_allow_redirects_from_extra_field_as_header(self):
+    def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={"bearer": "test", "allow_redirects": False})
+            extra={"bearer": "test", "max_redirects": 3})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection",
                         side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -145,6 +136,11 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("allow_redirects") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == 3
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
@@ -156,6 +152,11 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("proxies") is None
+            assert conn.proxies == {"http":"http://proxy:80", "https":"https://proxy:80"}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
@@ -167,6 +168,11 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("verify") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is False
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
@@ -178,6 +184,11 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("cert") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert == "cert.crt"
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):

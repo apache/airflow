@@ -26,6 +26,7 @@ import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
@@ -113,11 +114,11 @@ class HttpHook(BaseHook):
                 session.auth = self.auth_type()
             if conn.extra:
                 extra_options = conn.extra_dejson
-                extra_options.pop("timeout", None)
-                extra_options.pop("allow_redirects", None)
-                extra_options.pop("proxies", None)
-                extra_options.pop("verify", None)
-                extra_options.pop("cert", None)
+                session.proxies = extra_options.pop("proxies", {})
+                session.stream = extra_options.pop("stream", False)
+                session.verify = extra_options.pop("verify", True)
+                session.cert = extra_options.pop("cert", None)
+                session.max_redirects = extra_options.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
 
                 try:
                     session.headers.update(extra_options)
