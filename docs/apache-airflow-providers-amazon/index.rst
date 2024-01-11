@@ -42,6 +42,7 @@
     Logging for Tasks <logging/index>
     Configuration <configurations-ref>
     Executors <executors/index>
+    CLI <cli-ref>
 
 .. toctree::
     :hidden:
