@@ -210,11 +210,12 @@ GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
 NODE_VERSION = "21.2.0"
 PRE_COMMIT_VERSION = "3.5.0"
+HATCH_VERSION = "1.9.1"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch==1.9.1 \
+RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
