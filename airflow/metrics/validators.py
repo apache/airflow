@@ -29,7 +29,7 @@ from typing import Callable, Iterable, Pattern, cast
 import re2
 
 from airflow.configuration import conf
-from airflow.exceptions import InvalidStatsNameException
+from airflow.exceptions import AirflowProviderDeprecationWarning, InvalidStatsNameException
 
 log = logging.getLogger(__name__)
 
@@ -98,9 +98,16 @@ def get_validator() -> ListValidator:
         "block": (metric_block_list := conf.get("metrics", "metrics_block_list", fallback=None)),
     }
 
-    validator_type = (
-        "fuzzy" if conf.getboolean("metrics", "metrics_use_fuzzy_match", fallback=False) else "basic"
-    )
+    use_fuzzy = conf.getboolean("metrics", "metrics_use_fuzzy_match", fallback=False)
+    validator_type = "fuzzy" if use_fuzzy else "basic"
+
+    if not use_fuzzy:
+        warnings.warn(
+            "The basic metric validator will be deprecated in the future in favor of pattern-matching.  "
+            "You can try this now by setting config option metrics_use_fuzzy_match to True.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
 
     if metric_allow_list:
         list_type = "allow"

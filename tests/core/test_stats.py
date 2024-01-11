@@ -303,6 +303,29 @@ class TestStatsAllowAndBlockLists:
         stats = SafeStatsdLogger(statsd_client, validator("stats_one, stats_two, foo"))
 
         stats.incr(stat_name)
+
+        if expect_incr:
+            statsd_client.incr.assert_called_once_with(stat_name, 1, 1)
+        else:
+            statsd_client.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "match_pattern, expect_incr",
+        [
+            ("^stat", True),
+            ("s.{6}o", True),
+            ("^banana", False),
+        ],
+    )
+    def test_regex_matches(self, match_pattern, expect_incr):
+        stat_name = "stats_foo_one"
+        validator = FuzzyAllowListValidator
+
+        statsd_client = Mock(spec=statsd.StatsClient)
+        stats = SafeStatsdLogger(statsd_client, validator(match_pattern))
+
+        stats.incr(stat_name)
+
         if expect_incr:
             statsd_client.incr.assert_called_once_with(stat_name, 1, 1)
         else:
