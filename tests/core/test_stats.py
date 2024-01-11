@@ -33,8 +33,8 @@ from airflow.metrics.statsd_logger import SafeStatsdLogger
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
-    FuzzyAllowListValidator,
-    FuzzyBlockListValidator,
+    PatternAllowListValidator,
+    PatternBlockListValidator,
 )
 from tests.test_utils.config import conf_vars
 
@@ -275,22 +275,22 @@ class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
         "validator, stat_name, expect_incr",
         [
-            (FuzzyAllowListValidator, "stats_one", True),
-            (FuzzyAllowListValidator, "stats_two.bla", True),
-            (FuzzyAllowListValidator, "stats_three.foo", True),
-            (FuzzyAllowListValidator, "stats_foo_three", True),
-            (FuzzyAllowListValidator, "stats_three", False),
+            (PatternAllowListValidator, "stats_one", True),
+            (PatternAllowListValidator, "stats_two.bla", True),
+            (PatternAllowListValidator, "stats_three.foo", True),
+            (PatternAllowListValidator, "stats_foo_three", True),
+            (PatternAllowListValidator, "stats_three", False),
             (AllowListValidator, "stats_one", True),
             (AllowListValidator, "stats_two.bla", True),
             (AllowListValidator, "stats_three.foo", False),
             (AllowListValidator, "stats_foo_three", False),
             (AllowListValidator, "stats_three", False),
-            (FuzzyBlockListValidator, "stats_one", False),
-            (FuzzyBlockListValidator, "stats_two.bla", False),
-            (FuzzyBlockListValidator, "stats_three.foo", False),
-            (FuzzyBlockListValidator, "stats_foo_three", False),
-            (FuzzyBlockListValidator, "stats_foo", False),
-            (FuzzyBlockListValidator, "stats_three", True),
+            (PatternBlockListValidator, "stats_one", False),
+            (PatternBlockListValidator, "stats_two.bla", False),
+            (PatternBlockListValidator, "stats_three.foo", False),
+            (PatternBlockListValidator, "stats_foo_three", False),
+            (PatternBlockListValidator, "stats_foo", False),
+            (PatternBlockListValidator, "stats_three", True),
             (BlockListValidator, "stats_one", False),
             (BlockListValidator, "stats_two.bla", False),
             (BlockListValidator, "stats_three.foo", True),
@@ -319,7 +319,7 @@ class TestStatsAllowAndBlockLists:
     )
     def test_regex_matches(self, match_pattern, expect_incr):
         stat_name = "stats_foo_one"
-        validator = FuzzyAllowListValidator
+        validator = PatternAllowListValidator
 
         statsd_client = Mock(spec=statsd.StatsClient)
         stats = SafeStatsdLogger(statsd_client, validator(match_pattern))
@@ -332,14 +332,14 @@ class TestStatsAllowAndBlockLists:
             statsd_client.assert_not_called()
 
 
-class TestFuzzyOrBasicValidatorConfigOption:
+class TestPatternOrBasicValidatorConfigOption:
     def teardown_method(self):
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
     stats_on = {("metrics", "statsd_on"): "True"}
-    fuzzy_on = {("metrics", "metrics_use_fuzzy_match"): "True"}
-    fuzzy_off = {("metrics", "metrics_use_fuzzy_match"): "False"}
+    pattern_on = {("metrics", "metrics_use_pattern_match"): "True"}
+    pattern_off = {("metrics", "metrics_use_pattern_match"): "False"}
     allow_list = {("metrics", "metrics_allow_list"): "foo,bar"}
     block_list = {("metrics", "metrics_block_list"): "foo,bar"}
 
@@ -347,9 +347,9 @@ class TestFuzzyOrBasicValidatorConfigOption:
         "config, expected",
         [
             pytest.param(
-                {**stats_on, **fuzzy_on},
-                FuzzyAllowListValidator,
-                id="fuzzy_allow_by_default",
+                {**stats_on, **pattern_on},
+                PatternAllowListValidator,
+                id="pattern_allow_by_default",
             ),
             pytest.param(
                 stats_on,
@@ -357,19 +357,19 @@ class TestFuzzyOrBasicValidatorConfigOption:
                 id="basic_allow_by_default",
             ),
             pytest.param(
-                {**stats_on, **fuzzy_on, **allow_list},
-                FuzzyAllowListValidator,
-                id="fuzzy_allow_list_provided",
+                {**stats_on, **pattern_on, **allow_list},
+                PatternAllowListValidator,
+                id="pattern_allow_list_provided",
             ),
             pytest.param(
-                {**stats_on, **fuzzy_off, **allow_list},
+                {**stats_on, **pattern_off, **allow_list},
                 AllowListValidator,
                 id="basic_allow_list_provided",
             ),
             pytest.param(
-                {**stats_on, **fuzzy_on, **block_list},
-                FuzzyBlockListValidator,
-                id="fuzzy_block_list_provided",
+                {**stats_on, **pattern_on, **block_list},
+                PatternBlockListValidator,
+                id="pattern_block_list_provided",
             ),
             pytest.param(
                 {**stats_on, **block_list},
@@ -378,7 +378,7 @@ class TestFuzzyOrBasicValidatorConfigOption:
             ),
         ],
     )
-    def test_fuzzy_or_basic_picker(self, config, expected):
+    def test_pattern_or_basic_picker(self, config, expected):
         with conf_vars(config):
             importlib.reload(airflow.stats)
 
