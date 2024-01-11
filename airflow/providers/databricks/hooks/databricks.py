@@ -28,7 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from requests import exceptions as requests_exceptions
 
@@ -528,7 +528,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(REPAIR_RUN_ENDPOINT, json)
         return response["repair_id"]
 
-    def get_latest_repair_id(self, run_id: int) -> Optional[int]:
+    def get_latest_repair_id(self, run_id: int) -> int | None:
         """Get latest repair id if any exist for run_id else None."""
         json = {"run_id": run_id, "include_history": True}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
