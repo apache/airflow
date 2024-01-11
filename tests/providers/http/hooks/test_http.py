@@ -54,6 +54,7 @@ def get_airflow_connection(conn_id: str = "http_default"):
 def get_airflow_connection_with_extra(extra: dict):
     def inner(conn_id: str = "http_default"):
         return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra=json.dumps(extra))
+
     return inner
 
 
