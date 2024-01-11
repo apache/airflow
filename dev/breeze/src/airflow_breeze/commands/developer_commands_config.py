@@ -225,7 +225,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Asset compilation options",
             "options": [
-                "--skip-asset-compilation",
+                "--skip-assets-compilation",
                 "--dev-mode",
             ],
         },

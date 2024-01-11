@@ -57,6 +57,12 @@ dependencies:
   - flower>=1.0.0
   - google-re2>=1.0
 
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.4.0
+
+
 integrations:
   - integration-name: Celery
     external-doc-url: https://docs.celeryq.dev/en/stable/
@@ -324,8 +330,3 @@ config:
         sensitive: true
         example: '{"password": "password_for_redis_server"}'
         default: ~
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0

@@ -80,8 +80,9 @@ class AzureFileShareHook(BaseHook):
         file_path: str | None = None,
         directory_path: str | None = None,
         azure_fileshare_conn_id: str = "azure_fileshare_default",
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self._conn_id = azure_fileshare_conn_id
         self.share_name = share_name
         self.file_path = file_path

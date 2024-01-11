@@ -283,8 +283,20 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker Processing Job creation failed: {response}")
 
         if self.deferrable and self.wait_for_completion:
+            response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
+            status = response["ProcessingJobStatus"]
+            if status in self.hook.failed_states:
+                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+            elif status == "Completed":
+                self.log.info("%s completed successfully.", self.task_id)
+                return {"Processing": serialize(response)}
+
+            timeout = self.execution_timeout
+            if self.max_ingestion_time:
+                timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+
             self.defer(
-                timeout=self.execution_timeout,
+                timeout=timeout,
                 trigger=SageMakerTrigger(
                     job_name=self.config["ProcessingJobName"],
                     job_type="Processing",
@@ -304,6 +316,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         else:
             self.log.info(event["message"])
         self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
+        self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
@@ -700,8 +713,24 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker transform Job creation failed: {response}")
 
         if self.deferrable and self.wait_for_completion:
+            response = self.hook.describe_transform_job(transform_config["TransformJobName"])
+            status = response["TransformJobStatus"]
+            if status in self.hook.failed_states:
+                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+
+            if status == "Completed":
+                self.log.info("%s completed successfully.", self.task_id)
+                return {
+                    "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
+                    "Transform": serialize(response),
+                }
+
+            timeout = self.execution_timeout
+            if self.max_ingestion_time:
+                timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+
             self.defer(
-                timeout=self.execution_timeout,
+                timeout=timeout,
                 trigger=SageMakerTrigger(
                     job_name=transform_config["TransformJobName"],
                     job_type="Transform",
@@ -712,17 +741,18 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
 
-        self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_transform = serialize(
-            self.hook.describe_transform_job(transform_config["TransformJobName"])
-        )
-        return {"Model": self.serialized_model, "Transform": self.serialized_transform}
+        return self.serialize_result()
 
-    def execute_complete(self, context, event=None):
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info(event["message"])
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+        if event is None:
+            err_msg = "Trigger error: event is None"
+            self.log.error(err_msg)
+            raise AirflowException(err_msg)
+
+        self.log.info(event["message"])
+        return self.serialize_result()
+
+    def serialize_result(self) -> dict[str, dict]:
         transform_config = self.config.get("Transform", self.config)
         self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
         self.serialized_transform = serialize(

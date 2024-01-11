@@ -23,6 +23,7 @@
 - [Apache Airflow source releases](#apache-airflow-source-releases)
   - [Apache Airflow Package](#apache-airflow-package)
   - [Provider packages](#provider-packages)
+- [Preinstalled providers](#preinstalled-providers)
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
   - [Configure PyPI uploads](#configure-pypi-uploads)
@@ -95,7 +96,6 @@ The full provider's list can be found here:
 There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
 [PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
 
-
 And available in PyPI:
 [PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
 
@@ -104,6 +104,15 @@ of Backport Providers was done  on March 17, 2021.
 
 Detailed instruction of releasing Provider Packages can be found in the
 [README_RELEASE_PROVIDER_PACKAGES.md](README_RELEASE_PROVIDER_PACKAGES.md)
+
+# Preinstalled providers
+
+The `dev/preinstalled-providers.json` file contains the list of provider ids that are pre-installed.
+Those providers are dynamically added to generated standard wheel packages that are released in PyPI.
+Those packages are not present in pyproject.toml as dependencies, and
+they are not installed when you install Airflow for editable installation for development.
+This way, when you develop Airflow you can work on Airflow and Providers together from the same
+Source tree - without polluting your editable installation with installed provider packages.
 
 # Prerequisites for the release manager preparing the release
 

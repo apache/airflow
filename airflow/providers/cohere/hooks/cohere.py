@@ -46,8 +46,9 @@ class CohereHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: int | None = None,
         max_retries: int | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.timeout = timeout
         self.max_retries = max_retries
