@@ -529,9 +529,7 @@ class DatabricksHook(BaseDatabricksHook):
         return response["repair_id"]
 
     def get_latest_repair_id(self, run_id: int) -> Optional[int]:
-        """
-        get latest repair id if any exist for run_id else None
-        """
+        """Get latest repair id if any exist for run_id else None."""
         json = {"run_id": run_id, "include_history": True}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         repair_history = response["repair_history"]
