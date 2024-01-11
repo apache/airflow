@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
+import httpx
 import pendulum
 
 from airflow.configuration import conf
@@ -78,8 +79,6 @@ def _set_task_deferred_context_var():
 
 
 def _fetch_logs_from_service(url, log_relative_path):
-    import httpx
-
     from airflow.utils.jwt_signer import JWTSigner
 
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
@@ -170,6 +169,9 @@ class FileTaskHandler(logging.Handler):
     """
 
     trigger_should_wrap = True
+    inherits_from_empty_operator_log_message = (
+        "Operator inherits from empty operator and thus does not have logs"
+    )
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
@@ -304,16 +306,6 @@ class FileTaskHandler(logging.Handler):
         executor = ExecutorLoader.get_default_executor()
         return executor.get_task_log
 
-    @cached_property
-    def _test_mode(self) -> bool:
-        """Pulls the unit test mode flag from config.
-
-        This lives in a function here to be cached and only hit the config once.
-        """
-        from airflow.configuration import conf
-
-        return conf.getboolean("core", "unit_test_mode")
-
     def _read(
         self,
         ti: TaskInstance,
@@ -367,9 +359,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if ti.task.inherits_from_empty_operator is True and self._test_mode is False:
-            executor_logs.append("Operator inherits from empty operator and thus does not have logs")
-        elif is_running and not executor_messages:
+        if is_running and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
@@ -567,8 +557,11 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {e}")
-            logger.exception("Could not read served logs")
+            if isinstance(e, httpx.UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+                messages.append(self.inherits_from_empty_operator_log_message)
+            else:
+                messages.append(f"Could not read served logs: {e}")
+                logger.exception("Could not read served logs")
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
