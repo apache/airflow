@@ -167,7 +167,7 @@ You can see the list of available envs with:
 
 .. code:: bash
 
-    hatch show env
+    hatch env show
 
 This is what it shows currently:
 
