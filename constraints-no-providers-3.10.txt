@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-10T16:48:53.962608
+# This constraints file was automatically generated on 2024-01-11T11:34:10.585471
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -23,7 +23,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
-Jinja2==3.1.2
+Jinja2==3.1.3
 Mako==1.3.0
 Markdown==3.5.2
 MarkupSafe==2.1.3
@@ -36,7 +36,6 @@ SQLAlchemy==1.4.51
 WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.9.0
-aiofiles==23.2.1
 aiohttp==3.9.1
 aioitertools==0.11.0
 aiosignal==1.3.1
@@ -48,22 +47,18 @@ apispec==6.4.0
 argcomplete==3.2.1
 asgiref==3.7.2
 async-timeout==4.0.3
+atlasclient==1.0.0
 attrs==23.2.0
 backoff==2.2.1
 bcrypt==4.1.2
-billiard==4.2.0
 blinker==1.7.0
+boto3==1.33.13
 botocore==1.33.13
 cachelib==0.9.0
-cachetools==5.3.2
-celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cgroupspy==0.2.2
 charset-normalizer==3.3.2
-click-didyoumean==0.3.0
-click-plugins==1.1.1
-click-repl==0.3.0
 click==8.1.7
 clickclick==20.10.2
 colorama==0.4.6
@@ -76,16 +71,16 @@ decorator==5.1.1
 dill==0.3.7
 distlib==0.3.8
 dnspython==2.4.2
+docopt==0.6.2
 docutils==0.20.1
 email-validator==1.3.1
 eventlet==0.34.2
 exceptiongroup==1.2.0
+fastavro==1.9.3
 filelock==3.13.1
-flower==2.0.1
 frozenlist==1.4.1
 fsspec==2023.12.2
 gevent==23.9.1
-google-auth==2.26.1
 google-re2==1.1
 googleapis-common-protos==1.62.0
 graphviz==0.20.1
@@ -94,9 +89,9 @@ grpcio==1.60.0
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
+hdfs==2.7.3
 httpcore==1.0.2
 httpx==0.26.0
-humanize==4.9.0
 idna==3.6
 importlib-metadata==6.11.0
 importlib-resources==6.1.1
@@ -106,10 +101,7 @@ itsdangerous==2.1.2
 jmespath==1.0.1
 jsonschema-specifications==2023.12.1
 jsonschema==4.20.0
-kombu==5.3.4
 krb5==0.5.1
-kubernetes-asyncio==24.2.3
-kubernetes==23.6.0
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
 limits==3.7.0
@@ -124,7 +116,6 @@ mdit-py-plugins==0.4.0
 mdurl==0.1.2
 multidict==6.0.4
 numpy==1.26.3
-oauthlib==3.2.2
 opentelemetry-api==1.22.0
 opentelemetry-exporter-otlp-proto-common==1.22.0
 opentelemetry-exporter-otlp-proto-grpc==1.22.0
@@ -144,8 +135,7 @@ pluggy==1.3.0
 plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.19.0
-prompt-toolkit==3.0.43
-protobuf==4.25.1
+protobuf==4.25.2
 psutil==5.9.7
 pure-sasl==0.6.2
 pyasn1-modules==0.3.0
@@ -165,14 +155,13 @@ pytz==2023.3.post1
 pytzdata==2020.1
 referencing==0.32.1
 requests-kerberos==0.14.0
-requests-oauthlib==1.3.1
 requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
 rich==13.7.0
 rpds-py==0.16.2
-rsa==4.9
 s3fs==2023.12.2
+s3transfer==0.8.2
 sentry-sdk==1.39.2
 setproctitle==1.3.3
 six==1.16.0
@@ -184,7 +173,6 @@ termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-tornado==6.4
 typing_extensions==4.9.0
 tzdata==2023.4
 uc-micro-py==1.0.2
@@ -193,8 +181,6 @@ universal-pathlib==0.1.4
 urllib3==2.0.7
 vine==5.1.0
 virtualenv==20.25.0
-wcwidth==0.2.13
-websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
 yarl==1.9.4
