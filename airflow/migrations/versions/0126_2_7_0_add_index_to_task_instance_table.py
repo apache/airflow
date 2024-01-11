@@ -37,14 +37,12 @@ airflow_version = "2.7.0"
 
 def upgrade():
     """Apply Add index to task_instance table"""
-    op.create_index(
-        "ti_state_incl_start_date",
-        "task_instance",
-        ["dag_id", "task_id", "state"],
-        postgresql_include=["start_date"],
-    )
+    # We don't add this index anymore because it's not useful.
+    pass
 
 
 def downgrade():
     """Unapply Add index to task_instance table"""
-    op.drop_index("ti_state_incl_start_date", table_name="task_instance")
+    # At 2.9 we removed this index as it is not used, and changed this migration not to add it
+    # So we use drop if exists (cus it might not be there)
+    op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
