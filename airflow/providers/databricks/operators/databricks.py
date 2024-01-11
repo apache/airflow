@@ -92,7 +92,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         operator.repair_run = False
                         log.warning(
                             "%s but since repair run is set, repairing the run with all failed tasks",
-                            error_message
+                            error_message,
                         )
 
                         latest_repair_id = hook.get_latest_repair_id(operator.run_id)
