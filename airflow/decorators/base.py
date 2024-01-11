@@ -350,7 +350,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return issubclass(ttype, Mapping)
+        return isinstance(ttype, type) and issubclass(ttype, Mapping)
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
