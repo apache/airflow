@@ -30,7 +30,7 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.api_connexion.schemas.dag_schema import DAGSchema
+from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
@@ -573,7 +573,17 @@ class TestCliDags:
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
-        assert out == ""
+            dag_list = json.loads(out)
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+            assert key in dag_list[0]
+        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_dagbag_dag_col(self):
+        valid_cols = [c for c in dag_schema.fields]
+        dagbag = DagBag(include_examples=True)
+        dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
+        assert list(dag_details.keys()) == valid_cols
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self):
