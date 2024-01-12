@@ -1169,11 +1169,61 @@ jobs:
           breeze testing db-tests
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
-          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:MinSQLAlchemy"
         uses: ./.github/actions/post_tests_success
         if: success()
       - name: >
-          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:MinSQLAlchemy"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-postgres-pendulum-2:
+    timeout-minutes: 130
+    name: >
+      DB:Postgres${{needs.build-info.outputs.default-postgres-version}},
+      Pendulum2,Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      DOWNGRADE_PENDULUM: "true"
+      JOB_ID: >
+        postgres-pendulum-2-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: >
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Pendulum2"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Pendulum2"
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
@@ -1613,6 +1663,44 @@ jobs:
         uses: ./.github/actions/post_tests_success
         if: success()
       - name: "Post Tests failure: Non-DB"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-no-db-pendulum-2:
+    timeout-minutes: 60
+    name: >
+      Non-DB: Pendulum2, Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      DOWNGRADE_PENDULUM: "true"
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Tests: ${{matrix.python-version}}:Non-DB-Pendulum2"
+        run: >
+          breeze testing non-db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: "Post Tests success: Non-DB-Pendulum2"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: "Post Tests failure: Non-DB-Pendulum2"
         uses: ./.github/actions/post_tests_failure
         if: failure()
 

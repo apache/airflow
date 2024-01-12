@@ -50,6 +50,10 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
+if pendulum.__version__.startswith("3"):
+    DEFAULT_DATE_REPR = DEFAULT_DATE.isoformat(sep=" ")
+else:
+    DEFAULT_DATE_REPR = DEFAULT_DATE.isoformat()
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
@@ -162,7 +166,7 @@ class TestCliDags:
             )
 
         output = stdout.getvalue()
-        assert f"Dry run of DAG example_bash_operator on {DEFAULT_DATE.isoformat()}\n" in output
+        assert f"Dry run of DAG example_bash_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task runme_0 located in DAG example_bash_operator\n" in output
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
@@ -235,12 +239,9 @@ class TestCliDags:
 
         output = stdout.getvalue()
 
-        assert (
-            f"Dry run of DAG example_branch_python_operator_decorator on "
-            f"{DEFAULT_DATE.isoformat()}\n" in output
-        )
+        assert f"Dry run of DAG example_branch_python_operator_decorator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
-        assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE.isoformat()}\n" in output
+        assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
