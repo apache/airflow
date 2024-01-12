@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
-import httpx
 import pendulum
 
 from airflow.configuration import conf
@@ -79,6 +78,9 @@ def _set_task_deferred_context_var():
 
 
 def _fetch_logs_from_service(url, log_relative_path):
+    # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
+    import httpx
+
     from airflow.utils.jwt_signer import JWTSigner
 
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
@@ -557,7 +559,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            if isinstance(e, httpx.UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            from httpx import UnsupportedProtocol
+
+            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")
