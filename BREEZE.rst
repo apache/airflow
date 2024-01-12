@@ -1981,6 +1981,30 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-airflow-package
 
 
+Preparing airflow tarball
+"""""""""""""""""""""""""
+
+You can prepare airflow source tarball using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball
+
+This prepares airflow -source.tar.gz package in the dist folder.
+
+You must specify ``--version`` flag which is a pre-release version of Airflow you are preparing the
+tarball for.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+
+.. image:: ./images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-tarball
+
+
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
 

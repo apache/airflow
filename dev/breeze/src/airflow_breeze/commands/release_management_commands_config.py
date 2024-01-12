@@ -19,8 +19,9 @@ from __future__ import annotations
 RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
     "name": "Airflow release commands",
     "commands": [
-        "prepare-airflow-package",
         "create-minor-branch",
+        "prepare-airflow-package",
+        "prepare-airflow-tarball",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -43,9 +44,10 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
     "commands": [
+        "add-back-references",
         "publish-docs",
         "generate-constraints",
-        "add-back-references",
+        "update-constraints",
     ],
 }
 
@@ -55,7 +57,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
+                "--use-local-hatch",
                 "--version-suffix-for-pypi",
+            ],
+        }
+    ],
+    "breeze release-management prepare-airflow-tarball": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--version",
             ],
         }
     ],
