@@ -41,7 +41,7 @@ from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from airflow.www.validators import ValidKey
+from airflow.www.validators import ValidConnID, ValidKey
 from airflow.www.widgets import (
     AirflowDateTimePickerROWidget,
     AirflowDateTimePickerWidget,
@@ -202,7 +202,7 @@ def create_connection_form_class() -> type[DynamicForm]:
 
         conn_id = StringField(
             lazy_gettext("Connection Id"),
-            validators=[InputRequired(), ValidKey()],
+            validators=[InputRequired(), ValidKey(), ValidConnID()],
             widget=BS3TextFieldWidget(),
         )
         conn_type = SelectField(

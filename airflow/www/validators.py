@@ -20,8 +20,9 @@ from __future__ import annotations
 import json
 from json import JSONDecodeError
 
-from wtforms.validators import EqualTo, ValidationError
+from wtforms.validators import EqualTo, Regexp, ValidationError
 
+from airflow.models.connection import RE_SANITIZE_CONN_ID
 from airflow.utils import helpers
 
 
@@ -97,3 +98,10 @@ class ValidKey:
                 helpers.validate_key(field.data, self.max_length)
             except Exception as e:
                 raise ValidationError(str(e))
+
+
+class ValidConnID(Regexp):
+    """Validates the connection ID adheres to the desired format."""
+
+    def __init__(self, flags=0, message="The connection ID provided does not match the desired spec"):
+        super().__init__(RE_SANITIZE_CONN_ID, flags, message)

@@ -39,7 +39,7 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
 # the symbols @,#,$,%,&,!,-,_,.,:,\,/ and () from 1 matches up to 200.
-_RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\@\#\$\%\&\!\(\)\*\-\.\:\/\\]{1,200}$")
+RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\@\#\$\%\&\!\(\)\*\-\.\:\/\\]{1,200}$")
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -61,7 +61,7 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     :return: the sanitized string, `None` otherwise.
     """
     # check if `conn_id` or our match group is `None`
-    if conn_id is None or (res := re2.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
+    if conn_id is None or (res := re2.match(RE_SANITIZE_CONN_ID, conn_id)) is None:
         return None
 
     # if we reach here, then we matched something, return the first match
