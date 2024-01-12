@@ -536,11 +536,13 @@ class KubernetesPodOperator(BaseOperator):
     def execute_sync(self, context: Context):
         result = None
         try:
-            self.pod_request_obj = self.build_pod_request_obj(context)
-            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-                pod_request_obj=self.pod_request_obj,
-                context=context,
-            )
+            if self.pod_request_obj is None:
+                self.pod_request_obj = self.build_pod_request_obj(context)
+            if self.pod is None:
+                self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                    pod_request_obj=self.pod_request_obj,
+                    context=context,
+                )
             # push to xcom now so that if there is an error we still have the values
             ti = context["ti"]
             ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
