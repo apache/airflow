@@ -285,6 +285,40 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
+def _get_dagbag_dag_details(dag: DAG) -> dict:
+    """Return a dagbag dag details dict."""
+    return {
+        "dag_id": dag.dag_id,
+        "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
+        "is_paused": dag.get_is_paused(),
+        "is_active": dag.get_is_active(),
+        "is_subdag": dag.is_subdag,
+        "last_parsed_time": None,
+        "last_pickled": None,
+        "last_expired": None,
+        "scheduler_lock": None,
+        "pickle_id": dag.pickle_id,
+        "default_view": dag.default_view,
+        "fileloc": dag.fileloc,
+        "file_token": None,
+        "owners": dag.owner,
+        "description": dag.description,
+        "schedule_interval": dag.schedule_interval,
+        "timetable_description": dag.timetable.description,
+        "tags": dag.tags,
+        "max_active_tasks": dag.max_active_tasks,
+        "max_active_runs": dag.max_active_runs,
+        "has_task_concurrency_limits": any(
+            t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
+        ),
+        "has_import_errors": False,
+        "next_dagrun": None,
+        "next_dagrun_data_interval_start": None,
+        "next_dagrun_data_interval_end": None,
+        "next_dagrun_create_after": None,
+    }
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -377,7 +411,10 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
 
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        dag_detail = dag_schema.dump(dag_model)
+        if dag_model:
+            dag_detail = dag_schema.dump(dag_model)
+        else:
+            dag_detail = _get_dagbag_dag_details(dag)
         return {col: dag_detail[col] for col in valid_cols}
 
     AirflowConsole().print_as(
