@@ -800,7 +800,7 @@ For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
 specifies a regular expression pattern, and directories or files whose names (not DAG id)
 match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
-on a line following a ``#`` will be ignored.
+on lines starting with ``#`` will be ignored.
 
 As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
 doesn't support many advanced features, please check its
