@@ -106,7 +106,11 @@ class EmrServerlessLogsLink(BaseAwsLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
-        hook = EmrServerlessHook(aws_conn_id=conf.get("conn_id"))
+        # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
+        # so that the rest of the links load in a reasonable time frame.
+        hook = EmrServerlessHook(
+            aws_conn_id=conf.get("conn_id"), config={"retries": {"total_max_attempts": 1}}
+        )
         resp = hook.conn.get_dashboard_for_job_run(
             applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
         )
@@ -136,8 +140,13 @@ class EmrServerlessDashboardLink(BaseAwsLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
-        hook = EmrServerlessHook(aws_conn_id=conf.get("conn_id"))
-        # Dashboard cannot be served when job is pending/scheduled
+        # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
+        # so that the rest of the links load in a reasonable time frame.
+        hook = EmrServerlessHook(
+            aws_conn_id=conf.get("conn_id"), config={"retries": {"total_max_attempts": 1}}
+        )
+        # Dashboard cannot be served when job is pending/scheduled,
+        # in which case an empty string still gets returned.
         resp = hook.conn.get_dashboard_for_job_run(
             applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
         )
@@ -164,7 +173,7 @@ class EmrServerlessS3LogsLink(BaseAwsLink):
 class EmrServerlessCloudWatchLogsLink(BaseAwsLink):
     """
     Helper class for constructing link to CloudWatch console for Amazon EMR Serverless Logs.
-    
+
     This is a deep link that filters on a specific job run.
     """
 
