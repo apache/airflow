@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-12T08:23:03.348929
+# This constraints file was automatically generated on 2024-01-12T15:23:36.456893
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -342,7 +342,7 @@ google-cloud-redis==2.14.0
 google-cloud-resource-manager==1.11.0
 google-cloud-run==0.10.1
 google-cloud-secret-manager==2.17.0
-google-cloud-spanner==3.40.1
+google-cloud-spanner==3.41.0
 google-cloud-speech==2.23.0
 google-cloud-storage-transfer==1.10.0
 google-cloud-storage==2.14.0
@@ -494,7 +494,7 @@ pathable==0.4.3
 pathspec==0.12.1
 pbr==6.0.0
 pdpyras==5.2.0
-pendulum==2.1.2
+pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.2.4
 pinecone-client==2.2.4
@@ -571,7 +571,6 @@ python-slugify==8.0.1
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2023.3.post1
-pytzdata==2020.1
 pywinrm==0.4.3
 pyzmq==25.1.2
 reactivex==4.0.4
