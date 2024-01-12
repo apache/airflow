@@ -29,6 +29,7 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
+import kubernetes
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
@@ -380,6 +381,7 @@ class KubernetesPodOperator(BaseOperator):
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
+        self._killed: bool = False
 
     @cached_property
     def _incluster_namespace(self):
@@ -573,10 +575,17 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod, istio_enabled, self.base_container_name
             )
         finally:
-            self.cleanup(
-                pod=self.pod or self.pod_request_obj,
-                remote_pod=self.remote_pod,
-            )
+            try:
+                self.cleanup(
+                    pod=self.pod or self.pod_request_obj,
+                    remote_pod=self.remote_pod,
+                )
+            except Exception:
+                # If one task got makred as failed, it should not raise exception which might cause retry.
+                # https://github.com/apache/airflow/issues/36471
+                if not self._killed:
+                    raise
+
         if self.do_xcom_push:
             return result
 
@@ -670,10 +679,16 @@ class KubernetesPodOperator(BaseOperator):
 
     def post_complete_action(self, *, pod, remote_pod, **kwargs):
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
-        self.cleanup(
-            pod=pod,
-            remote_pod=remote_pod,
-        )
+        try:
+            self.cleanup(
+                pod=pod,
+                remote_pod=remote_pod,
+            )
+        except Exception:
+            # If one task got makred as failed, it should not raise exception which might cause retry.
+            # https://github.com/apache/airflow/issues/36471
+            if not self._killed:
+                raise
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         istio_enabled = self.is_istio_enabled(remote_pod)
@@ -818,6 +833,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
     def on_kill(self) -> None:
+        self._killed = True
         if self.pod:
             pod = self.pod
             kwargs = {
@@ -826,7 +842,11 @@ class KubernetesPodOperator(BaseOperator):
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
-            self.client.delete_namespaced_pod(**kwargs)
+
+            try:
+                self.client.delete_namespaced_pod(**kwargs)
+            except kubernetes.client.exceptions.ApiException:
+                self.log.warning("The pod no longer exists")
 
     def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
