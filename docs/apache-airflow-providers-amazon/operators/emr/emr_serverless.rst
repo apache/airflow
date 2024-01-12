@@ -80,7 +80,7 @@ You need to ensure you have the following IAM permissions to generate the dashbo
 
         "emr-serverless:GetDashboardForJobRun"
 
-If Amazon S3 or Amazon CloudWatch logs are 
+If Amazon S3 or Amazon CloudWatch logs are
 `enabled for EMR Serverless <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/logging.html>`__,
 links to the respective console will also be available in the task logs and task Details.
 
