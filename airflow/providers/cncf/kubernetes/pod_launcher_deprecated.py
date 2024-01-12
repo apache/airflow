@@ -21,12 +21,11 @@ import json
 import math
 import time
 import warnings
-from datetime import datetime as dt
+from typing import TYPE_CHECKING, cast
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import HTTPError
@@ -37,6 +36,9 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from kubernetes.client.models.v1_pod import V1Pod
 
 warnings.warn(
     """
@@ -76,7 +78,7 @@ class PodLauncher(LoggingMixin):
         extract_xcom: bool = False,
     ):
         """
-        Deprecated class for launching pods.
+        Launch pods; DEPRECATED.
 
         Please use airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager
         instead to create the launcher.
@@ -92,7 +94,7 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
-        """Runs pod asynchronously."""
+        """Run pod asynchronously."""
         pod_mutation_hook(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
@@ -110,7 +112,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def delete_pod(self, pod: V1Pod):
-        """Deletes pod."""
+        """Delete pod."""
         try:
             self._client.delete_namespaced_pod(
                 pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
@@ -122,38 +124,37 @@ class PodLauncher(LoggingMixin):
 
     def start_pod(self, pod: V1Pod, startup_timeout: int = 120):
         """
-        Launches the pod synchronously and waits for completion.
+        Launch the pod synchronously and wait for completion.
 
         :param pod:
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
         :return:
         """
         resp = self.run_pod_async(pod)
-        curr_time = dt.now()
+        start_time = time.monotonic()
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 self.log.warning("Pod not yet started: %s", pod.metadata.name)
-                delta = dt.now() - curr_time
-                if delta.total_seconds() >= startup_timeout:
+                if time.monotonic() >= start_time + startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> tuple[State, str | None]:
         """
-        Monitors a pod and returns the final state.
+        Monitor a pod and return the final state.
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
         """
         if get_logs:
             read_logs_since_sec = None
-            last_log_time = None
+            last_log_time: pendulum.DateTime | None = None
             while True:
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode("utf-8"))
                     if timestamp:
-                        last_log_time = pendulum.parse(timestamp)
+                        last_log_time = cast(pendulum.DateTime, pendulum.parse(timestamp))
                     self.log.info(message)
                 time.sleep(1)
 
@@ -185,16 +186,14 @@ class PodLauncher(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        split_at = line.find(" ")
-        if split_at == -1:
+        timestamp, sep, message = line.strip().partition(" ")
+        if not sep:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message: %r). "
                 "Will continue execution but won't update timestamp",
                 line,
             )
             return None, line
-        timestamp = line[:split_at]
-        message = line[split_at + 1 :].rstrip()
         return timestamp, message
 
     def _task_status(self, event):
@@ -203,17 +202,17 @@ class PodLauncher(LoggingMixin):
         return status
 
     def pod_not_started(self, pod: V1Pod):
-        """Tests if pod has not started."""
+        """Test if pod has not started."""
         state = self._task_status(self.read_pod(pod))
         return state == State.QUEUED
 
     def pod_is_running(self, pod: V1Pod):
-        """Tests if pod is running."""
+        """Test if pod is running."""
         state = self._task_status(self.read_pod(pod))
         return state not in (State.SUCCESS, State.FAILED)
 
     def base_container_is_running(self, pod: V1Pod):
-        """Tests if base container is running."""
+        """Test if base container is running."""
         event = self.read_pod(pod)
         status = next((s for s in event.status.container_statuses if s.name == "base"), None)
         if not status:
@@ -228,7 +227,7 @@ class PodLauncher(LoggingMixin):
         timestamps: bool = False,
         since_seconds: int | None = None,
     ):
-        """Reads log from the pod."""
+        """Read log from the pod."""
         additional_kwargs = {}
         if since_seconds:
             additional_kwargs["since_seconds"] = since_seconds
@@ -251,7 +250,7 @@ class PodLauncher(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):
-        """Reads events from the pod."""
+        """Read events from the pod."""
         try:
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"

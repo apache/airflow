@@ -20,19 +20,21 @@ from __future__ import annotations
 
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
-from google.ads.googleads.v14.services.services.customer_service import CustomerServiceClient
-from google.ads.googleads.v14.services.services.google_ads_service import GoogleAdsServiceClient
-from google.ads.googleads.v14.services.types.google_ads_service import GoogleAdsRow
-from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
+
+if TYPE_CHECKING:
+    from google.ads.googleads.v15.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v15.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v15.services.types.google_ads_service import GoogleAdsRow
+    from google.api_core.page_iterator import GRPCIterator
 
 
 class GoogleAdsHook(BaseHook):
@@ -70,15 +72,16 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
-    default_api_version = "v14"
+    default_api_version = "v15"
 
     def __init__(
         self,
         api_version: str | None,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.api_version = api_version or self.default_api_version
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
@@ -224,7 +227,9 @@ class GoogleAdsHook(BaseHook):
 
         iterators = []
         for client_id in client_ids:
-            iterator = service.search(request=dict(customer_id=client_id, query=query, page_size=page_size))
+            iterator = service.search(
+                request={"customer_id": client_id, "query": query, "page_size": page_size}
+            )
             iterators.append(iterator)
 
         self.log.info("Fetched Google Ads Iterators")

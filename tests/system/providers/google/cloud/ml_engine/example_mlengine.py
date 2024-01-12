@@ -21,52 +21,74 @@ Example Airflow DAG for Google ML Engine service.
 from __future__ import annotations
 
 import os
-import pathlib
 from datetime import datetime
-from math import ceil
+
+from google.cloud.aiplatform import schema
+from google.protobuf.json_format import ParseDict
+from google.protobuf.struct_pb2 import Value
 
 from airflow import models
-from airflow.decorators import task
 from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.operators.mlengine import (
-    MLEngineCreateModelOperator,
-    MLEngineCreateVersionOperator,
-    MLEngineDeleteModelOperator,
-    MLEngineDeleteVersionOperator,
-    MLEngineGetModelOperator,
-    MLEngineListVersionsOperator,
-    MLEngineSetDefaultVersionOperator,
-    MLEngineStartBatchPredictionJobOperator,
-    MLEngineStartTrainingJobOperator,
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.providers.google.cloud.utils import mlengine_operator_utils
+from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
+    CreateBatchPredictionJobOperator,
+    DeleteBatchPredictionJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
+    CreateCustomPythonPackageTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
+    DeleteModelOperator,
+    DeleteModelVersionOperator,
+    GetModelOperator,
+    ListModelVersionsOperator,
+    SetDefaultVersionOnModelOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_gcp_mlengine"
-PREDICT_FILE_NAME = "predict.json"
-MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}".replace("_", "-")
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
-BUCKET_PATH = f"gs://{BUCKET_NAME}"
-JOB_DIR = f"{BUCKET_PATH}/job-dir"
-SAVED_MODEL_PATH = f"{JOB_DIR}/"
-PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
-PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
-TRAINER_URI = "gs://airflow-system-tests-resources/ml-engine/trainer-0.2.tar.gz"
-TRAINER_PY_MODULE = "trainer.task"
-SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
-SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
+REGION = "us-central1"
 
-BASE_DIR = pathlib.Path(__file__).parent.resolve()
-PATH_TO_PREDICT_FILE = BASE_DIR / PREDICT_FILE_NAME
+PACKAGE_DISPLAY_NAME = f"package-{DAG_ID}-{ENV_ID}".replace("_", "-")
+MODEL_DISPLAY_NAME = f"model-{DAG_ID}-{ENV_ID}".replace("_", "-")
+JOB_DISPLAY_NAME = f"batch_job_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_python_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
-def generate_model_predict_input_data() -> list[int]:
-    return [1, 4, 9, 16, 25, 36]
+BQ_SOURCE = "bq://bigquery-public-data.ml_datasets.penguins"
+TABULAR_DATASET = {
+    "display_name": f"tabular-dataset-{ENV_ID}",
+    "metadata_schema_uri": schema.dataset.metadata.tabular,
+    "metadata": ParseDict(
+        {"input_config": {"bigquery_source": {"uri": BQ_SOURCE}}},
+        Value(),
+    ),
+}
+
+REPLICA_COUNT = 1
+MACHINE_TYPE = "n1-standard-4"
+ACCELERATOR_TYPE = "ACCELERATOR_TYPE_UNSPECIFIED"
+ACCELERATOR_COUNT = 0
+TRAINING_FRACTION_SPLIT = 0.7
+TEST_FRACTION_SPLIT = 0.15
+VALIDATION_FRACTION_SPLIT = 0.15
+
+PYTHON_PACKAGE_GCS_URI = f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/penguins_trainer_script-0.1.zip"
+PYTHON_MODULE_NAME = "penguins_trainer_script.task"
+
+TRAIN_IMAGE = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-8:latest"
+DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-8:latest"
 
 
 with models.DAG(
@@ -75,246 +97,187 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "ml_engine"],
-    params={"model_name": MODEL_NAME},
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create-bucket",
-        bucket_name=BUCKET_NAME,
+        task_id="create_bucket",
+        bucket_name=CUSTOM_PYTHON_GCS_BUCKET_NAME,
+        storage_class="REGIONAL",
+        location=REGION,
     )
 
-    @task(task_id="write-predict-data-file")
-    def write_predict_file(path_to_file: str):
-        predict_data = generate_model_predict_input_data()
-        with open(path_to_file, "w") as file:
-            for predict_value in predict_data:
-                file.write(f'{{"input_layer": [{predict_value}]}}\n')
-
-    write_data = write_predict_file(path_to_file=PATH_TO_PREDICT_FILE)
-
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload-predict-file",
-        src=[PATH_TO_PREDICT_FILE],
-        dst=PREDICT_FILE_NAME,
-        bucket=BUCKET_NAME,
+    move_data_files = GCSSynchronizeBucketsOperator(
+        task_id="move_files_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/penguins-data",
+        destination_bucket=CUSTOM_PYTHON_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
-
-    # [START howto_operator_gcp_mlengine_training]
-    training = MLEngineStartTrainingJobOperator(
-        task_id="training",
+    create_tabular_dataset = CreateDatasetOperator(
+        task_id="tabular_dataset",
+        dataset=TABULAR_DATASET,
+        region=REGION,
         project_id=PROJECT_ID,
-        region="us-central1",
-        job_id="training-job-{{ ts_nodash }}-{{ params.model_name }}",
-        runtime_version="1.15",
-        python_version="3.7",
-        job_dir=JOB_DIR,
-        package_uris=[TRAINER_URI],
-        training_python_module=TRAINER_PY_MODULE,
-        training_args=[],
-        labels={"job_type": "training"},
     )
-    # [END howto_operator_gcp_mlengine_training]
+    tabular_dataset_id = create_tabular_dataset.output["dataset_id"]
 
-    # [START howto_operator_gcp_mlengine_create_model]
-    create_model = MLEngineCreateModelOperator(
-        task_id="create-model",
+    # [START howto_operator_create_custom_python_training_job_v1]
+    create_custom_python_package_training_job = CreateCustomPythonPackageTrainingJobOperator(
+        task_id="create_custom_python_package_training_job",
+        staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
+        display_name=PACKAGE_DISPLAY_NAME,
+        python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+        python_module_name=PYTHON_MODULE_NAME,
+        container_uri=TRAIN_IMAGE,
+        model_serving_container_image_uri=DEPLOY_IMAGE,
+        bigquery_destination=f"bq://{PROJECT_ID}",
+        # run params
+        dataset_id=tabular_dataset_id,
+        model_display_name=MODEL_DISPLAY_NAME,
+        replica_count=REPLICA_COUNT,
+        machine_type=MACHINE_TYPE,
+        accelerator_type=ACCELERATOR_TYPE,
+        accelerator_count=ACCELERATOR_COUNT,
+        training_fraction_split=TRAINING_FRACTION_SPLIT,
+        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+        test_fraction_split=TEST_FRACTION_SPLIT,
+        region=REGION,
         project_id=PROJECT_ID,
-        model={
-            "name": MODEL_NAME,
-        },
     )
-    # [END howto_operator_gcp_mlengine_create_model]
+    # [END howto_operator_create_custom_python_training_job_v1]
+    model_id_v1 = create_custom_python_package_training_job.output["model_id"]
 
     # [START howto_operator_gcp_mlengine_get_model]
-    get_model = MLEngineGetModelOperator(
-        task_id="get-model",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
+    get_model = GetModelOperator(
+        task_id="get_model", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
     )
     # [END howto_operator_gcp_mlengine_get_model]
 
     # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
         bash_command=f"echo {get_model.output}",
-        task_id="get-model-result",
+        task_id="get_model_result",
     )
     # [END howto_operator_gcp_mlengine_print_model]
 
-    # [START howto_operator_gcp_mlengine_create_version1]
-    create_version_v1 = MLEngineCreateVersionOperator(
-        task_id="create-version-v1",
+    # [START howto_operator_create_custom_python_training_job_v2]
+    create_custom_python_package_training_job_v2 = CreateCustomPythonPackageTrainingJobOperator(
+        task_id="create_custom_python_package_training_job_v2",
+        staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
+        display_name=PACKAGE_DISPLAY_NAME,
+        python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+        python_module_name=PYTHON_MODULE_NAME,
+        container_uri=TRAIN_IMAGE,
+        model_serving_container_image_uri=DEPLOY_IMAGE,
+        bigquery_destination=f"bq://{PROJECT_ID}",
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        model_display_name=MODEL_DISPLAY_NAME,
+        replica_count=REPLICA_COUNT,
+        machine_type=MACHINE_TYPE,
+        accelerator_type=ACCELERATOR_TYPE,
+        accelerator_count=ACCELERATOR_COUNT,
+        training_fraction_split=TRAINING_FRACTION_SPLIT,
+        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+        test_fraction_split=TEST_FRACTION_SPLIT,
+        region=REGION,
         project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version={
-            "name": "v1",
-            "description": "First-version",
-            "deployment_uri": JOB_DIR,
-            "runtime_version": "1.15",
-            "machineType": "mls1-c1-m2",
-            "framework": "TENSORFLOW",
-            "pythonVersion": "3.7",
-        },
     )
-    # [END howto_operator_gcp_mlengine_create_version1]
-
-    # [START howto_operator_gcp_mlengine_create_version2]
-    create_version_v2 = MLEngineCreateVersionOperator(
-        task_id="create-version-v2",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version={
-            "name": "v2",
-            "description": "Second version",
-            "deployment_uri": JOB_DIR,
-            "runtime_version": "1.15",
-            "machineType": "mls1-c1-m2",
-            "framework": "TENSORFLOW",
-            "pythonVersion": "3.7",
-        },
-    )
-    # [END howto_operator_gcp_mlengine_create_version2]
+    # [END howto_operator_create_custom_python_training_job_v2]
+    model_id_v2 = create_custom_python_package_training_job_v2.output["model_id"]
 
     # [START howto_operator_gcp_mlengine_default_version]
-    set_defaults_version = MLEngineSetDefaultVersionOperator(
-        task_id="set-default-version",
+    set_default_version = SetDefaultVersionOnModelOperator(
+        task_id="set_default_version",
         project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version_name="v2",
+        region=REGION,
+        model_id=model_id_v2,
     )
     # [END howto_operator_gcp_mlengine_default_version]
 
     # [START howto_operator_gcp_mlengine_list_versions]
-    list_version = MLEngineListVersionsOperator(
-        task_id="list-version",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
+    list_model_versions = ListModelVersionsOperator(
+        task_id="list_model_versions", region=REGION, project_id=PROJECT_ID, model_id=model_id_v2
     )
     # [END howto_operator_gcp_mlengine_list_versions]
 
-    # [START howto_operator_gcp_mlengine_print_versions]
-    list_version_result = BashOperator(
-        bash_command=f"echo {list_version.output}",
-        task_id="list-version-result",
-    )
-    # [END howto_operator_gcp_mlengine_print_versions]
-
-    # [START howto_operator_gcp_mlengine_get_prediction]
-    prediction = MLEngineStartBatchPredictionJobOperator(
-        task_id="prediction",
+    # [START howto_operator_start_batch_prediction]
+    create_batch_prediction_job = CreateBatchPredictionJobOperator(
+        task_id="create_batch_prediction_job",
+        job_display_name=JOB_DISPLAY_NAME,
+        model_name=model_id_v2,
+        predictions_format="bigquery",
+        bigquery_source=BQ_SOURCE,
+        bigquery_destination_prefix=f"bq://{PROJECT_ID}",
+        region=REGION,
         project_id=PROJECT_ID,
-        job_id="prediction-{{ ts_nodash }}-{{ params.model_name }}",
-        region="us-central1",
-        model_name=MODEL_NAME,
-        data_format="TEXT",
-        input_paths=[PREDICTION_INPUT],
-        output_path=PREDICTION_OUTPUT,
-        labels={"job_type": "prediction"},
+        machine_type=MACHINE_TYPE,
     )
-    # [END howto_operator_gcp_mlengine_get_prediction]
+    # [END howto_operator_start_batch_prediction]
 
     # [START howto_operator_gcp_mlengine_delete_version]
-    delete_version_v1 = MLEngineDeleteVersionOperator(
-        task_id="delete-version-v1",
+    delete_model_version_1 = DeleteModelVersionOperator(
+        task_id="delete_model_version_1",
         project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version_name="v1",
+        region=REGION,
+        model_id=model_id_v2,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_version]
 
-    delete_version_v2 = MLEngineDeleteVersionOperator(
-        task_id="delete-version-v2",
-        project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        version_name="v2",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     # [START howto_operator_gcp_mlengine_delete_model]
-    delete_model = MLEngineDeleteModelOperator(
-        task_id="delete-model",
+    delete_model = DeleteModelOperator(
+        task_id="delete_model",
         project_id=PROJECT_ID,
-        model_name=MODEL_NAME,
-        delete_contents=True,
+        region=REGION,
+        model_id=model_id_v1,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_model]
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete-bucket",
-        bucket_name=BUCKET_NAME,
+    delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
+        task_id="delete_batch_prediction_job",
+        batch_prediction_job_id=create_batch_prediction_job.output["batch_prediction_job_id"],
+        region=REGION,
+        project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    # [START howto_operator_gcp_mlengine_get_metric]
-    def get_metric_fn_and_keys():
-        """
-        Gets metric function and keys used to generate summary
-        """
-
-        def normalize_value(inst: dict):
-            val = int(inst["output_layer"][0])
-            return tuple([val])  # returns a tuple.
-
-        return normalize_value, ["val"]  # key order must match.
-
-    # [END howto_operator_gcp_mlengine_get_metric]
-
-    # [START howto_operator_gcp_mlengine_validate_error]
-    def validate_err_and_count(summary: dict) -> dict:
-        """
-        Validate summary result
-        """
-        summary = summary.get("val", 0)
-        initial_values = generate_model_predict_input_data()
-        initial_summary = sum(initial_values) / len(initial_values)
-
-        multiplier = ceil(summary / initial_summary)
-        if multiplier != 2:
-            raise ValueError(f"Multiplier is not equal 2; multiplier: {multiplier}")
-        return summary
-
-    # [END howto_operator_gcp_mlengine_validate_error]
-
-    # [START howto_operator_gcp_mlengine_evaluate]
-    evaluate_prediction, evaluate_summary, evaluate_validation = mlengine_operator_utils.create_evaluate_ops(
-        task_prefix="evaluate-ops",
-        data_format="TEXT",
-        input_paths=[PREDICTION_INPUT],
-        prediction_path=PREDICTION_OUTPUT,
-        metric_fn_and_keys=get_metric_fn_and_keys(),
-        validate_fn=validate_err_and_count,
-        batch_prediction_job_id="evaluate-ops-{{ ts_nodash }}-{{ params.model_name }}",
+    delete_tabular_dataset = DeleteDatasetOperator(
+        task_id="delete_tabular_dataset",
+        dataset_id=tabular_dataset_id,
+        region=REGION,
         project_id=PROJECT_ID,
-        region="us-central1",
-        dataflow_options={
-            "project": PROJECT_ID,
-            "tempLocation": SUMMARY_TMP,
-            "stagingLocation": SUMMARY_STAGING,
-        },
-        model_name=MODEL_NAME,
-        version_name="v1",
-        py_interpreter="python3",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_operator_gcp_mlengine_evaluate]
 
-    # TEST SETUP
-    create_bucket >> write_data >> upload_file
-    upload_file >> [prediction, evaluate_prediction]
-    create_bucket >> training >> create_version_v1
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=CUSTOM_PYTHON_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
-    # TEST BODY
-    create_model >> get_model >> [get_model_result, delete_model]
-    create_model >> create_version_v1 >> create_version_v2 >> set_defaults_version >> list_version
-
-    create_version_v1 >> prediction
-    create_version_v1 >> evaluate_prediction
-    create_version_v2 >> prediction
-
-    list_version >> [list_version_result, delete_version_v1]
-    prediction >> delete_version_v1
-
-    # TEST TEARDOWN
-    evaluate_validation >> delete_version_v1 >> delete_version_v2 >> delete_model >> delete_bucket
+    (
+        # TEST SETUP
+        create_bucket
+        >> move_data_files
+        >> create_tabular_dataset
+        # TEST BODY
+        >> create_custom_python_package_training_job
+        >> create_custom_python_package_training_job_v2
+        >> create_batch_prediction_job
+        >> get_model
+        >> get_model_result
+        >> list_model_versions
+        >> set_default_version
+        # TEST TEARDOWN
+        >> delete_model_version_1
+        >> delete_model
+        >> delete_batch_prediction_job
+        >> delete_tabular_dataset
+        >> delete_bucket
+    )
 
     from tests.system.utils.watcher import watcher
 

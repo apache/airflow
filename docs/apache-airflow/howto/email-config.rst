@@ -53,7 +53,7 @@ Equivalent environment variables look like:
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
-connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with it's name in
+connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in
 the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
 from the configuration only. The connection can be of any type (for example 'HTTP connection').
 

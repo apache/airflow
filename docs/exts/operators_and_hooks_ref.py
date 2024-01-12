@@ -20,13 +20,12 @@ import ast
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-from docutils.nodes import Element
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
@@ -34,6 +33,9 @@ from docutils.statemachine import StringList
 from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
+
+if TYPE_CHECKING:
+    from docutils.nodes import Element
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
@@ -163,9 +165,8 @@ def _prepare_transfer_data(tags: set[str] | None):
         ]
 
     for transfer in to_display_transfers:
-        if "how-to-guide" not in transfer:
-            continue
-        transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
+        if "how-to-guide" in transfer:
+            transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
     return to_display_transfers
 
 
@@ -200,21 +201,24 @@ def _render_deferrable_operator_content(*, header_separator: str):
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "operators": []}
         for root, _, file_names in os.walk(provider_parent_path):
-            if all([target not in root for target in ["operators", "sensors"]]):
-                continue
-
-            for file_name in file_names:
-                if not file_name.endswith(".py") or file_name == "__init__.py":
-                    continue
-                provider_info["operators"].extend(
-                    iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
-                )
+            if "operators" in root or "sensors" in root:
+                for file_name in file_names:
+                    if file_name.endswith(".py") and file_name != "__init__.py":
+                        provider_info["operators"].extend(
+                            iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                        )
 
         if provider_info["operators"]:
+            provider_info["operators"] = sorted(provider_info["operators"])
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
             provider_info["name"] = provider_yaml_content["package-name"]
             providers.append(provider_info)
-    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
+
+    return _render_template(
+        "deferrable_operators_list.rst.jinja2",
+        providers=sorted(providers, key=lambda p: p["name"]),
+        header_separator=header_separator,
+    )
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -246,7 +250,7 @@ class BaseJinjaReferenceDirective(Directive):
 
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
-        raise NotImplementedError("Tou need to override render_content method.")
+        raise NotImplementedError("You need to override render_content method.")
 
 
 def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
@@ -316,7 +320,9 @@ class AuthConfigurations(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         tabular_data = [
-            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("config") is not None
         ]
         return _render_template(
             "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator

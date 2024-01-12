@@ -27,12 +27,14 @@ import imaplib
 import os
 import re
 import ssl
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class ImapHook(BaseHook):
@@ -51,8 +53,8 @@ class ImapHook(BaseHook):
     conn_type = "imap"
     hook_name = "IMAP"
 
-    def __init__(self, imap_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, imap_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.imap_conn_id = imap_conn_id
         self.mail_client: imaplib.IMAP4_SSL | imaplib.IMAP4 | None = None
 
@@ -130,7 +132,7 @@ class ImapHook(BaseHook):
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
         )
-        return len(mail_attachments) > 0
+        return bool(mail_attachments)
 
     def retrieve_mail_attachments(
         self,

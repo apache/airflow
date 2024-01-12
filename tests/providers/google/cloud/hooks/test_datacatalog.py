@@ -18,21 +18,23 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from unittest import mock
 
 import pytest
-from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
+
+if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_LOCATION: str = "europe-west-3b"
@@ -1277,7 +1279,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1296,7 +1297,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1315,7 +1315,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag_template(
                 location=TEST_LOCATION,
                 tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -1332,7 +1331,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag_template_field(
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1350,7 +1348,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.delete_entry(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,

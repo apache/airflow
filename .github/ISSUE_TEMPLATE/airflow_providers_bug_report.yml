@@ -40,7 +40,6 @@ body:
         - apache-pig
         - apache-pinot
         - apache-spark
-        - apache-sqoop
         - apprise
         - arangodb
         - asana
@@ -48,8 +47,9 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
+        - cohere
+        - common-io
         - common-sql
-        - daskexecutor
         - databricks
         - datadog
         - dbt-cloud
@@ -58,6 +58,7 @@ body:
         - docker
         - elasticsearch
         - exasol
+        - fab
         - facebook
         - ftp
         - github
@@ -69,7 +70,6 @@ body:
         - influxdb
         - jdbc
         - jenkins
-        - apache-kafka
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp
@@ -78,16 +78,18 @@ body:
         - mysql
         - neo4j
         - odbc
+        - openai
         - openfaas
         - openlineage
+        - opensearch
         - opsgenie
         - oracle
         - pagerduty
         - papermill
-        - plexus
+        - pgvector
+        - pinecone
         - postgres
         - presto
-        - qubole
         - redis
         - salesforce
         - samba
@@ -105,6 +107,7 @@ body:
         - telegram
         - trino
         - vertica
+        - weaviate
         - yandex
         - zendesk
     validations:

@@ -32,6 +32,7 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.interval import CronDataIntervalTimetable
 from tests.listeners import empty_listener
+from tests.listeners.class_listener import ClassBasedListener
 from tests.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -129,7 +130,7 @@ class AirflowTestPlugin(AirflowPlugin):
     ]
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
     timetables = [CustomCronDataIntervalTimetable]
-    listeners = [empty_listener]
+    listeners = [empty_listener, ClassBasedListener()]
     ti_deps = [CustomTestTriggerRule()]
 
 

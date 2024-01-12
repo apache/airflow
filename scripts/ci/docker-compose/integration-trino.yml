@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   trino:
     image: ghcr.io/apache/airflow-trino:359-2021.07.04
+    labels:
+      breeze.description: "Integration required for Trino hooks."
     hostname: trino
     domainname: example.com
 

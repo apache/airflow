@@ -19,17 +19,21 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterable, Mapping, TypeVar
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import Connection
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.utils.helpers import exactly_one
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 T = TypeVar("T")
 
@@ -83,8 +87,11 @@ class TrinoHook(DbApiHook):
     conn_type = "trino"
     hook_name = "Trino"
     query_id = ""
-    placeholder = "?"
     _test_connection_sql = "select 1"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
         """Returns a connection object."""
@@ -97,11 +104,20 @@ class TrinoHook(DbApiHook):
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
-            if "jwt__file" in extra:
-                with open(extra.get("jwt__file")) as jwt_file:
-                    token = jwt_file.read()
+            if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
+                msg = (
+                    "When auth set to 'jwt' then expected exactly one parameter 'jwt__file' or 'jwt__token'"
+                    " in connection extra, but "
+                )
+                if jwt_file and jwt_token:
+                    msg += "provided both."
+                else:
+                    msg += "none of them provided."
+                raise ValueError(msg)
+            elif jwt_file:
+                token = Path(extra["jwt__file"]).read_text()
             else:
-                token = extra.get("jwt__token")
+                token = extra["jwt__token"]
             auth = trino.auth.JWTAuthentication(token=token)
         elif extra.get("auth") == "certs":
             auth = trino.auth.CertificateAuthentication(
@@ -143,6 +159,7 @@ class TrinoHook(DbApiHook):
             verify=_boolify(extra.get("verify", True)),
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
+            timezone=extra.get("timezone") or None,
         )
 
         return trino_conn
@@ -175,10 +192,8 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(
-        self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
-    ):  # type: ignore[override]
-        import pandas
+    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
+        import pandas as pd
 
         cursor = self.get_cursor()
         try:
@@ -188,10 +203,10 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df = pd.DataFrame(data, **kwargs)
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = pd.DataFrame(**kwargs)
         return df
 
     def insert_rows(
@@ -233,3 +248,32 @@ class TrinoHook(DbApiHook):
         :return: The cell
         """
         return cell
+
+    def get_openlineage_database_info(self, connection):
+        """Returns Trino specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme="trino",
+            authority=DbApiHook.get_openlineage_authority_part(
+                connection, default_port=trino.constants.DEFAULT_PORT
+            ),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=connection.extra_dejson.get("catalog", "hive"),
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns Trino dialect."""
+        return "trino"
+
+    def get_openlineage_default_schema(self):
+        """Returns Trino default schema."""
+        return trino.constants.DEFAULT_SCHEMA

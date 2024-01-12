@@ -19,16 +19,22 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
-from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 
 class AzureBatchHook(BaseHook):
@@ -44,16 +50,9 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -63,8 +62,8 @@ class AzureBatchHook(BaseHook):
             "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -74,29 +73,48 @@ class AzureBatchHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_batch_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_batch_conn_id
-        self.connection = self.get_conn()
 
-    def _connection(self) -> Connection:
-        """Get connected to Azure Batch service."""
-        conn = self.get_connection(self.conn_id)
-        return conn
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
 
-    def get_conn(self):
+    @cached_property
+    def connection(self) -> BatchServiceClient:
+        """Get the Batch client connection (cached)."""
+        return self.get_conn()
+
+    def get_conn(self) -> BatchServiceClient:
         """
         Get the Batch client connection.
 
         :return: Azure Batch client
         """
-        conn = self._connection()
+        conn = self.get_connection(self.conn_id)
 
         batch_account_url = self._get_field(conn.extra_dejson, "account_url")
         if not batch_account_url:
             raise AirflowException("Batch Account URL parameter is missing.")
 
-        credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
+        credentials: batch_auth.SharedKeyCredentials | AzureIdentityCredentialAdapter
+        if all([conn.login, conn.password]):
+            credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
+        else:
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credentials = AzureIdentityCredentialAdapter(
+                None,
+                resource_id="https://batch.core.windows.net/.default",
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client
 
@@ -344,7 +362,6 @@ class AzureBatchHook(BaseHook):
         :param task: The task to add
         """
         try:
-
             self.connection.task.add(job_id=job_id, task=task)
         except batch_models.BatchErrorException as err:
             if not err.error or err.error.code != "TaskExists":

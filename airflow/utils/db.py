@@ -67,38 +67,28 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-REVISION_HEADS_MAP = {
+_REVISION_HEADS_MAP = {
     "2.0.0": "e959f08ac86c",
     "2.0.1": "82b7c48c147f",
     "2.0.2": "2e42bb497a22",
     "2.1.0": "a13f7613ad25",
-    "2.1.1": "a13f7613ad25",
-    "2.1.2": "a13f7613ad25",
     "2.1.3": "97cdd93827b8",
     "2.1.4": "ccde3e26fe78",
     "2.2.0": "7b2661a43ba3",
-    "2.2.1": "7b2661a43ba3",
-    "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
     "2.2.4": "587bdf053233",
-    "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
     "2.3.2": "3c94c427fdf6",
     "2.3.3": "f5fcbda3e651",
-    "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
-    "2.4.1": "ecb43d2a1842",
     "2.4.2": "b0d31815b5a6",
     "2.4.3": "e07f49787c9d",
     "2.5.0": "290244fb8b83",
-    "2.5.1": "290244fb8b83",
-    "2.5.2": "290244fb8b83",
-    "2.5.3": "290244fb8b83",
     "2.6.0": "98ae134e6fff",
-    "2.6.1": "98ae134e6fff",
     "2.6.2": "c804e5c76e3e",
-    "2.6.3": "c804e5c76e3e",
+    "2.7.0": "405de8318b3a",
+    "2.8.0": "10b52ebd31f7",
 }
 
 
@@ -545,14 +535,6 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
-            conn_id="qubole_default",
-            conn_type="qubole",
-            host="localhost",
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
             conn_id="redis_default",
             conn_type="redis",
             host="redis",
@@ -620,14 +602,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="sqlite_default",
             conn_type="sqlite",
             host=os.path.join(gettempdir(), "sqlite_default.db"),
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
-            conn_id="sqoop_default",
-            conn_type="sqoop",
-            host="rdbms",
         ),
         session,
     )
@@ -721,8 +695,8 @@ def _get_flask_db(sql_database_uri):
 def _create_db_from_orm(session):
     from alembic import command
 
-    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
+    from airflow.providers.fab.auth_manager.models import Model
 
     def _create_flask_session_tbl(sql_database_uri):
         db = _get_flask_db(sql_database_uri)
@@ -921,7 +895,9 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         select(
             log_template_table.c.filename,
             log_template_table.c.elasticsearch_id,
-        ).order_by(log_template_table.c.id.desc()),
+        )
+        .order_by(log_template_table.c.id.desc())
+        .limit(1)
     ).first()
 
     # If we have an empty table, and the default values exist, we will seed the
@@ -956,6 +932,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
                 )
             )
             .order_by(log_template_table.c.id.desc())
+            .limit(1)
         ).first()
         if not row:
             session.add(
@@ -998,7 +975,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
-    from airflow.auth.managers.fab.models import RegisterUser, User
+    from airflow.providers.fab.auth_manager.models import RegisterUser, User
 
     for model in [User, RegisterUser]:
         dups = []
@@ -1199,18 +1176,7 @@ def _create_table_as(
 
     We have to handle CTAS differently for different dialects.
     """
-    from sqlalchemy import column, select, table
-
-    if dialect_name == "mssql":
-        cte = source_query.cte("source")
-        moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select(cte))
-
-        stmt = ins.compile(bind=session.get_bind())
-        cte_sql = stmt.ctes[cte]
-
-        session.execute(text(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source"))
-    elif dialect_name == "mysql":
+    if dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
         session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
@@ -1221,9 +1187,8 @@ def _create_table_as(
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
-        session.execute(
-            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
-        )
+        select_table = source_query.selectable.compile(bind=session.get_bind())
+        session.execute(text(f"CREATE TABLE {target_table_name} AS {select_table}"))
 
 
 def _move_dangling_data_to_new_table(
@@ -1457,10 +1422,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, "dangling")
         if dangling_table_name in existing_table_names:
-            invalid_row_count = bad_rows_query.count()
-            if invalid_row_count <= 0:
-                continue
-            else:
+            invalid_row_count = get_query_count(bad_rows_query, session=session)
+            if invalid_row_count:
                 yield _format_dangling_error(
                     source_table=source_table.name,
                     target_table=dangling_table_name,
@@ -1497,8 +1460,6 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
         yield from check_fn(session=session)
-        # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
-        session.commit()
 
 
 def _offline_migration(migration_func: Callable, config, revision):
@@ -1662,10 +1623,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        with connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
 
     if not skip_init:
         initdb(session=session)
@@ -1731,8 +1691,8 @@ def drop_airflow_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
-    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
+    from airflow.providers.fab.auth_manager.models import Model
 
     Base.metadata.drop_all(connection)
     Model.metadata.drop_all(connection)
@@ -1800,9 +1760,6 @@ def create_global_lock(
             conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
-        elif dialect.name == "mssql":
-            # TODO: make locking work for MSSQL
-            pass
 
         yield
     finally:
@@ -1813,9 +1770,6 @@ def create_global_lock(
                 raise RuntimeError("Error releasing DB lock!")
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
-        elif dialect.name == "mssql":
-            # TODO: make locking work for MSSQL
-            pass
 
 
 def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
@@ -1850,9 +1804,6 @@ def compare_server_default(
     return True if the defaults are different, False if not, or None to allow the default implementation
     to compare these defaults
 
-    Comparing server_default is not accurate in MSSQL because the
-    inspected_default above != metadata_default, while in Postgres/MySQL they are equal.
-    This is an issue with alembic
     In SQLite: task_instance.map_index & task_reschedule.map_index
     are not comparing accurately. Sometimes they are equal, sometimes they are not.
     Alembic warned that this feature has varied accuracy depending on backends.
@@ -1860,7 +1811,7 @@ def compare_server_default(
         environment.EnvironmentContext.configure.params.compare_server_default)
     """
     dialect_name = context.connection.dialect.name
-    if dialect_name in ["mssql", "sqlite"]:
+    if dialect_name in ["sqlite"]:
         return False
     if (
         dialect_name == "mysql"

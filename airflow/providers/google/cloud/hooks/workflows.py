@@ -16,19 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
-from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
-from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
+    from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class WorkflowsHook(GoogleBaseHook):

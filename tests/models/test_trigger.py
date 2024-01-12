@@ -17,18 +17,23 @@
 from __future__ import annotations
 
 import datetime
+from typing import Any, AsyncIterator
 
 import pytest
 import pytz
+from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
-from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.operators.empty import EmptyOperator
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture
@@ -171,19 +176,47 @@ def test_assign_unassigned(session, create_task_instance):
     trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_healthy_triggerer.id = 1
     trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
+    session.add(trigger_on_healthy_triggerer)
+    ti_trigger_on_healthy_triggerer = create_task_instance(
+        task_id="ti_trigger_on_healthy_triggerer",
+        execution_date=time_now,
+        run_id="trigger_on_healthy_triggerer_run_id",
+    )
+    ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
+    session.add(ti_trigger_on_healthy_triggerer)
     trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_unhealthy_triggerer.id = 2
     trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
+    session.add(trigger_on_unhealthy_triggerer)
+    ti_trigger_on_unhealthy_triggerer = create_task_instance(
+        task_id="ti_trigger_on_unhealthy_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=1),
+        run_id="trigger_on_unhealthy_triggerer_run_id",
+    )
+    ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
+    session.add(ti_trigger_on_unhealthy_triggerer)
     trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_killed_triggerer.id = 3
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
+    session.add(trigger_on_killed_triggerer)
+    ti_trigger_on_killed_triggerer = create_task_instance(
+        task_id="ti_trigger_on_killed_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=2),
+        run_id="trigger_on_killed_triggerer_run_id",
+    )
+    ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
+    session.add(ti_trigger_on_killed_triggerer)
     trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_unassigned_to_triggerer.id = 4
-    assert trigger_unassigned_to_triggerer.triggerer_id is None
-    session.add(trigger_on_healthy_triggerer)
-    session.add(trigger_on_unhealthy_triggerer)
-    session.add(trigger_on_killed_triggerer)
     session.add(trigger_unassigned_to_triggerer)
+    ti_trigger_unassigned_to_triggerer = create_task_instance(
+        task_id="ti_trigger_unassigned_to_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=3),
+        run_id="trigger_unassigned_to_triggerer_run_id",
+    )
+    ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
+    session.add(ti_trigger_unassigned_to_triggerer)
+    assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.commit()
     assert session.query(Trigger).count() == 4
     Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
@@ -209,31 +242,143 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
-def test_get_sorted_triggers(session, create_task_instance):
+def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
-    Tests that triggers are sorted by the creation_date.
+    Tests that triggers are sorted by the creation_date if they have the same priority.
     """
+    old_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=datetime.datetime(
-            2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-        ),
+        created_date=old_execution_date + datetime.timedelta(seconds=30),
     )
     trigger_old.id = 1
+    session.add(trigger_old)
+    TI_old = create_task_instance(
+        task_id="old",
+        execution_date=old_execution_date,
+        run_id="old_run_id",
+    )
+    TI_old.priority_weight = 1
+    TI_old.trigger_id = trigger_old.id
+    session.add(TI_old)
+
+    new_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=datetime.datetime(
-            2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-        ),
+        created_date=new_execution_date + datetime.timedelta(seconds=30),
     )
     trigger_new.id = 2
-    session.add(trigger_old)
     session.add(trigger_new)
+    TI_new = create_task_instance(
+        task_id="new",
+        execution_date=new_execution_date,
+        run_id="new_run_id",
+    )
+    TI_new.priority_weight = 1
+    TI_new.trigger_id = trigger_new.id
+    session.add(TI_new)
+
     session.commit()
     assert session.query(Trigger).count() == 2
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
     assert trigger_ids_query == [(1,), (2,)]
+
+
+def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
+    """
+    Tests that triggers are sorted by the priority_weight.
+    """
+    old_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
+    trigger_old = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=old_execution_date + datetime.timedelta(seconds=30),
+    )
+    trigger_old.id = 1
+    session.add(trigger_old)
+    TI_old = create_task_instance(
+        task_id="old",
+        execution_date=old_execution_date,
+        run_id="old_run_id",
+    )
+    TI_old.priority_weight = 1
+    TI_old.trigger_id = trigger_old.id
+    session.add(TI_old)
+
+    new_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
+    trigger_new = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=new_execution_date + datetime.timedelta(seconds=30),
+    )
+    trigger_new.id = 2
+    session.add(trigger_new)
+    TI_new = create_task_instance(
+        task_id="new",
+        execution_date=new_execution_date,
+        run_id="new_run_id",
+    )
+    TI_new.priority_weight = 2
+    TI_new.trigger_id = trigger_new.id
+    session.add(TI_new)
+
+    session.commit()
+    assert session.query(Trigger).count() == 2
+
+    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+
+    assert trigger_ids_query == [(2,), (1,)]
+
+
+class SensitiveKwargsTrigger(BaseTrigger):
+    """
+    A trigger that has sensitive kwargs.
+    """
+
+    def __init__(self, param1: str, param2: str):
+        super().__init__()
+        self.param1 = param1
+        self.param2 = param2
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.models.test_trigger.SensitiveKwargsTrigger",
+            {
+                "param1": self.param1,
+                "encrypted__param2": self.param2,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent({})
+
+
+@conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+def test_serialize_sensitive_kwargs():
+    """
+    Tests that sensitive kwargs are encrypted.
+    """
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.kwargs["param1"] == "value1"
+    assert "param2" not in trigger_row.kwargs
+    assert trigger_row.kwargs["encrypted__param2"] != "value2"
+
+    loaded_trigger: SensitiveKwargsTrigger = TriggerRunner().trigger_row_to_trigger_instance(
+        trigger_row, SensitiveKwargsTrigger
+    )
+    assert loaded_trigger.param1 == "value1"
+    assert loaded_trigger.param2 == "value2"

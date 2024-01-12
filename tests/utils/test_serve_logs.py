@@ -75,7 +75,7 @@ def sample_log(request, tmp_path):
         raise ValueError(f"Unknown client fixture: {client}")
 
     f = base_log_dir.joinpath("sample.log")
-    f.write_bytes(LOG_DATA.encode())
+    f.write_text(LOG_DATA)
     return f
 
 

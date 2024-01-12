@@ -54,6 +54,7 @@ SQL_MULTIPLE_STMTS = (
 SINGLE_STMT = "select i from user_test order by i;"
 
 
+@pytest.mark.db_test
 class TestSnowflakeOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

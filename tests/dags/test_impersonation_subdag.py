@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator

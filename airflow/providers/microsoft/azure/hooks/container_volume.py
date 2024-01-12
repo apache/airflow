@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,9 +19,14 @@ from __future__ import annotations
 from typing import Any
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
+from azure.mgmt.storage import StorageManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -39,33 +43,30 @@ class AzureContainerVolumeHook(BaseHook):
     conn_type = "azure_container_volume"
     hook_name = "Azure Container Volume"
 
-    def __init__(self, azure_container_volume_conn_id: str = "azure_container_volume_default") -> None:
-        super().__init__()
-        self.conn_id = azure_container_volume_conn_id
-
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField
+        from wtforms import PasswordField, StringField
 
         return {
             "connection_string": PasswordField(
                 lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
+            "subscription_id": StringField(
+                lazy_gettext("Subscription ID (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "resource_group": StringField(
+                lazy_gettext("Resource group name (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -77,10 +78,26 @@ class AzureContainerVolumeHook(BaseHook):
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
                 "connection_string": "connection string auth",
+                "subscription_id": "Subscription id (required for Azure AD authentication)",
+                "resource_group": "Resource group name (required for Azure AD authentication)",
             },
         }
 
-    def get_storagekey(self) -> str:
+    def __init__(
+        self, azure_container_volume_conn_id: str = "azure_container_volume_default", **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = azure_container_volume_conn_id
+
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
+    def get_storagekey(self, *, storage_account_name: str | None = None) -> str:
         """Get Azure File Volume storage key."""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
@@ -90,6 +107,22 @@ class AzureContainerVolumeHook(BaseHook):
                 key, value = keyvalue.split("=", 1)
                 if key == "AccountKey":
                     return value
+
+        subscription_id = self._get_field(extras, "subscription_id")
+        resource_group = self._get_field(extras, "resource_group")
+        if subscription_id and storage_account_name and resource_group:
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+            storage_client = StorageManagementClient(credential, subscription_id)
+            storage_account_list_keys_result = storage_client.storage_accounts.list_keys(
+                resource_group, storage_account_name
+            )
+            return storage_account_list_keys_result.as_dict()["keys"][0]["value"]
+
         return conn.password
 
     def get_file_volume(
@@ -102,6 +135,6 @@ class AzureContainerVolumeHook(BaseHook):
                 share_name=share_name,
                 storage_account_name=storage_account_name,
                 read_only=read_only,
-                storage_account_key=self.get_storagekey(),
+                storage_account_key=self.get_storagekey(storage_account_name=storage_account_name),
             ),
         )

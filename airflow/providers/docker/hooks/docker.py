@@ -64,8 +64,9 @@ class DockerHook(BaseHook):
         version: str | None = None,
         tls: TLSConfig | bool | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         if not base_url:
             raise AirflowException("URL to the Docker server not provided.")
         elif tls:
@@ -166,9 +167,9 @@ class DockerHook(BaseHook):
             self.log.error("Login failed")
             raise
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection form widgets."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection form widgets."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -183,7 +184,7 @@ class DockerHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {

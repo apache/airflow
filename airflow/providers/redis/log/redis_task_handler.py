@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import Any
-
-from redis import Redis
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from redis import Redis
+
+    from airflow.models import TaskInstance
 
 
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):
@@ -62,7 +64,7 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler: _RedisHandler | None = None
         self.max_lines = max_lines
         self.ttl_seconds = ttl_seconds
-        self.conn_id = conn_id if conn_id is not None else conf.get("logging", "REMOTE_LOG_CONN_ID")
+        self.conn_id = conn_id or conf.get("logging", "REMOTE_LOG_CONN_ID")
 
     @cached_property
     def conn(self):
@@ -79,7 +81,7 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         ).decode()
         return log_str, {"end_of_log": True}
 
-    def set_context(self, ti: TaskInstance):
+    def set_context(self, ti: TaskInstance, **kwargs) -> None:
         super().set_context(ti)
         self.handler = _RedisHandler(
             self.conn,

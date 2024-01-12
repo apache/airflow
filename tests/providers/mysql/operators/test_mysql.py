@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 from contextlib import closing
-from tempfile import NamedTemporaryFile
 from unittest.mock import MagicMock
 
 import pytest
@@ -100,18 +99,14 @@ class TestMySql:
             except OperationalError as e:
                 assert "Unknown database 'foobar'" in str(e)
 
-    def test_mysql_operator_resolve_parameters_template_json_file(self):
+    def test_mysql_operator_resolve_parameters_template_json_file(self, tmp_path):
+        path = tmp_path / "testfile.json"
+        path.write_text('{\n "foo": "{{ ds }}"}')
 
-        with NamedTemporaryFile(suffix=".json") as f:
-            f.write(b'{\n "foo": "{{ ds }}"}')
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
+        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent)):
+            task = MySqlOperator(task_id="op1", parameters=path.name, sql="SELECT 1")
 
-            with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = MySqlOperator(task_id="op1", parameters=template_file, sql="SELECT 1")
-
-            task.resolve_template_files()
+        task.resolve_template_files()
 
         assert isinstance(task.parameters, dict)
         assert task.parameters["foo"] == "{{ ds }}"

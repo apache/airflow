@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   cassandra:
     image: cassandra:3.0
+    labels:
+      breeze.description: "Integration required for Cassandra hooks."
     environment:
       HEAP_NEWSIZE: 128M
       MAX_HEAP_SIZE: 256M

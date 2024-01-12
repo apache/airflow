@@ -78,10 +78,10 @@ an Integrated Developer Environment (IDE).
 Package apache-airflow-providers-dbt-cloud
 ------------------------------------------------------
 
-`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
+`dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 
-Release: 3.2.2
+Release: 3.5.1
 
 Provider package
 ----------------
@@ -99,12 +99,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 =================================  ==================
 PIP package                        Version required
 =================================  ==================
-``apache-airflow``                 ``>=2.4.0``
+``apache-airflow``                 ``>=2.6.0``
 ``apache-airflow-providers-http``
 ``asgiref``
 ``aiohttp``
@@ -123,11 +123,12 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-dbt-cloud[http]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                ``http``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Downloading official packages
 -----------------------------
@@ -135,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-dbt-cloud 3.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.2.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-dbt-cloud 3.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.2.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.5.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.5.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.5.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.5.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.5.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.5.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.5.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.5.1-py3-none-any.whl.sha512>`__)

@@ -168,7 +168,7 @@ class BaseSetupTeardownContext:
     @classmethod
     def _push_tasks(cls, operator: AbstractOperator | list[AbstractOperator], setup: bool = False):
         if isinstance(operator, list):
-            if not all(task.is_setup == operator[0].is_setup for task in operator):
+            if any(task.is_setup != operator[0].is_setup for task in operator):
                 cls.error("All tasks in the list must be either setup or teardown tasks")
         if setup:
             cls.push_context_managed_setup_task(operator)

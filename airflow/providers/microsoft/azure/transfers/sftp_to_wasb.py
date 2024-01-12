@@ -125,7 +125,7 @@ class SFTPToWasbOperator(BaseOperator):
             sftp_complete_path, prefix=prefix, delimiter=delimiter
         )
 
-        self.log.info("Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path)
+        self.log.info("Found %d files at sftp source path: %s", len(found_files), self.sftp_source_path)
 
         for file in found_files:
             future_blob_name = self.get_full_path_blob(file)
@@ -138,7 +138,6 @@ class SFTPToWasbOperator(BaseOperator):
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:
-
             prefix, delimiter = self.sftp_source_path.split(WILDCARD, 1)
 
             sftp_complete_path = os.path.dirname(prefix)
@@ -163,7 +162,7 @@ class SFTPToWasbOperator(BaseOperator):
 
     @cached_property
     def sftp_hook(self) -> SFTPHook:
-        """Property of sftp hook to be re-used."""
+        """Property of sftp hook to be reused."""
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:

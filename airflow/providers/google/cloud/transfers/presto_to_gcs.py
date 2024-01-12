@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
-from prestodb.client import PrestoResult
-from prestodb.dbapi import Cursor as PrestoCursor
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
+
+if TYPE_CHECKING:
+    from prestodb.client import PrestoResult
+    from prestodb.dbapi import Cursor as PrestoCursor
 
 
 class _PrestoToGCSPrestoCursorAdapter:

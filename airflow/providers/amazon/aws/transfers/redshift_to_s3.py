@@ -18,6 +18,7 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
@@ -103,7 +104,7 @@ class RedshiftToS3Operator(BaseOperator):
         include_header: bool = False,
         parameters: Iterable | Mapping | None = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
-        redshift_data_api_kwargs: dict = {},
+        redshift_data_api_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -119,7 +120,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.include_header = include_header
         self.parameters = parameters
         self.table_as_file_name = table_as_file_name
-        self.redshift_data_api_kwargs = redshift_data_api_kwargs
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
 
         if select_query:
             self.select_query = select_query
@@ -131,9 +132,7 @@ class RedshiftToS3Operator(BaseOperator):
             )
 
         if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = list(self.unload_options) + [
-                "HEADER",
-            ]
+            self.unload_options = [*self.unload_options, "HEADER"]
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
@@ -143,8 +142,10 @@ class RedshiftToS3Operator(BaseOperator):
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
+        # Un-escape already escaped queries
+        select_query = re.sub(r"''(.+)''", r"'\1'", select_query)
         return f"""
-                    UNLOAD ('{select_query}')
+                    UNLOAD ($${select_query}$$)
                     TO 's3://{self.s3_bucket}/{s3_key}'
                     credentials
                     '{credentials_block}'

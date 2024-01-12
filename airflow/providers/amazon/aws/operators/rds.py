@@ -23,8 +23,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from mypy_boto3_rds.type_defs import TagTypeDef
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -39,6 +37,8 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
+    from mypy_boto3_rds.type_defs import TagTypeDef
+
     from airflow.utils.context import Context
 
 

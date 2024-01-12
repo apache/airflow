@@ -54,6 +54,31 @@ class SparkSqlHook(BaseHook):
     conn_type = "spark_sql"
     hook_name = "Spark SQL"
 
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "login", "password", "extra"],
+            "relabeling": {},
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import Optional
+
+        return {
+            "queue": StringField(
+                lazy_gettext("YARN queue"),
+                widget=BS3TextFieldWidget(),
+                description="Default YARN queue to use",
+                validators=[Optional()],
+            )
+        }
+
     def __init__(
         self,
         sql: str,
@@ -69,8 +94,9 @@ class SparkSqlHook(BaseHook):
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         options: dict = {}
         conn: Connection | None = None
 
@@ -134,7 +160,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
             sql = self._sql.strip()
-            if sql.endswith(".sql") or sql.endswith(".hql"):
+            if sql.endswith((".sql", ".hql")):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]

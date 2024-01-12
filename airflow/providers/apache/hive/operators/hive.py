@@ -19,9 +19,13 @@ from __future__ import annotations
 
 import os
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated.classic import deprecated
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
@@ -58,6 +62,7 @@ class HiveOperator(BaseOperator):
         This can make monitoring easier.
     :param hive_cli_params: parameters passed to hive CLO
     :param auth: optional authentication option passed for the Hive connection
+    :param proxy_user: Run HQL code as this user.
     """
 
     template_fields: Sequence[str] = (
@@ -68,6 +73,7 @@ class HiveOperator(BaseOperator):
         "hiveconfs",
         "mapred_job_name",
         "mapred_queue_priority",
+        "proxy_user",
     )
     template_ext: Sequence[str] = (
         ".hql",
@@ -91,6 +97,7 @@ class HiveOperator(BaseOperator):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,7 +115,7 @@ class HiveOperator(BaseOperator):
         self.mapred_job_name = mapred_job_name
         self.hive_cli_params = hive_cli_params
         self.auth = auth
-
+        self.proxy_user = proxy_user
         job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
@@ -116,13 +123,8 @@ class HiveOperator(BaseOperator):
         )
         self.mapred_job_name_template: str = job_name_template
 
-        # assigned lazily - just for consistency we can create the attribute with a
-        # `None` initial value, later it will be populated by the execute method.
-        # This also makes `on_kill` implementation consistent since it assumes `self.hook`
-        # is defined.
-        self.hook: HiveCliHook | None = None
-
-    def get_hook(self) -> HiveCliHook:
+    @cached_property
+    def hook(self) -> HiveCliHook:
         """Get Hive cli hook."""
         return HiveCliHook(
             hive_cli_conn_id=self.hive_cli_conn_id,
@@ -132,7 +134,13 @@ class HiveOperator(BaseOperator):
             mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
+            proxy_user=self.proxy_user,
         )
+
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    def get_hook(self) -> HiveCliHook:
+        """Get Hive cli hook."""
+        return self.hook
 
     def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:
@@ -142,7 +150,6 @@ class HiveOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing: %s", self.hql)
-        self.hook = self.get_hook()
 
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
@@ -169,7 +176,6 @@ class HiveOperator(BaseOperator):
         # existing env vars from impacting behavior.
         self.clear_airflow_vars()
 
-        self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
     def on_kill(self) -> None:

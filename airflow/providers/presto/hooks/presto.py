@@ -19,17 +19,19 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import Connection
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 T = TypeVar("T")
 
@@ -82,7 +84,10 @@ class PrestoHook(DbApiHook):
     default_conn_name = "presto_default"
     conn_type = "presto"
     hook_name = "Presto"
-    placeholder = "?"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
         """Returns a connection object."""
@@ -158,7 +163,7 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
 
     def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        import pandas
+        import pandas as pd
 
         cursor = self.get_cursor()
         try:
@@ -168,10 +173,10 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df = pd.DataFrame(data, **kwargs)
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = pd.DataFrame(**kwargs)
         return df
 
     def insert_rows(

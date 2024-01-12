@@ -22,47 +22,47 @@ from __future__ import annotations
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
-    'base_sensor_operator': {
-        'BaseSensorOperator': 'airflow.sensors.base.BaseSensorOperator',
+    "base_sensor_operator": {
+        "BaseSensorOperator": "airflow.sensors.base.BaseSensorOperator",
     },
-    'date_time_sensor': {
-        'DateTimeSensor': 'airflow.sensors.date_time.DateTimeSensor',
+    "date_time_sensor": {
+        "DateTimeSensor": "airflow.sensors.date_time.DateTimeSensor",
     },
-    'external_task_sensor': {
-        'ExternalTaskMarker': 'airflow.sensors.external_task.ExternalTaskMarker',
-        'ExternalTaskSensor': 'airflow.sensors.external_task.ExternalTaskSensor',
-        'ExternalTaskSensorLink': 'airflow.sensors.external_task.ExternalTaskSensorLink',
+    "external_task_sensor": {
+        "ExternalTaskMarker": "airflow.sensors.external_task.ExternalTaskMarker",
+        "ExternalTaskSensor": "airflow.sensors.external_task.ExternalTaskSensor",
+        "ExternalTaskSensorLink": "airflow.sensors.external_task.ExternalTaskSensorLink",
     },
-    'hive_partition_sensor': {
-        'HivePartitionSensor': 'airflow.providers.apache.hive.sensors.hive_partition.HivePartitionSensor',
+    "hive_partition_sensor": {
+        "HivePartitionSensor": "airflow.providers.apache.hive.sensors.hive_partition.HivePartitionSensor",
     },
-    'http_sensor': {
-        'HttpSensor': 'airflow.providers.http.sensors.http.HttpSensor',
+    "http_sensor": {
+        "HttpSensor": "airflow.providers.http.sensors.http.HttpSensor",
     },
-    'metastore_partition_sensor': {
-        'MetastorePartitionSensor': (
-            'airflow.providers.apache.hive.sensors.metastore_partition.MetastorePartitionSensor'
+    "metastore_partition_sensor": {
+        "MetastorePartitionSensor": (
+            "airflow.providers.apache.hive.sensors.metastore_partition.MetastorePartitionSensor"
         ),
     },
-    'named_hive_partition_sensor': {
-        'NamedHivePartitionSensor': (
-            'airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor'
+    "named_hive_partition_sensor": {
+        "NamedHivePartitionSensor": (
+            "airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor"
         ),
     },
-    's3_key_sensor': {
-        'S3KeySensor': 'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
+    "s3_key_sensor": {
+        "S3KeySensor": "airflow.providers.amazon.aws.sensors.s3.S3KeySensor",
     },
-    'sql': {
-        'SqlSensor': 'airflow.providers.common.sql.sensors.sql.SqlSensor',
+    "sql": {
+        "SqlSensor": "airflow.providers.common.sql.sensors.sql.SqlSensor",
     },
-    'sql_sensor': {
-        'SqlSensor': 'airflow.providers.common.sql.sensors.sql.SqlSensor',
+    "sql_sensor": {
+        "SqlSensor": "airflow.providers.common.sql.sensors.sql.SqlSensor",
     },
-    'time_delta_sensor': {
-        'TimeDeltaSensor': 'airflow.sensors.time_delta.TimeDeltaSensor',
+    "time_delta_sensor": {
+        "TimeDeltaSensor": "airflow.sensors.time_delta.TimeDeltaSensor",
     },
-    'web_hdfs_sensor': {
-        'WebHdfsSensor': 'airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor',
+    "web_hdfs_sensor": {
+        "WebHdfsSensor": "airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor",
     },
 }
 

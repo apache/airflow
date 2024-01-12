@@ -31,11 +31,13 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SmtpHook(BaseHook):
@@ -54,8 +56,8 @@ class SmtpHook(BaseHook):
     conn_type = "smtp"
     hook_name = "SMTP"
 
-    def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, smtp_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.smtp_conn_id = smtp_conn_id
         self.smtp_connection: Connection | None = None
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
@@ -85,19 +87,18 @@ class SmtpHook(BaseHook):
                 try:
                     self.smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise AirflowException("Unable to connect to smtp server")
-                if self.smtp_starttls:
-                    self.smtp_client.starttls()
-                if self.smtp_user and self.smtp_password:
-                    self.smtp_client.login(self.smtp_user, self.smtp_password)
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise AirflowException("Unable to connect to smtp server")
+                else:
+                    if self.smtp_starttls:
+                        self.smtp_client.starttls()
+                    if self.smtp_user and self.smtp_password:
+                        self.smtp_client.login(self.smtp_user, self.smtp_password)
+                    break
 
         return self
 
     def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
-
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
         if self.use_ssl:
             SMTP = smtplib.SMTP_SSL
@@ -232,10 +233,10 @@ class SmtpHook(BaseHook):
                         from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
                     )
                 except smtplib.SMTPServerDisconnected as e:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise e
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise e
+                else:
+                    break
 
     def _build_mime_message(
         self,
@@ -333,7 +334,7 @@ class SmtpHook(BaseHook):
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:
@@ -377,8 +378,8 @@ class SmtpHook(BaseHook):
     def use_ssl(self) -> bool:
         return not bool(self.conn.extra_dejson.get("disable_ssl", False))
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],

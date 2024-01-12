@@ -75,7 +75,7 @@ Package apache-airflow-providers-apache-pig
 `Apache Pig <https://pig.apache.org/>`__
 
 
-Release: 4.1.1
+Release: 4.3.0
 
 Provider package
 ----------------
@@ -93,10 +93,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.6.0``
 ==================  ==================

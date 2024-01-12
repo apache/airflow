@@ -26,19 +26,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import (  # isort: skip # noqa: E402
+from collections import defaultdict
+from typing import Any
+
+import yaml
+from common_precommit_black_utils import black_format
+from common_precommit_utils import (
     AIRFLOW_BREEZE_SOURCES_PATH,
     AIRFLOW_SOURCES_ROOT_PATH,
     insert_documentation,
 )
-from common_precommit_black_utils import black_format  # isort: skip # noqa E402
-
-from collections import defaultdict  # noqa: E402
-from typing import Any  # noqa: E402
-
-import yaml  # noqa: E402
-from rich.console import Console  # noqa: E402
-from tabulate import tabulate  # noqa: E402
+from rich.console import Console
+from tabulate import tabulate
 
 console = Console(width=400, color_system="standard")
 
@@ -127,10 +126,7 @@ def render_template(
 
 def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[str]):
     rows = []
-    hook_ids = list(hooks.keys())
-    hook_ids.sort()
-    for hook_id in hook_ids:
-        hook_description = hooks[hook_id]
+    for hook_id, hook_description in sorted(hooks.items()):
         formatted_hook_description = (
             hook_description[0] if len(hook_description) == 1 else "* " + "\n* ".join(hook_description)
         )

@@ -18,6 +18,8 @@
 """This module contains AWS Glue Catalog Hook."""
 from __future__ import annotations
 
+from typing import Any
+
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -41,6 +43,45 @@ class GlueCatalogHook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="glue", *args, **kwargs)
+
+    async def async_get_partitions(
+        self,
+        client: Any,
+        database_name: str,
+        table_name: str,
+        expression: str = "",
+        page_size: int | None = None,
+        max_items: int | None = 1,
+    ) -> set[tuple]:
+        """
+        Asynchronously retrieves the partition values for a table.
+
+        :param database_name: The name of the catalog database where the partitions reside.
+        :param table_name: The name of the partitions' table.
+        :param expression: An expression filtering the partitions to be returned.
+            Please see official AWS documentation for further information.
+            https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartitions
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: set of partition values where each value is a tuple since
+            a partition may be composed of multiple columns. For example:
+            ``{('2018-01-01','1'), ('2018-01-01','2')}``
+        """
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = client.get_paginator("get_partitions")
+        partitions = set()
+
+        async for page in paginator.paginate(
+            DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
+        ):
+            for partition in page["Partitions"]:
+                partitions.add(tuple(partition["Values"]))
+
+        return partitions
 
     def get_partitions(
         self,

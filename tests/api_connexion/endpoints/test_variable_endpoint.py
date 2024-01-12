@@ -28,6 +28,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 from tests.test_utils.www import _check_last_log
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -44,11 +46,29 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         ],
     )
+    create_user(
+        app,  # type: ignore
+        username="test_read_only",
+        role_name="TestReadOnly",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
+        username="test_delete_only",
+        role_name="TestDeleteOnly",
+        permissions=[
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
+        ],
+    )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
 
     delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_read_only")  # type: ignore
+    delete_user(app, username="test_delete_only")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
@@ -107,14 +127,24 @@ class TestDeleteVariable(TestVariableEndpoint):
 
 
 class TestGetVariable(TestVariableEndpoint):
-    def test_should_respond_200(self):
+    @pytest.mark.parametrize(
+        "user, expected_status_code",
+        [
+            ("test", 200),
+            ("test_read_only", 200),
+            ("test_delete_only", 403),
+            ("test_no_permissions", 403),
+        ],
+    )
+    def test_read_variable(self, user, expected_status_code):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
-            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": user}
         )
-        assert response.status_code == 200
-        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
 
     def test_should_respond_404_if_not_found(self):
         response = self.client.get(
@@ -244,6 +274,21 @@ class TestPatchVariable(TestVariableEndpoint):
         _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
 
     def test_should_reject_invalid_update(self):
+        response = self.client.patch(
+            "/api/v1/variables/var1",
+            json={
+                "key": "var1",
+                "value": "foo",
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json == {
+            "title": "Variable not found",
+            "status": 404,
+            "type": EXCEPTIONS_LINK_MAP[404],
+            "detail": "Variable does not exist",
+        }
         Variable.set("var1", "foo")
         response = self.client.patch(
             "/api/v1/variables/var1",

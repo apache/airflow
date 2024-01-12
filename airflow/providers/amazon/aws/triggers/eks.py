@@ -17,14 +17,18 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from botocore.exceptions import ClientError
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -65,6 +69,25 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    async def run(self):
+        async with self.hook().async_conn as client:
+            waiter = client.get_waiter(self.waiter_name)
+            try:
+                await async_wait(
+                    waiter,
+                    self.waiter_delay,
+                    self.attempts,
+                    self.waiter_args,
+                    self.failure_message,
+                    self.status_message,
+                    self.status_queries,
+                )
+            except AirflowException as exception:
+                self.log.error("Error creating cluster: %s", exception)
+                yield TriggerEvent({"status": "failed"})
+            else:
+                yield TriggerEvent({"status": "success"})
 
 
 class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
@@ -118,12 +141,18 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-        async with self.hook.async_conn as client:
+        async with self.hook().async_conn as client:
             waiter = client.get_waiter("cluster_deleted")
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)
                 await self.delete_any_fargate_profiles(client=client)
+            try:
                 await client.delete_cluster(name=self.cluster_name)
+            except ClientError as ex:
+                if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                    pass
+                else:
+                    raise
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
@@ -146,10 +175,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         nodegroups = await client.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
-            # ignoring attr-defined here because aws_base hook defines get_waiter for all hooks
-            waiter = self.hook.get_waiter(  # type: ignore[attr-defined]
-                "all_nodegroups_deleted", deferrable=True, client=client
-            )
+            waiter = self.hook().get_waiter("all_nodegroups_deleted", deferrable=True, client=client)
             for group in nodegroups["nodegroups"]:
                 await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             await async_wait(

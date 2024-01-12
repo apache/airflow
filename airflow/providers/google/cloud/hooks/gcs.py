@@ -26,18 +26,14 @@ import shutil
 import time
 import warnings
 from contextlib import contextmanager
-from datetime import datetime
 from functools import partial
 from io import BytesIO
-from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
-from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
-from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
@@ -49,17 +45,16 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 
-try:
-    # Airflow 2.3 doesn't have this yet
-    from airflow.typing_compat import ParamSpec
-except ImportError:
-    try:
-        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
-    except ImportError:
-        from typing_extensions import ParamSpec
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from aiohttp import ClientSession
+    from google.api_core.retry import Retry
+
 
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
@@ -328,11 +323,16 @@ class GCSHook(GoogleBaseHook):
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
-        num_file_attempts = 0
+        if num_max_attempts is None:
+            num_max_attempts = 3
 
-        while True:
+        for attempt in range(num_max_attempts):
+            if attempt:
+                # Wait with exponential backoff scheme before retrying.
+                timeout_seconds = 2**attempt
+                time.sleep(timeout_seconds)
+
             try:
-                num_file_attempts += 1
                 client = self.get_conn()
                 bucket = client.bucket(bucket_name, user_project=user_project)
                 blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
@@ -345,20 +345,17 @@ class GCSHook(GoogleBaseHook):
                     return blob.download_as_bytes()
 
             except GoogleCloudError:
-                if num_file_attempts == num_max_attempts:
+                if attempt == num_max_attempts - 1:
                     self.log.error(
                         "Download attempt of object: %s from %s has failed. Attempt: %s, max %s.",
                         object_name,
                         bucket_name,
-                        num_file_attempts,
+                        attempt,
                         num_max_attempts,
                     )
                     raise
-
-                # Wait with exponential backoff scheme before retrying.
-                timeout_seconds = 2 ** (num_file_attempts - 1)
-                time.sleep(timeout_seconds)
-                continue
+        else:
+            raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def download_as_byte_array(
         self,
@@ -505,28 +502,23 @@ class GCSHook(GoogleBaseHook):
 
             :param f: Callable that should be retried.
             """
-            num_file_attempts = 0
-
-            while num_file_attempts < num_max_attempts:
+            for attempt in range(1, 1 + num_max_attempts):
                 try:
-                    num_file_attempts += 1
                     f()
-
                 except GoogleCloudError as e:
-                    if num_file_attempts == num_max_attempts:
+                    if attempt == num_max_attempts:
                         self.log.error(
                             "Upload attempt of object: %s from %s has failed. Attempt: %s, max %s.",
                             object_name,
                             object_name,
-                            num_file_attempts,
+                            attempt,
                             num_max_attempts,
                         )
                         raise e
 
                     # Wait with exponential backoff scheme before retrying.
-                    timeout_seconds = 2 ** (num_file_attempts - 1)
+                    timeout_seconds = 2 ** (attempt - 1)
                     time.sleep(timeout_seconds)
-                    continue
 
         client = self.get_conn()
         bucket = client.bucket(bucket_name, user_project=user_project)
@@ -550,10 +542,9 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 filename_gz = filename + ".gz"
 
-                with open(filename, "rb") as f_in:
-                    with gz.open(filename_gz, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                        filename = filename_gz
+                with open(filename, "rb") as f_in, gz.open(filename_gz, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
 
             _call_with_retry(
                 partial(blob.upload_from_filename, filename=filename, content_type=mime_type, timeout=timeout)
@@ -831,15 +822,12 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
-            blob_names = []
-            for blob in blobs:
-                blob_names.append(blob.name)
+            blob_names = [blob.name for blob in blobs]
 
-            prefixes = blobs.prefixes
-            if prefixes:
-                ids += list(prefixes)
+            if blobs.prefixes:
+                ids.extend(blobs.prefixes)
             else:
-                ids += blob_names
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -947,16 +935,16 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
-            blob_names = []
-            for blob in blobs:
-                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end:
-                    blob_names.append(blob.name)
+            blob_names = [
+                blob.name
+                for blob in blobs
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+            ]
 
-            prefixes = blobs.prefixes
-            if prefixes:
-                ids += list(prefixes)
+            if blobs.prefixes:
+                ids.extend(blobs.prefixes)
             else:
-                ids += blob_names
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -1294,7 +1282,7 @@ class GCSHook(GoogleBaseHook):
         self, blob: storage.Blob, destination_object: str | None, source_object_prefix_len: int
     ) -> str:
         return (
-            path.join(destination_object, blob.name[source_object_prefix_len:])
+            os.path.join(destination_object, blob.name[source_object_prefix_len:])
             if destination_object
             else blob.name[source_object_prefix_len:]
         )

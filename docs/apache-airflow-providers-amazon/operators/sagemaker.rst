@@ -222,6 +222,63 @@ This creates an experiment so that it's ready to be associated with processing, 
     :start-after: [START howto_operator_sagemaker_experiment]
     :end-before: [END howto_operator_sagemaker_experiment]
 
+.. _howto/operator:SageMakerCreateNotebookOperator:
+
+Create a SageMaker Notebook Instance
+====================================
+
+To create a SageMaker Notebook Instance , you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerCreateNotebookOperator`.
+This creates a SageMaker Notebook Instance ready to run Jupyter notebooks.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_notebook.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_notebook_create]
+    :end-before: [END howto_operator_sagemaker_notebook_create]
+
+.. _howto/operator:SageMakerStopNotebookOperator:
+
+Stop a SageMaker Notebook Instance
+==================================
+
+To terminate SageMaker Notebook Instance , you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStopNotebookOperator`.
+This terminates the ML compute instance and disconnects the ML storage volume.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_notebook.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_notebook_stop]
+    :end-before: [END howto_operator_sagemaker_notebook_stop]
+
+.. _howto/operator:SageMakerStartNotebookOperator:
+
+Start a SageMaker Notebook Instance
+===================================
+
+To launch a SageMaker Notebook Instance and re-attach an ML storage volume, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStartNotebookOperator`.
+This launches a new ML compute instance with the latest version of the libraries and attached your ML storage volume.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_notebook.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_notebook_start]
+    :end-before: [END howto_operator_sagemaker_notebook_start]
+
+
+.. _howto/operator:SageMakerDeleteNotebookOperator:
+
+Delete a SageMaker Notebook Instance
+====================================
+
+To delete a SageMaker Notebook Instance, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteNotebookOperator`.
+This terminates the instance and deletes the ML storage volume and network interface associated with the instance. The instance must be stopped before it can be deleted.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_notebook.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_notebook_delete]
+    :end-before: [END howto_operator_sagemaker_notebook_delete]
+
 Sensors
 -------
 

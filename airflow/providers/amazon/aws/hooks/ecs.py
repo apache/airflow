@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from botocore.waiter import Waiter
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import _StringCompareEnum
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from botocore.waiter import Waiter
 
 
 def should_retry(exception: Exception):

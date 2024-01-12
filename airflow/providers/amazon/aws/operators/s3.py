@@ -321,6 +321,33 @@ class S3CopyObjectOperator(BaseOperator):
             self.acl_policy,
         )
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
+            self.dest_bucket_name, self.dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
+        )
+
+        source_bucket_name, source_bucket_key = S3Hook.get_s3_bucket_key(
+            self.source_bucket_name, self.source_bucket_key, "source_bucket_name", "source_bucket_key"
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{source_bucket_name}",
+            name=source_bucket_key,
+        )
+        output_dataset = Dataset(
+            namespace=f"s3://{dest_bucket_name}",
+            name=dest_bucket_key,
+        )
+
+        return OperatorLineage(
+            inputs=[input_dataset],
+            outputs=[output_dataset],
+        )
+
 
 class S3CreateObjectOperator(BaseOperator):
     """
@@ -331,10 +358,10 @@ class S3CreateObjectOperator(BaseOperator):
         :ref:`howto/operator:S3CreateObjectOperator`
 
     :param s3_bucket: Name of the S3 bucket where to save the object. (templated)
-        It should be omitted when `bucket_key` is provided as a full s3:// url.
+        It should be omitted when ``s3_key`` is provided as a full s3:// url.
     :param s3_key: The key of the object to be created. (templated)
         It can be either full s3:// style url or relative path from root level.
-        When it's specified as a full s3:// url, please omit bucket_name.
+        When it's specified as a full s3:// url, please omit ``s3_bucket``.
     :param data: string or bytes to save as content.
     :param replace: If True, it will overwrite the key if it already exists
     :param encrypt: If True, the file will be encrypted on the server-side
@@ -409,6 +436,22 @@ class S3CreateObjectOperator(BaseOperator):
         else:
             s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        bucket, key = S3Hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
+
+        output_dataset = Dataset(
+            namespace=f"s3://{bucket}",
+            name=key,
+        )
+
+        return OperatorLineage(
+            outputs=[output_dataset],
+        )
+
 
 class S3DeleteObjectsOperator(BaseOperator):
     """
@@ -455,13 +498,14 @@ class S3DeleteObjectsOperator(BaseOperator):
         verify: str | bool | None = None,
         **kwargs,
     ):
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
         self.prefix = prefix
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+
+        self._keys: str | list[str] = ""
 
         if not exactly_one(prefix is None, keys is None):
             raise AirflowException("Either keys or prefix should be set.")
@@ -470,13 +514,54 @@ class S3DeleteObjectsOperator(BaseOperator):
         if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
-        if isinstance(self.keys, (list, str)) and not bool(self.keys):
+        if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
         if keys:
             s3_hook.delete_objects(bucket=self.bucket, keys=keys)
+            self._keys = keys
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implement _on_complete because object keys are resolved in execute()."""
+        from openlineage.client.facet import (
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+        )
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._keys:
+            return OperatorLineage()
+
+        keys = self._keys
+        if isinstance(keys, str):
+            keys = [keys]
+
+        bucket_url = f"s3://{self.bucket}"
+        input_datasets = [
+            Dataset(
+                namespace=bucket_url,
+                name=key,
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name=key,
+                        ),
+                    )
+                },
+            )
+            for key in keys
+        ]
+
+        return OperatorLineage(
+            inputs=input_datasets,
+        )
 
 
 class S3FileTransformOperator(BaseOperator):
@@ -543,7 +628,6 @@ class S3FileTransformOperator(BaseOperator):
         replace: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
@@ -609,6 +693,39 @@ class S3FileTransformOperator(BaseOperator):
             )
             self.log.info("Upload successful")
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
+            bucket=None,
+            key=self.dest_s3_key,
+            bucket_param_name="dest_bucket_name",
+            key_param_name="dest_bucket_key",
+        )
+
+        source_bucket_name, source_bucket_key = S3Hook.get_s3_bucket_key(
+            bucket=None,
+            key=self.source_s3_key,
+            bucket_param_name="source_bucket_name",
+            key_param_name="source_bucket_key",
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{source_bucket_name}",
+            name=source_bucket_key,
+        )
+        output_dataset = Dataset(
+            namespace=f"s3://{dest_bucket_name}",
+            name=dest_bucket_key,
+        )
+
+        return OperatorLineage(
+            inputs=[input_dataset],
+            outputs=[output_dataset],
+        )
+
 
 class S3ListOperator(BaseOperator):
     """
@@ -627,7 +744,6 @@ class S3ListOperator(BaseOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :param verify: Whether or not to verify SSL certificates for S3 connection.
-    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
         By default SSL certificates are verified.
         You can provide the following values:
 
@@ -637,6 +753,7 @@ class S3ListOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
 
     **Example**:
@@ -645,11 +762,11 @@ class S3ListOperator(BaseOperator):
         ``customers/2018/04/`` key in the ``data`` bucket. ::
 
             s3_file = S3ListOperator(
-                task_id='list_3s_files',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_3s_files",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 
@@ -726,11 +843,11 @@ class S3ListPrefixesOperator(BaseOperator):
         from the S3 ``customers/2018/04/`` prefix in the ``data`` bucket. ::
 
             s3_file = S3ListPrefixesOperator(
-                task_id='list_s3_prefixes',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_s3_prefixes",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 

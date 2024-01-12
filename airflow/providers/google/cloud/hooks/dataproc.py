@@ -20,15 +20,11 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.operation_async import AsyncOperation
-from google.api_core.operations_v1.operations_client import OperationsClient
-from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerAsyncClient,
@@ -44,13 +40,20 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
     WorkflowTemplateServiceClient,
 )
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.operation_async import AsyncOperation
+    from google.api_core.operations_v1.operations_client import OperationsClient
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from google.protobuf.duration_pb2 import Duration
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DataProcJobBuilder:
@@ -254,7 +257,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         operation: Operation,
         timeout: float | None = None,
-        result_retry: Retry | _MethodDefault = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault = DEFAULT,
     ) -> Any:
         """Wait for a long-lasting operation to complete."""
         try:
@@ -995,7 +998,7 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         wait_check_interval: int = 10,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
@@ -1130,7 +1133,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         virtual_cluster_config: dict | None = None,
         labels: dict[str, str] | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1197,7 +1200,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1240,7 +1243,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
@@ -1275,7 +1278,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Cluster:
@@ -1307,7 +1310,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         filter_: str,
         project_id: str,
         page_size: int | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
@@ -1347,7 +1350,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         graceful_decommission_timeout: dict | Duration | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1427,7 +1430,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
@@ -1463,7 +1466,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         version: int | None = None,
         request_id: str | None = None,
         parameters: dict[str, str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1509,7 +1512,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1552,7 +1555,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1586,7 +1589,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1622,7 +1625,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1656,7 +1659,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch: dict | Batch,
         batch_id: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1701,7 +1704,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
@@ -1735,7 +1738,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
@@ -1771,7 +1774,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         page_size: int | None = None,
         page_token: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         filter: str | None = None,

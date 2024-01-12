@@ -21,13 +21,14 @@ from unittest.mock import MagicMock, Mock, call, patch
 
 import pendulum
 import pytest
-from pytest import param
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import OperationalError
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDb:
@@ -102,18 +103,18 @@ class TestCliDb:
     @pytest.mark.parametrize(
         "args, pattern",
         [
-            param(["--to-version", "2.1.25"], "not supported", id="bad version"),
-            param(
+            pytest.param(["--to-version", "2.1.25"], "not supported", id="bad version"),
+            pytest.param(
                 ["--to-revision", "abc", "--from-revision", "abc123"],
                 "used with `--show-sql-only`",
                 id="requires offline",
             ),
-            param(
+            pytest.param(
                 ["--to-revision", "abc", "--from-version", "2.0.2"],
                 "used with `--show-sql-only`",
                 id="requires offline",
             ),
-            param(
+            pytest.param(
                 ["--to-revision", "abc", "--from-version", "2.1.25", "--show-sql-only"],
                 "Unknown version",
                 id="bad version",
@@ -127,7 +128,7 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db updgrade` is deprecated"):
+        with pytest.warns(expected_warning=DeprecationWarning, match="`db upgrade` is deprecated"):
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         mock_migratedb.assert_called_once()
 

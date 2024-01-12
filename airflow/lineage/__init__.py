@@ -18,7 +18,6 @@
 """Provides lineage support functions."""
 from __future__ import annotations
 
-import itertools
 import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
@@ -71,7 +70,6 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
 
         ret_val = func(self, context, *args, **kwargs)
@@ -121,11 +119,9 @@ def prepare_lineage(func: T) -> T:
 
         if self.inlets and isinstance(self.inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
-            task_ids = (
-                {o for o in self.inlets if isinstance(o, str)}
-                .union(op.task_id for op in self.inlets if isinstance(op, AbstractOperator))
-                .intersection(self.get_flat_relative_ids(upstream=True))
-            )
+            task_ids = {o for o in self.inlets if isinstance(o, str)}.union(
+                op.task_id for op in self.inlets if isinstance(op, AbstractOperator)
+            ).intersection(self.get_flat_relative_ids(upstream=True))
 
             # pick up unique direct upstream task_ids if AUTO is specified
             if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:
@@ -142,7 +138,7 @@ def prepare_lineage(func: T) -> T:
                 _inlets = self.xcom_pull(
                     context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session
                 )
-                self.inlets.extend(i for i in itertools.chain.from_iterable(_inlets))
+                self.inlets.extend(i for it in _inlets for i in it)
 
         elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")

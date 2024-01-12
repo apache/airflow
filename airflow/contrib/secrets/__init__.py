@@ -26,31 +26,31 @@ from airflow.utils.deprecation_tools import add_deprecated_classes
 warnings.warn(
     "This module is deprecated. Please use airflow.providers.*.secrets.",
     RemovedInAirflow3Warning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 __deprecated_classes = {
-    'aws_secrets_manager': {
-        'SecretsManagerBackend': 'airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend',
+    "aws_secrets_manager": {
+        "SecretsManagerBackend": "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
     },
-    'aws_systems_manager': {
-        'SystemsManagerParameterStoreBackend': (
-            'airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend'
+    "aws_systems_manager": {
+        "SystemsManagerParameterStoreBackend": (
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
         ),
     },
-    'azure_key_vault': {
-        'AzureKeyVaultBackend': 'airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend',
+    "azure_key_vault": {
+        "AzureKeyVaultBackend": "airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend",
     },
-    'gcp_secrets_manager': {
-        'CloudSecretManagerBackend': (
-            'airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend'
+    "gcp_secrets_manager": {
+        "CloudSecretManagerBackend": (
+            "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
         ),
-        'CloudSecretsManagerBackend': (
-            'airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend'
+        "CloudSecretsManagerBackend": (
+            "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
         ),
     },
-    'hashicorp_vault': {
-        'VaultBackend': 'airflow.providers.hashicorp.secrets.vault.VaultBackend',
+    "hashicorp_vault": {
+        "VaultBackend": "airflow.providers.hashicorp.secrets.vault.VaultBackend",
     },
 }
 add_deprecated_classes(__deprecated_classes, __name__)

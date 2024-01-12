@@ -21,20 +21,16 @@ import json
 import warnings
 from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Callable
-from urllib.parse import urlsplit
 
 from slack_sdk import WebhookClient
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.slack.utils import ConnectionExtraConfig
-from airflow.utils.log.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
 
-DEFAULT_SLACK_WEBHOOK_ENDPOINT = "https://hooks.slack.com/services"
 LEGACY_INTEGRATION_PARAMS = ("channel", "username", "icon_emoji", "icon_url")
 
 
@@ -52,32 +48,6 @@ def check_webhook_response(func: Callable) -> Callable:
         return resp
 
     return wrapper
-
-
-def _ensure_prefixes(conn_type):
-    # TODO: Remove when provider min airflow version >= 2.5.0 since
-    #       this is handled by provider manager from that version.
-
-    def dec(func):
-        @wraps(func)
-        def inner(cls):
-            field_behaviors = func(cls)
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class SlackWebhookHook(BaseHook):
@@ -125,8 +95,6 @@ class SlackWebhookHook(BaseHook):
         and receive a response from Slack. If not set than default WebhookClient value will use.
     :param proxy: Proxy to make the Slack Incoming Webhook call.
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``.
-    :param webhook_token: (deprecated) Slack Incoming Webhook token.
-        Use instead Slack Incoming Webhook connection password field.
     """
 
     conn_name_attr = "slack_webhook_conn_id"
@@ -136,87 +104,29 @@ class SlackWebhookHook(BaseHook):
 
     def __init__(
         self,
-        slack_webhook_conn_id: str | None = None,
-        webhook_token: str | None = None,
+        *,
+        slack_webhook_conn_id: str,
         timeout: int | None = None,
         proxy: str | None = None,
         retry_handlers: list[RetryHandler] | None = None,
-        **kwargs,
+        **extra_client_args: Any,
     ):
-        super().__init__()
-
-        http_conn_id = kwargs.pop("http_conn_id", None)
-        if http_conn_id:
-            warnings.warn(
-                "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if slack_webhook_conn_id:
-                raise AirflowException("You cannot provide both `slack_webhook_conn_id` and `http_conn_id`.")
-            slack_webhook_conn_id = http_conn_id
-
-        if not slack_webhook_conn_id and not webhook_token:
-            raise AirflowException("Either `slack_webhook_conn_id` or `webhook_token` should be provided.")
-        if webhook_token:
-            mask_secret(webhook_token)
-            warnings.warn(
-                "Provide `webhook_token` as hook argument deprecated by security reason and will be removed "
-                "in a future releases. Please specify it in `Slack Webhook` connection.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if not slack_webhook_conn_id:
-            warnings.warn(
-                "You have not set parameter `slack_webhook_conn_id`. Currently `Slack Incoming Webhook` "
-                "connection id optional but in a future release it will mandatory.",
-                FutureWarning,
-                stacklevel=2,
-            )
-
+        super().__init__(logger_name=extra_client_args.pop("logger_name", None))
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.timeout = timeout
         self.proxy = proxy
         self.retry_handlers = retry_handlers
-        self._webhook_token = webhook_token
-
-        # Compatibility with previous version of SlackWebhookHook
-        deprecated_class_attrs = []
-        for deprecated_attr in (
-            "message",
-            "attachments",
-            "blocks",
-            "channel",
-            "username",
-            "icon_emoji",
-            "icon_url",
-            "link_names",
-        ):
-            if deprecated_attr in kwargs:
-                deprecated_class_attrs.append(deprecated_attr)
-                setattr(self, deprecated_attr, kwargs.pop(deprecated_attr))
-                if deprecated_attr == "message":
-                    # Slack WebHook Post Request not expected `message` as field,
-                    # so we also set "text" attribute which will check by SlackWebhookHook._resolve_argument
-                    self.text = getattr(self, deprecated_attr)
-                elif deprecated_attr == "link_names":
-                    warnings.warn(
-                        "`link_names` has no affect, if you want to mention user see: "
-                        "https://api.slack.com/reference/surfaces/formatting#mentioning-users",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-        if deprecated_class_attrs:
+        if "webhook_token" in extra_client_args:
             warnings.warn(
-                f"Provide {','.join(repr(a) for a in deprecated_class_attrs)} as hook argument(s) "
-                f"is deprecated and will be removed in a future releases. "
-                f"Please specify attributes in `{self.__class__.__name__}.send` method instead.",
-                AirflowProviderDeprecationWarning,
+                f"Provide `webhook_token` as part of {type(self).__name__!r} parameters is disallowed, "
+                f"please use Airflow Connection.",
+                UserWarning,
                 stacklevel=2,
             )
-
-        self.extra_client_args = kwargs
+            extra_client_args.pop("webhook_token")
+        if "logger" not in extra_client_args:
+            extra_client_args["logger"] = self.log
+        self.extra_client_args = extra_client_args
 
     @cached_property
     def client(self) -> WebhookClient:
@@ -227,81 +137,30 @@ class SlackWebhookHook(BaseHook):
         """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
         return self.client
 
-    @cached_property
-    def webhook_token(self) -> str:
-        """Return Slack Webhook Token URL."""
-        warnings.warn(
-            "`SlackHook.webhook_token` property deprecated and will be removed in a future releases.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        return self._get_conn_params()["url"]
-
     def _get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters."""
-        default_schema, _, default_host = DEFAULT_SLACK_WEBHOOK_ENDPOINT.partition("://")
-        if self.slack_webhook_conn_id:
-            conn = self.get_connection(self.slack_webhook_conn_id)
-        else:
-            # If slack_webhook_conn_id not specified, then use connection with default schema and host
-            conn = Connection(
-                conn_id=None, conn_type=self.conn_type, host=default_schema, password=default_host
+        conn = self.get_connection(self.slack_webhook_conn_id)
+        if not conn.password or not conn.password.strip():
+            raise AirflowNotFoundException(
+                f"Connection ID {self.slack_webhook_conn_id!r} does not contain password "
+                f"(Slack Webhook Token)."
             )
-        extra_config = ConnectionExtraConfig(
-            conn_type=self.conn_type,
-            conn_id=conn.conn_id,
-            extra=conn.extra_dejson,
-        )
-        conn_params: dict[str, Any] = {"retry_handlers": self.retry_handlers}
 
-        webhook_token = None
-        if self._webhook_token:
-            self.log.debug("Retrieving Slack Webhook Token from hook attribute.")
-            webhook_token = self._webhook_token
-        elif conn.conn_id:
-            if conn.password:
-                self.log.debug(
-                    "Retrieving Slack Webhook Token from Connection ID %r password.",
-                    self.slack_webhook_conn_id,
-                )
-                webhook_token = conn.password
-
-        webhook_token = webhook_token or ""
-        if not webhook_token and not conn.host:
-            raise AirflowException("Cannot get token: No valid Slack token nor valid Connection ID supplied.")
-        elif webhook_token and "://" in webhook_token:
+        webhook_token = conn.password.strip()
+        if webhook_token and "://" in conn.password:
             self.log.debug("Retrieving Slack Webhook Token URL from webhook token.")
             url = webhook_token
         else:
             self.log.debug("Constructing Slack Webhook Token URL.")
-            if conn.host and "://" in conn.host:
-                base_url = conn.host
-            else:
-                schema = conn.schema if conn.schema else default_schema
-                host = conn.host if conn.host else default_host
-                base_url = f"{schema}://{host}"
-
-            base_url = base_url.rstrip("/")
-            if not webhook_token:
-                parsed_token = (urlsplit(base_url).path or "").strip("/")
-                if base_url == DEFAULT_SLACK_WEBHOOK_ENDPOINT or not parsed_token:
-                    # Raise an error in case of password not specified and
-                    # 1. Result of constructing base_url equal https://hooks.slack.com/services
-                    # 2. Empty url path, e.g. if base_url = https://hooks.slack.com
-                    raise AirflowException(
-                        "Cannot get token: No valid Slack token nor valid Connection ID supplied."
-                    )
-                mask_secret(parsed_token)
-                warnings.warn(
-                    f"Found Slack Webhook Token URL in Connection {conn.conn_id!r} `host` "
-                    "and `password` field is empty. This behaviour deprecated "
-                    "and could expose you token in the UI and will be removed in a future releases.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+            base_url = conn.host
+            if not base_url or "://" not in base_url:
+                base_url = f"{conn.schema or 'https'}://{conn.host or 'hooks.slack.com/services'}"
             url = (base_url.rstrip("/") + "/" + webhook_token.lstrip("/")).rstrip("/")
 
-        conn_params["url"] = url
+        conn_params: dict[str, Any] = {"url": url, "retry_handlers": self.retry_handlers}
+        extra_config = ConnectionExtraConfig(
+            conn_type=self.conn_type, conn_id=conn.conn_id, extra=conn.extra_dejson
+        )
         # Merge Hook parameters with Connection config
         conn_params.update(
             {
@@ -311,33 +170,7 @@ class SlackWebhookHook(BaseHook):
         )
         # Add additional client args
         conn_params.update(self.extra_client_args)
-        if "logger" not in conn_params:
-            conn_params["logger"] = self.log
-
         return {k: v for k, v in conn_params.items() if v is not None}
-
-    def _resolve_argument(self, name: str, value):
-        """
-        Resolve message parameters.
-
-        .. note::
-            This method exist for compatibility and merge instance class attributes with
-            method attributes and not be required when assign class attributes to message
-            would completely remove.
-        """
-        if value is None and name in (
-            "text",
-            "attachments",
-            "blocks",
-            "channel",
-            "username",
-            "icon_emoji",
-            "icon_url",
-            "link_names",
-        ):
-            return getattr(self, name, None)
-
-        return value
 
     @check_webhook_response
     def send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
@@ -376,7 +209,6 @@ class SlackWebhookHook(BaseHook):
         self,
         *,
         text: str | None = None,
-        attachments: list[dict[str, Any]] | None = None,
         blocks: list[dict[str, Any]] | None = None,
         response_type: str | None = None,
         replace_original: bool | None = None,
@@ -384,6 +216,7 @@ class SlackWebhookHook(BaseHook):
         unfurl_links: bool | None = None,
         unfurl_media: bool | None = None,
         headers: dict[str, str] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
         **kwargs,
     ):
         """
@@ -391,7 +224,6 @@ class SlackWebhookHook(BaseHook):
 
         :param text: The text message
             (even when having blocks, setting this as well is recommended as it works as fallback).
-        :param attachments: A collection of attachments.
         :param blocks: A collection of Block Kit UI components.
         :param response_type: The type of message (either 'in_channel' or 'ephemeral').
         :param replace_original: True if you use this option for response_url requests.
@@ -399,26 +231,20 @@ class SlackWebhookHook(BaseHook):
         :param unfurl_links: Option to indicate whether text url should unfurl.
         :param unfurl_media: Option to indicate whether media url should unfurl.
         :param headers: Request headers for this request.
+        :param attachments: (legacy) A collection of attachments.
         """
         body = {
-            "text": self._resolve_argument("text", text),
-            "attachments": self._resolve_argument("attachments", attachments),
-            "blocks": self._resolve_argument("blocks", blocks),
+            "text": text,
+            "attachments": attachments,
+            "blocks": blocks,
             "response_type": response_type,
             "replace_original": replace_original,
             "delete_original": delete_original,
             "unfurl_links": unfurl_links,
             "unfurl_media": unfurl_media,
             # Legacy Integration Parameters
-            **{lip: self._resolve_argument(lip, kwargs.pop(lip, None)) for lip in LEGACY_INTEGRATION_PARAMS},
+            **kwargs,
         }
-        if kwargs:
-            warnings.warn(
-                f"Found unexpected keyword-argument(s) {', '.join(repr(k) for k in kwargs)} "
-                "in `send` method. This argument(s) have no effect.",
-                UserWarning,
-                stacklevel=2,
-            )
         body = {k: v for k, v in body.items() if v is not None}
         return self.send_dict(body=body, headers=headers)
 
@@ -464,7 +290,6 @@ class SlackWebhookHook(BaseHook):
         }
 
     @classmethod
-    @_ensure_prefixes(conn_type="slackwebhook")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -481,21 +306,3 @@ class SlackWebhookHook(BaseHook):
                 "proxy": "http://localhost:9000",
             },
         }
-
-    def execute(self) -> None:
-        """
-        Remote Popen (actually execute the slack webhook call).
-
-        .. note::
-            This method exist for compatibility with previous version of operator
-            and expected that Slack Incoming Webhook message constructing from class attributes rather than
-            pass as method arguments.
-        """
-        warnings.warn(
-            "`SlackWebhookHook.execute` method deprecated and will be removed in a future releases. "
-            "Please use `SlackWebhookHook.send` or `SlackWebhookHook.send_dict` or "
-            "`SlackWebhookHook.send_text` methods instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        self.send()

@@ -31,6 +31,8 @@ from airflow.secrets.metastore import MetastoreBackend
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestVariable:
     @pytest.fixture(autouse=True)
@@ -88,7 +90,7 @@ class TestVariable:
             assert Fernet(key1).decrypt(test_var._val.encode()) == test_value.encode()
 
         # Test decrypt of old value with new key
-        with conf_vars({("core", "fernet_key"): ",".join([key2.decode(), key1.decode()])}):
+        with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
             crypto._fernet = None
             assert test_var.val == test_value
 

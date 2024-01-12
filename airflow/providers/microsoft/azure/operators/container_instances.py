@@ -18,19 +18,20 @@
 from __future__ import annotations
 
 import re
+import time
 from collections import namedtuple
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
-    ContainerGroupNetworkProfile,
+    ContainerGroupSubnetId,
     ContainerPort,
     EnvironmentVariable,
     IpAddress,
     ResourceRequests,
     ResourceRequirements,
+    Volume as _AzureVolume,
     VolumeMount,
 )
 from msrestazure.azure_exceptions import CloudError
@@ -44,12 +45,10 @@ from airflow.providers.microsoft.azure.hooks.container_volume import AzureContai
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 Volume = namedtuple(
     "Volume",
     ["conn_id", "account_name", "share_name", "mount_path", "read_only"],
 )
-
 
 DEFAULT_ENVIRONMENT_VARIABLES: dict[str, str] = {}
 DEFAULT_SECURED_VARIABLES: Sequence[str] = []
@@ -90,47 +89,47 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param restart_policy: Restart policy for all containers within the container group.
         Possible values include: 'Always', 'OnFailure', 'Never'
     :param ip_address: The IP address type of the container group.
-    :param network_profile: The network profile information for a container group.
+    :param subnet_ids: The subnet resource IDs for a container group
 
     **Example**::
 
-                AzureContainerInstancesOperator(
-                    ci_conn_id = "azure_service_principal",
-                    registry_conn_id = "azure_registry_user",
-                    resource_group = "my-resource-group",
-                    name = "my-container-name-{{ ds }}",
-                    image = "myprivateregistry.azurecr.io/my_container:latest",
-                    region = "westeurope",
-                    environment_variables = {"MODEL_PATH":  "my_value",
-                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
-                     "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
-                     "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
-                    secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_container_instance_conn_id",
-                            "my_storage_container",
-                            "my_fileshare",
-                            "/input-data",
-                        True),],
-                    memory_in_gb=14.0,
-                    cpu=4.0,
-                    gpu=GpuResource(count=1, sku='K80'),
-                    command=["/bin/echo", "world"],
-                    task_id="start_container"
-                )
+        AzureContainerInstancesOperator(
+            ci_conn_id="azure_service_principal",
+            registry_conn_id="azure_registry_user",
+            resource_group="my-resource-group",
+            name="my-container-name-{{ ds }}",
+            image="myprivateregistry.azurecr.io/my_container:latest",
+            region="westeurope",
+            environment_variables={
+                "MODEL_PATH": "my_value",
+                "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
+                "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
+                "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}",
+            },
+            secured_variables=["POSTGRES_PASSWORD"],
+            volumes=[
+                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+            ],
+            memory_in_gb=14.0,
+            cpu=4.0,
+            gpu=GpuResource(count=1, sku="K80"),
+            command=["/bin/echo", "world"],
+            task_id="start_container",
+        )
     """
 
-    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables")
+    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables", "volumes")
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     def __init__(
         self,
         *,
         ci_conn_id: str,
-        registry_conn_id: str | None,
         resource_group: str,
         name: str,
         image: str,
         region: str,
+        registry_conn_id: str | None = None,
         environment_variables: dict | None = None,
         secured_variables: str | None = None,
         volumes: list | None = None,
@@ -145,7 +144,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         restart_policy: str = "Never",
         ip_address: IpAddress | None = None,
         ports: list[ContainerPort] | None = None,
-        network_profile: ContainerGroupNetworkProfile | None = None,
+        subnet_ids: list[ContainerGroupSubnetId] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -183,7 +182,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             )
         self.ip_address = ip_address
         self.ports = ports
-        self.network_profile = network_profile
+        self.subnet_ids = subnet_ids
 
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
@@ -212,7 +211,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 e = EnvironmentVariable(name=key, value=value)
             environment_variables.append(e)
 
-        volumes: list[Volume | Volume] = []
+        volumes: list[_AzureVolume] = []
         volume_mounts: list[VolumeMount | VolumeMount] = []
         for conn_id, account_name, share_name, mount_path, read_only in self.volumes:
             hook = AzureContainerVolumeHook(conn_id)
@@ -256,7 +255,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 os_type=self.os_type,
                 tags=self.tags,
                 ip_address=self.ip_address,
-                network_profile=self.network_profile,
+                subnet_ids=self.subnet_ids,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
@@ -279,12 +278,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.on_kill()
 
     def on_kill(self) -> None:
-        if self.remove_on_error:
-            self.log.info("Deleting container group")
-            try:
-                self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:
-                self.log.exception("Could not delete container group")
+        self.log.info("Deleting container group")
+        try:
+            self._ci_hook.delete(self.resource_group, self.name)
+        except Exception:
+            self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
@@ -295,7 +293,6 @@ class AzureContainerInstancesOperator(BaseOperator):
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
                 instance_view = cg_state.containers[0].instance_view
-
                 # If there is no instance view, we show the provisioning state
                 if instance_view is not None:
                     c_state = instance_view.current_state
@@ -320,6 +317,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
+                        if logs and logs[0] is None:
+                            self.log.error("Container log is broken, marking as failed.")
+                            return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(
@@ -349,7 +349,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:
                 self.log.exception("Exception while getting container groups")
 
-            sleep(1)
+            time.sleep(1)
 
     def _log_last(self, logs: list | None, last_line_logged: Any) -> Any | None:
         if logs:

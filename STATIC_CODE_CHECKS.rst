@@ -114,6 +114,13 @@ Available pre-commit checks
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
 require Breeze Docker image to be built locally.
 
+.. note:: Manual pre-commits
+
+  Most of the checks we run are configured to run automatically when you commit the code. However,
+  there are some checks that are not run automatically and you need to run them manually. Those
+  checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
+  them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+
 .. note:: Disabling particular checks
 
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
@@ -123,9 +130,27 @@ require Breeze Docker image to be built locally.
   ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
-  In case you do not have breeze image configured locally, you can also disable all checks that require
-  the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+  In case you do not have breeze image configured locally, you can also disable all checks that require breeze
+  the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
+
+.. note:: Mypy checks
+
+  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-core``,
+  ``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
+  are run by passing those changed files to mypy. This is way faster than running checks for all files (even
+  if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
+  files). However, in some cases, it produces different results than when running checks for the whole set
+  of files, because ``mypy`` does not even know that some types are defined in other files and it might not
+  be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
+  directories (``airflow`` - excluding providers, ``airflow/providers``, ``dev`` and ``docs``) to make sure
+  that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
+  in CI. If you want to run mypy checks for all files locally, you can do it by running the following
+  command (example for ``airflow`` files):
+
+     .. code-block:: bash
+
+        MYPY_PACKAGES="airflow" pre-commit run --hook-stage manual mypy --all-files
 
 .. note:: Mypy volume cache
 
@@ -135,12 +160,13 @@ require Breeze Docker image to be built locally.
   is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
   cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
 
+
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ID                                                        | Description                                                  | Image   |
 +===========================================================+==============================================================+=========+
-| black                                                     | Run black (Python formatter)                                 |         |
+| bandit                                                    | bandit                                                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -150,11 +176,14 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-base-operator-usage                                 | * Check BaseOperator[Link] core imports                      |         |
+| check-base-operator-usage                                 | * Check BaseOperator core imports                            |         |
+|                                                           | * Check BaseOperatorLink core imports                        |         |
 |                                                           | * Check BaseOperator[Link] other imports                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency           |         |
@@ -185,6 +214,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
@@ -194,6 +225,8 @@ require Breeze Docker image to be built locally.
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-init-decorator-arguments                            | Check model __init__ and decorator arguments are in sync     |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-integrations-list-consistent                        | Sync integrations list with docs                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-lazy-logging                                        | Check that all logging methods are lazy                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -217,6 +250,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-provider-docs-valid                                 | Validate provider doc files                                  |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-providers-init-file-missing                         | Provider init file is missing                                |         |
@@ -225,11 +260,13 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-pyproject-toml-order                                | Check order of dependencies in pyproject.toml                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
+| check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -247,9 +284,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets                                        | Compile www assets                                           |         |
+| compile-www-assets                                        | Compile www assets (manual)                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets-dev                                    | Compile www assets in dev mode                               |         |
+| compile-www-assets-dev                                    | Compile www assets in dev mode (manual)                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                        | Create missing init.py files in tests                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -264,6 +301,10 @@ require Breeze Docker image to be built locally.
 | fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-airflow-diagrams                                 | Generate airflow diagrams                                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-pypi-readme                                      | Generate PyPI README                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -301,6 +342,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| mypy                                                      | Run mypy for specified packages (manual)                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mypy-core                                                 | Run mypy for core                                            | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mypy-dev                                                  | Run mypy for dev                                             | *       |
@@ -317,7 +360,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | rst-backticks                                             | Check if RST files use double backticks for code             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff                                                      | ruff                                                         |         |
+| ruff                                                      | Run 'ruff' for extremely fast Python linting                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| ruff-format                                               | Run 'ruff format' for extremely fast Python formatting       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | shellcheck                                                | Check Shell scripts syntax correctness                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -347,7 +392,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update cross-dependencies for providers packages             |         |
+| update-providers-dependencies                             | Update dependencies for provider packages                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -448,18 +495,18 @@ Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
      breeze static-checks --type ruff --file tests/core.py --verbose
 
-Run the ``ruff for the ``tests.core`` package with verbose output:
+Run the ``ruff`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
 
-Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+Run the ``ruff-format`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
 ``airflow/example_dags/example_python_operator.py``:
 
 .. code-block:: bash
 
-     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+     breeze static-checks --type ruff-format --file airflow/example_dags/example_bash_operator.py \
          airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
@@ -484,7 +531,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
 

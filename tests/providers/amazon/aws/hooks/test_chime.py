@@ -26,9 +26,10 @@ from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestChimeWebhookHook:
-
     _config = {
         "chime_conn_id": "default-chime-webhook",
         "webhook_endpoint": "incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken-111",
@@ -66,8 +67,9 @@ class TestChimeWebhookHook:
 
         # When/Then
         expected_message = r"Expected Chime webhook token in the form"
+        hook = ChimeWebhookHook(chime_conn_id="chime-bad-url")
         with pytest.raises(AirflowException, match=expected_message):
-            ChimeWebhookHook(chime_conn_id="chime-bad-url")
+            assert not hook.webhook_endpoint
 
     def test_get_webhook_endpoint_conn_id(self):
         # Given

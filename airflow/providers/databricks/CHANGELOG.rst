@@ -23,9 +23,150 @@
 
 ``apache-airflow-providers-databricks``
 
-
 Changelog
 ---------
+
+6.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes (#36205)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``fix typos in DatabricksSubmitRunOperator (#36248)``
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+   * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Prepare 2nd wave of providers in December (#36373)``
+
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Make pyodbc.Row and databricks.Row JSON-serializable via new 'make_serializable' method (#32319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``offset`` parameter has been deprecated from ``list_jobs`` in favor of faster pagination with ``page_token`` similarly to `Databricks API <https://docs.databricks.com/api/workspace/jobs/list>`_.
+
+* ``Remove offset-based pagination from 'list_jobs' function in 'DatabricksHook' (#34926)``
+
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add operator to create jobs in Databricks (#35156)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
+4.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'DatabricksHook' ClusterState (#34643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Respect 'soft_fail' parameter in 'DatabricksSqlSensor' (#34544)``
+* ``Respect 'soft_fail' argument when running DatabricksPartitionSensor (#34517)``
+* ``Decode response in f-string (#34518)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use aiohttp.BasicAuth instead of HTTPBasicAuth for aiohttp session in databricks hook (#34590)``
+* ``Update 'list_jobs' function in 'DatabricksHook' to token-based pagination  (#33472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployement of … (#33886)``
+* ``allow DatabricksSubmitRunOperator to accept a pipeline name for a pipeline_task (#32903)``
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+4.4.0
+.....
+
+.. note::
+  This release excluded databricks-sql-connector version 2.9.0 due to a bug that it does not properly declare urllib3
+  for more information please see https://github.com/databricks/databricks-sql-python/issues/190
+
+Features
+~~~~~~~~
+
+* ``Add Service Principal OAuth for Databricks. (#33005)``
+
+Misc
+~~~~
+
+* ``Update docs in databricks.py - we use 2.1 now (#32340)``
+* ``Do not create lists we don't need (#33519)``
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ecldude databrick connector 2.9.0 due to a bug (#33311)``
 
 4.3.3
 .....

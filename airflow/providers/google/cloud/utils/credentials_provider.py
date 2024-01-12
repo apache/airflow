@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os.path
+import os
 import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Collection, Generator, Sequence
@@ -30,7 +30,7 @@ from urllib.parse import urlencode
 import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
-from google.auth import impersonated_credentials
+from google.auth import impersonated_credentials  # type: ignore[attr-defined]
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException

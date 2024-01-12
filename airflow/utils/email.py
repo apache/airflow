@@ -125,7 +125,7 @@ def send_email_smtp(
     :param custom_headers: Dictionary of custom headers to include in the email.
     :param kwargs: Additional keyword arguments.
 
-    >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
+    >>> send_email("test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True)
     """
     smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
 
@@ -271,18 +271,17 @@ def send_mime_email(
             try:
                 smtp_conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
             except smtplib.SMTPServerDisconnected:
-                if attempt < smtp_retry_limit:
-                    continue
-                raise
-
-            if smtp_starttls:
-                smtp_conn.starttls()
-            if smtp_user and smtp_password:
-                smtp_conn.login(smtp_user, smtp_password)
-            log.info("Sent an alert email to %s", e_to)
-            smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
-            smtp_conn.quit()
-            break
+                if attempt == smtp_retry_limit:
+                    raise
+            else:
+                if smtp_starttls:
+                    smtp_conn.starttls()
+                if smtp_user and smtp_password:
+                    smtp_conn.login(smtp_user, smtp_password)
+                log.info("Sent an alert email to %s", e_to)
+                smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
+                smtp_conn.quit()
+                break
 
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
@@ -340,4 +339,4 @@ def _get_email_list_from_str(addresses: str) -> list[str]:
     :return: A list of email addresses.
     """
     pattern = r"\s*[,;]\s*"
-    return [address for address in re2.split(pattern, addresses)]
+    return re2.split(pattern, addresses)

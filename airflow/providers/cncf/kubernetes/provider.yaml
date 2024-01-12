@@ -21,8 +21,19 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703747586
 versions:
+  - 7.13.0
+  - 7.12.0
+  - 7.11.0
+  - 7.10.0
+  - 7.9.0
+  - 7.8.0
+  - 7.7.0
+  - 7.6.0
+  - 7.5.1
+  - 7.5.0
   - 7.4.2
   - 7.4.1
   - 7.4.0
@@ -65,7 +76,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - aiofiles>=23.2.0
+  - apache-airflow>=2.6.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -100,7 +112,7 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
-      - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
+      - airflow.providers.cncf.kubernetes.operators.custom_object_launcher
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource
@@ -337,3 +349,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

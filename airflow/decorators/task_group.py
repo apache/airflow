@@ -36,8 +36,6 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
@@ -47,6 +45,10 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
 
 FParams = ParamSpec("FParams")
 FReturn = TypeVar("FReturn", None, DAGNode)
@@ -114,14 +116,14 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         return task_group
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
-        # TODO: fixme when mypy gets compatible with new attrs
+        # TODO: FIXME when mypy gets compatible with new attrs
         return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(self.partial_kwargs)
-        # TODO: fixme when mypy gets compatible with new attrs
+        # TODO: FIXME when mypy gets compatible with new attrs
         return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
 
     def expand(self, **kwargs: OperatorExpandArgument) -> DAGNode:

@@ -26,6 +26,8 @@ from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 def apply_function_false(message):
     return False
@@ -94,7 +96,6 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_good(self, mocker):
-
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
@@ -112,7 +113,6 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_bad(self, mocker):
-
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(

@@ -22,24 +22,34 @@ import os
 from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, delete, select, text
+from sqlalchemy import (
+    Column,
+    ForeignKeyConstraint,
+    Integer,
+    PrimaryKeyConstraint,
+    delete,
+    exists,
+    select,
+    text,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
-from airflow.models.base import Base, StringID
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import tuple_not_in_condition
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
+    from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
-class RenderedTaskInstanceFields(Base):
+
+class RenderedTaskInstanceFields(TaskInstanceDependencies):
     """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
@@ -58,7 +68,6 @@ class RenderedTaskInstanceFields(Base):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
-            mssql_clustered=True,
         ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -129,7 +138,9 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_templated_fields(
+        cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
+    ) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
@@ -201,10 +212,10 @@ class RenderedTaskInstanceFields(Base):
         :param num_to_keep: Number of Records to keep
         :param session: SqlAlchemy Session
         """
-        from airflow.models.dagrun import DagRun
-
         if num_to_keep <= 0:
             return
+
+        from airflow.models.dagrun import DagRun
 
         tis_to_keep_query = (
             select(cls.dag_id, cls.task_id, cls.run_id, DagRun.execution_date)
@@ -234,17 +245,19 @@ class RenderedTaskInstanceFields(Base):
         session: Session,
     ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)
+
         stmt = (
             delete(cls)
             .where(
                 cls.dag_id == dag_id,
                 cls.task_id == task_id,
-                tuple_not_in_condition(
-                    (cls.dag_id, cls.task_id, cls.run_id),
-                    select(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
-                    session=session,
+                ~exists(1).where(
+                    ti_clause.c.dag_id == cls.dag_id,
+                    ti_clause.c.task_id == cls.task_id,
+                    ti_clause.c.run_id == cls.run_id,
                 ),
             )
             .execution_options(synchronize_session=False)
         )
+
         session.execute(stmt)

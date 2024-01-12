@@ -130,6 +130,7 @@ class TestDataprocClusterCreateOperator:
             enable_ui_proxy=False,
             host_group_ids=None,
             security_group_ids=None,
+            labels=None,
             initialization_actions=None,
         )
         context["task_instance"].xcom_push.assert_has_calls(

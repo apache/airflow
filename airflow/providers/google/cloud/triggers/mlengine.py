@@ -91,8 +91,8 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 # Poll for job execution status
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook == "success":
@@ -110,9 +110,9 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
 
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for query completion")
-                yield TriggerEvent({"status": "error", "message": str(e)})
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for query completion")
+            yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> MLEngineAsyncHook:
         return MLEngineAsyncHook(

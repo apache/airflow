@@ -18,28 +18,24 @@
 from __future__ import annotations
 
 import logging
-from contextvars import ContextVar
 from functools import cached_property
-from typing import Collection
+from typing import TYPE_CHECKING, Collection
 from urllib.parse import urlencode
 
-from google.auth.credentials import Credentials
 from google.cloud import logging as gcp_logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
-from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
-try:
-    # todo: remove this conditional import when min airflow version >= 2.6
-    ctx_indiv_trigger: ContextVar | None
-    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
-except ImportError:
-    ctx_indiv_trigger = None
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
+
+    from airflow.models import TaskInstance
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})

@@ -31,7 +31,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -65,7 +65,6 @@ class S3KeySensor(BaseSensorOperator):
             def check_fn(files: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in files)
     :param aws_conn_id: a reference to the s3 connection
-    :param deferrable: Run operator in the deferrable mode
     :param verify: Whether to verify SSL certificates for S3 connection.
         By default, SSL certificates are verified.
         You can provide the following values:
@@ -76,6 +75,8 @@ class S3KeySensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param deferrable: Run operator in the deferrable mode
+    :param use_regex: whether to use regex to check bucket
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
@@ -90,6 +91,7 @@ class S3KeySensor(BaseSensorOperator):
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        use_regex: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -100,6 +102,7 @@ class S3KeySensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.deferrable = deferrable
+        self.use_regex = use_regex
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -113,14 +116,19 @@ class S3KeySensor(BaseSensorOperator):
         }]
         """
         if self.wildcard_match:
-            prefix = re.split(r"[\[\*\?]", key, 1)[0]
+            prefix = re.split(r"[\[*?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            files = [{"Size": f["Size"]} for f in key_matches]
+        elif self.use_regex:
+            keys = self.hook.get_file_metadata("", bucket_name)
+            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
+            if not key_matches:
+                return False
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:
@@ -157,12 +165,13 @@ class S3KeySensor(BaseSensorOperator):
                 aws_conn_id=self.aws_conn_id,
                 verify=self.verify,
                 poke_interval=self.poke_interval,
-                should_check_fn=True if self.check_fn else False,
+                should_check_fn=bool(self.check_fn),
+                use_regex=self.use_regex,
             ),
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
         Execute when the trigger fires - returns immediately.
 
@@ -170,16 +179,15 @@ class S3KeySensor(BaseSensorOperator):
         """
         if event["status"] == "running":
             found_keys = self.check_fn(event["files"])  # type: ignore[misc]
-            if found_keys:
-                return None
-            else:
+            if not found_keys:
                 self._defer()
-
-        if event["status"] == "error":
+        elif event["status"] == "error":
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        return None
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
         return self.hook
@@ -297,10 +305,14 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 )
                 return False
 
-            raise AirflowException(
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = (
                 f"Illegal behavior: objects were deleted in"
                 f" {os.path.join(self.bucket_name, self.prefix)} between pokes."
             )
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if self.last_activity_time:
             self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
@@ -360,5 +372,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event and event["status"] == "error":
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         return None

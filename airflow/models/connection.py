@@ -21,6 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
+from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import re2
@@ -32,6 +33,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException, Remov
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
@@ -116,8 +118,8 @@ class Connection(Base, LoggingMixin):
     description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
     host = Column(String(500))
     schema = Column(String(500))
-    login = Column(String(500))
-    _password = Column("password", String(5000))
+    login = Column(Text())
+    _password = Column("password", Text())
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
@@ -386,7 +388,7 @@ class Connection(Base, LoggingMixin):
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
-            warnings.warn(
+            log.error(
                 "Could not import %s when discovering %s %s",
                 hook.hook_class_name,
                 hook.hook_name,
@@ -500,6 +502,34 @@ class Connection(Base, LoggingMixin):
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
+    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+        """
+        Convert Connection to json-serializable dictionary.
+
+        :param prune_empty: Whether or not remove empty values.
+        :param validate: Validate dictionary is JSON-serializable
+
+        :meta private:
+        """
+        conn = {
+            "conn_id": self.conn_id,
+            "conn_type": self.conn_type,
+            "description": self.description,
+            "host": self.host,
+            "login": self.login,
+            "password": self.password,
+            "schema": self.schema,
+            "port": self.port,
+        }
+        if prune_empty:
+            conn = prune_dict(val=conn, mode="strict")
+        if (extra := self.extra_dejson) or not prune_empty:
+            conn["extra"] = extra
+
+        if validate:
+            json.dumps(conn)
+        return conn
+
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
@@ -516,3 +546,9 @@ class Connection(Base, LoggingMixin):
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
         return Connection(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
+        conn_repr = self.to_dict(prune_empty=True, validate=False)
+        conn_repr.pop("conn_id", None)
+        return json.dumps(conn_repr)

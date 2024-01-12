@@ -19,17 +19,15 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceAsyncClient, DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse,
     TransferConfig,
     TransferRun,
 )
-from googleapiclient.discovery import Resource
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -37,6 +35,11 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from googleapiclient.discovery import Resource
 
 
 def get_object_id(obj: dict) -> str:
@@ -319,7 +322,7 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         run_id: str,
         project_id: str | None,
         location: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):

@@ -60,7 +60,7 @@ Offline SQL migration scripts
 =============================
 If you want to run the upgrade script offline, you can use the ``-r`` or ``--revision-range`` flag
 to get the SQL statements that would be executed. This feature is supported in Postgres and MySQL
-from Airflow 2.0.0 onward and in MSSQL from Airflow 2.2.0 onward.
+from Airflow 2.0.0 onward.
 
 Sample usage:
    ``airflow db migrate -r "2.0.0:2.2.0"``

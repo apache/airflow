@@ -258,9 +258,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_value(self, value: Any | None) -> Any | None:
         """Convert value to BQ type."""
-        if not value:
-            return value
-        elif isinstance(value, (str, int, float, bool, dict)):
+        if not value or isinstance(value, (str, int, float, bool, dict)):
             return value
         elif isinstance(value, bytes):
             return b64encode(value).decode("ascii")
@@ -284,7 +282,7 @@ class CassandraToGCSOperator(BaseOperator):
         elif isinstance(value, OrderedMapSerializedKey):
             return self.convert_map_type(value)
         else:
-            raise AirflowException("Unexpected value: " + str(value))
+            raise AirflowException(f"Unexpected value: {value}")
 
     def convert_array_types(self, value: list[Any] | SortedSet) -> list[Any]:
         """Maps convert_value over array."""
@@ -308,7 +306,7 @@ class CassandraToGCSOperator(BaseOperator):
         will be named 'field_<index>', where index is determined by the order
         of the tuple elements defined in cassandra.
         """
-        names = ["field_" + str(i) for i in range(len(values))]
+        names = [f"field_{i}" for i in range(len(values))]
         return self.generate_data_dict(names, values)
 
     def convert_map_type(self, value: OrderedMapSerializedKey) -> list[dict[str, Any]]:
@@ -351,7 +349,7 @@ class CassandraToGCSOperator(BaseOperator):
             types = type_.subtypes
 
         if types and not names and type_.cassname == "TupleType":
-            names = ["field_" + str(i) for i in range(len(types))]
+            names = [f"field_{i}" for i in range(len(types))]
         elif types and not names and type_.cassname == "MapType":
             names = ["key", "value"]
 

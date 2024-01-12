@@ -27,6 +27,79 @@
 Changelog
 ---------
 
+3.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor shorter defaults in providers (#34347)``
+
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate "import numpy as np" (#34111)``
+* ``Combine similar if logics in providers (#33987)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+3.7.3
+.....
+
+Misc
+~~~~~
+
+* ``Replace strftime with f-strings where nicer (#33455)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+
 3.7.2
 .....
 

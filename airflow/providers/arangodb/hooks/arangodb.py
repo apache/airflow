@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -108,7 +108,7 @@ class ArangoDBHook(BaseHook):
                     f"Failed to execute AQLQuery, error connecting to database: {self.database}"
                 )
         except AQLQueryExecuteError as error:
-            raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
+            raise AirflowException(f"Failed to execute AQLQuery, error: {error}")
 
     def create_collection(self, name):
         if not self.db_conn.has_collection(name):
@@ -134,8 +134,8 @@ class ArangoDBHook(BaseHook):
             self.log.info("Graph already exists: %s", name)
             return False
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["port", "extra"],
             "relabeling": {

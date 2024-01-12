@@ -18,7 +18,7 @@
 """Test for Package Index Hook."""
 from __future__ import annotations
 
-from pytest import FixtureRequest, MonkeyPatch, fixture, mark, raises
+import pytest
 
 from airflow.hooks.package_index import PackageIndexHook
 from airflow.models.connection import Connection
@@ -60,11 +60,11 @@ PI_MOCK_TESTDATA = {
 }
 
 
-@fixture(
+@pytest.fixture(
     params=list(PI_MOCK_TESTDATA.values()),
     ids=list(PI_MOCK_TESTDATA.keys()),
 )
-def mock_get_connection(monkeypatch: MonkeyPatch, request: FixtureRequest) -> str | None:
+def mock_get_connection(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> str | None:
     """Pytest Fixture."""
     testdata: dict[str, str | None] = request.param
     host: str | None = testdata.get("host", None)
@@ -86,12 +86,12 @@ def test_get_connection_url(mock_get_connection: str | None):
         connection_url = hook_instance.get_connection_url()
         assert connection_url == expected_result
     else:
-        with raises(Exception):
+        with pytest.raises(Exception):
             hook_instance.get_connection_url()
 
 
-@mark.parametrize("success", [0, 1])
-def test_test_connection(monkeypatch: MonkeyPatch, mock_get_connection: str | None, success: int):
+@pytest.mark.parametrize("success", [0, 1])
+def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: str | None, success: int):
     """Test if connection test responds correctly to return code."""
 
     def mock_run(*_, **__):
@@ -110,7 +110,7 @@ def test_test_connection(monkeypatch: MonkeyPatch, mock_get_connection: str | No
         result = hook_instance.test_connection()
         assert result[0] == (success == 0)
     else:
-        with raises(Exception):
+        with pytest.raises(Exception):
             hook_instance.test_connection()
 
 

@@ -26,14 +26,12 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook, check_webhook_response
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 TEST_TOKEN = "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
 TEST_WEBHOOK_URL = f"https://hooks.slack.com/services/{TEST_TOKEN}"
@@ -92,13 +90,6 @@ def slack_webhook_connections():
             host="https://hooks.slack.com/services/",
             extra={"webhook_token": TEST_TOKEN},
         ),
-        Connection(conn_id="conn_token_in_host_1", conn_type=CONN_TYPE, host=TEST_WEBHOOK_URL),
-        Connection(
-            conn_id="conn_token_in_host_2",
-            conn_type=CONN_TYPE,
-            schema="https",
-            host="hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
-        ),
         Connection(
             conn_id="conn_custom_endpoint_1",
             conn_type=CONN_TYPE,
@@ -133,10 +124,9 @@ def slack_webhook_connections():
             host="some.netloc",
         ),
     ]
-
-    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
-
-    with mock.patch.dict("os.environ", values=conn_uris):
+    with pytest.MonkeyPatch.context() as mp:
+        for conn in connections:
+            mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
         yield
 
 
@@ -175,40 +165,6 @@ class TestCheckWebhookResponseDecorator:
 
 
 class TestSlackWebhookHook:
-    def test_no_credentials(self):
-        """Test missing credentials."""
-        error_message = r"Either `slack_webhook_conn_id` or `webhook_token` should be provided\."
-        with pytest.raises(AirflowException, match=error_message):
-            SlackWebhookHook(slack_webhook_conn_id=None, webhook_token=None)
-
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.mask_secret")
-    def test_webhook_token(self, mock_mask_secret):
-        webhook_token = "test-value"
-        warning_message = (
-            r"Provide `webhook_token` as hook argument deprecated by security reason and will be removed "
-            r"in a future releases. Please specify it in `Slack Webhook` connection\."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            SlackWebhookHook(webhook_token=webhook_token)
-        mock_mask_secret.assert_called_once_with(webhook_token)
-
-    def test_conn_id(self):
-        """Different conn_id arguments and options."""
-        hook = SlackWebhookHook(slack_webhook_conn_id=SlackWebhookHook.default_conn_name, http_conn_id=None)
-        assert hook.slack_webhook_conn_id == SlackWebhookHook.default_conn_name
-        assert not hasattr(hook, "http_conn_id")
-
-        hook = SlackWebhookHook(slack_webhook_conn_id=None, http_conn_id=SlackWebhookHook.default_conn_name)
-        assert hook.slack_webhook_conn_id == SlackWebhookHook.default_conn_name
-        assert not hasattr(hook, "http_conn_id")
-
-        error_message = "You cannot provide both `slack_webhook_conn_id` and `http_conn_id`."
-        with pytest.raises(AirflowException, match=error_message):
-            SlackWebhookHook(
-                slack_webhook_conn_id=SlackWebhookHook.default_conn_name,
-                http_conn_id=SlackWebhookHook.default_conn_name,
-            )
-
     @pytest.mark.parametrize(
         "conn_id",
         [
@@ -218,30 +174,32 @@ class TestSlackWebhookHook:
             "conn_host_with_schema",
             "conn_host_without_schema",
             "conn_parts",
-            "conn_token_in_host_1",
-            "conn_token_in_host_2",
         ],
     )
     def test_construct_webhook_url(self, conn_id):
         """Test valid connections."""
         hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
         conn_params = hook._get_conn_params()
+        assert not hasattr(hook, "http_conn_id")
+        assert not hasattr(hook, "webhook_token")
         assert "url" in conn_params
         assert conn_params["url"] == TEST_WEBHOOK_URL
 
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.mask_secret")
+    def test_ignore_webhook_token(self):
+        """Test that we only use token from Slack API Connection ID."""
+        with pytest.warns(
+            UserWarning, match="Provide `webhook_token` as part of .* parameters is disallowed"
+        ):
+            hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, webhook_token="foo-bar")
+            assert "webhook_token" not in hook.extra_client_args
+            assert hook._get_conn_params()["url"] == TEST_WEBHOOK_URL
+
     @pytest.mark.parametrize("conn_id", ["conn_token_in_host_1", "conn_token_in_host_2"])
-    def test_construct_webhook_url_deprecated_full_url_in_host(self, mock_mask_secret, conn_id):
-        """Test deprecated option with full URL in host/schema and empty password."""
+    def test_wrong_connections(self, conn_id):
+        """Test previously valid connections, but now it is dropped."""
         hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
-        warning_message = (
-            r"Found Slack Webhook Token URL in Connection .* `host` and `password` field is empty\."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            conn_params = hook._get_conn_params()
-        mock_mask_secret.assert_called_once_with(mock.ANY)
-        assert "url" in conn_params
-        assert conn_params["url"] == TEST_WEBHOOK_URL
+        with pytest.raises(AirflowNotFoundException):
+            hook._get_conn_params()
 
     @pytest.mark.parametrize(
         "conn_id", ["conn_custom_endpoint_1", "conn_custom_endpoint_2", "conn_custom_endpoint_3"]
@@ -264,18 +222,9 @@ class TestSlackWebhookHook:
     def test_no_password_in_connection_field(self, conn_id):
         """Test connection which missing password field in connection."""
         hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
-        error_message = r"Cannot get token\: No valid Slack token nor valid Connection ID supplied\."
-        with pytest.raises(AirflowException, match=error_message):
+        error_message = r"Connection ID .* does not contain password \(Slack Webhook Token\)"
+        with pytest.raises(AirflowNotFoundException, match=error_message):
             hook._get_conn_params()
-
-    @pytest.mark.parametrize("conn_id", [None, "conn_empty"])
-    @pytest.mark.parametrize("token", [TEST_TOKEN, TEST_WEBHOOK_URL, f"/{TEST_TOKEN}"])
-    def test_empty_connection_field_with_token(self, conn_id, token):
-        """Test connections which is empty or not set and valid webhook_token specified."""
-        hook = SlackWebhookHook(slack_webhook_conn_id="conn_empty", webhook_token=token)
-        conn_params = hook._get_conn_params()
-        assert "url" in conn_params
-        assert conn_params["url"] == TEST_WEBHOOK_URL
 
     @pytest.mark.parametrize(
         "hook_config,conn_extra,expected",
@@ -484,82 +433,6 @@ class TestSlackWebhookHook:
         hook.send(**send_params, headers=headers)
         mock_hook_send_dict.assert_called_once_with(body=send_params, headers=headers)
 
-    @pytest.mark.parametrize(
-        "deprecated_hook_attr",
-        [
-            "message",
-            "attachments",
-            "blocks",
-            "channel",
-            "username",
-            "icon_emoji",
-            "icon_url",
-        ],
-    )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.send_dict")
-    def test_hook_send_by_hook_attributes(self, mock_hook_send_dict, deprecated_hook_attr):
-        """Test `SlackWebhookHook.send` with parameters set in hook attributes."""
-        send_params = {deprecated_hook_attr: "test-value"}
-        expected_body = {deprecated_hook_attr if deprecated_hook_attr != "message" else "text": "test-value"}
-        warning_message = (
-            r"Provide .* as hook argument\(s\) is deprecated and will be removed in a future releases\. "
-            r"Please specify attributes in `SlackWebhookHook\.send` method instead\."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, **send_params)
-        assert getattr(hook, deprecated_hook_attr) == "test-value"
-        if deprecated_hook_attr == "message":
-            assert getattr(hook, "text") == "test-value"
-        # Test ``.send()`` method
-        hook.send()
-        mock_hook_send_dict.assert_called_once_with(body=expected_body, headers=None)
-
-        # Test deprecated ``.execute()`` method
-        mock_hook_send_dict.reset_mock()
-        warning_message = (
-            "`SlackWebhookHook.execute` method deprecated and will be removed in a future releases. "
-            "Please use `SlackWebhookHook.send` or `SlackWebhookHook.send_dict` or "
-            "`SlackWebhookHook.send_text` methods instead."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            hook.execute()
-        mock_hook_send_dict.assert_called_once_with(body=expected_body, headers=None)
-
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_ignored_attributes(self, mock_webhook_client_cls):
-        """Test hook constructor warn users about ignored attributes."""
-        mock_webhook_client = mock_webhook_client_cls.return_value
-        mock_webhook_client_send_dict = mock_webhook_client.send_dict
-        mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
-        with pytest.warns(UserWarning) as recwarn:
-            hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, link_names="test-value")
-        assert len(recwarn) == 2
-        assert str(recwarn.pop(UserWarning).message).startswith(
-            "`link_names` has no affect, if you want to mention user see:"
-        )
-        assert str(recwarn.pop(AirflowProviderDeprecationWarning).message).startswith(
-            "Provide 'link_names' as hook argument(s) is deprecated and will be removed in a future releases."
-        )
-        hook.send()
-        mock_webhook_client_send_dict.assert_called_once_with({}, headers=None)
-
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_send_unexpected_arguments(self, mock_webhook_client_cls, recwarn):
-        """Test `SlackWebhookHook.send` unexpected attributes."""
-        mock_webhook_client = mock_webhook_client_cls.return_value
-        mock_webhook_client_send_dict = mock_webhook_client.send_dict
-        mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
-
-        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
-        warning_message = (
-            r"Found unexpected keyword-argument\(s\) 'link_names', 'as_user' "
-            r"in `send` method\. This argument\(s\) have no effect\."
-        )
-        with pytest.warns(UserWarning, match=warning_message):
-            hook.send(link_names="foo-bar", as_user="root", text="Awesome!")
-
-        mock_webhook_client_send_dict.assert_called_once_with({"text": "Awesome!"}, headers=None)
-
     @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
     @pytest.mark.parametrize("unfurl_links", [None, False, True])
     @pytest.mark.parametrize("unfurl_media", [None, False, True])
@@ -572,43 +445,14 @@ class TestSlackWebhookHook:
             text="Test Text", headers=headers, unfurl_links=unfurl_links, unfurl_media=unfurl_media
         )
 
-    def test__ensure_prefixes_removal(self):
-        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = "airflow.providers.slack.hooks.slack_webhook._ensure_prefixes"
-        if not object_exists(path):
-            raise Exception(
-                "You must remove this test. It only exists to "
-                "remind us to remove decorator `_ensure_prefixes`."
-            )
-
-        if get_provider_min_airflow_version("apache-airflow-providers-slack") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from SlackWebhookHook."
-                " The functionality is now taken care of by providers manager."
-            )
-
-    def test___ensure_prefixes(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
-        """
-        assert list(SlackWebhookHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "schema",
-            "host",
-            "password",
-            "extra__slackwebhook__timeout",
-            "extra__slackwebhook__proxy",
-        ]
-
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://:abc@?extra__slackwebhook__timeout=123&extra__slackwebhook__proxy=proxy",
                 id="prefix",
             ),
-            param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
+            pytest.param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):

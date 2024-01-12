@@ -19,11 +19,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 from warnings import warn
 
-from pendulum import DateTime
-
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
     from airflow.utils.types import DagRunType
 
 

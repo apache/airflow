@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   kdc-server-example-com:
     image: ghcr.io/apache/airflow-krb5-kdc-server:2021.07.04
+    labels:
+      breeze.description: "Integration that provides Kerberos authentication."
     hostname: krb5-kdc-server-example-com
     domainname: example.com
     networks:

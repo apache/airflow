@@ -20,7 +20,8 @@
 Apprise Connection
 =======================
 
-The Apprise connection type enables connection to multiple services to send notifications. The complete list of services supported can be found  on the `Apprise Wiki <https://github.com/caronc/apprise/wiki#notification-services>`_.
+The `Apprise <https://github.com/caronc/apprise>`__ connection type enables connection to multiple services to send notifications.
+The complete list of services supported can be found on the `Apprise Wiki <https://github.com/caronc/apprise/wiki#notification-services>`_.
 
 Default Connection IDs
 ----------------------
@@ -29,15 +30,36 @@ Apprise hooks point to ``apprise_default`` by default.
 
 Configuring the Connection
 --------------------------
-config (required)
-    The service(s) to send notifications can be specified here. The format to specify single or multiple services is as follows::
 
-    .. code-block:: python
+Config (required)
+    The service(s) to send notifications can be specified here.
+    The format to specify a single service or multiple services is as follows:
 
-       # Single service
-       {"path": "URI for the service", "tag": "tag name"}
+    *Single service*
 
-       # Multiple services
-       [{"path": "URI for the service 1", "tag": "tag name"}, {"path": "URI for the service 2", "tag": "tag name"}]
+    .. code-block:: json
 
-    Read more about `path <https://github.com/caronc/apprise/wiki/URLBasics#apprise-url-basics>`_ and `tag <https://github.com/caronc/apprise/wiki/Development_API#tagging>`_
+      {
+        "path": "URI for the service",
+        "tag": "tag name"
+      }
+
+
+    *Multiple services*
+
+    .. code-block:: json
+
+      [
+        {
+          "path": "URI for the service 1",
+          "tag": "tag name"
+        },
+        {
+          "path": "URI for the service 2",
+          "tag": "tag name"
+        },
+      ]
+
+    .. seealso::
+      - `Apprise URL Basics <https://github.com/caronc/apprise/wiki/URLBasics#apprise-url-basics>`_
+      - `Tagging <https://github.com/caronc/apprise/wiki/Development_API#tagging>`_

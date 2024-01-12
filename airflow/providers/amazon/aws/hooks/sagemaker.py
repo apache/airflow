@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import os
 import re
 import tarfile
 import tempfile
 import time
 import warnings
-from collections import Counter
+from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Generator, cast
@@ -54,7 +53,7 @@ class LogState:
 
 # Position is a tuple that includes the last read timestamp and the number of items that were read
 # at that time. This is used to figure out which event to start with on the next read.
-Position = collections.namedtuple("Position", ["timestamp", "skip"])
+Position = namedtuple("Position", ["timestamp", "skip"])
 
 
 def argmin(arr, f: Callable) -> int | None:
@@ -81,7 +80,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
     :return: Whether the secondary status message of a training job changed or not.
     """
     current_secondary_status_transitions = current_job_description.get("SecondaryStatusTransitions")
-    if current_secondary_status_transitions is None or len(current_secondary_status_transitions) == 0:
+    if not current_secondary_status_transitions:
         return False
 
     prev_job_secondary_status_transitions = (
@@ -90,8 +89,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
     last_message = (
         prev_job_secondary_status_transitions[-1]["StatusMessage"]
-        if prev_job_secondary_status_transitions is not None
-        and len(prev_job_secondary_status_transitions) > 0
+        if prev_job_secondary_status_transitions
         else ""
     )
 
@@ -111,7 +109,7 @@ def secondary_training_status_message(
     :return: Job status string to be printed.
     """
     current_transitions = job_description.get("SecondaryStatusTransitions")
-    if current_transitions is None or len(current_transitions) == 0:
+    if not current_transitions:
         return ""
 
     prev_transitions_num = 0
@@ -128,10 +126,8 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_str = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"])).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-        status_strs.append(f"{time_str} {transition['Status']} - {message}")
+        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
 
@@ -255,12 +251,12 @@ class SageMakerHook(AwsBaseHook):
         ]
         events: list[Any | None] = []
         for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)
-                continue
-            try:
-                events.append(next(event_stream))
-            except StopIteration:
+            if event_stream:
+                try:
+                    events.append(next(event_stream))
+                except StopIteration:
+                    events.append(None)
+            else:
                 events.append(None)
 
         while any(events):
@@ -586,7 +582,7 @@ class SageMakerHook(AwsBaseHook):
                 # the container starts logging, so ignore any errors thrown about that
                 pass
 
-        if len(stream_names) > 0:
+        if stream_names:
             for idx, event in self.multi_stream_iter(log_group, stream_names, positions):
                 self.log.info(event["message"])
                 ts, count = positions[stream_names[idx]]
@@ -982,8 +978,7 @@ class SageMakerHook(AwsBaseHook):
         found_name: str,
         job_name_suffix: str | None = None,
     ) -> bool:
-        pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
-        return pattern.fullmatch(found_name) is not None
+        return re.fullmatch(f"{processing_job_name}({job_name_suffix})?", found_name) is not None
 
     def count_processing_jobs_by_name(
         self,
@@ -1143,7 +1138,7 @@ class SageMakerHook(AwsBaseHook):
         if check_interval is None:
             check_interval = 10
 
-        for retries in (2, 1, 0):
+        for retries in reversed(range(5)):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
             except ClientError as ce:

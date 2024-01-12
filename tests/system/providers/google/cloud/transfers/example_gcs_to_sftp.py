@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
@@ -47,7 +47,7 @@ GCS_SRC_DIR = "dir-2/*"
 UPLOAD_IN_DIR_DST = f"dir-2/{FILE_NAME}"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

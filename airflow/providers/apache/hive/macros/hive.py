@@ -39,7 +39,7 @@ def max_partition(
     :param field: the field to get the max value from. If there's only
         one partition field, this will be inferred
 
-    >>> max_partition('airflow.static_babynames_partitioned')
+    >>> max_partition("airflow.static_babynames_partitioned")
     '2015-01-01'
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
@@ -61,9 +61,16 @@ def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | N
     :param before_target: closest before or after the target
     :returns: The closest date
     """
-    time_before = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
-    time_after = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    any_time = lambda d: target_dt - d if d < target_dt else d - target_dt
+
+    def time_before(d):
+        return target_dt - d if d <= target_dt else datetime.timedelta.max
+
+    def time_after(d):
+        return d - target_dt if d >= target_dt else datetime.timedelta.max
+
+    def any_time(d):
+        return target_dt - d if d < target_dt else d - target_dt
+
     if before_target is None:
         return min(date_list, key=any_time).date()
     if before_target:
@@ -87,8 +94,8 @@ def closest_ds_partition(
     :param metastore_conn_id: which metastore connection to use
     :returns: The closest date
 
-    >>> tbl = 'airflow.static_babynames_partitioned'
-    >>> closest_ds_partition(tbl, '2015-01-02')
+    >>> tbl = "airflow.static_babynames_partitioned"
+    >>> closest_ds_partition(tbl, "2015-01-02")
     '2015-01-01'
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
@@ -99,7 +106,7 @@ def closest_ds_partition(
     partitions = hive_hook.get_partitions(schema=schema, table_name=table)
     if not partitions:
         return None
-    part_vals = [list(p.values())[0] for p in partitions]
+    part_vals = [next(iter(p.values())) for p in partitions]
     if ds in part_vals:
         return ds
     else:

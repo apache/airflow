@@ -11,6 +11,7 @@ actionCard
 Acyclic
 acyclic
 AddressesType
+adf
 adhoc
 adls
 adobjects
@@ -21,6 +22,7 @@ AgentKey
 aio
 aiobotocore
 AioSession
+aiplatform
 Airbnb
 airbnb
 Airbyte
@@ -34,6 +36,7 @@ Alibaba
 alibaba
 allAuthenticatedUsers
 allowinsert
+allowlist
 allUsers
 alphanumerics
 Alphasort
@@ -85,6 +88,7 @@ asia
 assertEqualIgnoreMultipleSpaces
 assigment
 ast
+astroid
 Async
 async
 AsyncResult
@@ -93,6 +97,7 @@ Atlassian
 atlassian
 attr
 attrs
+au
 Auth
 auth
 authenticator
@@ -113,10 +118,12 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -154,6 +161,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
@@ -192,6 +200,7 @@ burstable
 bytestring
 cacert
 callables
+camelCase
 Cancelled
 cancelled
 carbonite
@@ -260,9 +269,11 @@ cnt
 codebase
 Codecov
 codecov
+codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -303,9 +314,11 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -341,6 +354,7 @@ Dagre
 dagre
 DagRun
 dagrun
+DagRunPydantic
 dagruns
 DagRunState
 DAGs
@@ -373,8 +387,12 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataScan
+dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
@@ -442,6 +460,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -464,6 +483,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -482,9 +502,11 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
+dq
 Drillbit
 Drivy
 dropdown
@@ -495,6 +517,8 @@ Dsn
 dsn
 dttm
 dtypes
+du
+duckdb
 durations
 dylib
 Dynamodb
@@ -502,6 +526,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -528,8 +553,10 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -572,6 +599,7 @@ Fernet
 fernet
 fetchmany
 fetchone
+FieldMask
 Filebeat
 filehandle
 fileloc
@@ -602,6 +630,7 @@ fmt
 fn
 fo
 followsa
+forecasted
 formatter
 formatters
 Formaturas
@@ -617,6 +646,8 @@ Fundera
 ga
 Gantt
 gantt
+gapic
+gapped
 gbq
 gcc
 gcloud
@@ -660,6 +691,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+graphviz
 greenlet
 Groupalia
 groupId
@@ -769,7 +801,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -780,12 +814,15 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
+irreproducible
 IRSA
 isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
@@ -801,6 +838,7 @@ jdbc
 jdk
 jenkins
 JenkinsRequest
+Jetson
 Jiajie
 Jinja
 jinja
@@ -824,10 +862,12 @@ JPype
 js
 Json
 json
+jsonl
 jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -846,6 +886,7 @@ KeyManagementServiceClient
 keyring
 keyspace
 keytab
+kfp
 Kibana
 killMode
 Kinesis
@@ -861,6 +902,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -900,6 +942,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -914,6 +957,7 @@ Lyft
 machineTypes
 macOS
 macosx
+mae
 mailto
 makedirs
 makedsn
@@ -937,6 +981,7 @@ mesos
 MessageAttributes
 metaclass
 metadatabase
+metadataStores
 metarouter
 Metastore
 metastore
@@ -949,6 +994,7 @@ microsoft
 middleware
 Midnights
 midnights
+milli
 milton
 minicluster
 minikube
@@ -981,6 +1027,7 @@ mysql
 mysqlclient
 mysqldb
 mytaxi
+myVPC
 Namenode
 namenode
 Namespace
@@ -993,6 +1040,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1041,14 +1089,21 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
+OpenSearch
+opensearch
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise
 optimise
+optimizationObjective
 optionality
 ora
 oracledb
@@ -1065,6 +1120,7 @@ oversubscription
 PaaS
 Pagerduty
 pagerduty
+PagerdutyEventsHook
 pageviews
 paginator
 Papermill
@@ -1085,6 +1141,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1092,16 +1149,20 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1122,12 +1183,12 @@ POSIX
 postfix
 Postgres
 postgres
-Postgresql
 postgresql
 postMessage
 Potiuk
 powershell
 pql
+prc
 Pre
 pre
 precheck
@@ -1160,6 +1221,7 @@ productionalize
 ProductSearchClient
 profiler
 programmatically
+proj
 projectId
 projectid
 proto
@@ -1183,6 +1245,7 @@ Py
 py
 Pyarrow
 pyarrow
+pydantic
 pydruid
 pyexasol
 pyhive
@@ -1205,6 +1268,9 @@ pywinrm
 qds
 Qingping
 Qplum
+quantile
+Quantiles
+quantiles
 Quantopian
 Qubole
 qubole
@@ -1274,8 +1340,12 @@ retransmits
 rfc
 ricard
 rideable
+rmse
+rmsle
+rmspe
 Roadmap
 Robinhood
+roc
 RoleBinding
 romeoandjuliet
 rootcss
@@ -1299,6 +1369,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl
@@ -1333,6 +1404,7 @@ seekable
 segmentGranularity
 Sendgrid
 sendgrid
+sentimentMax
 serde
 serialise
 serializable
@@ -1375,6 +1447,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1424,6 +1497,7 @@ str
 StrictUndefined
 Stringified
 stringified
+Struct
 subchart
 subclassed
 Subclasses
@@ -1486,6 +1560,7 @@ tableId
 Tabular
 tagKey
 tagValue
+targetColumn
 task_group
 TaskDecorator
 Taskfail
@@ -1514,6 +1589,7 @@ templating
 templatize
 templatized
 tenantId
+Tensorboard
 tensorflow
 Teradata
 Terraform
@@ -1547,6 +1623,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+TrainingPipeline
 travis
 triage
 triaging
@@ -1568,17 +1645,26 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
+ukey
+ulimit
+ulimits
 Umask
 umask
 Un
 un
 unarchived
+unassigns
+uncomment
 uncommenting
 Undead
 undead
 Undeads
+undeploy
+undeployed
+Undeploys
 ungenerated
 unicode
 unicodecsv
@@ -1607,6 +1693,8 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
+upserting
 upserts
 Upsight
 upstreams
@@ -1636,6 +1724,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1654,9 +1744,11 @@ VolumeMount
 volumeMounts
 vpc
 WaiterModel
+wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

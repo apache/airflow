@@ -20,10 +20,11 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from sqlalchemy import select, update
+
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 # The key used by SkipMixin to store XCom data.
@@ -67,24 +69,29 @@ class SkipMixin(LoggingMixin):
         """Set state of task instances to skipped from the same dag run."""
         if tasks:
             now = timezone.utcnow()
-            TI = TaskInstance
-            query = session.query(TI).filter(
-                TI.dag_id == dag_run.dag_id,
-                TI.run_id == dag_run.run_id,
-            )
-            if isinstance(tasks[0], tuple):
-                query = query.filter(tuple_in_condition((TI.task_id, TI.map_index), tasks))
-            else:
-                query = query.filter(TI.task_id.in_(tasks))
 
-            query.update(
-                {
-                    TaskInstance.state: TaskInstanceState.SKIPPED,
-                    TaskInstance.start_date: now,
-                    TaskInstance.end_date: now,
-                },
-                synchronize_session=False,
-            )
+            if isinstance(tasks[0], tuple):
+                session.execute(
+                    update(TaskInstance)
+                    .where(
+                        TaskInstance.dag_id == dag_run.dag_id,
+                        TaskInstance.run_id == dag_run.run_id,
+                        tuple_in_condition((TaskInstance.task_id, TaskInstance.map_index), tasks),
+                    )
+                    .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
+                    .execution_options(synchronize_session=False)
+                )
+            else:
+                session.execute(
+                    update(TaskInstance)
+                    .where(
+                        TaskInstance.dag_id == dag_run.dag_id,
+                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.task_id.in_(tasks),
+                    )
+                    .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
+                    .execution_options(synchronize_session=False)
+                )
 
     @provide_session
     def skip(
@@ -121,14 +128,12 @@ class SkipMixin(LoggingMixin):
                 stacklevel=2,
             )
 
-            dag_run = (
-                session.query(DagRun)
-                .filter(
-                    DagRun.dag_id == task_list[0].dag_id,
-                    DagRun.execution_date == execution_date,
+            dag_run = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == task_list[0].dag_id, DagRun.execution_date == execution_date
                 )
-                .one()
-            )
+            ).one()
+
         elif execution_date and dag_run and execution_date != dag_run.execution_date:
             raise ValueError(
                 "execution_date has a different value to  dag_run.execution_date -- please only pass dag_run"

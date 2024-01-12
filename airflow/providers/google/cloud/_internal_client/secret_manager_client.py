@@ -18,13 +18,16 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from typing import TYPE_CHECKING
 
-import google
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import google
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 

@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bullseye``             | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bookworm``             | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``23.2.1``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``23.3.2``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |
@@ -84,20 +84,22 @@ List of default extras in the production Dockerfile:
 * amazon
 * async
 * celery
-* cncf.kubernetes
-* daskexecutor
+* cncf-kubernetes
+* common-io
 * docker
 * elasticsearch
 * ftp
 * google
-* google_auth
+* google-auth
+* graphviz
 * grpc
 * hashicorp
 * http
 * ldap
-* microsoft.azure
+* microsoft-azure
 * mysql
 * odbc
+* openlineage
 * pandas
 * postgres
 * redis
@@ -170,6 +172,11 @@ for examples of using those arguments.
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT_TYPE``            | ``mariadb``                              | Type of MySQL client library. This       |
+|                                          |                                          | can be ``mariadb`` or ``mysql``          |
+|                                          |                                          | Regardless of the parameter, ``mariadb`` |
+|                                          |                                          | will always be used on ARM.              |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_POSTGRES_CLIENT``              | ``true``                                 | Whether Postgres client should be        |
@@ -218,12 +225,6 @@ You can see some examples of those in:
 |                                    |                                          | for Airflow version installation - for   |
 |                                    |                                          | example ``<2.0.2`` for automated builds. |
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_PROVIDERS_FROM_SOURCES`` | ``false``                                | If set to ``true`` and image is built    |
-|                                    |                                          | from sources, all provider packages are  |
-|                                    |                                          | installed from sources rather than from  |
-|                                    |                                          | packages. It has no effect when          |
-|                                    |                                          | installing from PyPI or GitHub repo.     |
-+------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_LOCATION``   |                                          | If not empty, it will override the       |
 |                                    |                                          | source of the constraints with the       |
 |                                    |                                          | specified URL or file. Note that the     |
@@ -253,7 +254,7 @@ Pre-caching PIP dependencies
 ............................
 
 When image is build from PIP, by default pre-caching of PIP dependencies is used. This is in order to speed-up incremental
-builds during development. When pre-cached PIP dependencies are used and ``setup.py`` or ``setup.cfg`` changes, the
+builds during development. When pre-cached PIP dependencies are used and ``pyproject.toml`` changes, the
 PIP dependencies are already pre-installed, thus resulting in much faster image rebuild. This is purely an optimization
 of time needed to build the images and should be disabled if you want to install Airflow from
 Docker context files.
@@ -271,4 +272,7 @@ Docker context files.
 |                                          |                                          | from the GitHub of Apache Airflow        |
 |                                          |                                          | This allows to optimize iterations for   |
 |                                          |                                          | Image builds and speeds up CI builds.    |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_CACHE_EPOCH``                      | ``"0"``                                  | Allow to invalidate cache by passing a   |
+|                                          |                                          | new argument.                            |
 +------------------------------------------+------------------------------------------+------------------------------------------+

@@ -18,76 +18,63 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from pathlib import Path
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
-    )
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
+from common_precommit_utils import (
+    console,
+    initialize_breeze_precommit,
+    pre_process_files,
+    run_command_via_breeze_shell,
+)
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
-os.environ["SKIP_GROUP_OUTPUT"] = "true"
+initialize_breeze_precommit(__name__, __file__)
 
-if __name__ == "__main__":
-    sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-    from common_precommit_utils import filter_out_providers_on_non_main_branch
+files_to_test = pre_process_files(sys.argv[1:])
+mypy_packages = os.environ.get("MYPY_PACKAGES")
+if mypy_packages:
+    files_to_test += shlex.split(mypy_packages)
+if files_to_test == ["--namespace-packages"] or files_to_test == []:
+    print("No files to tests. Quitting")
+    sys.exit(0)
 
-    sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED  # isort: skip
-    from airflow_breeze.utils.console import get_console  # isort: skip
-    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags  # isort: skip
-    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed  # isort: skip
-    from airflow_breeze.utils.run_utils import (
-        get_ci_image_for_pre_commits,
-        run_command,
-    )
-    from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
-
-    suspended_providers_folders = get_suspended_providers_folders()
-
-    files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
-    if files_to_test == ["--namespace-packages"]:
-        print("No files to tests. Quitting")
-        sys.exit(0)
-    airflow_image = get_ci_image_for_pre_commits()
-    create_mypy_volume_if_needed()
-    cmd_result = run_command(
-        [
-            "docker",
-            "run",
-            "-t",
-            *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
-            "-e",
-            "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            f"SUSPENDED_PROVIDERS_FOLDERS={' '.join(suspended_providers_folders)}",
-            "-e",
-            "BACKEND=sqlite",
-            "--pull",
-            "never",
-            airflow_image,
-            "/opt/airflow/scripts/in_container/run_mypy.sh",
-            *files_to_test,
-        ],
-        check=False,
-    )
-    if cmd_result.returncode != 0:
-        upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
-        if upgrading:
-            get_console().print(
-                "[warning]You are running mypy with the image that has dependencies upgraded automatically."
-            )
-        flag = " --upgrade-to-newer-dependencies" if upgrading else ""
-        get_console().print(
-            "[warning]If you see strange stacktraces above, "
-            f"run `breeze ci-image build --python 3.8{flag}` and try again. "
-            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used. "
-            "Still sometimes diff heuristic in mypy is behaving abnormal, to double check you can "
-            "call `breeze static-checks --type mypy-[dev|core|providers|docs] --all-files` "
-            'and then commit via `git commit --no-verify -m "commit message"`. CI will do a full check.'
+res = run_command_via_breeze_shell(
+    [
+        "/opt/airflow/scripts/in_container/run_mypy.sh",
+        *files_to_test,
+    ],
+    warn_image_upgrade_needed=True,
+    extra_env={
+        "INCLUDE_MYPY_VOLUME": "true",
+        # Need to mount local sources when running it - to not have to rebuild the image
+        # and to let CI work on it when running on PRs from forks - because mypy-dev uses files
+        # that are not available at the time when image is built in CI
+        "MOUNT_SOURCES": "selected",
+    },
+)
+ci_environment = os.environ.get("CI")
+if res.returncode != 0:
+    if mypy_packages and ci_environment:
+        console.print(
+            "[yellow]You are running mypy with the packages selected. If you want to"
+            "reproduce it locally, you need to run the following command:\n"
         )
-    sys.exit(cmd_result.returncode)
+        console.print(
+            f'MYPY_PACKAGES="{mypy_packages}" pre-commit run --hook-stage manual mypy --all-files\n'
+        )
+    upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
+    if upgrading:
+        console.print(
+            "[yellow]You are running mypy with the image that has dependencies upgraded automatically.\n"
+        )
+    flag = " --upgrade-to-newer-dependencies" if upgrading else ""
+    console.print(
+        "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
+        " this command and try again:\n"
+    )
+    console.print(f"breeze ci-image build --python 3.8{flag}\n")
+    console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
+sys.exit(res.returncode)

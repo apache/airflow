@@ -27,12 +27,11 @@ Hooks for Cloud Memorystore service.
 """
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core import path_template
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import (
@@ -42,11 +41,14 @@ from google.cloud.redis_v1 import (
     Instance,
     OutputConfig,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class CloudMemorystoreHook(GoogleBaseHook):

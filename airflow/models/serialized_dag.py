@@ -20,16 +20,18 @@ from __future__ import annotations
 
 import logging
 import zlib
-from datetime import datetime, timedelta
-from typing import Collection
+from datetime import timedelta
+from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
-from sqlalchemy.orm import Session, backref, foreign, relationship
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
@@ -38,6 +40,14 @@ from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models import Operator
+    from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 
@@ -242,6 +252,7 @@ class SerializedDagModel(Base):
         """Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -392,11 +403,23 @@ class SerializedDagModel(Base):
                 select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
             )
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
-        elif session.bind.dialect.name == "mssql":
-            query = session.execute(select(cls.dag_id, func.json_query(cls._data, "$.dag.dag_dependencies")))
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
             iterator = session.execute(
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
             )
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        try:
+            model = session.get(SerializedDagModel, dag_id)
+            if model:
+                return model.dag.get_task(task_id)
+        except (exc.NoResultFound, TaskNotFound):
+            return None
+
+        return None

@@ -76,7 +76,7 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
         args = node.args
         arguments = reversed([*args.args, *args.kwonlyargs])
         defaults = reversed([*args.defaults, *args.kw_defaults])
-        for argument, default in itertools.zip_longest(arguments, defaults, fillvalue=None):
+        for argument, default in zip(arguments, defaults):
             if argument is None or default is None:
                 continue
             if argument.arg != "deferrable" or _is_valid_deferrable_default(default):

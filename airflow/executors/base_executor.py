@@ -17,18 +17,16 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
-from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
+from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -38,8 +36,12 @@ from airflow.utils.state import TaskInstanceState
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 if TYPE_CHECKING:
+    import argparse
+    from datetime import datetime
+
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -121,7 +123,7 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
+        self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
@@ -308,7 +310,7 @@ class BaseExecutor(LoggingMixin):
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.debug("Could not find key: %s", str(key))
+            self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
@@ -488,6 +490,7 @@ class BaseExecutor(LoggingMixin):
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
+        Make sure to choose unique names for those commands, to avoid collisions.
         """
         return []
 

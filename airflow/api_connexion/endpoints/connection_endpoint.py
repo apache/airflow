@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import os
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from connexion import NoContent
 from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
@@ -35,7 +35,6 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
     connection_test_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -46,10 +45,15 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
 from airflow.www.decorators import action_logging
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse, UpdateMask
+
 RESOURCE_EVENT_PREFIX = "connection"
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("DELETE")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -69,7 +73,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
     return NoContent, HTTPStatus.NO_CONTENT
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("GET")
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a connection entry."""
@@ -82,7 +86,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
     return connection_schema.dump(connection)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_connections(
@@ -105,7 +109,7 @@ def get_connections(
     )
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -143,7 +147,7 @@ def patch_connection(
     return connection_schema.dump(connection)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("POST")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -172,7 +176,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("POST")
 def test_connection() -> APIResponse:
     """
     Test an API connection.
@@ -201,5 +205,4 @@ def test_connection() -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     finally:
-        if conn_env_var in os.environ:
-            del os.environ[conn_env_var]
+        os.environ.pop(conn_env_var, None)

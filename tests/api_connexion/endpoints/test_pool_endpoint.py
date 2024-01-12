@@ -26,6 +26,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -425,6 +427,20 @@ class TestPatchPool(TestBasePoolEndpoints):
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
+        } == response.json
+
+    def test_not_found_when_no_pool_available(self):
+        response = self.client.patch(
+            "api/v1/pools/test_pool",
+            json={"name": "test_pool_a", "slots": 3},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert {
+            "detail": "Pool with name:'test_pool' not found",
+            "status": 404,
+            "title": "Not Found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):

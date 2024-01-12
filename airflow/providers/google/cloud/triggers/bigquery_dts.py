@@ -83,8 +83,8 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """If the Transfer Run is in a terminal state, then yield TriggerEvent object."""
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 transfer_run: TransferRun = await hook.get_transfer_run(
                     project_id=self.project_id,
                     config_id=self.config_id,
@@ -95,7 +95,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                 self.log.info("Current state is %s", state)
 
                 if state == TransferState.SUCCEEDED:
-                    self.log.info("Job has completed it's work.")
+                    self.log.info("Job has completed its work.")
                     yield TriggerEvent(
                         {
                             "status": "success",
@@ -129,14 +129,13 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-            except Exception as e:
-                yield TriggerEvent(
-                    {
-                        "status": "failed",
-                        "message": f"Trigger failed with exception: {str(e)}",
-                    }
-                )
-                return
+        except Exception as e:
+            yield TriggerEvent(
+                {
+                    "status": "failed",
+                    "message": f"Trigger failed with exception: {e}",
+                }
+            )
 
     def _get_async_hook(self) -> AsyncBiqQueryDataTransferServiceHook:
         return AsyncBiqQueryDataTransferServiceHook(

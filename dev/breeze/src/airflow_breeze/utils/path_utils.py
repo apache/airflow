@@ -34,16 +34,21 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
-AIRFLOW_CFG_FILE = "setup.cfg"
+PYPROJECT_TOML_FILE = "pyproject.toml"
 
 
 def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
     root = Path(start_from.root)
     d = start_from
     while d != root:
-        attempt = d / AIRFLOW_CFG_FILE
-        if attempt.exists() and "name = apache-airflow\n" in attempt.read_text():
-            return attempt.parent
+        airflow_candidate = d / "airflow"
+        airflow_candidate_init_py = airflow_candidate / "__init__.py"
+        if (
+            airflow_candidate.is_dir()
+            and airflow_candidate_init_py.is_file()
+            and "airflow" in airflow_candidate_init_py.read_text().lower()
+        ):
+            return airflow_candidate.parent
         d = d.parent
     return None
 
@@ -60,13 +65,13 @@ def in_help() -> bool:
     return "--help" in sys.argv or "-h" in sys.argv
 
 
-def skip_upgrade_check():
+def skip_breeze_self_upgrade_check():
     return (
         in_self_upgrade()
         or in_autocomplete()
         or in_help()
         or hasattr(sys, "_called_from_test")
-        or os.environ.get("SKIP_UPGRADE_CHECK")
+        or os.environ.get("SKIP_BREEZE_SELF_UPGRADE_CHECK")
     )
 
 
@@ -87,7 +92,7 @@ def get_package_setup_metadata_hash() -> str:
     try:
         from importlib.metadata import distribution  # type: ignore[attr-defined]
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef]
+        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
 
     prefix = "Package config hash: "
 
@@ -97,12 +102,10 @@ def get_package_setup_metadata_hash() -> str:
     return "NOT FOUND"
 
 
-def get_sources_setup_metadata_hash(sources: Path) -> str:
+def get_pyproject_toml_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((sources / "dev" / "breeze" / "setup.py").read_bytes())
-        the_hash.update((sources / "dev" / "breeze" / "setup.cfg").read_bytes())
-        the_hash.update((sources / "dev" / "breeze" / "pyproject.toml").read_bytes())
+        the_hash.update((sources / "dev" / "breeze" / PYPROJECT_TOML_FILE).read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:
         return f"Missing file {e.filename}"
@@ -110,7 +113,7 @@ def get_sources_setup_metadata_hash(sources: Path) -> str:
 
 def get_installation_sources_config_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the source of installation of Breeze.
+    Retrieves hash of pyproject.toml from the source of installation of Breeze.
 
     This is used in order to determine if we need to upgrade Breeze, because some
     setup files changed. Blake2b algorithm will not be flagged by security checkers
@@ -120,14 +123,14 @@ def get_installation_sources_config_metadata_hash() -> str:
     installation_sources = get_installation_airflow_sources()
     if installation_sources is None:
         return "NOT FOUND"
-    return get_sources_setup_metadata_hash(installation_sources)
+    return get_pyproject_toml_hash(installation_sources)
 
 
 def get_used_sources_setup_metadata_hash() -> str:
     """
     Retrieves hash of setup files from the currently used sources.
     """
-    return get_sources_setup_metadata_hash(get_used_airflow_sources())
+    return get_pyproject_toml_hash(get_used_airflow_sources())
 
 
 def set_forced_answer_for_upgrade_check():
@@ -245,15 +248,18 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     if sources_root_from_env:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
-    if installation_airflow_sources is None and not skip_upgrade_check():
+    if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         get_console().print(
             "\n[error]Breeze should only be installed with -e flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
-            f"     {NAME} self-upgrade --force\n"
+            f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
+            '[warning]If during installation you see warning starting "Ignoring --editable install",[/]\n'
+            '[warning]make sure you first downgrade "packaging" package to <23.2, for example by:[/]\n\n'
+            f'     pip install "packaging<23.2"\n\n'
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()
-    if not skip_upgrade_check():
+    if not skip_breeze_self_upgrade_check():
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
@@ -262,9 +268,11 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
+AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
 GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
 CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"
@@ -275,20 +283,29 @@ AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
 WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
 WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
+WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
+WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
+WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
 FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
+FILES_SBOM_DIR = FILES_DIR / "sbom"
 HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
+SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "docker"
+SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
+GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
+GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
+GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
-
-MSSQL_TMP_DIR_NAME = ".tmp-mssql"
 
 
 def create_volume_if_missing(volume_name: str):
@@ -343,11 +360,17 @@ def cleanup_python_generated_files():
     for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
         try:
             path.unlink()
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
         try:
             shutil.rmtree(path)
+        except FileNotFoundError:
+            # File has been removed in the meantime.
+            pass
         except PermissionError:
             permission_errors.append(path)
     if permission_errors:

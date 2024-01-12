@@ -18,18 +18,17 @@
 from __future__ import annotations
 
 import urllib.parse
-from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, DagRun, TaskInstance, Variable
+from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.www import app
-from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs, clear_db_variables
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+
+pytestmark = pytest.mark.db_test
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -91,11 +90,6 @@ def clean_db():
     clear_db_variables()
     yield
     clear_db_variables()
-
-
-@action_has_dag_edit_access
-def some_view_action_which_requires_dag_edit_access(*args) -> bool:
-    return True
 
 
 def test_action_logging_get(session, admin_client):
@@ -185,48 +179,3 @@ def test_calendar(admin_client, dagruns):
     datestr = bash_dagrun.execution_date.date().isoformat()
     expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
-
-
-@pytest.mark.parametrize(
-    "class_type, no_instances, no_unique_dags",
-    [
-        (None, 0, 0),
-        (TaskInstance, 0, 0),
-        (TaskInstance, 1, 1),
-        (TaskInstance, 10, 1),
-        (TaskInstance, 10, 5),
-        (DagRun, 0, 0),
-        (DagRun, 1, 1),
-        (DagRun, 10, 1),
-        (DagRun, 10, 9),
-    ],
-)
-def test_action_has_dag_edit_access(create_task_instance, class_type, no_instances, no_unique_dags):
-    unique_dag_ids = [f"test_dag_id_{nr}" for nr in range(no_unique_dags)]
-    tis: list[TaskInstance] = [
-        create_task_instance(
-            task_id=f"test_task_instance_{nr}",
-            execution_date=timezone.datetime(2021, 1, 1 + nr),
-            dag_id=unique_dag_ids[nr % len(unique_dag_ids)],
-            run_id=f"test_run_id_{nr}",
-        )
-        for nr in range(no_instances)
-    ]
-    if class_type is None:
-        test_items = None
-    else:
-        test_items = tis if class_type == TaskInstance else [ti.get_dagrun() for ti in tis]
-        test_items = test_items[0] if len(test_items) == 1 else test_items
-    application = app.create_app(testing=True)
-    with application.app_context():
-        with mock.patch.object(application.appbuilder.sm, "can_edit_dag") as mocked_can_edit:
-            mocked_can_edit.return_value = True
-            assert not isinstance(test_items, list) or len(test_items) == no_instances
-            assert some_view_action_which_requires_dag_edit_access(None, test_items) is True
-            assert mocked_can_edit.call_count == no_unique_dags
-    clear_db_runs()
-
-
-def test_action_has_dag_edit_access_exception():
-    with pytest.raises(ValueError):
-        some_view_action_which_requires_dag_edit_access(None, "some_incorrect_value")

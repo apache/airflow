@@ -113,7 +113,7 @@ class TestSecret:
                         "volumeMounts": [
                             {
                                 "mountPath": "/etc/foo",
-                                "name": "secretvol" + str(static_uuid),
+                                "name": f"secretvol{static_uuid}",
                                 "readOnly": True,
                             },
                         ],
@@ -123,7 +123,7 @@ class TestSecret:
                 "imagePullSecrets": [{"name": "pull_secret_a"}, {"name": "pull_secret_b"}],
                 "securityContext": {"fsGroup": 2000, "runAsUser": 1000},
                 "volumes": [
-                    {"name": "secretvol" + str(static_uuid), "secret": {"secretName": "secret_b"}},
+                    {"name": f"secretvol{static_uuid}", "secret": {"secretName": "secret_b"}},
                 ],
             },
         }

@@ -23,12 +23,13 @@ import os
 import stat
 import warnings
 from fnmatch import fnmatch
-from typing import Any, Callable
-
-import paramiko
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+if TYPE_CHECKING:
+    import paramiko
 
 
 class SFTPHook(SSHHook):
@@ -60,8 +61,8 @@ class SFTPHook(SSHHook):
     conn_type = "sftp"
     hook_name = "SFTP"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -223,7 +224,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
+    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """Transfer the remote file to a local location.
 
         If local_full_path is a string path, the file will be put
@@ -231,9 +232,10 @@ class SFTPHook(SSHHook):
 
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file
+        :param prefetch: controls whether prefetch is performed (default: True)
         """
         conn = self.get_conn()
-        conn.get(remote_full_path, local_full_path)
+        conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """Transfer a local file to the remote location.

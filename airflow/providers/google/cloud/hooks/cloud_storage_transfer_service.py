@@ -33,7 +33,7 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
@@ -41,15 +41,17 @@ from google.cloud.storage_transfer_v1 import (
     TransferJob,
     TransferOperation,
 )
-from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
-    ListTransferJobsAsyncPager,
-)
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from proto import Message
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
+        ListTransferJobsAsyncPager,
+    )
+    from proto import Message
 
 log = logging.getLogger(__name__)
 
@@ -517,7 +519,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         """
         client = self.get_conn()
         jobs_list_request = ListTransferJobsRequest(
-            filter=json.dumps(dict(project_id=self.project_id, job_names=job_names))
+            filter=json.dumps({"project_id": self.project_id, "job_names": job_names})
         )
         return await client.list_transfer_jobs(request=jobs_list_request)
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import socket
-from ftplib import FTP_PORT
+from ftplib import FTP_PORT  # nosec: B402
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
@@ -66,7 +66,7 @@ class FTPFileTransmitOperator(BaseOperator):
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
                 create_intermediate_dirs=True,
-                dag=dag
+                dag=dag,
             )
     """
 
@@ -139,7 +139,7 @@ class FTPFileTransmitOperator(BaseOperator):
 
     def get_openlineage_facets_on_start(self):
         """
-        Returns OpenLineage datasets.
+        Return OpenLineage datasets.
 
         Dataset will have the following structure:
                 input: file://hostname/path
@@ -156,7 +156,7 @@ class FTPFileTransmitOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
                 exc_info=True,
             )
 

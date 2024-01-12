@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import base64
 import pickle
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import requests
-from aiohttp.client_reqrep import ClientResponse
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from aiohttp.client_reqrep import ClientResponse
 
 
 class HttpTrigger(BaseTrigger):
@@ -54,7 +56,7 @@ class HttpTrigger(BaseTrigger):
         method: str = "POST",
         endpoint: str | None = None,
         headers: dict[str, str] | None = None,
-        data: Any = None,
+        data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
     ):
         super().__init__()
@@ -118,7 +120,7 @@ class HttpTrigger(BaseTrigger):
         response.encoding = client_response.get_encoding()
         response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()
-        for (k, v) in client_response.cookies.items():
+        for k, v in client_response.cookies.items():
             cookies.set(k, v)
         response.cookies = cookies
         return response

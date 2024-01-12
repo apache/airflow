@@ -31,7 +31,7 @@ metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  name: {{ .Release.Name }}-pod-log-reader-rolebinding
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}
@@ -47,7 +47,7 @@ roleRef:
   {{- else }}
   kind: Role
   {{- end }}
-  name: {{ .Release.Name }}-pod-log-reader-role
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-role
 subjects:
   {{- if .Values.webserver.allowPodLogReading }}
   - kind: ServiceAccount

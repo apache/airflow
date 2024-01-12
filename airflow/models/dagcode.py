@@ -20,11 +20,10 @@ import logging
 import os
 import struct
 from datetime import datetime
-from typing import Collection, Iterable
+from typing import TYPE_CHECKING, Collection, Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
@@ -33,6 +32,9 @@ from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -125,10 +127,16 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: Collection[str], session: Session = NEW_SESSION) -> None:
+    def remove_deleted_code(
+        cls,
+        alive_dag_filelocs: Collection[str],
+        processor_subdir: str,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Delete code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -137,7 +145,11 @@ class DagCode(Base):
 
         session.execute(
             delete(cls)
-            .where(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+            .where(
+                cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                cls.fileloc.notin_(alive_dag_filelocs),
+                cls.fileloc.contains(processor_subdir),
+            )
             .execution_options(synchronize_session="fetch")
         )
 
@@ -165,12 +177,13 @@ class DagCode(Base):
         return cls.code(fileloc)
 
     @classmethod
-    def code(cls, fileloc) -> str:
+    @provide_session
+    def code(cls, fileloc, session: Session = NEW_SESSION) -> str:
         """Return source code for this DagCode object.
 
         :return: source code as string
         """
-        return cls._get_code_from_db(fileloc)
+        return cls._get_code_from_db(fileloc, session)
 
     @staticmethod
     def _get_code_from_file(fileloc):

@@ -23,9 +23,9 @@ import uuid
 from json import JSONEncoder
 from typing import Any
 
+import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
-from pendulum.tz.timezone import Timezone
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
@@ -38,12 +38,13 @@ from airflow.providers.openlineage.utils.utils import (
     to_json_encodable,
     url_to_https,
 )
+from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
 AIRFLOW_CONN_ID = "test_db"
 AIRFLOW_CONN_URI = "postgres://localhost:5432/testdb"
-SNOWFLAKE_CONN_URI = "snowflake://12345.us-east-1.snowflakecomputing.com/MyTestRole?extra__snowflake__account=12345&extra__snowflake__database=TEST_DB&extra__snowflake__insecure_mode=false&extra__snowflake__region=us-east-1&extra__snowflake__role=MyTestRole&extra__snowflake__warehouse=TEST_WH&extra__snowflake__aws_access_key_id=123456&extra__snowflake__aws_secret_access_key=abcdefg"  # NOQA
+SNOWFLAKE_CONN_URI = "snowflake://12345.us-east-1.snowflakecomputing.com/MyTestRole?extra__snowflake__account=12345&extra__snowflake__database=TEST_DB&extra__snowflake__insecure_mode=false&extra__snowflake__region=us-east-1&extra__snowflake__role=MyTestRole&extra__snowflake__warehouse=TEST_WH&extra__snowflake__aws_access_key_id=123456&extra__snowflake__aws_secret_access_key=abcdefg"
 
 
 class SafeStrDict(dict):
@@ -73,6 +74,7 @@ def test_url_to_https_no_url():
     assert url_to_https("") is None
 
 
+@pytest.mark.db_test
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
@@ -84,8 +86,8 @@ def test_get_dagrun_start_end():
         state=State.NONE, run_id=run_id, data_interval=dag.get_next_data_interval(dag_model)
     )
     assert dagrun.data_interval_start is not None
-    start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=Timezone("UTC"))
-    end_date_tz = datetime.datetime(2022, 1, 1, hour=2, tzinfo=Timezone("UTC"))
+    start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)
+    end_date_tz = datetime.datetime(2022, 1, 1, hour=2, tzinfo=timezone.utc)
     assert dagrun.data_interval_start, dagrun.data_interval_end == (start_date_tz, end_date_tz)
 
 
@@ -171,6 +173,9 @@ def test_redact_with_exclusions(monkeypatch):
         def __init__(self):
             self.password = "passwd"
 
+    class Proxy:
+        pass
+
     def default(self, o):
         if isinstance(o, NotMixin):
             return o.__dict__
@@ -179,6 +184,9 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact(NotMixin()).password == "passwd"
     monkeypatch.setattr(JSONEncoder, "default", default)
     assert redactor.redact(NotMixin()).password == "***"
+
+    assert redactor.redact(Proxy()) == "<<non-redactable: Proxy>>"
+    assert redactor.redact({"a": "a", "b": Proxy()}) == {"a": "a", "b": "<<non-redactable: Proxy>>"}
 
     class Mixined(RedactMixin):
         _skip_redact = ["password"]

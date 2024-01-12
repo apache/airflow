@@ -21,7 +21,7 @@ from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt
+from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,
@@ -51,8 +51,8 @@ class GrpcHook(BaseHook):
     conn_type = "grpc"
     hook_name = "GRPC Connection"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -71,19 +71,20 @@ class GrpcHook(BaseHook):
         grpc_conn_id: str = default_conn_name,
         interceptors: list[Callable] | None = None,
         custom_connection_func: Callable | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
-        self.interceptors = interceptors if interceptors else []
+        self.interceptors = interceptors or []
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self) -> grpc.Channel:
         base_url = self.conn.host
 
         if self.conn.port:
-            base_url = base_url + ":" + str(self.conn.port)
+            base_url += f":{self.conn.port}"
 
         auth_type = self._get_field("auth_type")
 
@@ -112,7 +113,7 @@ class GrpcHook(BaseHook):
         else:
             raise AirflowConfigException(
                 "auth_type not supported or not provided, channel cannot be established, "
-                f"given value: {str(auth_type)}"
+                f"given value: {auth_type}"
             )
 
         if self.interceptors:

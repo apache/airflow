@@ -24,28 +24,24 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
-from sqlalchemy.dialects import mssql, mysql
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.sql import ColumnElement, Select
-from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
+from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
+from sqlalchemy.dialects import mysql
+from sqlalchemy.types import JSON, Text, TypeDecorator
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
+from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql import ColumnElement, Select
+    from sqlalchemy.sql.expression import ColumnOperators
+    from sqlalchemy.types import TypeEngine
 
 log = logging.getLogger(__name__)
-
-utc = pendulum.tz.timezone("UTC")
-
-using_mysql = conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("mysql")
 
 
 class UtcDateTime(TypeDecorator):
@@ -67,22 +63,18 @@ class UtcDateTime(TypeDecorator):
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
-        if value is not None:
-            if not isinstance(value, datetime.datetime):
-                raise TypeError("expected datetime.datetime, not " + repr(value))
-            elif value.tzinfo is None:
-                raise ValueError("naive datetime is disallowed")
+        if not isinstance(value, datetime.datetime):
+            if value is None:
+                return None
+            raise TypeError(f"expected datetime.datetime, not {value!r}")
+        elif value.tzinfo is None:
+            raise ValueError("naive datetime is disallowed")
+        elif dialect.name == "mysql":
             # For mysql we should store timestamps as naive values
-            # Timestamp in MYSQL is not timezone aware. In MySQL 5.6
-            # timezone added at the end is ignored but in MySQL 5.7
-            # inserting timezone value fails with 'invalid-date'
+            # In MySQL 5.7 inserting timezone value fails with 'invalid-date'
             # See https://issues.apache.org/jira/browse/AIRFLOW-7001
-            if using_mysql:
-                from airflow.utils.timezone import make_naive
-
-                return make_naive(value, timezone=utc)
-            return value.astimezone(utc)
-        return None
+            return make_naive(value, timezone=utc)
+        return value.astimezone(utc)
 
     def process_result_value(self, value, dialect):
         """
@@ -101,9 +93,7 @@ class UtcDateTime(TypeDecorator):
         return value
 
     def load_dialect_impl(self, dialect):
-        if dialect.name == "mssql":
-            return mssql.DATETIME2(precision=6)
-        elif dialect.name == "mysql":
+        if dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
 
@@ -119,14 +109,8 @@ class ExtendedJSON(TypeDecorator):
 
     cache_ok = True
 
-    def db_supports_json(self):
-        """Check if the database supports JSON (i.e. is NOT MSSQL)."""
-        return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
-
     def load_dialect_impl(self, dialect) -> TypeEngine:
-        if self.db_supports_json():
-            return dialect.type_descriptor(JSON)
-        return dialect.type_descriptor(UnicodeText)
+        return dialect.type_descriptor(JSON)
 
     def process_bind_param(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -134,24 +118,13 @@ class ExtendedJSON(TypeDecorator):
         if value is None:
             return None
 
-        # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization.serialize(value)
-
-        # Then, if the database does not have native JSON support, encode it again as a string
-        if not self.db_supports_json():
-            value = json.dumps(value)
-
-        return value
+        return BaseSerialization.serialize(value)
 
     def process_result_value(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
 
         if value is None:
             return None
-
-        # Deserialize from a string first if needed
-        if not self.db_supports_json():
-            value = json.loads(value)
 
         return BaseSerialization.deserialize(value)
 
@@ -259,7 +232,6 @@ class ExecutorConfigType(PickleType):
     cache_ok = True
 
     def bind_processor(self, dialect):
-
         from airflow.serialization.serialized_objects import BaseSerialization
 
         super_process = super().bind_processor(dialect)
@@ -445,7 +417,7 @@ def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
 
     :meta private:
     """
-    locked_rows = with_row_locks(query, session).all()
+    locked_rows = with_row_locks(query, session)
     yield
     del locked_rows
 
@@ -549,23 +521,11 @@ def tuple_in_condition(
     Generate a tuple-in-collection operator to use in ``.where()``.
 
     For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
-    clause. This however does not work with MSSQL, where we need to expand to
-    ``(c1 = v1a AND c2 = v2a ...) OR (c1 = v1b AND c2 = v2b ...) ...`` manually.
+    clause.
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
-        return tuple_(*columns).in_(collection)
-    if not isinstance(collection, Select):
-        rows = collection
-    elif session is None:
-        raise TypeError("session is required when passing in a subquery")
-    else:
-        rows = session.execute(collection)
-    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in rows]
-    if not clauses:
-        return false()
-    return or_(*clauses)
+    return tuple_(*columns).in_(collection)
 
 
 @overload
@@ -599,15 +559,4 @@ def tuple_not_in_condition(
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
-        return tuple_(*columns).not_in(collection)
-    if not isinstance(collection, Select):
-        rows = collection
-    elif session is None:
-        raise TypeError("session is required when passing in a subquery")
-    else:
-        rows = session.execute(collection)
-    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in rows]
-    if not clauses:
-        return true()
-    return and_(*clauses)
+    return tuple_(*columns).not_in(collection)

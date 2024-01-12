@@ -18,16 +18,15 @@
 from __future__ import annotations
 
 import signal
+from typing import TYPE_CHECKING
 
 import psutil
-from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
-from airflow.models.taskinstance import TaskInstance, TaskReturnCode
-from airflow.serialization.pydantic.job import JobPydantic
+from airflow.jobs.job import perform_heartbeat
+from airflow.models.taskinstance import TaskReturnCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
@@ -37,13 +36,20 @@ from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.jobs.job import Job
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
 SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
 an attempt by a program/library to write or read outside its allocated memory.
 
 In Python environment usually this signal refers to libraries which use low level C API.
-Make sure that you use use right libraries/Docker Images
+Make sure that you use right libraries/Docker Images
 for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
 
 Suggested way to debug
@@ -68,15 +74,15 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
 
     def __init__(
         self,
-        job: Job | JobPydantic,
-        task_instance: TaskInstance,  # TODO add TaskInstancePydantic
+        job: Job,
+        task_instance: TaskInstance | TaskInstancePydantic,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -227,7 +233,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         else:
             self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode and not is_deferral:
+        if not (self.task_instance.test_mode or is_deferral):
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
@@ -279,13 +285,15 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
-                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                execution_time = (dagrun.end_date or timezone.utcnow()) - (
+                    dagrun.start_date or timezone.utcnow()
+                )
                 if ti.task.dag is not None:
                     dagrun_timeout = ti.task.dag.dagrun_timeout
                 else:
                     dagrun_timeout = None
                 if dagrun_timeout and execution_time > dagrun_timeout:
-                    self.log.warning("DagRun timed out after %s.", str(execution_time))
+                    self.log.warning("DagRun timed out after %s.", execution_time)
 
             # potential race condition, the _run_raw_task commits `success` or other state
             # but task_runner does not exit right away due to slow process shutdown or any other reasons

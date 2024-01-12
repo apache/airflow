@@ -21,15 +21,17 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adreportrun import AdReportRun
-from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.api import FacebookAdsApi
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from facebook_business.adobjects.adsinsights import AdsInsights
 
 
 class JobStatus(Enum):
@@ -64,14 +66,15 @@ class FacebookAdsReportingHook(BaseHook):
         self,
         facebook_conn_id: str = default_conn_name,
         api_version: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
 
     def _get_service(self) -> FacebookAdsApi:
-        """Returns Facebook Ads Client using a service account."""
+        """Return Facebook Ads Client using a service account."""
         config = self.facebook_ads_config
         return FacebookAdsApi.init(
             app_id=config["app_id"],
@@ -82,7 +85,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def multiple_accounts(self) -> bool:
-        """Checks whether provided account_id in the Facebook Ads Connection is provided as a list."""
+        """Check whether provided account_id in the Facebook Ads Connection is provided as a list."""
         return isinstance(self.facebook_ads_config["account_id"], list)
 
     @cached_property

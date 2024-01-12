@@ -18,19 +18,18 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import re
 import signal
 import warnings
 from datetime import datetime
 from functools import reduce
-from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
 
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.context import Context
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -144,7 +144,7 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
     """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
-    if len(iterable) == 0:
+    if not iterable:
         return initializer
     if chunk_size == 0:
         chunk_size = len(iterable)
@@ -155,7 +155,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     """
     Return an iterable with one level flattened.
 
-    >>> as_flattened_list((('blue', 'red'), ('green', 'yellow', 'pink')))
+    >>> as_flattened_list((("blue", "red"), ("green", "yellow", "pink")))
     ['blue', 'red', 'green', 'yellow', 'pink']
     """
     return [e for i in iterable for e in i]
@@ -216,8 +216,8 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries."""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def chain(*args, **kwargs):

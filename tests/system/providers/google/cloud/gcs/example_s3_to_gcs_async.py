@@ -19,8 +19,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -44,7 +44,7 @@ def upload_file():
     s3_hook.load_file(filename=UPLOAD_FILE, key=PREFIX, bucket_name=BUCKET_NAME)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

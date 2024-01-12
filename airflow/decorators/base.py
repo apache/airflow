@@ -17,16 +17,16 @@
 from __future__ import annotations
 
 import inspect
+import itertools
+import textwrap
 import warnings
 from functools import cached_property
-from itertools import chain
-from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     Collection,
-    Dict,
     Generic,
     Iterator,
     Mapping,
@@ -39,9 +39,8 @@ from typing import (
 import attr
 import re2
 import typing_extensions
-from sqlalchemy.orm import Session
 
-from airflow import Dataset
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
@@ -51,27 +50,37 @@ from airflow.models.baseoperator import (
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.dag import DAG, DagContext
+from airflow.models.dag import DagContext
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
     is_mappable,
 )
-from airflow.models.mappedoperator import MappedOperator, ValidationSource, ensure_xcomarg_return_value
+from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
-from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import TaskGroup, TaskGroupContext
+from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        ExpandInput,
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
+    from airflow.models.mappedoperator import ValidationSource
+    from airflow.utils.context import Context
+    from airflow.utils.task_group import TaskGroup
 
 
 class ExpandableFactory(Protocol):
@@ -102,10 +111,11 @@ class ExpandableFactory(Protocol):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "expand" or value is NOTSET or is_mappable(value):
-                continue
-            tname = type(value).__name__
-            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+            if func == "expand" and value is not NOTSET and not is_mappable(value):
+                tname = type(value).__name__
+                raise ValueError(
+                    f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}"
+                )
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
@@ -147,9 +157,8 @@ def get_unique_task_id(
         prefix = re2.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
             match = re2.match(rf"^{prefix}__(\d+)$", task_id)
-            if match is None:
-                continue
-            yield int(match.group(1))
+            if match:
+                yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
     core = re2.split(r"__\d+$", task_id)[0]
@@ -196,6 +205,17 @@ class DecoratedOperator(BaseOperator):
         op_args = op_args or []
         op_kwargs = op_kwargs or {}
 
+        # Check the decorated function's signature. We go through the argument
+        # list and "fill in" defaults to arguments that are known context keys,
+        # since values for those will be provided when the task is run. Since
+        # we're not actually running the function, None is good enough here.
+        signature = inspect.signature(python_callable)
+        parameters = [
+            param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
+            for param in signature.parameters.values()
+        ]
+        signature = signature.replace(parameters=parameters)
+
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
         # receive enough arguments at parse time, we use bind_partial to simply
@@ -203,9 +223,9 @@ class DecoratedOperator(BaseOperator):
         # can only be known at execution time, when unmapping happens, and this
         # is called without the _airflow_mapped_validation_only flag.
         if kwargs.get("_airflow_mapped_validation_only"):
-            inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs)
+            signature.bind_partial(*op_args, **op_kwargs)
         else:
-            inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+            signature.bind(*op_args, **op_kwargs)
 
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
@@ -215,7 +235,7 @@ class DecoratedOperator(BaseOperator):
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
-        for arg in chain(self.op_args, self.op_kwargs.values()):
+        for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
             if isinstance(arg, Dataset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
@@ -272,7 +292,7 @@ class DecoratedOperator(BaseOperator):
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
+        res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
@@ -330,7 +350,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return ttype == dict or ttype == Dict
+        return isinstance(ttype, type) and issubclass(ttype, Mapping)
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
@@ -523,7 +543,8 @@ class DecoratedMappedOperator(MappedOperator):
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
-        assert self.expand_input is EXPAND_INPUT_EMPTY
+        if self.expand_input is not EXPAND_INPUT_EMPTY:
+            raise AssertionError(f"unexpected expand_input: {self.expand_input}")
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
         return {"op_kwargs": op_kwargs}, resolved_oids
 

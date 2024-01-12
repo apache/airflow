@@ -20,11 +20,14 @@ from __future__ import annotations
 import posixpath
 from functools import wraps
 from shutil import copyfileobj
+from typing import TYPE_CHECKING, Any
 
 import smbclient
-import smbprotocol.connection
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    import smbprotocol.connection
 
 
 class SambaHook(BaseHook):
@@ -44,8 +47,8 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
-        super().__init__()
+    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
         conn = self.get_connection(samba_conn_id)
 
         if not conn.login:
@@ -246,3 +249,11 @@ class SambaHook(BaseHook):
         """Push local file to samba server."""
         with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
             copyfileobj(f, g)
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {"schema": "Share"},
+        }

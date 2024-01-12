@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
-from itertools import product
+import itertools
 
 import pytest
 
 from airflow.decorators import setup, task, teardown
 from airflow.models.baseoperator import BaseOperator
+
+pytestmark = pytest.mark.db_test
 
 
 def cleared_tasks(dag, task_id):
@@ -67,7 +69,9 @@ def make_task(name, type_, setup_=False, teardown_=False):
         return my_task.override(task_id=name)()
 
 
-@pytest.mark.parametrize("setup_type, work_type, teardown_type", product(*3 * [["classic", "taskflow"]]))
+@pytest.mark.parametrize(
+    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+)
 def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
     """
     Check that as_teardown works properly as implemented in PlainXComArg
@@ -98,7 +102,9 @@ def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
     assert get_task_attr(t1, "upstream_task_ids") == {"w1", "s1"}
 
 
-@pytest.mark.parametrize("setup_type, work_type, teardown_type", product(*3 * [["classic", "taskflow"]]))
+@pytest.mark.parametrize(
+    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+)
 def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
     """
     Check that as_teardown implementations work properly. Tests all combinations of taskflow and classic.

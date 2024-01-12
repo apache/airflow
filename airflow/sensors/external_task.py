@@ -27,7 +27,7 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -45,6 +45,8 @@ from airflow.utils.timezone import utcnow
 if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
 
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -57,10 +59,25 @@ class ExternalDagLink(BaseOperatorLink):
 
     name = "External DAG"
 
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        operator.render_template_fields(ti.get_template_context())
-        query = {"dag_id": operator.external_dag_id, "execution_date": dttm.isoformat()}
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        ti = TaskInstance.get_task_instance(
+            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
+        )
+
+        if TYPE_CHECKING:
+            assert ti is not None
+
+        template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
+        external_dag_id = (
+            template_fields["external_dag_id"] if template_fields else operator.external_dag_id  # type: ignore[attr-defined]
+        )
+        query = {
+            "dag_id": external_dag_id,
+            "execution_date": ti.execution_date.isoformat(),  # type: ignore[union-attr]
+        }
+
         return build_airflow_url_with_query(query)
 
 
@@ -329,10 +346,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
-        """
-        Airflow runs this method on the worker and defers using the triggers
-        if deferrable is set to True.
-        """
+        """Run on the worker and defer using the triggers if deferrable is set to True."""
         if not self.deferrable:
             super().execute(context)
         else:
@@ -349,7 +363,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
@@ -522,7 +536,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields

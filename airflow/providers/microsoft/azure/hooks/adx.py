@@ -26,14 +26,21 @@ This module contains Azure Data Explorer hook.
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
+from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
-from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
-from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
+)
+
+if TYPE_CHECKING:
+    from azure.kusto.data.response import KustoResponseDataSetV2
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -75,8 +82,9 @@ class AzureDataExplorerHook(BaseHook):
     conn_type = "azure_data_explorer"
     hook_name = "Azure Data Explorer"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -93,8 +101,8 @@ class AzureDataExplorerHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -105,17 +113,21 @@ class AzureDataExplorerHook(BaseHook):
             "placeholders": {
                 "login": "Varies with authentication method",
                 "password": "Varies with authentication method",
-                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE",
+                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE/AZURE_TOKEN_CRED",
                 "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
                 "certificate": "Used with AAD_APP_CERT",
                 "thumbprint": "Used with AAD_APP_CERT",
             },
         }
 
-    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_data_explorer_conn_id
-        self.connection = self.get_conn()  # todo: make this a property, or just delete
+
+    @cached_property
+    def connection(self) -> KustoClient:
+        """Return a KustoClient object (cached)."""
+        return self.get_conn()
 
     def get_conn(self) -> KustoClient:
         """Return a KustoClient object."""
@@ -183,6 +195,17 @@ class AzureDataExplorerHook(BaseHook):
             )
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
+        elif auth_method == "AZURE_TOKEN_CRED":
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+            kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
+                connection_string=cluster,
+                credential=credential,
+            )
         else:
             raise AirflowException(f"Unknown authentication method: {auth_method}")
 

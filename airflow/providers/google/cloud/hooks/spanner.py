@@ -18,20 +18,22 @@
 """This module contains a Google Cloud Spanner Hook."""
 from __future__ import annotations
 
-from typing import Callable, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Callable, NamedTuple, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
-from google.cloud.spanner_v1.database import Database
-from google.cloud.spanner_v1.instance import Instance
-from google.cloud.spanner_v1.transaction import Transaction
-from google.longrunning.operations_grpc_pb2 import Operation
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+
+if TYPE_CHECKING:
+    from google.cloud.spanner_v1.database import Database
+    from google.cloud.spanner_v1.instance import Instance
+    from google.cloud.spanner_v1.transaction import Transaction
+    from google.longrunning.operations_grpc_pb2 import Operation
 
 
 class SpannerConnectionParams(NamedTuple):

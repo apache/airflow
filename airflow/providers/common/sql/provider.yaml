@@ -21,8 +21,15 @@ name: Common SQL
 description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288124
 versions:
+  - 1.10.0
+  - 1.9.0
+  - 1.8.1
+  - 1.8.0
+  - 1.7.2
+  - 1.7.1
   - 1.7.0
   - 1.6.2
   - 1.6.1
@@ -41,13 +48,13 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.6.0
   - sqlparse>=0.4.2
 
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=0.17.1
+      - pandas>=1.2.5
 
 integrations:
   - integration-name: Common SQL

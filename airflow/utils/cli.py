@@ -33,7 +33,6 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 import re2
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -45,6 +44,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
 
 logger = logging.getLogger(__name__)
@@ -268,7 +269,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id)).first()
+    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id).limit(1))
     if not dag_pickle:
         raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle

@@ -39,7 +39,7 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     if re_run:
         # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
         # run pre-commit checks via breeze!)
-        os.environ["SKIP_UPGRADE_CHECK"] = "1"
+        os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
         os.execl(sys.executable, sys.executable, *sys.argv)
     get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
     sys.exit(0)
@@ -51,6 +51,9 @@ def warn_non_editable():
         "\n[error]It should only be installed in editable mode[/]\n\n"
         "[info]Please go to Airflow sources and run[/]\n\n"
         f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
+        '[warning]If during installation, you see warning with "Ignoring --editable install",[/]\n'
+        '[warning]make sure you first downgrade "packaging" package to <23.2, for example by:[/]\n\n'
+        f'     pip install "packaging<23.2"\n\n'
     )
 
 

@@ -20,20 +20,21 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-import pendulum
-
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from logging import Logger
 
+    import pendulum
+
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.serialization.enums import DagAttributeTypes
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
+    from airflow.utils.types import ArgNotSet
 
 
 class DependencyMixin:

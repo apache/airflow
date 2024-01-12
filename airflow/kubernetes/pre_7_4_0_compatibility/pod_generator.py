@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Pod generator compatible with cncf-providers released before 2.7.0 of airflow (so pre-7.4.0 of
-the cncf.kubernetes provider).
+Pod generator compatible with cncf-providers released before 2.7.0 of airflow.
+
+Compatible with pre-7.4.0 of the cncf.kubernetes provider.
 
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
@@ -26,13 +27,13 @@ is supported and no serialization need be written.
 from __future__ import annotations
 
 import copy
-import datetime
 import logging
 import os
 import secrets
 import string
 import warnings
 from functools import reduce
+from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
@@ -52,6 +53,9 @@ from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator_deprecated import 
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    import datetime
 
 log = logging.getLogger(__name__)
 
@@ -362,9 +366,10 @@ class PodGenerator:
         client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
-        return [client_container] + PodGenerator.reconcile_containers(
-            base_containers[1:], client_containers[1:]
-        )
+        return [
+            client_container,
+            *PodGenerator.reconcile_containers(base_containers[1:], client_containers[1:]),
+        ]
 
     @classmethod
     def construct_pod(
@@ -490,9 +495,9 @@ class PodGenerator:
             airflow_worker=airflow_worker,
         )
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
-        selector = ",".join(label_strings)
         if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
-            selector += ",airflow-worker"
+            label_strings.append("airflow-worker")
+        selector = ",".join(label_strings)
         return selector
 
     @classmethod

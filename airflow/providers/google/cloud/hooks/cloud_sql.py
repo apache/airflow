@@ -21,7 +21,6 @@ from __future__ import annotations
 import errno
 import json
 import os
-import os.path
 import platform
 import random
 import re
@@ -35,7 +34,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import gettempdir
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import quote_plus
 
 import httpx
@@ -43,7 +42,6 @@ from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from requests import Session
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
@@ -54,6 +52,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from requests import Session
 
 UNIX_PATH_MAX = 108
 
@@ -435,15 +436,12 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
 
     async def get_operation(self, project_id: str, operation_name: str):
         async with ClientSession() as session:
-            try:
-                operation = await self.get_operation_name(
-                    project_id=project_id,
-                    operation_name=operation_name,
-                    session=session,
-                )
-                operation = await operation.json(content_type=None)
-            except HttpError as e:
-                raise e
+            operation = await self.get_operation_name(
+                project_id=project_id,
+                operation_name=operation_name,
+                session=session,
+            )
+            operation = await operation.json(content_type=None)
             return operation
 
 
@@ -500,9 +498,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.gcp_conn_id = gcp_conn_id
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
-        self.sql_proxy_path = (
-            sql_proxy_binary_path if sql_proxy_binary_path else self.path_prefix + "_cloud_sql_proxy"
-        )
+        self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 
@@ -671,8 +667,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         command_to_run.extend(["--version"])
         command_to_run.extend(self._get_credential_parameters())
         result = subprocess.check_output(command_to_run).decode("utf-8")
-        pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
-        matched = pattern.match(result)
+        matched = re.search("[Vv]ersion (.*?);", result)
         if matched:
             return matched.group(1)
         else:
@@ -776,8 +771,9 @@ class CloudSQLDatabaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         default_gcp_project_id: str | None = None,
         sql_proxy_binary_path: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
@@ -887,7 +883,7 @@ class CloudSQLDatabaseHook(BaseHook):
         random.seed()
         while True:
             candidate = os.path.join(
-                gettempdir(), "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+                gettempdir(), "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
             )
             if not os.path.exists(candidate):
                 return candidate
@@ -959,7 +955,7 @@ class CloudSQLDatabaseHook(BaseHook):
     def _get_sqlproxy_instance_specification(self) -> str:
         instance_specification = self._get_instance_socket_name()
         if self.sql_proxy_use_tcp:
-            instance_specification += "=tcp:" + str(self.sql_proxy_tcp_port)
+            instance_specification += f"=tcp:{self.sql_proxy_tcp_port}"
         return instance_specification
 
     def create_connection(self) -> Connection:

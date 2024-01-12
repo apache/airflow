@@ -17,7 +17,7 @@
           "argument": "jobs[].status",
           "expected": "FAILED",
           "matcher": "pathAll",
-          "state": "failed"
+          "state": "failure"
         }
       ]
     },
@@ -37,13 +37,13 @@
           "argument": "computeEnvironments[].status",
           "expected": "INVALID",
           "matcher": "pathAny",
-          "state": "failed"
+          "state": "failure"
         },
         {
           "argument": "computeEnvironments[].status",
           "expected": "DELETED",
           "matcher": "pathAny",
-          "state": "failed"
+          "state": "failure"
         }
       ]
     }

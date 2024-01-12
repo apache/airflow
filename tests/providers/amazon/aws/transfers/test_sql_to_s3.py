@@ -24,6 +24,7 @@ import pandas as pd
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
@@ -269,3 +270,20 @@ class TestSqlToS3Operator:
                 }
             )
         )
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
+    def test_hook_params(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(conn_id="postgres_test", conn_type="postgres")
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="postgres_test",
+            task_id="task_id",
+            sql_hook_params={
+                "log_sql": False,
+            },
+            dag=None,
+        )
+        hook = op._get_hook()
+        assert hook.log_sql == op.sql_hook_params["log_sql"]

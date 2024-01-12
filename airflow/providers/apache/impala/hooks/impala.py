@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from impala.dbapi import connect
-from impala.interface import Connection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from impala.interface import Connection
 
 
 class ImpalaHook(DbApiHook):
@@ -31,7 +35,8 @@ class ImpalaHook(DbApiHook):
     hook_name = "Impala"
 
     def get_conn(self) -> Connection:
-        connection = self.get_connection(self.impala_conn_id)  # pylint: disable=no-member
+        conn_id: str = getattr(self, self.conn_name_attr)
+        connection = self.get_connection(conn_id)
         return connect(
             host=connection.host,
             port=connection.port,

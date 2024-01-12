@@ -19,10 +19,17 @@
 package-name: apache-airflow-providers-dbt-cloud
 name: dbt Cloud
 description: |
-    `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
+    `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288127
 versions:
+  - 3.5.1
+  - 3.5.0
+  - 3.4.1
+  - 3.4.0
+  - 3.3.0
+  - 3.2.3
   - 3.2.2
   - 3.2.1
   - 3.2.0
@@ -39,7 +46,7 @@ versions:
   - 1.0.1
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.6.0
   - apache-airflow-providers-http
   - asgiref
   - aiohttp

@@ -32,11 +32,14 @@ from __future__ import annotations
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 import google.auth.transport
-import google.oauth2
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
-from google.oauth2 import credentials as oauth2_credentials, service_account
+from google.oauth2 import credentials as oauth2_credentials, service_account  # type: ignore[attr-defined]
+
+if TYPE_CHECKING:
+    import google.oauth2
 
 # Valid types accepted for file-based credentials.
 # They are taken  from "google.auth._default" and since they are all "protected" and the imports might
@@ -143,7 +146,7 @@ def _get_gcloud_sdk_credentials(
     target_audience: str | None,
 ) -> google_auth_credentials.Credentials | None:
     """Gets the credentials and project ID from the Cloud SDK."""
-    from google.auth import _cloud_sdk
+    from google.auth import _cloud_sdk  # type: ignore[attr-defined]
 
     # Check if application default credentials exist.
     credentials_filename = _cloud_sdk.get_application_default_credentials_path()

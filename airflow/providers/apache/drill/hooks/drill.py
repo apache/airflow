@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Connection
 
 
 class DrillHook(DbApiHook):
