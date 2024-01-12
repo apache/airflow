@@ -131,3 +131,17 @@ class TestDatasetManager:
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
         assert dataset_listener.created[0].uri == dsm.uri
+
+    def test_delete_datasets_notifies_dataset_listener(self, session):
+        dsem = DatasetManager()
+        dataset_listener.clear()
+        get_listener_manager().add_listener(dataset_listener)
+
+        dsm = DatasetModel(uri="test_dataset_uri")
+
+        dsem.create_datasets([dsm], session)
+        dsem.delete_datasets([dsm], session)
+
+        # Ensure the listener was notified
+        assert len(dataset_listener.deleted) == 1
+        assert dataset_listener.deleted[0].uri == dsm.uri

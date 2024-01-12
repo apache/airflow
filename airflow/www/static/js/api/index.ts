@@ -36,6 +36,7 @@ import useDatasets from "./useDatasets";
 import useDataset from "./useDataset";
 import useDatasetDependencies from "./useDatasetDependencies";
 import useDatasetEvents from "./useDatasetEvents";
+import useDeleteDataset from "./useDeleteDataset";
 import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
@@ -75,6 +76,7 @@ export {
   useDatasetDependencies,
   useDatasetEvents,
   useDatasets,
+  useDeleteDataset,
   useExtraLinks,
   useGraphData,
   useGridData,

@@ -55,6 +55,15 @@ class DatasetManager(LoggingMixin):
         for dataset_model in dataset_models:
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
 
+    def delete_datasets(self, dataset_models: list[DatasetModel], session: Session) -> None:
+        """Delete datasets."""
+        for dataset_model in dataset_models:
+            session.delete(dataset_model)
+        session.flush()
+
+        for dataset_model in dataset_models:
+            self.notify_dataset_deleted(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
+
     def register_dataset_change(
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
@@ -98,6 +107,10 @@ class DatasetManager(LoggingMixin):
     def notify_dataset_changed(self, dataset: Dataset):
         """Run applicable notification actions when a dataset is changed."""
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
+
+    def notify_dataset_deleted(self, dataset: Dataset):
+        """Run applicable notification actions when a dataset is deleted."""
+        get_listener_manager().hook.on_dataset_deleted(dataset=dataset)
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually

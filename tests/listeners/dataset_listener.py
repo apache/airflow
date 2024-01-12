@@ -28,6 +28,7 @@ if typing.TYPE_CHECKING:
 
 changed: list[Dataset] = []
 created: list[Dataset] = []
+deleted: list[Dataset] = []
 
 
 @hookimpl
@@ -40,6 +41,11 @@ def on_dataset_created(dataset):
     created.append(copy.deepcopy(dataset))
 
 
+@hookimpl
+def on_dataset_deleted(dataset):
+    deleted.append(copy.deepcopy(dataset))
+
+
 def clear():
-    global changed, created
-    changed, created = [], []
+    global changed, created, deleted
+    changed, created, deleted = [], [], []

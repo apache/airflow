@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
+from connexion import NoContent
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -31,14 +33,43 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_event_collection_schema,
     dataset_schema,
 )
+from airflow.exceptions import AirflowException
 from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.security import permissions
 from airflow.utils.db import get_query_count
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
+
+RESOURCE_EVENT_PREFIX = "dataset"
+
+
+@security.requires_access_dataset("DELETE")
+@provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_DELETE,
+    ),
+)
+def delete_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Delete a Dataset."""
+    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri))
+    if dataset is None:
+        raise NotFound(
+            "Dataset not found",
+            detail=f"The Dataset with uri: `{uri}` was not found",
+        )
+    if dataset.consuming_dags or dataset.producing_tasks:
+        raise AirflowException("Dataset is still referenced by other DAG")
+
+    session.delete(dataset)
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access_dataset("GET")

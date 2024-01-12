@@ -39,3 +39,10 @@ def on_dataset_changed(
     dataset: Dataset,
 ):
     """Execute when dataset change is registered."""
+
+
+@hookspec
+def on_dataset_deleted(
+    dataset: Dataset,
+):
+    """Execute when a dataset is deleted."""
