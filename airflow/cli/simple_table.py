@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
