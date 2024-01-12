@@ -838,6 +838,19 @@ config:
         type: string
         example: "ecs_executor_cluster"
         default: ~
+      capacity_provider_strategy:
+        description: |
+          The capacity provider strategy to use for the task.
+
+          If a Capacity Provider Strategy is specified, the Launch Type parameter must be omitted. If
+          no Capacity Provider Strategy or Launch Type is specified, the Default CapacityProvider Strategy
+          for the cluster is used, if present.
+
+          When you use cluster auto scaling, you must specify Capacity Provider Strategy and not Launch Type.
+        version_added: "8.17"
+        type: string
+        example: "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        default: ~
       container_name:
         description: |
           Name of the container that will be used to execute Airflow tasks via the ECS executor.
@@ -853,6 +866,10 @@ config:
           Launch type can either be 'FARGATE' OR 'EC2'. For more info see url to
           Boto3 docs above.
 
+          If a Launch Type is specified, the Capacity Provider Strategy parameter must be omitted. If
+          no Capacity Provider Strategy or Launch Type is specified, the Default Capacity Provider Strategy
+          for the cluster is used, if present.
+
           If the launch type is EC2, the executor will attempt to place tasks on
           empty EC2 instances. If there are no EC2 instances available, no task
           is placed and this function will be called again in the next heart-beat.
@@ -862,7 +879,7 @@ config:
         version_added: "8.10"
         type: string
         example: "FARGATE"
-        default: "FARGATE"
+        default: ~
       platform_version:
         description: |
           The platform version the task uses. A platform version is only specified
