@@ -585,16 +585,23 @@ Airflow supports reproducible builds, which means that the packages prepared fro
 produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-Checkout airflow sources and build packages in dist folder:
+Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version
+you are checking):
 
 ```shell script
-git checkout X.Y.Zrc1
+VERSION=X.Y.Zrc1
+git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-package --package-format both --use-local-hatch
 ```
 
-That should produce `.whl` and `.tar.gz` packages in dist folder.
+Note that you need to have `hatch` installed in order to build the packages with the last command.
+If you do not have `hatch`, you can remove the `--use-local-hatch` flag and it will build and use
+docker image that has `hatch` and other necessary tools installed.
+
+That should produce `-source.tar.gz` tarball of sources and  `.whl`, `.tar.gz` packages in dist folder.
 
 Change to the directory where you have the packages from svn:
 

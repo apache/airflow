@@ -77,11 +77,10 @@ def get_current_airflow_version() -> str:
 
 def build_airflow_packages(package_format: str):
     build_command = [sys.executable, "-m", "hatch", "build", "-t", "custom"]
-
-    if package_format in ["both", "wheel"]:
-        build_command.extend(["-t", "wheel"])
     if package_format in ["both", "sdist"]:
         build_command.extend(["-t", "sdist"])
+    if package_format in ["both", "wheel"]:
+        build_command.extend(["-t", "wheel"])
 
     reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_FILE.read_text())["source-date-epoch"]
 
