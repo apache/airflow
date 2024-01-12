@@ -42,8 +42,9 @@ class KylinHook(BaseHook):
         kylin_conn_id: str = default_conn_name,
         project: str | None = None,
         dsn: str | None = None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.kylin_conn_id = kylin_conn_id
         self.project = project
         self.dsn = dsn

@@ -53,16 +53,6 @@ HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 
-# TODO: use single source of truth for those
-# for now we need to keep them in sync with the ones in setup.py
-PREINSTALLED_PROVIDERS = [
-    "common.sql",
-    "ftp",
-    "http",
-    "imap",
-    "sqlite",
-]
-
 
 class EntityType(Enum):
     Operators = "Operators"
@@ -259,7 +249,7 @@ def get_available_packages(
     if include_not_ready:
         valid_states.add("not-ready")
     if include_regular:
-        valid_states.add("ready")
+        valid_states.update({"ready", "pre-release"})
     if include_suspended:
         valid_states.add("suspended")
     if include_removed:
@@ -320,7 +310,7 @@ def get_short_package_name(long_form_provider: str) -> str:
     else:
         if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
             raise ValueError(
-                f"Invalid provider name: {long_form_provider}. " f"Should start with {LONG_PROVIDERS_PREFIX}"
+                f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
             )
         return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
 
@@ -661,7 +651,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             )
         else:
             get_console().print(
-                f"[error]Error {ex}[/]\n" f"[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
+                f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
             )
             sys.exit(1)
     get_console().print("[info]Fetching full history and tags from remote.")

@@ -85,7 +85,7 @@ Airflow main branch to being decommissioned and removed from the main branch in 
 
    Technical details on how to manage lifecycle of providers are described in the document:
 
-   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANGING_PROVIDERS_LIFECYCLE.rst>`_
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
 
 
 Accepting new community providers

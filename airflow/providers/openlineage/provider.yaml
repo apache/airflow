@@ -22,8 +22,9 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1703288155
+source-date-epoch: 1704610754
 versions:
+  - 1.4.0
   - 1.3.1
   - 1.3.0
   - 1.2.1

@@ -54,14 +54,31 @@ class PagerdutyHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
-            "hidden_fields": ["port", "login", "schema", "host"],
+            "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {
                 "password": "Pagerduty API token",
             },
         }
 
-    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
-        super().__init__()
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField
+        from wtforms.validators import Optional
+
+        return {
+            "routing_key": PasswordField(
+                lazy_gettext("Routing Key"),
+                widget=BS3PasswordFieldWidget(),
+                validators=[Optional()],
+                default=None,
+            ),
+        }
+
+    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.routing_key = None
         self._session = None
 

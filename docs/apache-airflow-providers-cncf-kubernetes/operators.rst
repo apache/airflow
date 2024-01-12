@@ -22,7 +22,7 @@
 KubernetesPodOperator
 =====================
 
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` allows
 you to create and run Pods on a Kubernetes cluster.
 
 .. note::
@@ -37,14 +37,14 @@ you to create and run Pods on a Kubernetes cluster.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` uses the
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` uses the
 Kubernetes API to launch a pod in a Kubernetes cluster. By supplying an
 image URL and a command with optional arguments, the operator uses the Kube Python Client to generate a Kubernetes API
 request that dynamically launches those individual pods.
 Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
 to ``~/.kube/config``.
 
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` enables task-level
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` enables task-level
 resource configuration and is optimal for custom Python
 dependencies that are not available through the public PyPI repository. It also allows users to supply a template
 YAML file using the ``pod_template_file`` parameter.
@@ -107,7 +107,7 @@ and type safety. While we have removed almost all Kubernetes convenience classes
 
 Difference between ``KubernetesPodOperator`` and Kubernetes object spec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` can be considered
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` can be considered
 a substitute for a Kubernetes object spec definition that is able
 to be run in the Airflow scheduler in the DAG context. If using the operator, there is no need to create the
 equivalent YAML/JSON object spec for the Pod you would like to run.
@@ -116,7 +116,7 @@ the ``full_pod_spec`` parameter which requires a Kubernetes ``V1Pod``.
 
 How to use private images (container registry)?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-By default, the :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` will
+By default, the :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` will
 look for images hosted publicly on Dockerhub.
 To pull images from a private registry (such as ECR, GCR, Quay, or others), you must create a
 Kubernetes Secret that represents the credentials for accessing images from the private registry that is ultimately
@@ -147,7 +147,7 @@ Also for this action you can use operator in the deferrable mode:
 
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` handles
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` handles
 XCom values differently than other operators. In order to pass a XCom value
 from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
 alongside the Pod. The Pod must write the XCom value into this location at the ``/airflow/xcom/return.json`` path.

@@ -19,8 +19,7 @@ set -euxo pipefail
 
 cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
-# Limit `pipx` temporarily to avoid --force-reinstall added in a wrong place
-# Can be removed after https://github.com/pypa/pipx/issues/1122 is solved (and possibly yanked)
-python -m pip install "pipx>=1.2.1,!=1.3.0"
+python -m pip install --upgrade pip==23.3.2
+python -m pip install "pipx>=1.4.1"
 python -m pipx install --editable ./dev/breeze/ --force
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"

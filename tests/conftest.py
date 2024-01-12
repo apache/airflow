@@ -602,7 +602,7 @@ def frozen_sleep(monkeypatch):
 def app():
     from tests.test_utils.config import conf_vars
 
-    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+    with conf_vars({("fab", "auth_rate_limited"): "False"}):
         from airflow.www import app
 
         yield app.create_app(testing=True)
@@ -867,7 +867,7 @@ def create_dummy_dag(dag_maker):
         max_active_tis_per_dag=16,
         max_active_tis_per_dagrun=None,
         pool="default_pool",
-        executor_config={},
+        executor_config=None,
         trigger_rule="all_done",
         on_success_callback=None,
         on_execute_callback=None,
@@ -882,7 +882,7 @@ def create_dummy_dag(dag_maker):
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 max_active_tis_per_dagrun=max_active_tis_per_dagrun,
-                executor_config=executor_config,
+                executor_config=executor_config or {},
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,
                 on_failure_callback=on_failure_callback,

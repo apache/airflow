@@ -59,8 +59,8 @@ class FSHook(BaseHook):
             "placeholders": {},
         }
 
-    def __init__(self, fs_conn_id: str = default_conn_name):
-        super().__init__()
+    def __init__(self, fs_conn_id: str = default_conn_name, **kwargs):
+        super().__init__(**kwargs)
         conn = self.get_connection(fs_conn_id)
         self.basepath = conn.extra_dejson.get("path", "")
         self.conn = conn

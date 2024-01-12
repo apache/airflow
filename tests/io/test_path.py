@@ -72,18 +72,21 @@ class TestFs:
     def test_init_objectstoragepath(self):
         path = ObjectStoragePath("file://bucket/key/part1/part2")
         assert path.bucket == "bucket"
-        assert path.key == "/key/part1/part2"
+        assert path.key == "key/part1/part2"
         assert path.protocol == "file"
+        assert path.path == "bucket/key/part1/part2"
 
         path2 = ObjectStoragePath(path / "part3")
         assert path2.bucket == "bucket"
-        assert path2.key == "/key/part1/part2/part3"
+        assert path2.key == "key/part1/part2/part3"
         assert path2.protocol == "file"
+        assert path2.path == "bucket/key/part1/part2/part3"
 
         path3 = ObjectStoragePath(path2 / "2023")
         assert path3.bucket == "bucket"
-        assert path3.key == "/key/part1/part2/part3/2023"
+        assert path3.key == "key/part1/part2/part3/2023"
         assert path3.protocol == "file"
+        assert path3.path == "bucket/key/part1/part2/part3/2023"
 
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
@@ -171,7 +174,7 @@ class TestFs:
         o = ObjectStoragePath(f"{protocol}://{bucket}/{key}")
         assert o.bucket == bucket
         assert o.container == bucket
-        assert o.key == f"/{key}"
+        assert o.key == f"{key}"
         assert o.protocol == protocol
 
     def test_cwd_home(self):
@@ -279,7 +282,7 @@ class TestFs:
 
         assert s["protocol"] == "file"
         assert s["conn_id"] == "mock"
-        assert s["filesystem"] is None
+        assert s["filesystem"] == qualname(LocalFileSystem)
         assert store == d
 
         store = attach("localfs", fs=LocalFileSystem())

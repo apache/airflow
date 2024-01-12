@@ -21,7 +21,7 @@ from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt
+from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,
@@ -71,8 +71,9 @@ class GrpcHook(BaseHook):
         grpc_conn_id: str = default_conn_name,
         interceptors: list[Callable] | None = None,
         custom_connection_func: Callable | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson

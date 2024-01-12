@@ -55,7 +55,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
-                "--use-container-for-assets-compilation",
                 "--version-suffix-for-pypi",
             ],
         }

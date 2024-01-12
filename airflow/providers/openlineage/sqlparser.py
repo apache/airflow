@@ -67,6 +67,7 @@ class GetTableSchemasParams(TypedDict):
     is_cross_db: bool
     information_schema_columns: list[str]
     information_schema_table: str
+    use_flat_cross_db_query: bool
     is_uppercase_names: bool
     database: str | None
 
@@ -83,6 +84,8 @@ class DatabaseInfo:
     :param database: Takes precedence over parsed database name.
     :param information_schema_columns: List of columns names from information schema table.
     :param information_schema_table_name: Information schema table name.
+    :param use_flat_cross_db_query: Specifies if single information schema table should be used
+        for cross-database queries (e.g. for Redshift).
     :param is_information_schema_cross_db: Specifies if information schema contains
         cross-database data.
     :param is_uppercase_names: Specifies if database accepts only uppercase names (e.g. Snowflake).
@@ -95,6 +98,7 @@ class DatabaseInfo:
     database: str | None = None
     information_schema_columns: list[str] = DEFAULT_INFORMATION_SCHEMA_COLUMNS
     information_schema_table_name: str = DEFAULT_INFORMATION_SCHEMA_TABLE_NAME
+    use_flat_cross_db_query: bool = False
     is_information_schema_cross_db: bool = False
     is_uppercase_names: bool = False
     normalize_name_method: Callable[[str], str] = default_normalize_name_method
@@ -133,6 +137,7 @@ class SQLParser:
             "information_schema_table": database_info.information_schema_table_name,
             "is_uppercase_names": database_info.is_uppercase_names,
             "database": database or database_info.database,
+            "use_flat_cross_db_query": database_info.use_flat_cross_db_query,
         }
         return get_table_schemas(
             hook,
@@ -297,9 +302,10 @@ class SQLParser:
         tables: list[DbTableMeta],
         normalize_name: Callable[[str], str],
         is_cross_db: bool,
-        information_schema_columns,
-        information_schema_table,
-        is_uppercase_names,
+        information_schema_columns: list[str],
+        information_schema_table: str,
+        is_uppercase_names: bool,
+        use_flat_cross_db_query: bool,
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> str:
@@ -314,6 +320,7 @@ class SQLParser:
             columns=information_schema_columns,
             information_schema_table_name=information_schema_table,
             tables_hierarchy=tables_hierarchy,
+            use_flat_cross_db_query=use_flat_cross_db_query,
             uppercase_names=is_uppercase_names,
             sqlalchemy_engine=sqlalchemy_engine,
         )

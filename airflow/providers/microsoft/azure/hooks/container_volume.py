@@ -83,8 +83,10 @@ class AzureContainerVolumeHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_container_volume_conn_id: str = "azure_container_volume_default") -> None:
-        super().__init__()
+    def __init__(
+        self, azure_container_volume_conn_id: str = "azure_container_volume_default", **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_container_volume_conn_id
 
     def _get_field(self, extras, name):

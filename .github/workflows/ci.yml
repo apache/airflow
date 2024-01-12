@@ -104,6 +104,8 @@ jobs:
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
+      mypy-packages: ${{ steps.selective-checks.outputs.mypy-packages }}
+      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
@@ -190,7 +192,7 @@ jobs:
 
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
-  # cache using the current constraints. This will speed up cache refresh in cases when setup.py
+  # cache using the current constraints. This will speed up cache refresh in cases when pyproject.toml
   # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
@@ -484,7 +486,7 @@ jobs:
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
         run: >
-          breeze release-management prepare-provider-packages
+          breeze release-management prepare-provider-packages --include-not-ready-providers
           --package-format wheel --version-suffix-for-pypi dev0
           ${{ needs.build-info.outputs.chicken-egg-providers }}
         if: needs.build-info.outputs.chicken-egg-providers != ''
@@ -509,7 +511,6 @@ jobs:
           path: ./files/constraints-*/constraints-*.txt
           retention-days: 7
           if-no-files-found: error
-
 
   static-checks:
     timeout-minutes: 45
@@ -549,6 +550,57 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
+
+  # Runs static checks for groups of files in the repository in a single process without passing .
+  # List of files
+  mypy:
+    timeout-minutes: 45
+    name: "MyPy checks"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        mypy-package: ${{fromJson(needs.build-info.outputs.mypy-packages)}}
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+        id: breeze
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: Cache pre-commit envs
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: |
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: "MyPy checks for ${{ matrix.mypy-package }}"
+        run: |
+          pip install pre-commit
+          pre-commit run --color always --verbose --hook-stage manual mypy --all-files
+        env:
+          VERBOSE: "false"
+          COLUMNS: "250"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+          RUFF_FORMAT: "github"
+          MYPY_PACKAGES: ${{ matrix.mypy-package }}
+        if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -626,9 +678,9 @@ jobs:
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
         run: >
@@ -690,9 +742,9 @@ jobs:
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Spellcheck docs"
         run: >
@@ -721,11 +773,13 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
         run: >
-          breeze release-management prepare-provider-documentation --non-interactive
+          breeze release-management prepare-provider-documentation --include-not-ready-providers
+          --non-interactive
           ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
-          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --version-suffix-for-pypi dev0
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
@@ -794,7 +848,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: sdist"
         run: >
-          breeze release-management prepare-provider-packages
+          breeze release-management prepare-provider-packages --include-not-ready-providers
           --version-suffix-for-pypi dev0 --package-format sdist
           ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare airflow package: sdist"
@@ -861,7 +915,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
         run: >
-          breeze release-management prepare-provider-packages
+          breeze release-management prepare-provider-packages --include-not-ready-providers
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: >
           Remove incompatible Airflow
@@ -870,17 +924,9 @@ jobs:
           rm -vf ${{ matrix.remove-providers }}
         working-directory: ./dist
         if: matrix.remove-providers != ''
-      - name: "Checkout ${{matrix.airflow-version}} of Airflow"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          ref: ${{matrix.airflow-version}}
-          path: old-airflow
-      - name: "Prepare airflow package: wheel"
+      - name: "Download airflow package: wheel"
         run: |
-          pip install pip==23.3.2 wheel==0.36.2 gitpython==3.1.40
-          python setup.py egg_info --tag-build ".dev0" bdist_wheel -d ../dist
-        working-directory: ./old-airflow
+          pip download "apache-airflow==${{matrix.airflow-version}}" -d dist --no-deps
       - name: >
           Install and verify all provider packages and airflow on
           Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
@@ -1998,8 +2044,7 @@ jobs:
           path: ".build/.k8s-env"
           key: "\
             k8s-env-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
-            'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','pyproject.toml') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
         env:
@@ -2041,6 +2086,7 @@ jobs:
       - wait-for-ci-images
       - wait-for-prod-images
       - static-checks
+      - mypy
       - tests-sqlite
       - tests-mysql
       - tests-postgres
@@ -2129,7 +2175,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./airflow/providers/installed_providers.txt
+          --package-list-file ./dev/prod_image_installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -2195,6 +2241,7 @@ jobs:
       - build-docs
       - spellcheck-docs
       - static-checks
+      - mypy
       - tests-sqlite
       - tests-mysql
       - tests-postgres

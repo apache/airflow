@@ -348,7 +348,7 @@ def _get_all_changes_for_package(
         )
     else:
         get_console().print(
-            f"[info]New version of the '{provider_package_id}' " f"package is ready to be released!\n"
+            f"[info]New version of the '{provider_package_id}' package is ready to be released!\n"
         )
     next_version_tag = f"{HTTPS_REMOTE}/{base_branch}"
     changes_table = ""
@@ -413,7 +413,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
         if given_answer in type_of_changes_array:
             return TypeOfChange(given_answer)
         get_console().print(
-            f"[warning] Wrong answer given: '{given_answer}'. " f"Should be one of {display_answers}"
+            f"[warning] Wrong answer given: '{given_answer}'. Should be one of {display_answers}"
         )
 
 
@@ -656,7 +656,7 @@ def update_release_notes(
 ) -> tuple[bool, bool]:
     """Updates generated files.
 
-    This includes the readme, changes, and/or setup.cfg/setup.py/manifest.in/provider_info.
+    This includes the readme, changes, and provider.yaml files.
 
     :param provider_package_id: id of the package
     :param reapply_templates_only: regenerate already released documentation only - without updating versions
@@ -680,7 +680,7 @@ def update_release_notes(
                 answer = user_confirm(f"Provider {provider_package_id} marked for release. Proceed?")
             if answer == Answer.NO:
                 get_console().print(
-                    f"\n[warning]Skipping provider: {provider_package_id} " f"on user request![/]\n"
+                    f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
                 )
                 raise PrepareReleaseDocsUserSkippedException()
             elif answer == Answer.QUIT:

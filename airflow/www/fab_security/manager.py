@@ -26,8 +26,11 @@ import logging
 log = logging.getLogger(__name__)
 
 __lazy_imports = {
+    "AUTH_OID": "flask_appbuilder.const",
     "AUTH_DB": "flask_appbuilder.const",
     "AUTH_LDAP": "flask_appbuilder.const",
+    "AUTH_REMOTE_USER": "flask_appbuilder.const",
+    "AUTH_OAUTH": "flask_appbuilder.const",
     "LOGMSG_WAR_SEC_LOGIN_FAILED": "flask_appbuilder.const",
 }
 

@@ -104,7 +104,7 @@ class RedshiftToS3Operator(BaseOperator):
         include_header: bool = False,
         parameters: Iterable | Mapping | None = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
-        redshift_data_api_kwargs: dict = {},
+        redshift_data_api_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -120,7 +120,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.include_header = include_header
         self.parameters = parameters
         self.table_as_file_name = table_as_file_name
-        self.redshift_data_api_kwargs = redshift_data_api_kwargs
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
 
         if select_query:
             self.select_query = select_query

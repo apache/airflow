@@ -22,7 +22,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import flash, redirect, render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.const import (
     FLAMSG_ERR_SEC_ACCESS_DENIED,
@@ -176,10 +176,12 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             ),
             403,
         )
+    elif not get_auth_manager().is_logged_in():
+        return redirect(get_auth_manager().get_url_login(next=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
-    return redirect(get_auth_manager().get_url_login(next=request.url))
+    return redirect(url_for("Airflow.index"))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:

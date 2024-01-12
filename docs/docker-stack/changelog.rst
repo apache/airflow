@@ -37,6 +37,12 @@ the Airflow team.
 Airflow 2.8
 ~~~~~~~~~~~
 
+* 2.8.1
+
+   * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
+     during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
+     however **MySQL** libraries were installed in the final image.
+
 * 2.8.0
 
    * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD

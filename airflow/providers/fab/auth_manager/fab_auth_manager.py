@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
@@ -39,6 +40,7 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.cli.cli_config import (
+    DefaultHelpParser,
     GroupCommand,
 )
 from airflow.configuration import conf
@@ -499,5 +501,18 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
+        if conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ):
             self.security_manager.sync_roles()
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in FabAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

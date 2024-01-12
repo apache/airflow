@@ -31,7 +31,7 @@ from google.cloud.run_v2 import (
     RunJobRequest,
     UpdateJobRequest,
 )
-from google.longrunning import operations_pb2
+from google.longrunning import operations_pb2  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
