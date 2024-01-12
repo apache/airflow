@@ -142,6 +142,7 @@ from airflow_breeze.utils.provider_dependencies import (
     get_related_providers,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
+from airflow_breeze.utils.reproducible import get_source_date_epoch
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
@@ -284,6 +285,11 @@ AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-doc
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
 )
+@click.option(
+    "--use-local-hatch",
+    is_flag=True,
+    help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
+)
 @option_package_format
 @option_version_suffix_for_pypi
 @option_verbose
@@ -291,10 +297,30 @@ AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-doc
 def prepare_airflow_packages(
     package_format: str,
     version_suffix_for_pypi: str,
+    use_local_hatch: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    source_date_epoch = get_source_date_epoch()
+    if use_local_hatch:
+        hatch_build_command = ["hatch", "build", "-c", "-t", "custom"]
+        if package_format in ["sdist", "both"]:
+            hatch_build_command.extend(["-t", "sdist"])
+        if package_format in ["wheel", "both"]:
+            hatch_build_command.extend(["-t", "wheel"])
+        env_copy = os.environ.copy()
+        env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+        run_command(
+            hatch_build_command,
+            check=True,
+            env=env_copy,
+        )
+        get_console().print("[success]Successfully prepared Airflow packages:")
+        for file in sorted(DIST_DIR.glob("apache_airflow*")):
+            get_console().print(file.name)
+        get_console().print()
+        return
     # This is security feature.
     #
     # Building the image needed to build airflow package including .git directory
@@ -352,7 +378,10 @@ def prepare_airflow_packages(
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True)
     run_command(["docker", "rm", "--force", container_id], check=True)
-    get_console().print("[success]Successfully prepared Airflow package!\n\n")
+    get_console().print("[success]Successfully prepared Airflow packages:")
+    for file in sorted(DIST_DIR.glob("apache_airflow*")):
+        get_console().print(file.name)
+    get_console().print()
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
