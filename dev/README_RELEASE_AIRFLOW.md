@@ -34,6 +34,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Reproducible package check](#reproducible-package-check)
   - [Source code check](#source-code-check)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
@@ -576,6 +577,47 @@ You should get output similar to:
 Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
+```
+
+## Reproducible package check
+
+Airflow supports reproducible builds, which means that the packages prepared from the same sources should
+produce binary identical packages in reproducible way. You should check if the packages can be
+binary-reproduced when built from the sources.
+
+Checkout airflow sources and build packages in dist folder:
+
+```shell script
+git checkout X.Y.Zrc1
+export AIRFLOW_REPO_ROOT=$(pwd)
+rm -rf dist/*
+breeze release-management prepare-airflow-package --package-format both
+```
+
+That should produce `.whl` and `.tar.gz` packages in dist folder.
+
+Change to the directory where you have the packages from svn:
+
+```shell script
+# First clone the repo if you do not have it
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+
+# Then compare the packages
+cd asf-dist/dev/airflow/X.Y.Zrc1
+for i in ${AIRFLOW_REPO_ROOT}/dist/*
+do
+  echo "Checking if $(basename $i) is the same as $i"
+  diff "$(basename $i)" "$i" && echo "OK"
+done
+```
+
+The output should be empty (files are identical).
+In case the files are different, you should see:
+
+```
+Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
 ```
 
 ## Source code check
