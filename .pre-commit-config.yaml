@@ -570,6 +570,7 @@ repos:
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
+          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py$|

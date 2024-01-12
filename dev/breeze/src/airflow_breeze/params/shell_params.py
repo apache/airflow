@@ -136,6 +136,7 @@ class ShellParams:
     dev_mode: bool = False
     docker_host: str | None = os.environ.get("DOCKER_HOST")
     downgrade_sqlalchemy: bool = False
+    downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
@@ -482,6 +483,7 @@ class ShellParams:
         _set_var(_env, "DEV_MODE", self.dev_mode)
         _set_var(_env, "DOCKER_IS_ROOTLESS", self.rootless_docker)
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
+        _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
