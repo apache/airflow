@@ -293,7 +293,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
-        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
@@ -480,7 +480,8 @@ class KubernetesPodOperator(BaseOperator):
     @cached_property
     def client(self) -> CoreV1Api:
         client = self.hook.core_v1_client
-        self.callbacks.on_sync_client_creation(client=client)
+        if self.callbacks:
+            self.callbacks.on_sync_client_creation(client=client)
         return client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
@@ -558,13 +559,17 @@ class KubernetesPodOperator(BaseOperator):
 
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
-            self.callbacks.on_pod_creation(pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC)
+            if self.callbacks:
+                self.callbacks.on_pod_creation(
+                    pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
+                )
             self.await_pod_start(pod=self.pod)
-            self.callbacks.on_pod_starting(
-                pod=self.find_pod(self.pod.metadata.namespace, context=context),
-                client=self.client,
-                mode=ExecutionMode.SYNC,
-            )
+            if self.callbacks:
+                self.callbacks.on_pod_starting(
+                    pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                )
 
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
@@ -578,12 +583,12 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.base_container_name
                 )
-
-            self.callbacks.on_pod_completion(
-                pod=self.find_pod(self.pod.metadata.namespace, context=context),
-                client=self.client,
-                mode=ExecutionMode.SYNC,
-            )
+            if self.callbacks:
+                self.callbacks.on_pod_completion(
+                    pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                )
 
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
@@ -598,7 +603,8 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod_to_clean,
                 remote_pod=self.remote_pod,
             )
-            self.callbacks.on_pod_cleanup(pod=pod_to_clean, client=self.client, mode=ExecutionMode.SYNC)
+            if self.callbacks:
+                self.callbacks.on_pod_cleanup(pod=pod_to_clean, client=self.client, mode=ExecutionMode.SYNC)
         if self.do_xcom_push:
             return result
 
@@ -608,11 +614,12 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.callbacks.on_pod_creation(
-            pod=self.find_pod(self.pod.metadata.namespace, context=context),
-            client=self.client,
-            mode=ExecutionMode.SYNC,
-        )
+        if self.callbacks:
+            self.callbacks.on_pod_creation(
+                pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+            )
         ti = context["ti"]
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
@@ -649,9 +656,10 @@ class KubernetesPodOperator(BaseOperator):
                 event["name"],
                 event["namespace"],
             )
-            self.callbacks.on_operator_resuming(
-                pod=pod, event=event, client=self.client, mode=ExecutionMode.SYNC
-            )
+            if self.callbacks:
+                self.callbacks.on_operator_resuming(
+                    pod=pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                )
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
@@ -704,7 +712,8 @@ class KubernetesPodOperator(BaseOperator):
             pod=pod,
             remote_pod=remote_pod,
         )
-        self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
+        if self.callbacks:
+            self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         istio_enabled = self.is_istio_enabled(remote_pod)

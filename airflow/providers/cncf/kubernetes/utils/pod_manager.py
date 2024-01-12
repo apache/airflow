@@ -289,7 +289,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
-        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ):
         """
@@ -450,9 +450,10 @@ class PodManager(LoggingMixin):
                                 for line in progress_callback_lines:
                                     if self._progress_callback:
                                         self._progress_callback(line)
-                                    self._callbacks.progress_callback(
-                                        line=line, client=self._client, mode=ExecutionMode.SYNC
-                                    )
+                                    if self._callbacks:
+                                        self._callbacks.progress_callback(
+                                            line=line, client=self._client, mode=ExecutionMode.SYNC
+                                        )
                                 self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
@@ -466,9 +467,10 @@ class PodManager(LoggingMixin):
                     for line in progress_callback_lines:
                         if self._progress_callback:
                             self._progress_callback(line)
-                        self._callbacks.progress_callback(
-                            line=line, client=self._client, mode=ExecutionMode.SYNC
-                        )
+                        if self._callbacks:
+                            self._callbacks.progress_callback(
+                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                            )
                     self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:

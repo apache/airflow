@@ -26,7 +26,6 @@ from unittest import mock
 import pytest
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
@@ -95,7 +94,7 @@ class TestKubernetesPodTrigger:
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
-            "callbacks": KubernetesPodOperatorCallback,
+            "callbacks": None,
         }
 
     @pytest.mark.asyncio

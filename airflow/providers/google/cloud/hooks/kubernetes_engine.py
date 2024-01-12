@@ -444,14 +444,23 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         super().__init__(cluster_url=cluster_url, ssl_ca_cert=ssl_ca_cert, **kwargs)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
-        kube_client = None
-        try:
-            kube_client = await self._load_config(token)
-            yield kube_client
-        finally:
-            if kube_client is not None:
-                await kube_client.close()
+    async def get_conn(self, token: Token | None = None) -> async_client.ApiClient:  # type: ignore[override]
+        async def _get_conn(_token: Token) -> async_client.ApiClient:
+            _kube_client = None
+            try:
+                _kube_client = await self._load_config(_token)
+                yield _kube_client
+            finally:
+                if _kube_client is not None:
+                    await _kube_client.close()
+
+        if token is None:
+            async with Token(scopes=self.scopes) as token:
+                async with _get_conn(token) as kube_client:
+                    yield kube_client
+        else:
+            async with _get_conn(token) as kube_client:
+                yield kube_client
 
     async def _load_config(self, token: Token) -> async_client.ApiClient:
         configuration = self._get_config()

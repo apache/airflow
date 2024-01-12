@@ -20,13 +20,12 @@ from __future__ import annotations
 import asyncio
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, Type
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
-import packaging.version
 from google.cloud.container_v1.types import Operation
+from kubernetes_asyncio.client import CoreV1Api
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes import __version__ as cnfc_kubernetes_version
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
@@ -35,19 +34,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 if TYPE_CHECKING:
     from datetime import datetime
 
-# TODO: Remove this check when we drop support for cncf-kubernetes < 7.14.0
-callbacks_type: Any
-default_callbacks: Any
-if packaging.version.parse(cnfc_kubernetes_version) >= packaging.version.parse("7.14.0"):
     from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
-
-    is_generic_callbacks_supported = True
-    callbacks_type = Type[KubernetesPodOperatorCallback]
-    default_callbacks = KubernetesPodOperatorCallback
-else:
-    is_generic_callbacks_supported = False
-    callbacks_type = Any
-    default_callbacks = None
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -92,7 +79,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: callbacks_type = default_callbacks,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         *args,
         **kwargs,
     ):
@@ -154,10 +141,13 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
 
     @cached_property
     def hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
-        return GKEPodAsyncHook(
+        _hook = GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
         )
+        if self.callbacks:
+            self.callbacks.on_async_client_creation(client=CoreV1Api(_hook.get_conn()))
+        return _hook
 
 
 class GKEOperationTrigger(BaseTrigger):

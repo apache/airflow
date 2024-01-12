@@ -89,7 +89,7 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: type[KubernetesPodOperatorCallback] = KubernetesPodOperatorCallback,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -162,15 +162,16 @@ class KubernetesPodTrigger(BaseTrigger):
                 self.log.debug("Container %s status: %s", self.base_container_name, container_state)
 
                 if container_state == ContainerState.TERMINATED:
-                    if not _is_starting_callback_called:
+                    if self.callbacks and not _is_starting_callback_called:
                         self.callbacks.on_pod_starting(
                             pod=pod,
                             client=self._get_async_hook().core_v1_client,
                             mode=ExecutionMode.ASYNC,
                         )
-                    self.callbacks.on_pod_completion(
-                        pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
-                    )
+                    if self.callbacks:
+                        self.callbacks.on_pod_completion(
+                            pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
+                        )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -203,7 +204,7 @@ class KubernetesPodTrigger(BaseTrigger):
                             self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
                             await asyncio.sleep(self.startup_check_interval)
                     else:
-                        if not _is_starting_callback_called:
+                        if self.callbacks and not _is_starting_callback_called:
                             # if the trigger fails and re-run on a different triggerer, this callback could
                             # be called again
                             self.callbacks.on_pod_starting(
@@ -215,15 +216,16 @@ class KubernetesPodTrigger(BaseTrigger):
                         self.log.info("Sleeping for %s seconds.", self.poll_interval)
                         await asyncio.sleep(self.poll_interval)
                 else:
-                    if not _is_starting_callback_called:
+                    if self.callbacks and not _is_starting_callback_called:
                         self.callbacks.on_pod_starting(
                             pod=pod,
                             client=self._get_async_hook().core_v1_client,
                             mode=ExecutionMode.ASYNC,
                         )
-                    self.callbacks.on_pod_completion(
-                        pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
-                    )
+                    if self.callbacks:
+                        self.callbacks.on_pod_completion(
+                            pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
+                        )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -247,11 +249,12 @@ class KubernetesPodTrigger(BaseTrigger):
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
-            self.callbacks.on_pod_cleanup(
-                pod=await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace),
-                client=self._get_async_hook().core_v1_client,
-                mode=ExecutionMode.ASYNC,
-            )
+            if self.callbacks:
+                self.callbacks.on_pod_cleanup(
+                    pod=await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace),
+                    client=self._get_async_hook().core_v1_client,
+                    mode=ExecutionMode.ASYNC,
+                )
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -280,7 +283,8 @@ class KubernetesPodTrigger(BaseTrigger):
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        self.callbacks.on_async_client_creation(client=_hook.core_v1_client)
+        if self.callbacks:
+            self.callbacks.on_async_client_creation(client=_hook.core_v1_client)
         return _hook
 
     @cached_property
