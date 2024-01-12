@@ -42,7 +42,7 @@ dynamic = ["version"]
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8"
+requires-python = "~=3.8,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -297,7 +297,9 @@ devel-devscripts = [
     "twine>=4.0.2",
 ]
 devel-duckdb = [
-    "duckdb>=0.9.0",
+    # Python 3.12 support was added in 0.10.0
+    "duckdb>=0.10.0; python_version >= '3.12'",
+    "duckdb>=0.9.0; python_version < '3.12'",
 ]
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
 # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
@@ -355,6 +357,7 @@ devel-tests = [
     "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
+    "wheel>=0.42.0",
 ]
 # END OF devel extras
 # START OF doc extras
@@ -573,7 +576,7 @@ apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0",
+  "cassandra-driver>=3.13.0;python_version != \"3.12\"",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
@@ -1233,6 +1236,13 @@ platforms = ["linux", "macos"]
 description = "Environment with Python 3.11. No devel installed"
 features = []
 
+[tool.hatch.envs.airflow-312]
+python = "3.12"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.12. No devel installed"
+features = []
+
+
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -1277,7 +1287,7 @@ artifacts = [
 ## black settings ##
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##

@@ -207,6 +207,21 @@ def get_suspended_provider_folders() -> list[str]:
 
 
 @lru_cache
+def get_excluded_provider_ids(python_version: str) -> list[str]:
+    metadata = get_provider_packages_metadata()
+    return [
+        provider_id
+        for provider_id, provider_metadata in metadata.items()
+        if python_version in provider_metadata.get("excluded-python-versions", [])
+    ]
+
+
+@lru_cache
+def get_excluded_provider_folders(python_version: str) -> list[str]:
+    return [provider_id.replace(".", "/") for provider_id in get_excluded_provider_ids(python_version)]
+
+
+@lru_cache
 def get_removed_provider_ids() -> list[str]:
     return get_available_packages(include_removed=True, include_regular=False)
 
