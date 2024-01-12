@@ -150,6 +150,12 @@ option_downgrade_sqlalchemy = click.option(
     is_flag=True,
     envvar="DOWNGRADE_SQLALCHEMY",
 )
+option_downgrade_pendulum = click.option(
+    "--downgrade-pendulum",
+    help="Downgrade Pendulum to minimum supported version.",
+    is_flag=True,
+    envvar="DOWNGRADE_PENDULUM",
+)
 option_dry_run = click.option(
     "-D",
     "--dry-run",
