@@ -948,7 +948,7 @@ metrics:
       description: |
         If true, metrics_allow_list and metrics_block_list will use regex pattern matching
         anywhere within the metric name instead of only prefix matching at the start of the name.
-      version_added: 2.8.1
+      version_added: 2.9.0
       type: boolean
       example: ~
       default: "False"
