@@ -31,10 +31,11 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
+
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from airflow.models import Connection
 
 
 class HttpHook(BaseHook):
