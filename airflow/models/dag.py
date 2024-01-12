@@ -1465,8 +1465,11 @@ class DAG(LoggingMixin):
             # since dag.partial_subset is a subset of the dag.
             # This ensures that we will only use the accessible TI
             # context for the callback.
-            tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED or
-                   (dag.partial and not ti.state == State.NONE)]
+            tis = [
+                ti
+                for ti in tis
+                if ti.state != TaskInstanceState.REMOVED or (dag.partial and not ti.state == State.NONE)
+            ]
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
