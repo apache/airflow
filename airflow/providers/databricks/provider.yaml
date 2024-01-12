@@ -67,6 +67,16 @@ dependencies:
   - databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0
   - aiohttp>=3.6.3, <4
 
+additional-extras:
+  # pip install apache-airflow-providers-databricks[sdk]
+  - name: sdk
+    description: Install Databricks SDK
+    dependencies:
+      - databricks-sdk==0.10.0
+
+devel-dependencies:
+  - deltalake>=0.12.0
+
 integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
@@ -129,10 +139,3 @@ connection-types:
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
-
-additional-extras:
-  # pip install apache-airflow-providers-databricks[sdk]
-  - name: sdk
-    description: Install Databricks SDK
-    dependencies:
-      - databricks-sdk==0.10.0

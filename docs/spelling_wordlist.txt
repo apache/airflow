@@ -314,6 +314,7 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
@@ -459,6 +460,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -516,6 +518,7 @@ dsn
 dttm
 dtypes
 du
+duckdb
 durations
 dylib
 Dynamodb
@@ -550,6 +553,7 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
 eof
@@ -898,6 +902,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -937,6 +942,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1143,6 +1149,7 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
@@ -1440,6 +1447,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1637,6 +1645,7 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
 ukey

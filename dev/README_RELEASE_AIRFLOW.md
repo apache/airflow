@@ -34,6 +34,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Reproducible package check](#reproducible-package-check)
   - [Source code check](#source-code-check)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
@@ -76,7 +77,7 @@ For obvious reasons, you can't cherry-pick every change from `main` into the rel
 some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
 
 In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release;
-also changes in dependencies (setup.py, setup.cfg) resulting from releasing newer versions of packages that Airflow depends on.
+also changes in dependencies (pyproject.toml) resulting from releasing newer versions of packages that Airflow depends on.
 Other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport
 (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported),
 it's OK to leave it out of the release at your sole discretion as the release manager -
@@ -578,6 +579,47 @@ Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
 
+## Reproducible package check
+
+Airflow supports reproducible builds, which means that the packages prepared from the same sources should
+produce binary identical packages in reproducible way. You should check if the packages can be
+binary-reproduced when built from the sources.
+
+Checkout airflow sources and build packages in dist folder:
+
+```shell script
+git checkout X.Y.Zrc1
+export AIRFLOW_REPO_ROOT=$(pwd)
+rm -rf dist/*
+breeze release-management prepare-airflow-package --package-format both
+```
+
+That should produce `.whl` and `.tar.gz` packages in dist folder.
+
+Change to the directory where you have the packages from svn:
+
+```shell script
+# First clone the repo if you do not have it
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+
+# Then compare the packages
+cd asf-dist/dev/airflow/X.Y.Zrc1
+for i in ${AIRFLOW_REPO_ROOT}/dist/*
+do
+  echo "Checking if $(basename $i) is the same as $i"
+  diff "$(basename $i)" "$i" && echo "OK"
+done
+```
+
+The output should be empty (files are identical).
+In case the files are different, you should see:
+
+```
+Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
+```
+
 ## Source code check
 
 You should check if the sources in the packages produced are the same as coming from the tag in git.
@@ -793,7 +835,7 @@ git push -f apache constraints-X.Y.Z
    that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 
-3. In case the provider should also be installed in the image (it is part of ``airflow/providers/installed_providers.txt``)
+3. In case the provider should also be installed in the image (it is part of ``dev/prod_image_installed_providers.txt``)
    it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
 
 ```Dockerfile

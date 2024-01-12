@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/discord-webhook>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/discord/index>

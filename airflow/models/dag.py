@@ -139,7 +139,7 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from pendulum.tz.timezone import Timezone
+    from pendulum.tz.timezone import FixedTimezone, Timezone
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -214,7 +214,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timetable:
+def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
     if interval is NOTSET:
         return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
@@ -533,7 +533,7 @@ class DAG(LoggingMixin):
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(date, tz=tzinfo).timezone
-        self.timezone: Timezone = tz or settings.TIMEZONE
+        self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if "end_date" in self.default_args and self.default_args["end_date"]:
