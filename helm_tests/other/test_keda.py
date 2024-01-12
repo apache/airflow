@@ -239,7 +239,7 @@ class TestKeda:
 
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True, "usePgbouncer": False}},
+                "workers": {"keda": {"enabled": True, "usePgbouncer": False, "useExtPgbouncer": False}},
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
             },
