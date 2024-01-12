@@ -41,6 +41,7 @@ class OperatorOutputPlugin(Plugin):
         def f(a: str) -> int:
             return len(a)
 
+
         f(op.output)  # "op" is an operator instance.
         f(g())  # "g" is a taskflow task.
 

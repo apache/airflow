@@ -81,7 +81,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
 
     return _has_access_fab(permissions)
 
@@ -114,14 +114,9 @@ def has_access_with_pk(f):
         ):
             return f(self, *args, **kwargs)
         else:
-            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED.format(permission_str, self.__class__.__name__))
+            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(
-            url_for(
-                self.appbuilder.sm.auth_view.__class__.__name__ + ".login",
-                next=request.url,
-            )
-        )
+        return redirect(get_auth_manager().get_url_login(next=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -177,14 +172,12 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             ),
             403,
         )
+    elif not get_auth_manager().is_logged_in():
+        return redirect(get_auth_manager().get_url_login(next=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
-    return redirect(get_auth_manager().get_url_login(next=request.url))
-
-
-def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
+    return redirect(url_for("Airflow.index"))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:

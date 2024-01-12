@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -28,7 +27,7 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "1.2.1"
+__version__ = "1.4.0"
 
 try:
     from airflow import __version__ as airflow_version

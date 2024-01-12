@@ -527,27 +527,32 @@ class TestDockerOperator:
             print_exception_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc",
+        "kwargs, actual_exit_code, expected_exc",
         [
-            (None, 99, AirflowException),
+            ({}, 0, None),
+            ({}, 100, AirflowException),
+            ({}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": None}, 101, AirflowException),
+            ({"skip_on_exit_code": 100}, 0, None),
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_on_exit_code": 100}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 0}, 0, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 0, None),
             ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100]}, 101, AirflowException),
             ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100,)}, 101, AirflowException),
         ],
     )
-    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+    def test_skip(self, kwargs, actual_exit_code, expected_exc):
         msg = {"StatusCode": actual_exit_code}
         self.client_mock.wait.return_value = msg
 
-        kwargs = dict(image="ubuntu", owner="unittest", task_id="unittest")
-        if extra_kwargs:
-            kwargs.update(**extra_kwargs)
-        operator = DockerOperator(**kwargs)
+        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", **kwargs)
 
         if expected_exc is None:
             operator.execute({})

@@ -264,7 +264,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
 
     def __init__(
         self,
@@ -321,10 +321,10 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict):
         status = event["status"]
 
-        if status == RunJobStatus.TIMEOUT:
+        if status == RunJobStatus.TIMEOUT.value:
             raise AirflowException("Operation timed out")
 
-        if status == RunJobStatus.FAIL:
+        if status == RunJobStatus.FAIL.value:
             error_code = event["operation_error_code"]
             error_message = event["operation_error_message"]
             raise AirflowException(

@@ -26,6 +26,166 @@
 Changelog
 ---------
 
+8.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add AWS Step Functions links (#36599)``
+* ``Add OpenLineage support for Redshift SQL (#35794)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'AwsToAwsBaseOperator' (#36604)``
+* ``Fix assignment of template field in '__init__' in 'DataSyncOperator' (#36605)``
+* ``Check redshift cluster state before deferring to triggerer (#36416)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon SQS Operators/Sensors/Triggers (#36613)``
+* ``Use base aws classes in Amazon SNS Operators (#36615)``
+* ``Use base aws classes in AWS Step Functions Operators/Sensors/Triggers (#36468)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Select ruff B006 to detect the usage of mutable values as argument default (#36626)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+
+8.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Athena query results extra link (#36447)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): remove event['message'] call in EmrContainerOperator.execute_complete|as the key message no longer exists (#36417)``
+* ``handle tzinfo in S3Hook.is_keys_unchanged_async (#36363)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon ECS Operators/Sensors/Triggers (#36393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
+* ``Increase ConflictException retries to 4 total (#36337)``
+* ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'is_authorized_cluster_activity' from auth manager (#36175)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+* ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Support IAM authentication for Redshift serverless (#35897)``
+* ``Implement 'is_authorized_variable' in AWS auth manager (#35804)``
+* ``Enhance 'attribute_value' in 'DynamoDBValueSensor' to accept list (#35831)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix handling of single quotes in 'RedshiftToS3Operator' (#35986)``
+* ``Fix a bug in get_iam_token for Redshift Serverless (#36001)``
+* ``Fix reraise outside of try block in 'AthenaHook.get_output_location' (#36008)``
+* ``Fix a bug with accessing hooks in EKS trigger (#35989)``
+* ``Fix a bug in method name used in 'GlacierToGCSOperator' (#35978)``
+* ``Fix EC2Hook get_instance for client_type api (#35960)``
+* ``Avoid creating the hook in the EmrServerlessCancelJobsTrigger init (#35992)``
+* ``Stop getting message from event after migrating 'EmrContainerTrigger' to 'AwsBaseWaiterTrigger' (#35892)``
+* ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Update 'boto3' and 'botocore' versions notes (#36073)``
+* ``Improve typing hints for only_client_type decorator (#35997)``
+* ``Refactor some methods in EmrContainerHook (#35999)``
+* ``Refactor get_output_location in AthenaHook (#35996)``
+* ``Move RDS hook to a cached property in RDS trigger (#35990)``
+* ``Replace default empty dict value by None in AzureBlobStorageToS3Operator (#35977)``
+* ``Update 'set_context' signature to match superclass one and stop setting the instance attribute in CloudwatchTaskHandler (#35975)``
+* ``Use S3 hook instead of AwsGenericHook in AWS S3 FS (#35973)``
+* ``AWS auth manager: implement all 'is_authorized_*' methods (but 'is_authorized_dag') (#35928)``
+* ``Remove setting a non-existing object param and use local var instead in S3Hook (#35950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+   * ``Fix AWS system tests (#36091)``
+
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'EC2HibernateInstanceOperator' and 'EC2RebootInstanceOperator' (#35790)``
+* ``Add OpenLineage support to 'S3FileTransformOperator' (#35819)``
+* ``Add OpenLineage support to S3Operators - Copy, Delete and Create Object (#35796)``
+* ``Added retry strategy parameter to Amazon AWS provider Batch Operator to allow dynamic Batch retry strategies (#35789)``
+* ``Added name field to template_fields in EmrServerlessStartJobOperator (#35648)``
+* ``openlineage, aws: Add OpenLineage support for AthenaOperator. (#35090)``
+* ``Implement login and logout in AWS auth manager (#35488)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Batch operator's retry_strategy (#35808)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Make EksPodOperator exec config not rely on log level (#35771)``
+* ``Fix 'configuration_overrides' parameter in 'EmrServerlessStartJobOperator' (#35787)``
+
+Misc
+~~~~
+
+* ``Updated docstring: 'check_key_async' is now in line with description of '_check_key_async' (#35799)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Allow a wider range of watchtower versions (#35713)``
+* ``Extend task context logging support for remote logging using AWS S3 (#32950)``
+* ``Log failure reason for containers if a task fails for ECS Executor (#35496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Update http to s3 system test (#35711)``
+
 8.11.0
 ......
 

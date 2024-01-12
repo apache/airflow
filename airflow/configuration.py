@@ -62,10 +62,6 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-    # Temporarily suppress warnings from pydantic until we upgrade minimum version of pydantic to v2
-    # Which should happen in Airflow 2.8.0
-    warnings.filterwarnings(action="ignore", category=UserWarning, module=r"pydantic._internal._config")
-
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
@@ -1195,7 +1191,7 @@ class AirflowConfigParser(ConfigParser):
         try:
             return import_string(full_qualified_path)
         except ImportError as e:
-            log.error(e)
+            log.warning(e)
             raise AirflowConfigException(
                 f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{full_qualified_path}".'
@@ -1959,9 +1955,29 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    if not os.path.isfile(AIRFLOW_CONFIG):
-        log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+    airflow_config = pathlib.Path(AIRFLOW_CONFIG)
+    if airflow_config.is_dir():
+        msg = (
+            "Airflow config expected to be a path to the configuration file, "
+            f"but got a directory {airflow_config.__fspath__()!r}."
+        )
+        raise IsADirectoryError(msg)
+    elif not airflow_config.exists():
+        log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
+        config_directory = airflow_config.parent
+        if not config_directory.exists():
+            # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
+            try:
+                config_directory.relative_to(AIRFLOW_HOME)
+            except ValueError:
+                msg = (
+                    f"Config directory {config_directory.__fspath__()!r} not exists "
+                    f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
+                    "Please create this directory first."
+                )
+                raise FileNotFoundError(msg) from None
+            log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
+            config_directory.mkdir(parents=True, exist_ok=True)
         if conf.get("core", "fernet_key", fallback=None) is None:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
@@ -1969,7 +1985,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
-        with open(AIRFLOW_CONFIG, "w") as file:
+        with open(airflow_config, "w") as file:
             conf.write(
                 file,
                 include_sources=False,
@@ -1978,7 +1994,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(AIRFLOW_CONFIG)
+        make_group_other_inaccessible(airflow_config.__fspath__())
     return conf
 
 

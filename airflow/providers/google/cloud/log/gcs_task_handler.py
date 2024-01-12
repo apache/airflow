@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
-from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -46,18 +45,6 @@ _DEFAULT_SCOPESS = frozenset(
 )
 
 logger = logging.getLogger(__name__)
-
-
-def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
-
-    TODO: delete this function when min airflow version >= 2.6.
-    """
-    from airflow.version import version
-
-    if Version(version) < Version("2.6"):
-        return False
-    return conf.getboolean("logging", "delete_local_logs")
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -108,8 +95,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.scopes = gcp_scopes
         self.project_id = project_id
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
@@ -142,7 +129,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
-        if getattr(self, "supports_task_context_logging", False):
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
+        if getattr(super(), "supports_task_context_logging", False):
             super().set_context(ti, identifier=identifier)
         else:
             super().set_context(ti)
@@ -215,30 +204,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             messages.append(f"Unable to read remote log {e}")
         return messages, logs
-
-    def _read(self, ti, try_number, metadata=None):
-        """
-        Read logs of given task instance and try_number from GCS.
-
-        If failed, read the log from task instance host machine.
-
-        todo: when min airflow version >= 2.6, remove this method
-
-        :param ti: task instance object
-        :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
-        """
-        if hasattr(super(), "_read_remote_logs"):
-            # from Airflow 2.6, we don't implement the `_read` method.
-            # if parent has _read_remote_logs, we're >= 2.6
-            return super()._read(ti, try_number, metadata)
-
-        messages, logs = self._read_remote_logs(ti, try_number, metadata)
-        if not logs:
-            return super()._read(ti, try_number, metadata)
-
-        return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
 
     def gcs_write(self, log, remote_log_location) -> bool:
         """

@@ -36,8 +36,7 @@
 !licenses
 
 # Add those folders to the context so that they are available in the CI container
-!scripts/in_container
-!scripts/docker
+!scripts
 
 # Add tests and kubernetes_tests to context.
 !tests
@@ -49,7 +48,6 @@
 !.dockerignore
 !RELEASE_NOTES.rst
 !LICENSE
-!MANIFEST.in
 !NOTICE
 !.github
 !empty
@@ -69,8 +67,6 @@
 !.bash_completion.d
 
 # Setup/version configuration
-!setup.cfg
-!setup.py
 !pyproject.toml
 !manifests
 !generated

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pendulum
 import pytest
 
 from airflow.api_connexion.schemas.dag_schema import (
@@ -28,6 +29,8 @@ from airflow.api_connexion.schemas.dag_schema import (
 )
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
+
+UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
 def test_serialize_test_dag_schema(url_safe_serializer):
@@ -183,7 +186,8 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "schedule_interval": {"__type": "TimeDelta", "days": 1, "seconds": 0, "microseconds": 0},
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
-        "timezone": "Timezone('UTC')",
+        "template_searchpath": None,
+        "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "pickle_id": None,
         "end_date": None,

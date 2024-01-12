@@ -17,15 +17,16 @@
  under the License.
 #}
 {%- for provider in providers %}
-**{{ provider["name"] }}**
+{{ provider["name"] }}
+{{ header_separator * (provider['name']|length) }}
 
-.. list-table::F
+.. list-table::
    :header-rows: 1
 
    * - Modules
      - Operators
    {% for module, operator in provider["operators"] %}
    * - :mod:`{{ module }}`
-     - :mod:`{{ operator}}`
+     - :mod:`{{ operator }}`
    {% endfor %}
 {% endfor %}

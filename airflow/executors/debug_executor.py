@@ -74,7 +74,7 @@ class DebugExecutor(BaseExecutor):
             elif self._terminated.is_set():
                 self.log.info("Executor is terminated! Stopping %s to %s", ti.key, TaskInstanceState.FAILED)
                 ti.set_state(TaskInstanceState.FAILED)
-                self.change_state(ti.key, TaskInstanceState.FAILED)
+                self.fail(ti.key)
             else:
                 task_succeeded = self._run_task(ti)
 
@@ -84,11 +84,11 @@ class DebugExecutor(BaseExecutor):
         try:
             params = self.tasks_params.pop(ti.key, {})
             ti.run(job_id=ti.job_id, **params)
-            self.change_state(key, TaskInstanceState.SUCCESS)
+            self.success(key)
             return True
         except Exception as e:
             ti.set_state(TaskInstanceState.FAILED)
-            self.change_state(key, TaskInstanceState.FAILED)
+            self.fail(key)
             self.log.exception("Failed to execute task: %s.", e)
             return False
 

@@ -706,13 +706,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis: Iterator[TI] = with_row_locks(
+        tis_query: Query = with_row_locks(
             query,
             of=TI,
             session=session,
             **skip_locked(session=session),
         )
-        tis = session.scalars(tis)
+        tis: Iterator[TI] = session.scalars(tis_query)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -1577,15 +1577,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
         try:
-            tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(tis=tasks_stuck_in_queued)
-            if tis_for_warning_message:
-                task_instance_str = "\n\t".join(tis_for_warning_message)
-                self.log.warning(
-                    "Marked the following %s task instances stuck in queued as failed. "
-                    "If the task instance has available retries, it will be retried.\n\t%s",
-                    len(tasks_stuck_in_queued),
-                    task_instance_str,
-                )
+            cleaned_up_task_instances = self.job.executor.cleanup_stuck_queued_tasks(
+                tis=tasks_stuck_in_queued
+            )
+            cleaned_up_task_instances = set(cleaned_up_task_instances)
+            for ti in tasks_stuck_in_queued:
+                if repr(ti) in cleaned_up_task_instances:
+                    self._task_context_logger.warning(
+                        "Marking task instance %s stuck in queued as failed. "
+                        "If the task instance has available retries, it will be retried.",
+                        ti,
+                        ti=ti,
+                    )
         except NotImplementedError:
             self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
             ...
@@ -1711,6 +1714,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
+    # [START find_zombies]
     def _find_zombies(self) -> None:
         """
         Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
@@ -1762,6 +1766,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._task_context_logger.error(log_message, ti=ti)
             self.job.executor.send_callback(request)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+
+    # [END find_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
@@ -1827,9 +1833,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskOutletDatasetReference,
                 isouter=True,
             )
-            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
-            # group by id and select all columns.
-            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .group_by(DatasetModel.id)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

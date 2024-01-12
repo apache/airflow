@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
+from sqlalchemy.orm import joinedload
 
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -63,7 +64,11 @@ class DatasetManager(LoggingMixin):
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
-        dataset_model = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset.uri))
+        dataset_model = session.scalar(
+            select(DatasetModel)
+            .where(DatasetModel.uri == dataset.uri)
+            .options(joinedload(DatasetModel.consuming_dags))
+        )
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
             return

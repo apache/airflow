@@ -46,9 +46,9 @@ class AzureContainerRegistryHook(BaseHook):
     conn_type = "azure_container_registry"
     hook_name = "Azure Container Registry"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -84,8 +84,8 @@ class AzureContainerRegistryHook(BaseHook):
             },
         }
 
-    def __init__(self, conn_id: str = "azure_registry") -> None:
-        super().__init__()
+    def __init__(self, conn_id: str = "azure_registry", **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = conn_id
 
     def _get_field(self, extras, name):

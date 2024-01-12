@@ -85,7 +85,7 @@ Airflow main branch to being decommissioned and removed from the main branch in 
 
    Technical details on how to manage lifecycle of providers are described in the document:
 
-   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANGING_PROVIDERS_LIFECYCLE.rst>`_
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
 
 
 Accepting new community providers
@@ -144,8 +144,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.6.0 in the first Provider's release after 2nd of December 2023. The 2nd of December 2022 is the date when the
-first ``PATCHLEVEL`` of 2.5 (2.5.0) has been released.
+to 2.7.0 in the first Provider's release after 27th of April 2024. 27th of April 2023 is the date when the
+first ``PATCHLEVEL`` of 2.6 (2.6.0) has been released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -254,7 +254,7 @@ process can be suspended.
 
 This means:
 
-* The provider's status is set to "suspended"
+* The provider's state in ``provider.yaml`` is set to "suspended"
 * No new releases of the provider will be made until the problem with dependencies is solved
 * Sources of the provider remain in the repository for now (in the future we might add process to remove them)
 * No new changes will be accepted for the provider (other than the ones that fix the dependencies)

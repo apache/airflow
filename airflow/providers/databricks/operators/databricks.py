@@ -88,6 +88,19 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                             f"{operator.task_id} failed with terminal state: {run_state} "
                             f"and with the error {run_state.state_message}"
                         )
+                    if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
+                        operator.repair_run = False
+                        log.warning(
+                            "%s but since repair run is set, repairing the run with all failed tasks",
+                            error_message,
+                        )
+
+                        latest_repair_id = hook.get_latest_repair_id(operator.run_id)
+                        repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
+                        if latest_repair_id is not None:
+                            repair_json["latest_repair_id"] = latest_repair_id
+                        operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
+                        _handle_databricks_operator_execution(operator, hook, log, context)
                     raise AirflowException(error_message)
 
             else:
@@ -521,7 +534,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         ):
             # If pipeline_id is not provided, we need to fetch it from the pipeline_name
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
-            self.json["pipeline_task"]["pipeline_id"] = self._hook.get_pipeline_id(pipeline_name)
+            self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
@@ -580,26 +593,20 @@ class DatabricksRunNowOperator(BaseOperator):
     For example ::
 
         json = {
-          "job_id": 42,
-          "notebook_params": {
-            "dry-run": "true",
-            "oldest-time-to-consider": "1457570074236"
-          }
+            "job_id": 42,
+            "notebook_params": {"dry-run": "true", "oldest-time-to-consider": "1457570074236"},
         }
 
-        notebook_run = DatabricksRunNowOperator(task_id='notebook_run', json=json)
+        notebook_run = DatabricksRunNowOperator(task_id="notebook_run", json=json)
 
     Another way to accomplish the same thing is to use the named parameters
     of the ``DatabricksRunNowOperator`` directly. Note that there is exactly
     one named parameter for each top level parameter in the ``run-now``
     endpoint. In this method, your code would look like this: ::
 
-        job_id=42
+        job_id = 42
 
-        notebook_params = {
-            "dry-run": "true",
-            "oldest-time-to-consider": "1457570074236"
-        }
+        notebook_params = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 
         python_params = ["douglas adams", "42"]
 
@@ -612,7 +619,7 @@ class DatabricksRunNowOperator(BaseOperator):
             notebook_params=notebook_params,
             python_params=python_params,
             jar_params=jar_params,
-            spark_submit_params=spark_submit_params
+            spark_submit_params=spark_submit_params,
         )
 
     In the case where both the json parameter **AND** the named parameters
@@ -629,6 +636,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``jar_params``
         - ``spark_submit_params``
         - ``idempotency_token``
+        - ``repair_run``
 
     :param job_id: the job_id of the existing Databricks job.
         This field will be templated.
@@ -717,6 +725,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
+    :param repair_run: Repair the databricks run in case of failure, doesn't work in deferrable mode
     """
 
     # Used in airflow.models.BaseOperator
@@ -747,6 +756,7 @@ class DatabricksRunNowOperator(BaseOperator):
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        repair_run: bool = False,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -759,6 +769,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.repair_run = repair_run
 
         if job_id is not None:
             self.json["job_id"] = job_id

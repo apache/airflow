@@ -24,8 +24,6 @@ import shutil
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from packaging.version import Version
-
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -33,18 +31,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-
-
-def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
-
-    TODO: delete this function when min airflow version >= 2.6
-    """
-    from airflow.version import version
-
-    if Version(version) < Version("2.6"):
-        return False
-    return conf.getboolean("logging", "delete_local_logs")
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
@@ -66,8 +52,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self._hook = None
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
@@ -78,7 +64,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
-        if getattr(self, "supports_task_context_logging", False):
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
+        if getattr(super(), "supports_task_context_logging", False):
             super().set_context(ti, identifier=identifier)
         else:
             super().set_context(ti)
@@ -142,34 +130,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         else:
             messages.append(f"No logs found on s3 for ti={ti}")
         return messages, logs
-
-    def _read(self, ti, try_number, metadata=None):
-        """
-        Read logs of given task instance and try_number from S3 remote storage.
-
-        If failed, read the log from task instance host machine.
-
-        todo: when min airflow version >= 2.6 then remove this method (``_read``)
-
-        :param ti: task instance object
-        :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
-        """
-        # from airflow 2.6 we no longer implement the _read method
-        if hasattr(super(), "_read_remote_logs"):
-            return super()._read(ti, try_number, metadata)
-        # if we get here, we're on airflow < 2.6 and we use this backcompat logic
-        messages, logs = self._read_remote_logs(ti, try_number, metadata)
-        if logs:
-            return "".join(f"*** {x}\n" for x in messages) + "\n".join(logs), {"end_of_log": True}
-        else:
-            if metadata and metadata.get("log_pos", 0) > 0:
-                log_prefix = ""
-            else:
-                log_prefix = "*** Falling back to local log\n"
-            local_log, metadata = super()._read(ti, try_number, metadata)
-            return f"{log_prefix}{local_log}", metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """

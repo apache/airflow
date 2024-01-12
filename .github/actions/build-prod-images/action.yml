@@ -22,6 +22,9 @@ inputs:
   build-provider-packages:
     description: 'Whether to build provider packages from sources'
     required: true
+  chicken-egg-providers:
+    description: 'List of chicken-egg provider packages to build from sources'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -38,9 +41,18 @@ runs:
       shell: bash
       run: >
         breeze release-management prepare-provider-packages
-        --package-list-file ./airflow/providers/installed_providers.txt
+        --package-list-file ./dev/prod_image_installed_providers.txt
         --package-format wheel --version-suffix-for-pypi dev0
       if: ${{ inputs.build-provider-packages == 'true' }}
+    - name: "Prepare chicken-eggs provider packages"
+      # In case of provider packages which use latest dev0 version of providers, we should prepare them
+      # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+      # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+      shell: bash
+      run: >
+        breeze release-management prepare-provider-packages
+        --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
+      if: ${{ inputs.build-provider-packages != 'true' && inputs.chicken-egg-providers != '' }}
     - name: "Prepare airflow package"
       shell: bash
       run: >
@@ -54,6 +66,13 @@ runs:
       with:
         name: source-constraints
         path: ./docker-context-files
+      if: ${{ inputs.build-provider-packages == 'true' }}
+    - name: "Download constraints from the Generate & Verify build"
+      uses: actions/download-artifact@v3
+      with:
+        name: constraints
+        path: ./docker-context-files
+      if: ${{ inputs.build-provider-packages != 'true' }}
     - name: "Build & Push PROD images with source providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: >
@@ -72,7 +91,3 @@ runs:
       env:
         COMMIT_SHA: ${{ github.sha }}
       if: ${{ inputs.build-provider-packages != 'true' }}
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership
-      if: always()

@@ -111,7 +111,7 @@ class TestDebugExecutor:
         assert not executor.tasks_to_run
         change_state_mock.assert_has_calls(
             [
-                mock.call(ti1.key, State.FAILED),
+                mock.call(ti1.key, State.FAILED, None),
                 mock.call(ti2.key, State.UPSTREAM_FAILED),
             ]
         )
@@ -145,6 +145,6 @@ class TestDebugExecutor:
 
         change_state_mock.assert_has_calls(
             [
-                mock.call(ti1.key, State.FAILED),
+                mock.call(ti1.key, State.FAILED, None),
             ]
         )

@@ -759,6 +759,35 @@ class TestDatabricksSubmitRunOperator:
         assert RUN_ID == op.run_id
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_pipeline_name(self, db_mock_class):
+        """
+        Test the execute function when provided a pipeline name.
+        """
+        run = {"pipeline_task": {"pipeline_name": "This is a test pipeline"}}
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.find_pipeline_id_by_name.return_value = PIPELINE_ID_TASK["pipeline_id"]
+        db_mock.submit_run.return_value = 1
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksSubmitRunOperator",
+        )
+        db_mock.find_pipeline_id_by_name.assert_called_once_with("This is a test pipeline")
+
+        db_mock.submit_run.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_called_once_with(RUN_ID)
+        assert RUN_ID == op.run_id
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure(self, db_mock_class):
         """
         Test the execute function in case where the run failed.

@@ -103,6 +103,32 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    def test_with_requirements_file(self, dag_maker, tmp_path):
+        requirements_file = tmp_path / "requirements.txt"
+        requirements_file.write_text("funcsigs==0.4\nattrs==23.1.0")
+
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements="requirements.txt",
+            python_version=PYTHON_VERSION,
+            use_dill=True,
+        )
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise Exception
+
+            import attrs
+
+            if attrs.__version__ != "23.1.0":
+                raise Exception
+
+        with dag_maker(template_searchpath=tmp_path.as_posix()):
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_unpinned_requirements(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,

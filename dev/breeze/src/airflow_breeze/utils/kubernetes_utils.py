@@ -32,7 +32,13 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
-from airflow_breeze.global_constants import ALLOWED_ARCHITECTURES, HELM_VERSION, KIND_VERSION, PIP_VERSION
+from airflow_breeze.global_constants import (
+    ALLOWED_ARCHITECTURES,
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    HELM_VERSION,
+    KIND_VERSION,
+    PIP_VERSION,
+)
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
@@ -293,7 +299,6 @@ def _install_packages_in_k8s_virtualenv():
         str(K8S_REQUIREMENTS.resolve()),
     ]
     env = os.environ.copy()
-    env["INSTALL_PROVIDERS_FROM_SOURCES"] = "true"
     capture_output = True
     if get_verbose():
         capture_output = False
@@ -330,6 +335,26 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
         get_console().print(f"[info]Dry run - would be removing {K8S_ENV_PATH}")
     else:
         shutil.rmtree(K8S_ENV_PATH, ignore_errors=True)
+    max_python_version = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]
+    max_python_version_tuple = tuple(int(x) for x in max_python_version.split("."))
+    higher_python_version_tuple = max_python_version_tuple[0], max_python_version_tuple[1] + 1
+    if sys.version_info >= higher_python_version_tuple:
+        get_console().print(
+            f"[red]This is not supported in Python {higher_python_version_tuple} and above[/]\n"
+        )
+        get_console().print(f"[warning]Please use Python version before {higher_python_version_tuple}[/]\n")
+        get_console().print(
+            "[info]You can uninstall breeze and install it again with earlier Python "
+            "version. For example:[/]\n"
+        )
+        get_console().print("pipx uninstall apache-airflow-breeze")
+        get_console().print("pipx install --python PYTHON_PATH -e ./dev/breeze\n")
+        get_console().print(
+            f"[info]PYTHON_PATH - path to your Python binary(< {higher_python_version_tuple})[/]\n"
+        )
+        get_console().print("[info]Then recreate your k8s virtualenv with:[/]\n")
+        get_console().print("breeze k8s setup-env --force-venv-setup\n")
+        sys.exit(1)
     venv_command_result = run_command(
         [sys.executable, "-m", "venv", str(K8S_ENV_PATH)],
         check=False,
@@ -365,7 +390,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
 
 
 def run_command_with_k8s_env(
-    cmd: list[str],
+    cmd: list[str] | str,
     python: str,
     kubernetes_version: str,
     executor: str | None = None,

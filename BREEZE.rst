@@ -93,6 +93,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - 5. In some cases you might make sure that "Allow the default Docker socket to
   be used" in "Advanced" tab of "Docker Desktop" settings is checked
 
+
 .. raw:: html
 
    <div align="center">
@@ -175,14 +176,13 @@ The pipx tool
 We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
-Note that ``pipx`` >= 1.2.1 is needed in order to deal with breaking ``packaging`` release in September
-2023 that broke earlier versions of ``pipx``.
+Note that ``pipx`` >= 1.4.1 is used.
 
 Install pipx
 
 .. code-block:: bash
 
-    pip install --user "pipx>=1.2.1"
+    pip install --user "pipx>=1.4.1"
 
 Breeze, is not globally accessible until your PATH is updated. Add <USER FOLDER>\.local\bin as a variable
 environments. This can be done automatically by the following command (follow instructions printed).
@@ -338,6 +338,15 @@ that Breeze works on
 
             pipx install --force -e dev\breeze
 
+    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
+
+        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -449,8 +458,13 @@ The choices you make are persisted in the ``./.build/`` cache directory so that 
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
+You can also run breeze with ``SKIP_SAVING_CHOICES`` to non-empty value and breeze invocation will not save
+used cache value to cache - this is useful when you run non-interactive scripts with ``breeze shell`` and
+want to - for example - force Python version used only for that execution without changing the Python version
+that user used last time.
+
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
-in the help of the commands.
+in the help of the commands (for example in output of ``breeze config --help``).
 
 Building the documentation
 --------------------------
@@ -989,7 +1003,7 @@ Running single test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class:
 
@@ -1555,7 +1569,7 @@ The CI image is built automatically as needed, however it can be rebuilt manuall
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
+However, changes to sensitive files like ``pyproject.toml`` or ``Dockerfile.ci`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 Breeze has built in mechanism to check if your local image has not diverged too much from the
@@ -1626,7 +1640,7 @@ but here typical examples are presented:
 
 .. code-block:: bash
 
-     breeze prod-image build --additional-extras "jira"
+     breeze prod-image build --additional-airflow-extras "jira"
 
 This installs additional ``jira`` extra while installing airflow in the image.
 
@@ -1793,7 +1807,7 @@ check if there are any images that need regeneration.
   :alt: Breeze setup regenerate-command-images
 
 Breeze check-all-params-in-groups
-...................
+.................................
 
 When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
 for the command is present and that all parameters are assigned to the right group so they can be
@@ -1804,6 +1818,17 @@ nicely presented in ``--help`` output. You can check that via ``check-all-params
   :width: 100%
   :alt: Breeze setup check-all-params-in-group
 
+Breeze synchronize-local-mounts
+...............................
+
+When you add volumes mounted to docker, they need to be added in ``docker_command_utils.py`` - so that they
+are added by plain ``docker`` command, but they also need to be synchronized with ``local.yml``. This can be
+done via ``synchronize-local-mounts`` command.
+
+.. image:: ./images/breeze/output_setup_synchronize-local-mounts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_synchronize-local-mounts.svg
+  :width: 100%
+  :alt: Breeze setup synchronize-local-mounts
 
 CI tasks
 --------
@@ -1954,6 +1979,30 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-package
+
+
+Preparing airflow tarball
+"""""""""""""""""""""""""
+
+You can prepare airflow source tarball using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball
+
+This prepares airflow -source.tar.gz package in the dist folder.
+
+You must specify ``--version`` flag which is a pre-release version of Airflow you are preparing the
+tarball for.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+
+.. image:: ./images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-tarball
 
 
 Start minor branch of Airflow
@@ -2274,7 +2323,7 @@ These are all available flags of ``release-management add-back-references`` comm
 Generating constraints
 """"""""""""""""""""""
 
-Whenever setup.py gets modified, the CI main job will re-generate constraint files. Those constraint
+Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
@@ -2316,14 +2365,14 @@ These are all available flags of ``generate-constraints`` command:
   :width: 100%
   :alt: Breeze generate-constraints
 
-In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
+In case someone modifies ``pyproject.toml``, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
 the procedure described in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
-This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
-and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
+This bumps the constraint files to latest versions and stores hash of ``pyproject.toml``. The generated constraint
+and ``pyproject.toml`` hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
 Updating constraints
@@ -2342,6 +2391,22 @@ These are all available flags of ``update-constraints`` command:
 You can read more details about what happens when you update constraints in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
+
+Cleaning up of old providers
+""""""""""""""""""""""""""""
+
+During the provider releases, we need to clean up the older provider versions in the SVN release folder.
+Earlier this was done using a script, but now it is being migrated to a breeze command to ease the life of
+release managers for providers. This can be achieved using ``breeze release-management clean-old-provider-artifacts``
+command.
+
+
+These are all available flags of ``clean-old-provider-artifacts`` command:
+
+.. image:: ./images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+  :width: 100%
+  :alt: Breeze Clean Old Provider Artifacts
 
 SBOM generation tasks
 ----------------------
@@ -2656,17 +2721,17 @@ disappear when you exit Breeze shell.
 
 When you want to add dependencies permanently, then it depends what kind of dependency you add.
 
-If you want to add core dependency that should always be installed - you need to add it to ``setup.cfg``
-to ``install_requires`` section. If you want to add it to one of the optional core extras, you should
-add it in the extra definition in ``setup.py`` (you need to find out where it is defined). If you want
-to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
+If you want to add core dependency that should always be installed - you need to add it to ``pyproject.toml``
+to ``dependencies`` section. If you want to add it to one of the optional core extras, you should
+add it in the extra definition in ``pyproject.toml`` (you need to find out where it is defined).
+If you want to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
 directory - but remember that this should be followed by running pre-commit that will automatically update
-the ``generated/provider_dependencies.json`` directory with the new dependencies:
+the ``pyproject.toml`` with the new dependencies as the ``provider.yaml`` files are not used directly, they
+are used to update ``pyproject.toml`` file:
 
 .. code-block:: bash
 
     pre-commit run update-providers-dependencies  --all-files
-
 
 You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
 command - which provides autocomplete.
@@ -2790,7 +2855,7 @@ make sure to follow these steps:
 * choose ``module`` to run and set it to ``airflow_breeze.breeze`` - this is the entrypoint of breeze
 * add parameters you want to run breeze with (for example ``ci-image build`` if you want to debug
   how breeze builds the CI image
-* set ``SKIP_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
+* set ``SKIP_BREEZE_SELF_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for

@@ -55,7 +55,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -78,6 +78,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
                 "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
@@ -104,6 +105,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test environment",
             "options": [
                 "--python",
+                "--forward-credentials",
             ],
         },
         {
@@ -124,6 +126,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
                 "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
@@ -153,7 +156,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -174,6 +177,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
                 "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
@@ -197,7 +201,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {

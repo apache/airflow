@@ -65,9 +65,9 @@ class AzureDataLakeHook(BaseHook):
     conn_type = "azure_data_lake"
     hook_name = "Azure Data Lake"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -80,8 +80,8 @@ class AzureDataLakeHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -97,8 +97,8 @@ class AzureDataLakeHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_data_lake_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_data_lake_conn_id
         self._conn: core.AzureDLFileSystem | None = None
         self.account_name: str | None = None
@@ -311,8 +311,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             },
         }
 
-    def __init__(self, adls_conn_id: str, public_read: bool = False) -> None:
-        super().__init__()
+    def __init__(self, adls_conn_id: str, public_read: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = adls_conn_id
         self.public_read = public_read
 

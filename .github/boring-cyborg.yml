@@ -118,11 +118,6 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/spark/**/*
     - tests/system/providers/apache/spark/**/*
 
-  provider:apache-sqoop:
-    - airflow/providers/apache/sqoop/**/*
-    - docs/apache-airflow-providers-apache-sqoop/**/*
-    - tests/providers/apache/sqoop/**/*
-
   provider:apprise:
     - airflow/providers/apprise/**/*
     - docs/apache-airflow-providers-apprise/**/*
@@ -183,11 +178,6 @@ labelPRBasedOnFilePath:
     - tests/providers/common/sql/**/*
     - tests/system/providers/common/sql/**/*
 
-  provider:daskexecutor:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
-
   provider:databricks:
     - airflow/providers/databricks/**/*
     - docs/apache-airflow-providers-databricks/**/*
@@ -195,9 +185,9 @@ labelPRBasedOnFilePath:
     - tests/system/providers/databricks/**/*
 
   provider:datadog:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
+    - airflow/providers/datadog/**/*
+    - docs/apache-airflow-providers-datadog/**/*
+    - tests/providers/datadog/**/*
 
   provider:dbt-cloud:
     - airflow/providers/dbt/cloud/**/*
@@ -232,6 +222,11 @@ labelPRBasedOnFilePath:
     - airflow/providers/exasol/**/*
     - docs/apache-airflow-providers-exasol/**/*
     - tests/providers/exasol/**/*
+
+  provider:fab:
+    - airflow/providers/fab/**/*
+    - docs/apache-airflow-providers-fab/**/*
+    - tests/providers/fab/**/*
 
   provider:facebook:
     - airflow/providers/facebook/**/*
@@ -395,12 +390,6 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-pinecone/**/*
     - tests/providers/pinecone/**/*
     - tests/system/providers/pinecone/**/*
-
-  provider:plexus:
-    - airflow/providers/plexus/**/*
-    - docs/apache-airflow-providers-plexus/**/*
-    - tests/providers/plexus/**/*
-    - tests/system/providers/plexus/**/*
 
   provider:postgres:
     - airflow/providers/postgres/**/*

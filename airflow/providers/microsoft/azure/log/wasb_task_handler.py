@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
-from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -34,18 +33,6 @@ if TYPE_CHECKING:
     import logging
 
     from airflow.models.taskinstance import TaskInstance
-
-
-def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
-
-    TODO: delete this function when min airflow version >= 2.6
-    """
-    from airflow.version import version
-
-    if Version(version) < Version("2.6"):
-        return False
-    return conf.getboolean("logging", "delete_local_logs")
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
@@ -73,8 +60,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = ""
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
@@ -96,7 +83,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             return None
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
-        if getattr(self, "supports_task_context_logging", False):
+        # todo: remove-at-min-airflow-version-2.8
+        #   after Airflow 2.8 can always pass `identifier`
+        if getattr(super(), "supports_task_context_logging", False):
             super().set_context(ti, identifier=identifier)
         else:
             super().set_context(ti)

@@ -386,7 +386,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
 
@@ -471,6 +471,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     raise AirflowException(error_msg) from None
                 else:
                     raise
+
+            if 0 in self.skip_on_exit_code:
+                raise AirflowSkipException("Process exited with code 0. Skipping.")
 
             return self._read_result(output_path)
 

@@ -443,9 +443,15 @@ def check_async_run_results(
     try:
         if errors:
             get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
             sys.exit(1)
         else:
             get_console().print(f"\n[success]{success}[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
     finally:
         if not skip_cleanup:
             for output in outputs:

@@ -85,7 +85,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -147,6 +147,7 @@ if TYPE_CHECKING:
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
+    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -382,7 +383,7 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(task_instance, context, task_orig):
+def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -400,7 +401,8 @@ def _execute_task(task_instance, context, task_orig):
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
-    execute_callable_kwargs = {}
+    execute_callable_kwargs: dict[str, Any] = {}
+    execute_callable: Callable
     if task_instance.next_method:
         if task_instance.next_method:
             execute_callable = task_to_execute.resume_execution
@@ -413,7 +415,7 @@ def _execute_task(task_instance, context, task_orig):
     if task_to_execute.execution_timeout:
         # If we are coming in with a next_method (i.e. from a deferral),
         # calculate the timeout from our start_date.
-        if task_instance.next_method:
+        if task_instance.next_method and task_instance.start_date:
             timeout_seconds = (
                 task_to_execute.execution_timeout - (timezone.utcnow() - task_instance.start_date)
             ).total_seconds()
@@ -543,7 +545,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
 
 def _get_template_context(
     *,
-    task_instance,
+    task_instance: TaskInstance | TaskInstancePydantic,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
@@ -575,7 +577,7 @@ def _get_template_context(
 
     validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
-    logical_date = timezone.coerce_datetime(task_instance.execution_date)
+    logical_date: DateTime = timezone.coerce_datetime(task_instance.execution_date)
     ds = logical_date.strftime("%Y-%m-%d")
     ds_nodash = ds.replace("-", "")
     ts = logical_date.isoformat()
@@ -682,7 +684,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[DatasetEvent]]:
+    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -694,9 +696,10 @@ def _get_template_context(
             dag_run = session.merge(dag_run, load=False)
 
         dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent]] = defaultdict(list)
+        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
         for event in dataset_events:
-            triggering_events[event.dataset.uri].append(event)
+            if event.dataset:
+                triggering_events[event.dataset.uri].append(event)
 
         return triggering_events
 
@@ -1260,9 +1263,7 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint(
-            "dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -2284,6 +2285,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
+        raise_on_defer: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskReturnCode | None:
         """
@@ -2338,6 +2340,8 @@ class TaskInstance(Base, LoggingMixin):
             except TaskDeferred as defer:
                 # The task has signalled it wants to defer execution based on
                 # a trigger.
+                if raise_on_defer:
+                    raise
                 self._defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
@@ -2429,7 +2433,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-    def _execute_task_with_callbacks(self, context, test_mode: bool = False, *, session: Session):
+    def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -2455,7 +2459,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration", tags=self.stats_tags):
+        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
+            "task.duration", tags=self.stats_tags
+        ):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
@@ -2606,7 +2612,11 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _handle_reschedule(
-        self, actual_start_date, reschedule_exception, test_mode=False, session=NEW_SESSION
+        self,
+        actual_start_date: datetime,
+        reschedule_exception: AirflowRescheduleException,
+        test_mode: bool = False,
+        session: Session = NEW_SESSION,
     ):
         # Don't record reschedule request in test mode
         if test_mode:
@@ -2851,7 +2861,7 @@ class TaskInstance(Base, LoggingMixin):
                 "rendering of template_fields."
             ) from e
 
-    def overwrite_params_with_dag_run_conf(self, params, dag_run):
+    def overwrite_params_with_dag_run_conf(self, params: dict, dag_run: DagRun):
         """Overwrite Task Params with DagRun.conf."""
         if dag_run and dag_run.conf:
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
@@ -3083,7 +3093,7 @@ class TaskInstance(Base, LoggingMixin):
         return LazyXComAccess.build_from_xcom_query(query)
 
     @provide_session
-    def get_num_running_task_instances(self, session: Session, same_dagrun=False) -> int:
+    def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """Return Number of running TIs from the DB."""
         # .count() is inefficient
         num_running_task_instances_query = session.query(func.count()).filter(
@@ -3316,18 +3326,22 @@ class TaskInstance(Base, LoggingMixin):
             def this_task(v):  # This is self.task.
                 return v * 2
 
+
             @task_group
             def tg1(inp):
                 val = upstream(inp)  # This is the upstream task.
                 this_task(val)  # When inp is 1, val here should resolve to 2.
                 return val
 
+
             # This val is the same object returned by tg1.
             val = tg1.expand(inp=[1, 2, 3])
+
 
             @task_group
             def tg2(inp):
                 another_task(inp, val)  # val here should resolve to [2, 4, 6].
+
 
             tg2.expand(inp=["a", "b"])
 
@@ -3377,7 +3391,7 @@ class TaskInstance(Base, LoggingMixin):
         map_index_start = ancestor_map_index * further_count
         return range(map_index_start, map_index_start + further_count)
 
-    def clear_db_references(self, session):
+    def clear_db_references(self, session: Session):
         """
         Clear db tables that have a reference to this instance.
 
@@ -3387,7 +3401,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
+        tables: list[type[TaskInstanceDependencies]] = [
+            TaskFail,
+            TaskInstanceNote,
+            TaskReschedule,
+            XCom,
+            RenderedTaskInstanceFields,
+            TaskMap,
+        ]
         for table in tables:
             session.execute(
                 delete(table).where(
@@ -3522,7 +3543,7 @@ class SimpleTaskInstance:
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
-class TaskInstanceNote(Base):
+class TaskInstanceNote(TaskInstanceDependencies):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
@@ -3539,9 +3560,7 @@ class TaskInstanceNote(Base):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
-        PrimaryKeyConstraint(
-            "task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
             (dag_id, task_id, run_id, map_index),
             [

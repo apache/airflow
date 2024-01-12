@@ -478,7 +478,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
         def assert_expected_result(expected_entries, key=None):
             response = self.client.get(
-                "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries" f"{('?xcom_key='+key )}",
+                f"/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries?xcom_key={key}",
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
