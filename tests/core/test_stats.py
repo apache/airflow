@@ -313,7 +313,7 @@ class TestStatsAllowAndBlockLists:
         "match_pattern, expect_incr",
         [
             ("^stat", True),
-            ("s.{6}o", True),
+            ("a.{4}o", True),
             ("^banana", False),
         ],
     )
