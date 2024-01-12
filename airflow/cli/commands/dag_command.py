@@ -385,7 +385,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
         output=args.output,
-        mapper=get_dag_detail,
+        mapper=get_dag_detail,  # type: ignore[arg-type]
     )
 
 
