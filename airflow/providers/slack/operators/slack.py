@@ -22,6 +22,8 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from typing_extensions import Literal
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -29,13 +31,15 @@ from airflow.providers.slack.hooks.slack import SlackHook
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
 
+    from airflow.utils.context import Context
+
 
 class SlackAPIOperator(BaseOperator):
     """Base Slack Operator class.
 
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
         which its password is Slack API token.
-    :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
+    :param method: The Slack API Method to Call (https://api.slack.com/methods).
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
     :param timeout: The maximum number of seconds the client will wait to connect
         and receive a response from Slack. Optional
@@ -48,7 +52,7 @@ class SlackAPIOperator(BaseOperator):
         self,
         *,
         slack_conn_id: str = SlackHook.default_conn_name,
-        method: str | None = None,
+        method: str,
         api_params: dict | None = None,
         base_url: str | None = None,
         proxy: str | None = None,
@@ -90,7 +94,7 @@ class SlackAPIOperator(BaseOperator):
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
         )
 
-    def execute(self, **kwargs):
+    def execute(self, context: Context):
         if not self.api_params:
             self.construct_api_call_params()
         self.hook.call(self.method, json=self.api_params)
@@ -191,7 +195,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
-    :param channel: (deprecated) channel in which to sent file on slack name
+    :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     """
 
     template_fields: Sequence[str] = (
@@ -212,10 +216,10 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
-        channel: str | None = None,
+        method_version: Literal["v1", "v2"] = "v1",
         **kwargs,
     ) -> None:
-        if channel:
+        if channel := kwargs.pop("channel", None):
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
@@ -232,10 +236,17 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filetype = filetype
         self.content = content
         self.title = title
+        self.method_version = method_version
         super().__init__(method="files.upload", **kwargs)
 
-    def execute(self, **kwargs):
-        self.hook.send_file(
+    @property
+    def _method_resolver(self):
+        if self.method_version == "v1":
+            return self.hook.send_file
+        return self.hook.send_file_v1_to_v2
+
+    def execute(self, context: Context):
+        self._method_resolver(
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
