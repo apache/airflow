@@ -409,7 +409,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict | None:
+    def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         if dag_model:
             dag_detail = dag_schema.dump(dag_model)
@@ -420,7 +420,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
         output=args.output,
-        mapper=get_dag_detail,  # type: ignore[arg-type]
+        mapper=get_dag_detail,
     )
 
 
