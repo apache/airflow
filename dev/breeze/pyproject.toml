@@ -78,7 +78,7 @@ name = "airflow_breeze"
 
 [tool.black]
 line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311', 'py312']
 
 [tool.pytest.ini_options]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"

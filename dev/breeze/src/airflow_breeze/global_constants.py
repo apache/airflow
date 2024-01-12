@@ -42,7 +42,7 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
@@ -193,7 +193,7 @@ ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 
 def get_default_platform_machine() -> str:
@@ -219,7 +219,7 @@ SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -267,6 +267,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.3": ["3.8", "3.9", "3.10", "3.11"],
+    "2.8.0": ["3.8", "3.9", "3.10", "3.11"],
 }
 
 DB_RESET = False
