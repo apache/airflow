@@ -946,8 +946,8 @@ metrics:
   options:
     metrics_use_pattern_match:
       description: |
-        If true, metrics_allow_list and metrics_block_list will use regex pattern matching in the metric
-        name and not just start of the name.
+        If true, metrics_allow_list and metrics_block_list will use regex pattern matching anywhere within the metric
+        name instead of only prefix matching at the start of the name.
       version_added: 2.7.4
       type: boolean
       example: ~
