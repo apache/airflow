@@ -1342,7 +1342,7 @@
 <g id="edge41" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1166.1,-776.37C1196.72,-770.7 1228.55,-765.52 1258.36,-761.38"/>
-<text text-anchor="start" x="1248.36" y="-750.18" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1227.36" y="-750.18" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1166.1" y="-765.17" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
@@ -1363,7 +1363,7 @@
 <g id="edge44" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1166.1,-816.29C1196.72,-811.66 1228.55,-806.13 1258.36,-800.24"/>
-<text text-anchor="start" x="1227.36" y="-804.04" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1248.36" y="-804.04" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1166.1" y="-820.09" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- rendered_task_instance_fields -->

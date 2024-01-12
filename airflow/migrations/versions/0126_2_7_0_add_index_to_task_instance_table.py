@@ -43,7 +43,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Add index to task_instance table"""
-    # At 2.9 we removed this index as it is not used, and changed this migration not to add it
+    # At 2.8.1 we removed this index as it is not used, and changed this migration not to add it
     # So we use drop if exists (cus it might not be there)
     import sqlalchemy
     from contextlib import suppress
