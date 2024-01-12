@@ -67,8 +67,12 @@ class DatasetModel(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
     is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
 
-    consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
-    producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")
+    consuming_dags = relationship(
+        "DagScheduleDatasetReference", back_populates="dataset", cascade="all, delete, delete-orphan"
+    )
+    producing_tasks = relationship(
+        "TaskOutletDatasetReference", back_populates="dataset", cascade="all, delete, delete-orphan"
+    )
 
     __tablename__ = "dataset"
     __table_args__ = (

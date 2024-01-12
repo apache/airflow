@@ -38,12 +38,14 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
+
     create_user(
         app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -79,6 +81,55 @@ class TestDatasetEndpoint:
         session.add(dataset_model)
         session.commit()
         return dataset_model
+
+
+class TestDeleteDatasetEndpoint(TestDatasetEndpoint):
+    def test_delete_should_respond_204(self, session):
+        dataset_model = DatasetModel(
+            id=1,
+            uri="s3://bucket/key",
+            extra={"foo": "bar"},
+            created_at=timezone.parse(self.default_time),
+            updated_at=timezone.parse(self.default_time),
+        )
+
+        session.add(dataset_model)
+        session.commit()
+        datasets = session.query(DatasetModel).all()
+        assert len(datasets) == 1
+        response = self.client.delete(
+            f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 204
+        datasets = session.query(DatasetModel).all()
+        assert len(datasets) == 0
+
+    def test_delete_should_respond_404(self):
+        response = self.client.delete(
+            f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert {
+            "detail": "The Dataset with uri: `s3://bucket/key` was not found",
+            "status": 404,
+            "title": "Dataset not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_delete_should_raises_401_unauthenticated(self):
+        response = self.client.delete(f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}")
+
+        assert_401(response)
+
+    def test_delete_should_raise_403_forbidden(self):
+        response = self.client.delete(
+            f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):

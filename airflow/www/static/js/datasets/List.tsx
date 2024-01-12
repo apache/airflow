@@ -38,7 +38,7 @@ import { MdClose, MdSearch } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import { useDatasets } from "src/api";
-import { Table, TimeCell } from "src/components/Table";
+import { DatasetActionCell, Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
 import type { DateOption } from "src/api/useDatasets";
@@ -118,6 +118,11 @@ const DatasetsList = ({ onSelect }: Props) => {
         Header: "Last Update",
         accessor: "lastDatasetUpdate",
         Cell: TimeCell,
+      },
+      {
+        Header: "Actions",
+        accessor: "actions",
+        Cell: DatasetActionCell,
       },
     ],
     []

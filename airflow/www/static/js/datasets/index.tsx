@@ -68,6 +68,7 @@ const Datasets = () => {
       alignItems="flex-start"
       justifyContent="space-between"
       ref={contentRef}
+      gap={4}
     >
       <Box minWidth="450px" height={height} overflowY="auto">
         {datasetUri ? (

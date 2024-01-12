@@ -31,6 +31,8 @@ import {
   ModalOverlay,
   ModalBody,
   ModalHeader,
+  IconButton,
+  useToast,
 } from "@chakra-ui/react";
 
 import { Table } from "src/components/Table";
@@ -38,6 +40,8 @@ import Time from "src/components/Time";
 import { getMetaValue } from "src/utils";
 import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
+import { FiTrash2 } from "react-icons/fi";
+import { useDeleteDataset } from "src/api";
 
 interface CellProps {
   cell: {
@@ -171,3 +175,38 @@ export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
 
 export const CodeCell = ({ cell: { value } }: CellProps) =>
   value ? <Code>{JSON.stringify(value)}</Code> : null;
+
+export const DatasetActionCell = ({ cell: { value, row } }: CellProps) => {
+  const {
+    mutateAsync: apiCallToDeleteDataset,
+    isLoading: deleteDatasetIsLoading,
+  } = useDeleteDataset(row.original);
+
+  const toast = useToast();
+
+  return (
+    <Flex alignItems="center" justifyContent="center">
+      <IconButton
+        icon={<FiTrash2 />}
+        aria-label="Delete"
+        variant="outline"
+        title="Delete"
+        colorScheme="red"
+        isLoading={deleteDatasetIsLoading}
+        onClick={(e) => {
+          toast.promise(apiCallToDeleteDataset(), {
+            success: { title: "Dataset deleted" },
+            error: {
+              duration: 0,
+              render: () => {
+                return null; // will use errorToast util in mutation
+              },
+            },
+            loading: { title: "Deleting..." },
+          });
+          e.stopPropagation();
+        }}
+      />
+    </Flex>
+  );
+};

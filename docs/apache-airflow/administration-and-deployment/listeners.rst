@@ -55,6 +55,7 @@ Dataset Events
 
 - ``on_dataset_created``
 - ``on_dataset_changed``
+- ``on_dataset_deleted``
 
 Dataset events occur when Dataset management operations are run.
 
