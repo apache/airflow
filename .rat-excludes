@@ -132,6 +132,8 @@ scripts/*
 images/*
 dev/*
 chart/*.iml
+out/*
+airflow-build-dockerfile*
 
 # Sha files
 .*sha256

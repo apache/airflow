@@ -16,37 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add index to task_instance table
+"""Drop unused TI index
 
-Revision ID: 937cbd173ca1
-Revises: c804e5c76e3e
-Create Date: 2023-05-03 11:31:32.527362
+Revision ID: 88344c1d9134
+Revises: 10b52ebd31f7
+Create Date: 2024-01-11 11:54:48.232030
 
 """
-from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
 
+
 # revision identifiers, used by Alembic.
-revision = "937cbd173ca1"
-down_revision = "c804e5c76e3e"
+revision = "88344c1d9134"
+down_revision = "10b52ebd31f7"
 branch_labels = None
 depends_on = None
-airflow_version = "2.7.0"
+airflow_version = "2.8.1"
 
 
 def upgrade():
-    """Apply Add index to task_instance table"""
-    # We don't add this index anymore because it's not useful.
-    pass
-
-
-def downgrade():
-    """Unapply Add index to task_instance table"""
-    # At 2.8.1 we removed this index as it is not used, and changed this migration not to add it
-    # So we use drop if exists (cus it might not be there)
+    """Apply refactor dag run indexes"""
+    # This index may have been created in 2.7 but we've since removed it from migrations
     import sqlalchemy
     from contextlib import suppress
 
     with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
         op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
+
+
+def downgrade():
+    """Unapply refactor dag run indexes"""
