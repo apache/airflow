@@ -174,7 +174,7 @@ def test_get_package_extras():
         "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
         "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
         "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-        "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
+        "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.14.0"],
         "common.sql": ["apache-airflow-providers-common-sql"],
         "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
         "leveldb": ["plyvel"],

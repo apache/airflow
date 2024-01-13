@@ -27,9 +27,8 @@ import pytest
 from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.triggers.base import TriggerEvent
 
 TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
@@ -61,17 +60,6 @@ EXC_MSG = "test error msg"
 
 @pytest.fixture
 def trigger():
-    # This is a workaround for `is_generic_callbacks_supported` check.
-    # TODO: Remove this workaround after releasing cncf.kubernetes=7.14.0
-    import importlib
-
-    from airflow.providers.google.cloud.triggers import kubernetes_engine
-
-    mock.patch("packaging.version.parse", mock.MagicMock(return_value=1)).start()
-    importlib.reload(kubernetes_engine)
-
-    from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEStartPodTrigger
-
     return GKEStartPodTrigger(
         pod_name=POD_NAME,
         pod_namespace=NAMESPACE,
@@ -113,7 +101,7 @@ class TestGKEStartPodTrigger:
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": SHOULD_DELETE_POD,
-            "callbacks": KubernetesPodOperatorCallback,
+            "callbacks": None,
         }
 
     @pytest.mark.asyncio
@@ -246,11 +234,7 @@ class TestGKEStartPodTrigger:
         """
         Test that GKEStartPodTrigger fires the correct event in case if the task was cancelled.
         """
-
-        async def async_mock():
-            return mock.MagicMock()
-
-        mock_hook.get_pod.side_effect = [CancelledError(), async_mock()]
+        mock_hook.get_pod.side_effect = CancelledError()
         mock_hook.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 
