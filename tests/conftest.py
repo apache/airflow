@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
-from _pytest.recwarn import WarningsRecorder
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -1148,7 +1147,9 @@ def close_all_sqlalchemy_sessions():
 
 captured_warnings: dict[tuple[str, int, type[Warning], str], warnings.WarningMessage] = {}
 captured_warnings_count: dict[tuple[str, int, type[Warning], str], int] = {}
-warnings_recorder = WarningsRecorder()
+# By set ``_ispytest=True`` in WarningsRecorder we suppress annoying warnings:
+# PytestDeprecationWarning: A private pytest class or function was used.
+warnings_recorder = pytest.WarningsRecorder(_ispytest=True)
 default_formatwarning = warnings_recorder._module.formatwarning  # type: ignore[attr-defined]
 default_showwarning = warnings_recorder._module.showwarning  # type: ignore[attr-defined]
 
