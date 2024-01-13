@@ -26,21 +26,30 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
     console,
     initialize_breeze_precommit,
-    pre_process_files,
     run_command_via_breeze_shell,
 )
 
 initialize_breeze_precommit(__name__, __file__)
 
-files_to_test = pre_process_files(sys.argv[1:])
-if files_to_test == ["--namespace-packages"] or files_to_test == []:
-    print("No files to tests. Quitting")
-    sys.exit(0)
+ALLOWED_FOLDERS = ["airflow", "airflow/providers", "dev", "docs"]
+
+if len(sys.argv) < 2:
+    console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
+    sys.exit(1)
+
+mypy_folder = sys.argv[1]
+if mypy_folder not in ALLOWED_FOLDERS:
+    console.print(f"[yellow]Wrong folder {mypy_folder}. It should be one of those: {ALLOWED_FOLDERS}\n")
+    sys.exit(1)
+
+arguments = [mypy_folder]
+if mypy_folder == "airflow/providers":
+    arguments.append("--namespace-packages")
 
 res = run_command_via_breeze_shell(
     [
         "/opt/airflow/scripts/in_container/run_mypy.sh",
-        *files_to_test,
+        *arguments,
     ],
     warn_image_upgrade_needed=True,
     extra_env={
@@ -53,6 +62,12 @@ res = run_command_via_breeze_shell(
 )
 ci_environment = os.environ.get("CI")
 if res.returncode != 0:
+    if ci_environment:
+        console.print(
+            "[yellow]You are running mypy with the folders selected. If you want to"
+            "reproduce it locally, you need to run the following command:\n"
+        )
+        console.print("pre-commit run --hook-stage manual mypy-<folder> --all-files\n")
     upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
     if upgrading:
         console.print(
