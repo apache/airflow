@@ -1259,7 +1259,6 @@ class TaskInstance(Base, LoggingMixin):
         # Existing "ti_state_lkp" is not enough for such query when this table has millions of rows, since
         # rows have to be fetched in order to retrieve the start_date column. With this index, INDEX ONLY SCAN
         # is performed and that query runs within milliseconds.
-        Index("ti_state_incl_start_date", dag_id, task_id, state, postgresql_include=["start_date"]),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
