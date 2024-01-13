@@ -136,21 +136,28 @@ require Breeze Docker image to be built locally.
 
 .. note:: Mypy checks
 
-  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-core``,
+  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
   ``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
   are run by passing those changed files to mypy. This is way faster than running checks for all files (even
   if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
   files). However, in some cases, it produces different results than when running checks for the whole set
   of files, because ``mypy`` does not even know that some types are defined in other files and it might not
   be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
-  directories (``airflow`` - excluding providers, ``airflow/providers``, ``dev`` and ``docs``) to make sure
+  directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure
   that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
   in CI. If you want to run mypy checks for all files locally, you can do it by running the following
   command (example for ``airflow`` files):
 
      .. code-block:: bash
 
-        MYPY_PACKAGES="airflow" pre-commit run --hook-stage manual mypy --all-files
+        pre-commit run --hook-stage manual mypy-<FOLDER> --all-files
+
+  For example:
+
+     .. code-block:: bash
+
+        pre-commit run --hook-stage manual mypy-airflow --all-files
+
 
 .. note:: Mypy volume cache
 
@@ -342,15 +349,17 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy                                                      | Run mypy for specified packages (manual)                     | *       |
+| mypy-airflow                                              | * Run mypy for airflow                                       | *       |
+|                                                           | * Run mypy for airflow (manual)                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-core                                                 | Run mypy for core                                            | *       |
+| mypy-dev                                                  | * Run mypy for dev                                           | *       |
+|                                                           | * Run mypy for dev (manual)                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-dev                                                  | Run mypy for dev                                             | *       |
+| mypy-docs                                                 | * Run mypy for /docs/ folder                                 | *       |
+|                                                           | * Run mypy for /docs/ folder (manual)                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-docs                                                 | Run mypy for /docs/ folder                                   | *       |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-providers                                            | Run mypy for providers                                       | *       |
+| mypy-providers                                            | * Run mypy for providers                                     | *       |
+|                                                           | * Run mypy for providers (manual)                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

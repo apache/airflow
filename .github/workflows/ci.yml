@@ -107,7 +107,7 @@ jobs:
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
-      mypy-packages: ${{ steps.selective-checks.outputs.mypy-packages }}
+      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
       needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
@@ -564,7 +564,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mypy-package: ${{fromJson(needs.build-info.outputs.mypy-packages)}}
+        mypy-folder: ${{fromJson(needs.build-info.outputs.mypy-folders)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
@@ -592,17 +592,17 @@ jobs:
           restore-keys: |
             pre-commit-${{steps.breeze.outputs.host-python-version}}-
         if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "MyPy checks for ${{ matrix.mypy-package }}"
+      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
         run: |
           pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual mypy --all-files
+          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
-          MYPY_PACKAGES: ${{ matrix.mypy-package }}
+
         if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
