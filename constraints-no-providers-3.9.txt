@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2023-12-31T13:27:34.892242
+# This constraints file was automatically generated on 2024-01-13T03:56:33.604320
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -23,17 +23,17 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
-Jinja2==3.1.2
+Jinja2==3.1.3
 Mako==1.3.0
-Markdown==3.5.1
+Markdown==3.5.2
 MarkupSafe==2.1.3
 PyJWT==2.8.0
 PyYAML==6.0.1
 Pygments==2.17.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.50
-WTForms==3.1.1
+SQLAlchemy==1.4.51
+WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.9.0
 aiofiles==23.2.1
@@ -44,7 +44,7 @@ alembic==1.13.1
 amqp==5.2.0
 annotated-types==0.6.0
 anyio==4.2.0
-apispec==6.3.1
+apispec==6.4.0
 argcomplete==3.2.1
 asgiref==3.7.2
 async-timeout==4.0.3
@@ -78,14 +78,14 @@ distlib==0.3.8
 dnspython==2.4.2
 docutils==0.20.1
 email-validator==1.3.1
-eventlet==0.34.2
+eventlet==0.34.3
 exceptiongroup==1.2.0
 filelock==3.13.1
 flower==2.0.1
 frozenlist==1.4.1
 fsspec==2023.12.2
 gevent==23.9.1
-google-auth==2.25.2
+google-auth==2.26.2
 google-re2==1.1
 googleapis-common-protos==1.62.0
 graphviz==0.20.1
@@ -107,7 +107,7 @@ itsdangerous==2.1.2
 jmespath==1.0.1
 jsonschema-specifications==2023.12.1
 jsonschema==4.20.0
-kombu==5.3.4
+kombu==5.3.5
 krb5==0.5.1
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
@@ -116,15 +116,15 @@ ldap3==2.9.1
 limits==3.7.0
 linkify-it-py==2.0.2
 lockfile==0.12.2
-lxml==5.0.0
+lxml==5.1.0
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.20.1
+marshmallow==3.20.2
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
 multidict==6.0.4
-numpy==1.26.2
+numpy==1.26.3
 oauthlib==3.2.2
 opentelemetry-api==1.22.0
 opentelemetry-exporter-otlp-proto-common==1.22.0
@@ -146,11 +146,9 @@ plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.19.0
 prompt-toolkit==3.0.43
-protobuf==4.25.1
+protobuf==4.25.2
 psutil==5.9.7
 pure-sasl==0.6.2
-pyarrow-hotfix==0.6
-pyarrow==14.0.2
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycparser==2.21
@@ -166,17 +164,17 @@ python-slugify==8.0.1
 python3-saml==1.16.0
 pytz==2023.3.post1
 pytzdata==2020.1
-referencing==0.32.0
+referencing==0.32.1
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
 requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
 rich==13.7.0
-rpds-py==0.16.2
+rpds-py==0.17.1
 rsa==4.9
 s3fs==2023.12.2
-sentry-sdk==1.39.1
+sentry-sdk==1.39.2
 setproctitle==1.3.3
 six==1.16.0
 sniffio==1.3.0
@@ -196,7 +194,7 @@ universal-pathlib==0.1.4
 urllib3==1.26.18
 vine==5.1.0
 virtualenv==20.25.0
-wcwidth==0.2.12
+wcwidth==0.2.13
 websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
