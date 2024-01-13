@@ -1185,7 +1185,9 @@ class DagFileProcessorManager(LoggingMixin):
                     processor.start_time.isoformat(),
                 )
 
-            self.log.debug("Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue))
+            self.log.debug(
+                "Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue)
+            )
 
         for file_path in files_paths_to_queue:
             self._file_stats.setdefault(file_path, DagFileProcessorManager.DEFAULT_FILE_STAT)
