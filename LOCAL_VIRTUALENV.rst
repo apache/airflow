@@ -117,7 +117,7 @@ The full list of extras is available in `<pyproject.toml>`_ and can be easily re
 Using Hatch
 ===========
 
-Airflow uses [hatch](https://hatch.pypa.io/) as a build and development tool of choice. It is one of popular
+Airflow uses `hatch <https://hatch.pypa.io/>`_ as a build and development tool of choice. It is one of popular
 build tools and environment managers for Python, maintained by the Python Packaging Authority.
 It is an optional tool that is only really needed when you want to build packages from sources, but
 it is also very convenient to manage your Python versions and virtualenvs.

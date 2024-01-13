@@ -26,7 +26,6 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-import pendulum
 import pluggy
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -39,6 +38,7 @@ from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
+from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -49,13 +49,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 try:
-    tz = conf.get_mandatory_value("core", "default_timezone")
-    if tz == "system":
-        TIMEZONE = pendulum.tz.local_timezone()
+    if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
+        TIMEZONE = parse_timezone(tz)
     else:
-        TIMEZONE = pendulum.tz.timezone(tz)
+        TIMEZONE = local_timezone()
 except Exception:
-    TIMEZONE = pendulum.tz.timezone("UTC")
+    TIMEZONE = utc
 
 log.info("Configured default timezone %s", TIMEZONE)
 

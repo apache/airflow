@@ -26,11 +26,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from shutil import rmtree
 
+import yaml
 from rich.console import Console
 
 console = Console(color_system="standard", width=200)
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
+REPRODUCIBLE_BUILD_FILE = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
 AIRFLOW_INIT_FILE = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
 WWW_DIRECTORY = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 VERSION_SUFFIX = os.environ.get("VERSION_SUFFIX_FOR_PYPI", "")
@@ -75,14 +77,22 @@ def get_current_airflow_version() -> str:
 
 def build_airflow_packages(package_format: str):
     build_command = [sys.executable, "-m", "hatch", "build", "-t", "custom"]
-
-    if package_format in ["both", "wheel"]:
-        build_command.extend(["-t", "wheel"])
     if package_format in ["both", "sdist"]:
         build_command.extend(["-t", "sdist"])
+    if package_format in ["both", "wheel"]:
+        build_command.extend(["-t", "wheel"])
 
+    reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_FILE.read_text())["source-date-epoch"]
+
+    envcopy = os.environ.copy()
+    envcopy["SOURCE_DATE_EPOCH"] = str(reproducible_date)
     console.print(f"[bright_blue]Building packages: {package_format}\n")
-    build_process = subprocess.run(build_command, capture_output=False, cwd=AIRFLOW_SOURCES_ROOT)
+    build_process = subprocess.run(
+        build_command,
+        capture_output=False,
+        cwd=AIRFLOW_SOURCES_ROOT,
+        env=envcopy,
+    )
 
     if build_process.returncode != 0:
         console.print("[red]Error building Airflow packages")

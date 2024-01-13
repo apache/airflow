@@ -239,6 +239,19 @@ function check_download_sqlalchemy() {
     pip check
 }
 
+# Download minimum supported version of pendulum to run tests with it
+function check_download_pendulum() {
+    if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
+        return
+    fi
+    min_pendulum_version=$(grep "\"pendulum>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    echo
+    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
+    echo
+    pip install --root-user-action ignore "pendulum==${min_pendulum_version}"
+    pip check
+}
+
 # Check if we should run tests and run them if needed
 function check_run_tests() {
     if [[ ${RUN_TESTS=} != "true" ]]; then
@@ -269,6 +282,7 @@ determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_download_sqlalchemy
+check_download_pendulum
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell
