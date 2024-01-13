@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from azure.core.exceptions import ServiceRequestError
@@ -24,7 +25,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -93,12 +94,9 @@ class BaseAzureSynapseHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_synapse_conn_id
-
-    def get_conn(self):
-        raise NotImplementedError
 
     def _get_field(self, extras: dict, field_name: str) -> str:
         return get_field(
@@ -301,7 +299,7 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
     :param azure_synapse_workspace_dev_endpoint: The Azure Synapse Workspace development endpoint.
     """
 
-    default_conn_name: str = "azure_synapse_default"
+    default_conn_name: str = "azure_synapse_connection"
 
     def __init__(
         self,
@@ -309,9 +307,16 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
         azure_synapse_conn_id: str = default_conn_name,
         **kwargs,
     ):
+        # Handling deprecation of "default_conn_name"
+        if azure_synapse_conn_id == self.default_conn_name:
+            warnings.warn(
+                "The usage of `default_conn_name=azure_synapse_connection` is deprecated and will be removed in future. Please update your code to use the new default connection name: `default_conn_name=azure_synapse_default`. ",
+                AirflowProviderDeprecationWarning,
+            )
+
         self._conn: ArtifactsClient | None = None
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint
-        super().__init__(azure_synapse_conn_id=azure_synapse_conn_id)
+        super().__init__(azure_synapse_conn_id=azure_synapse_conn_id, **kwargs)
 
     def get_conn(self) -> ArtifactsClient:
         if self._conn is not None:
