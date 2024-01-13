@@ -119,9 +119,7 @@ dependencies = [
     "opentelemetry-exporter-otlp",
     "packaging>=14.0",
     "pathspec>=0.9.0",
-    # When (if) pendulum 3 released it would introduce changes in module/objects imports,
-    # since we are tightly coupled with pendulum library internally it will breaks Airflow functionality.
-    "pendulum>=2.0,<3.0",
+    "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
     "pydantic>=2.3.0",
@@ -757,7 +755,7 @@ grpc = [
   "grpcio>=1.15.0",
 ]
 hashicorp = [
-  "hvac>=0.10",
+  "hvac>=1.1.0",
 ]
 http = [
   "aiohttp",

@@ -2127,7 +2127,7 @@ paths:
       description: |
         Get a list of roles.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_roles
       tags: [Role]
@@ -2153,7 +2153,7 @@ paths:
       description: |
         Create a new role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_role
       tags: [Role]
@@ -2187,7 +2187,7 @@ paths:
       description: |
         Get a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_role
       tags: [Role]
@@ -2211,7 +2211,7 @@ paths:
       description: |
         Update a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_role
       tags: [Role]
@@ -2246,7 +2246,7 @@ paths:
       description: |
         Delete a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_role
       tags: [Role]
@@ -2269,7 +2269,7 @@ paths:
       description: |
         Get a list of permissions.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_permissions
       tags: [Permission]
@@ -2295,7 +2295,7 @@ paths:
       description: |
         Get a list of users.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_users
       tags: [User]
@@ -2321,7 +2321,7 @@ paths:
       description: |
         Create a new user with unique username and email.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_user
       tags: [User]
@@ -2356,7 +2356,7 @@ paths:
       description: |
         Get a user with a specific username.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_user
       tags: [User]
@@ -2380,7 +2380,7 @@ paths:
       description: |
         Update fields for a user.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_user
       tags: [User]
@@ -2414,7 +2414,7 @@ paths:
       description: |
         Delete a user with a specific username.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_user
       tags: [User]

@@ -86,6 +86,7 @@ PULL_REQUEST_TEMPLATE.md
 PROVIDER_CHANGES*.md
 manifests/*
 redirects.txt
+reproducible_build.yaml
 
 # Locally mounted files
 .*egg-info/*
@@ -131,6 +132,8 @@ scripts/*
 images/*
 dev/*
 chart/*.iml
+out/*
+airflow-build-dockerfile*
 
 # Sha files
 .*sha256

@@ -125,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|^airflow/reproducible_build.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -244,7 +244,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/reproducible_build.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -570,6 +570,7 @@ repos:
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
+          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py$|
@@ -792,6 +793,14 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
         files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
+        pass_filenames: false
+        require_serial: true
+      - id: update-reproducible-source-date-epoch
+        name: Update Source Date Epoch for reproducible builds
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_source_date_epoch.py
+        files: ^RELEASE_NOTES.rst$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited

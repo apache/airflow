@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     _recursive_flatten_dict,
     parse_assign_public_ip,
 )
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 
@@ -943,9 +944,9 @@ class TestEcsExecutorConfig:
 
         assert task_kwargs["platformVersion"] == templated_version
 
-    def test_count_can_not_be_modified_by_the_user(self, assign_subnets):
+    @mock.patch.object(EcsHook, "conn")
+    def test_count_can_not_be_modified_by_the_user(self, _, assign_subnets):
         """The ``count`` parameter must always be 1; verify that the user can not override this value."""
-
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
         provided_run_task_kwargs = {
@@ -1086,3 +1087,63 @@ class TestEcsExecutorConfig:
         executor.start()
 
         ecs_mock.stop_task.assert_not_called()
+
+    def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars):
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        expected_error = (
+            "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
+        )
+
+        with pytest.raises(ValueError, match=expected_error):
+            AwsEcsExecutor()
+
+    def test_providing_capacity_provider(self, set_env_vars):
+        # If a capacity provider strategy is supplied without a launch type, use the strategy.
+
+        valid_capacity_provider = (
+            "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        )
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = valid_capacity_provider
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert "launchType" not in task_kwargs
+        assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_with_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, but the
+        # cluster has a default capacity provider strategy, use the cluster's default.
+        mock_conn.describe_clusters.return_value = {
+            "clusters": [{"defaultCapacityProviderStrategy": ["some_strategy"]}]
+        }
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert "launchType" not in task_kwargs
+        assert "capacityProviderStrategy" not in task_kwargs
+        assert mock_conn.describe_clusters.called_once()
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, and the cluster
+        # does not have a default capacity provider strategy, use the FARGATE launch type.
+
+        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
+
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert task_kwargs["launchType"] == "FARGATE"
