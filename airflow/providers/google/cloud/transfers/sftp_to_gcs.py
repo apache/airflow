@@ -97,8 +97,8 @@ class SFTPToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.source_path = source_path
-        self.destination_path = self._set_destination_path(destination_path)
-        self.destination_bucket = self._set_bucket_name(destination_bucket)
+        self.destination_path = destination_path
+        self.destination_bucket = destination_bucket
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
         self.gzip = gzip
@@ -108,6 +108,8 @@ class SFTPToGCSOperator(BaseOperator):
         self.sftp_prefetch = sftp_prefetch
 
     def execute(self, context: Context):
+        self.destination_path = self._set_destination_path(self.destination_path)
+        self.destination_bucket = self._set_bucket_name(self.destination_bucket)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
