@@ -21,6 +21,7 @@ afterall
 AgentKey
 aio
 aiobotocore
+aiohttp
 AioSession
 aiplatform
 Airbnb

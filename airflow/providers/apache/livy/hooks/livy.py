@@ -489,6 +489,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         extra_headers: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
+        self.auth_type = self.default_auth_type
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 

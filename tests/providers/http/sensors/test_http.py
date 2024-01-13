@@ -265,10 +265,14 @@ class TestHttpSensor:
 
 
 class FakeSession:
+    """Mock requests.Session object."""
+
     def __init__(self):
         self.response = requests.Response()
         self.response.status_code = 200
         self.response._content = "apache/airflow".encode("ascii", "ignore")
+        self.headers = {}
+        self.auth = None
 
     def send(self, *args, **kwargs):
         return self.response

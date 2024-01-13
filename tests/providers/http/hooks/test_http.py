@@ -34,7 +34,7 @@ from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
 
 
 @pytest.fixture
@@ -47,7 +47,12 @@ def aioresponse():
 
 
 def get_airflow_connection(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
+    return Connection(
+        conn_id="http_default",
+        conn_type="http",
+        host="test:8080/",
+        extra='{"bearer":"test","headers":{"some":"header"}}',
+    )
 
 
 def get_airflow_connection_with_port(unused_conn_id=None):
@@ -60,6 +65,14 @@ def get_airflow_connection_with_login_and_password(unused_conn_id=None):
     )
 
 
+class CustomAuthBase(HTTPBasicAuth):
+    def __init__(self, username: str, password: str, endpoint: str):
+        super().__init__(username, password)
+
+
+@mock.patch.dict(
+    "os.environ", AIRFLOW__HTTP__EXTRA_AUTH_TYPES="tests.providers.http.hooks.test_http.CustomAuthBase"
+)
 class TestHttpHook:
     """Test get, post and raise_for_status"""
 
@@ -116,8 +129,12 @@ class TestHttpHook:
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
+
+            conn_extra: dict = json.loads(expected_conn.extra)
+            headers = dict(conn.headers, **conn_extra.pop("headers", {}), **conn_extra)
+            assert headers == conn.headers
             assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("some") == "header"
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -267,6 +284,109 @@ class TestHttpHook:
         hook = HttpHook()
         hook.get_conn({})
         assert hook.base_url == "http://"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_header_and_auth_kwargs(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra='{"x-header": 0, "auth_kwargs": {"endpoint": "http://localhost"}}',
+        )
+        mock_get_connection.return_value = conn
+
+        hook = HttpHook(auth_type=CustomAuthBase)
+        session = hook.get_conn({})
+
+        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
+        assert "auth_kwargs" not in session.headers
+        assert "x-header" in session.headers
+
+    def test_available_connection_auth_types(self):
+        auth_types = get_auth_types()
+        assert auth_types == frozenset(
+            {
+                "requests.auth.HTTPBasicAuth",
+                "requests.auth.HTTPProxyAuth",
+                "requests.auth.HTTPDigestAuth",
+                "aiohttp.BasicAuth",
+                "tests.providers.http.hooks.test_http.CustomAuthBase",
+            }
+        )
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_connection_with_invalid_auth_type_get_skipped(self, mock_get_connection, caplog):
+        auth_type: str = "auth_type.class.not.available.for.Import"
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            extra=f'{{"auth_type": "{auth_type}"}}',
+        )
+        mock_get_connection.return_value = conn
+        HttpHook().get_conn({})
+        assert f"Skipping import of auth_type '{auth_type}'." in caplog.text
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_header_and_auth_type(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra='{"x-header": 0, "auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+        )
+        mock_get_connection.return_value = conn
+
+        session = HttpHook().get_conn({})
+        auth.assert_called_once_with("username", "pass")
+        assert isinstance(session.auth, CustomAuthBase)
+        assert "auth_type" not in session.headers
+        assert "x-header" in session.headers
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_auth_type_and_no_credentials(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            extra='{"auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+        )
+        mock_get_connection.return_value = conn
+
+        HttpHook().get_conn({})
+        auth.assert_called_once()
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_string_headers_and_auth_kwargs(self, auth, mock_get_connection):
+        """When passed via the UI, the 'headers' and 'auth_kwargs' fields' data is
+        saved as string.
+        """
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra=r"""
+                {"auth_kwargs": "{\r\n    \"endpoint\": \"http://localhost\"\r\n}",
+                "headers": "{\r\n    \"some\": \"headers\"\r\n}"}
+                """,
+        )
+        mock_get_connection.return_value = conn
+
+        hook = HttpHook(auth_type=CustomAuthBase)
+        session = hook.get_conn({})
+
+        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
+        assert "auth_kwargs" not in session.headers
+        assert "some" in session.headers
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):
@@ -508,7 +628,7 @@ class TestHttpAsyncHook:
     async def test_async_request_uses_connection_extra(self, aioresponse):
         """Test api call asynchronously with a connection that has extra field."""
 
-        connection_extra = {"bearer": "test"}
+        connection_extra = {"bearer": "test", "some": "header"}
 
         aioresponse.post(
             "http://test:8080/v1/test",
