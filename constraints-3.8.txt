@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-12T19:17:21.090268
+# This constraints file was automatically generated on 2024-01-13T05:11:21.825406
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -413,7 +413,7 @@ junit-xml==1.9
 jupyter_client==8.6.0
 jupyter_core==5.7.1
 keyring==24.3.0
-kombu==5.3.4
+kombu==5.3.5
 krb5==0.5.1
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0

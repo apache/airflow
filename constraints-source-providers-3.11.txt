@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-12T19:11:03.650635
+# This constraints file was automatically generated on 2024-01-13T05:05:39.012513
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -302,7 +302,7 @@ junit-xml==1.9
 jupyter_client==8.6.0
 jupyter_core==5.7.1
 keyring==24.3.0
-kombu==5.3.4
+kombu==5.3.5
 krb5==0.5.1
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
@@ -484,7 +484,7 @@ rfc3986==1.5.0
 rich-argparse==1.4.0
 rich-click==1.7.3
 rich==13.7.0
-rpds-py==0.16.2
+rpds-py==0.17.1
 rsa==4.9
 ruff==0.1.11
 s3fs==2023.12.2
@@ -517,13 +517,13 @@ sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==2.0.0
 sphinx_design==0.5.0
-sphinxcontrib-applehelp==1.0.7
-sphinxcontrib-devhelp==1.0.5
-sphinxcontrib-htmlhelp==2.0.4
+sphinxcontrib-applehelp==1.0.8
+sphinxcontrib-devhelp==1.0.6
+sphinxcontrib-htmlhelp==2.0.5
 sphinxcontrib-httpdomain==1.8.1
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.6
+sphinxcontrib-qthelp==1.0.7
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
