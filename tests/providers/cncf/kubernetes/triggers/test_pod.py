@@ -401,7 +401,7 @@ class TestKubernetesPodTrigger:
             pod_namespace=NAMESPACE,
             base_container_name=BASE_CONTAINER_NAME,
             kubernetes_conn_id=CONN_ID,
-            poll_interval=POLL_INTERVAL,
+            poll_interval=0,
             cluster_context=CLUSTER_CONTEXT,
             config_file=CONFIG_FILE,
             in_cluster=IN_CLUSTER,
@@ -410,6 +410,7 @@ class TestKubernetesPodTrigger:
             trigger_start_time=TRIGGER_START_TIME,
             on_finish_action=ON_FINISH_ACTION,
             callbacks=MockKubernetesPodOperatorCallback,
+            startup_check_interval=0,
         )
         await k.run().asend(None)
 
