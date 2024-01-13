@@ -561,41 +561,41 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def mypy_packages(self) -> list[str]:
-        packages_to_run: list[str] = []
+    def mypy_folders(self) -> list[str]:
+        folders_to_check: list[str] = []
         if (
             self._matching_files(
                 FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("airflow")
+            folders_to_check.append("airflow")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
-            packages_to_run.append("airflow/providers")
+            folders_to_check.append("providers")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("docs")
+            folders_to_check.append("docs")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("dev")
-        return packages_to_run
+            folders_to_check.append("dev")
+        return folders_to_check
 
     @cached_property
     def needs_mypy(self) -> bool:
-        return self.mypy_packages != []
+        return self.mypy_folders != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
