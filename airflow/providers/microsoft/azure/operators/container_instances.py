@@ -370,9 +370,6 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     @staticmethod
     def _check_name(name: str) -> str:
-        if "{{" in name:
-            # Let macros pass as they cannot be checked at construction time
-            return name
         regex_check = re.match("[a-z0-9]([-a-z0-9]*[a-z0-9])?", name)
         if regex_check is None or regex_check.group() != name:
             raise AirflowException('ACI name must match regex [a-z0-9]([-a-z0-9]*[a-z0-9])? (like "my-name")')
