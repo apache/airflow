@@ -755,7 +755,7 @@ grpc = [
   "grpcio>=1.15.0",
 ]
 hashicorp = [
-  "hvac>=0.10",
+  "hvac>=1.1.0",
 ]
 http = [
   "aiohttp",
