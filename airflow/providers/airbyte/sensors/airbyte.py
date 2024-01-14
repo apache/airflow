@@ -18,10 +18,12 @@
 """This module contains a Airbyte Job sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+import time
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -79,3 +81,59 @@ class AirbyteJobSensor(BaseSensorOperator):
 
         self.log.info("Waiting for job %s to complete.", self.airbyte_job_id)
         return False
+
+
+class AirbyteJobSensorAsync(AirbyteJobSensor):
+    """
+    A deferrable drop-in replacement for AirbyteJobSensor.
+
+    Will defers itself to avoid taking up a worker slot while it is waiting.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:AirbyteJobSensorAsync`
+
+    """
+
+    def execute(self, context: Context) -> Any:
+        """Submits a job which generates a run_id and gets deferred."""
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+        job = hook.get_job(job_id=(int(self.airbyte_job_id)))
+        state = job.json()["job"]["status"]
+        end_time = time.time() + self.timeout
+
+        self.log.info("Airbyte Job Id: Job %s" % self.airbyte_job_id)
+
+        if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=AirbyteSyncTrigger(
+                    conn_id=self.airbyte_conn_id,
+                    job_id=self.airbyte_job_id,
+                    end_time=end_time,
+                    poll_interval=60,
+                ),
+                method_name="execute_complete",
+            )
+        elif state == hook.SUCCEEDED:
+            self.log.info("%s completed successfully.", self.task_id)
+            return
+        elif state == hook.ERROR:
+            raise AirflowException(f"Job failed:\n{job}")
+        elif state == hook.CANCELLED:
+            raise AirflowException(f"Job was cancelled:\n{job}")
+        else:
+            raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}")
+
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        self.log.info("%s completed successfully.", self.task_id)
+        return None
