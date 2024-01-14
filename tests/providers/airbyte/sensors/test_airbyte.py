@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
 from unittest import mock
 
@@ -47,6 +48,24 @@ class TestAirbyteSyncTrigger:
             "end_time": self.END_TIME,
             "poll_interval": self.POLL_INTERVAL,
         }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    async def test_airbyte_run_sync_trigger(self, mocked_is_still_running):
+        """Test AirbyteSyncTrigger is triggered with mocked details and run successfully."""
+        mocked_is_still_running.return_value = True
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
+        )
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # TriggerEvent was not returned
+        assert task.done() is False
+        asyncio.get_event_loop().stop()
 
 
 class TestAirbyteJobSensor:
