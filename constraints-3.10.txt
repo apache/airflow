@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-13T05:11:21.568090
+# This constraints file was automatically generated on 2024-01-14T14:02:25.319989
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -649,7 +649,7 @@ starkbank-ecdsa==2.2.0
 statsd==4.0.1
 strictyaml==1.7.3
 sympy==1.12
-tableauserverclient==0.28
+tableauserverclient==0.29
 tabulate==0.9.0
 tenacity==8.2.3
 termcolor==2.4.0
@@ -694,7 +694,7 @@ uc-micro-py==1.0.2
 unicodecsv==0.14.1
 universal-pathlib==0.1.4
 uritemplate==4.1.1
-urllib3==2.0.6
+urllib3==2.0.7
 userpath==1.9.1
 validators==0.22.0
 vertica-python==1.3.8
