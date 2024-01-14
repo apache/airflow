@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
-from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
+from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor, AirbyteJobSensorAsync
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_airbyte_operator"
@@ -57,8 +57,22 @@ with DAG(
     )
     # [END howto_operator_airbyte_asynchronous]
 
+    # [START howto_operator_airbyte_asynchronous_deferrable]
+    async_source_destination_deferrable = AirbyteTriggerSyncOperator(
+        task_id="airbyte_async_source_dest_example",
+        connection_id=CONN_ID,
+        asynchronous=True,
+    )
+
+    airbyte_sensor_deferrable = AirbyteJobSensorAsync(
+        task_id="airbyte_sensor_source_dest_example",
+        airbyte_job_id=async_source_destination_deferrable.output,
+    )
+    # [END howto_operator_airbyte_asynchronous_deferrable]
+
     # Task dependency created via `XComArgs`:
     #   async_source_destination >> airbyte_sensor
+    #   async_source_destination_deferrable >> airbyte_sensor_deferrable
 
 from tests.system.utils import get_test_run  # noqa: E402
 
