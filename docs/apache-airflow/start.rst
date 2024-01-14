@@ -52,6 +52,8 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
       export AIRFLOW_HOME=~/airflow
 
+   Make sure that `AIRFLOW_HOME` points to absolute path, otherwise, on next steps, you may receive sqlite errors like `sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open database file`
+
 2. Install Airflow using the constraints file, which is determined based on the URL we pass:
 
    .. code-block:: bash
