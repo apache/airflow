@@ -233,6 +233,27 @@ class TestAirbyteSyncTrigger:
         response = await trigger.is_still_running(hook)
         assert response == expected_status
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_response, expected_status",
+        [
+            (AirbyteHook.RUNNING, True),
+        ],
+    )
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    async def test_airbyte_sync_run_is_still_running(
+        self, mock_get_job_status, mock_response, expected_status
+    ):
+        """Test is_still_running with mocked response job status and assert
+        the return response with expected value"""
+        airbyte_hook = mock.AsyncMock(AirbyteHook)
+        airbyte_hook.get_job_status.return_value = mock_response
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+        )
+        response = await trigger.is_still_running(airbyte_hook)
+        assert response == expected_status
+
 
 class TestAirbyteJobSensor:
     task_id = "task-id"

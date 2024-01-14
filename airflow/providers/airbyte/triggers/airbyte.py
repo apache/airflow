@@ -112,6 +112,6 @@ class AirbyteSyncTrigger(BaseTrigger):
         If job is in running state returns True if it is still running else return False
         """
         job_run_status = await hook.get_job_status(self.job_id)
-        if job_run_status in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
+        if job_run_status in (AirbyteHook.RUNNING, AirbyteHook.PENDING, AirbyteHook.INCOMPLETE):
             return True
         return False
