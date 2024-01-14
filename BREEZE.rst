@@ -2049,6 +2049,28 @@ When we prepare final release, we automate some of the steps we need to do.
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
+
+Preparing Python Clients
+""""""""""""""""""""""""
+
+The **Python client** source code can be generated and Python client packages could be built. For that you
+need to have python client's repository checked out
+
+
+.. code-block:: bash
+
+     breeze release-management prepare-python-client --python-client-repo ~/code/airflow-client-python
+
+You can also generate python client with custom security schemes.
+
+These are all of the available flags for the command:
+
+.. image:: ./images/breeze/output_release-management_prepare-python-client.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-python-client.svg
+  :width: 100%
+  :alt: Breeze release management prepare Python client
+
+
 Releasing Production images
 """""""""""""""""""""""""""
 
