@@ -94,7 +94,7 @@ class AirbyteHook(HttpHook):
                 except ClientResponseError as e:
                     raise AirflowException(str(e.status) + ":" + e.message + "-" + str(e.request_info))
 
-    async def get_job_status(self, job_id: int) -> int:
+    async def get_job_status(self, job_id: int) -> str:
         """
         Retrieves the status for a specific job of an Airbyte Sync.
 
@@ -103,7 +103,7 @@ class AirbyteHook(HttpHook):
         try:
             self.log.info("Getting the status of job run %s.", str(job_id))
             response = await self.get_job_details(job_id=job_id)
-            job_run_status: int = response["job"]["status"]
+            job_run_status: str = response["job"]["status"]
             return job_run_status
         except Exception as e:
             raise e

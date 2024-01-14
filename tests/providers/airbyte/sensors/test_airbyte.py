@@ -16,12 +16,37 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
+from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
+
+
+class TestAirbyteSyncTrigger:
+    DAG_ID = "airbyte_sync_run"
+    TASK_ID = "airbyte_sync_run_task_op"
+    JOB_ID = 1234
+    CONN_ID = "airbyte_default"
+    END_TIME = time.time() + 60 * 60 * 24 * 7
+    POLL_INTERVAL = 3.0
+
+    def test_serialization(self):
+        """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
+        assert kwargs == {
+            "job_id": self.JOB_ID,
+            "conn_id": self.CONN_ID,
+            "end_time": self.END_TIME,
+            "poll_interval": self.POLL_INTERVAL,
+        }
 
 
 class TestAirbyteJobSensor:
