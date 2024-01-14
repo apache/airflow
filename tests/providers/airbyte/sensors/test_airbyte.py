@@ -23,8 +23,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
+from airflow.triggers.base import TriggerEvent
 
 
 class TestAirbyteSyncTrigger:
@@ -65,6 +67,37 @@ class TestAirbyteSyncTrigger:
 
         # TriggerEvent was not returned
         assert task.done() is False
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_value, mock_status, mock_message",
+        [
+            (AirbyteHook.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
+        ],
+    )
+    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    async def test_airbyte_job_for_terminal_status_success(
+        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+    ):
+        """Assert that run trigger success message in case of job success"""
+        mocked_is_still_running.return_value = False
+        mock_get_job_status.return_value = mock_value
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
+        )
+        expected_result = {
+            "status": mock_status,
+            "message": mock_message,
+            "job_id": self.JOB_ID,
+        }
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert TriggerEvent(expected_result) == task.result()
         asyncio.get_event_loop().stop()
 
 
