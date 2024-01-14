@@ -191,6 +191,11 @@ option_package_format = click.option(
     show_default=True,
     envvar="PACKAGE_FORMAT",
 )
+option_use_local_hatch = click.option(
+    "--use-local-hatch",
+    is_flag=True,
+    help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
+)
 
 if TYPE_CHECKING:
     from packaging.version import Version
@@ -279,46 +284,7 @@ AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile
 AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
 
 
-@release_management.command(
-    name="prepare-airflow-package",
-    help="Prepare sdist/whl package of Airflow.",
-)
-@click.option(
-    "--use-local-hatch",
-    is_flag=True,
-    help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
-)
-@option_package_format
-@option_version_suffix_for_pypi
-@option_verbose
-@option_dry_run
-def prepare_airflow_packages(
-    package_format: str,
-    version_suffix_for_pypi: str,
-    use_local_hatch: bool,
-):
-    perform_environment_checks()
-    fix_ownership_using_docker()
-    cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch()
-    if use_local_hatch:
-        hatch_build_command = ["hatch", "build", "-c", "-t", "custom"]
-        if package_format in ["sdist", "both"]:
-            hatch_build_command.extend(["-t", "sdist"])
-        if package_format in ["wheel", "both"]:
-            hatch_build_command.extend(["-t", "wheel"])
-        env_copy = os.environ.copy()
-        env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
-        run_command(
-            hatch_build_command,
-            check=True,
-            env=env_copy,
-        )
-        get_console().print("[success]Successfully prepared Airflow packages:")
-        for file in sorted(DIST_DIR.glob("apache_airflow*")):
-            get_console().print(file.name)
-        get_console().print()
-        return
+def _build_local_build_image():
     # This is security feature.
     #
     # Building the image needed to build airflow package including .git directory
@@ -344,6 +310,12 @@ def prepare_airflow_packages(
         cwd=AIRFLOW_SOURCES_ROOT,
         env={"DOCKER_CLI_HINTS": "false"},
     )
+
+
+def _build_airflow_packages_with_docker(
+    package_format: str, source_date_epoch: int, version_suffix_for_pypi: str
+):
+    _build_local_build_image()
     container_id = f"airflow-build-{random.getrandbits(64):08x}"
     result = run_command(
         cmd=[
@@ -354,6 +326,8 @@ def prepare_airflow_packages(
             "-t",
             "-e",
             f"VERSION_SUFFIX_FOR_PYPI={version_suffix_for_pypi}",
+            "-e",
+            f"SOURCE_DATE_EPOCH={source_date_epoch}",
             "-e",
             "HOME=/opt/airflow/files/home",
             "-e",
@@ -375,7 +349,57 @@ def prepare_airflow_packages(
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True)
-    run_command(["docker", "rm", "--force", container_id], check=True)
+    run_command(["docker", "rm", "--force", container_id], check=False, stderr=DEVNULL, stdout=DEVNULL)
+
+
+def _build_airflow_packages_with_hatch(
+    package_format: str, source_date_epoch: int, version_suffix_for_pypi: str
+):
+    hatch_build_command = ["hatch", "build", "-c", "-t", "custom"]
+    if package_format in ["sdist", "both"]:
+        hatch_build_command.extend(["-t", "sdist"])
+    if package_format in ["wheel", "both"]:
+        hatch_build_command.extend(["-t", "wheel"])
+    env_copy = os.environ.copy()
+    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    env_copy["VERSION_SUFFIX_FOR_PYPI"] = version_suffix_for_pypi
+    run_command(
+        hatch_build_command,
+        check=True,
+        env=env_copy,
+    )
+
+
+@release_management.command(
+    name="prepare-airflow-package",
+    help="Prepare sdist/whl package of Airflow.",
+)
+@option_package_format
+@option_version_suffix_for_pypi
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_airflow_packages(
+    package_format: str,
+    version_suffix_for_pypi: str,
+    use_local_hatch: bool,
+):
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    source_date_epoch = get_source_date_epoch()
+    if use_local_hatch:
+        _build_airflow_packages_with_hatch(
+            package_format=package_format,
+            source_date_epoch=source_date_epoch,
+            version_suffix_for_pypi=version_suffix_for_pypi,
+        )
+    else:
+        _build_airflow_packages_with_docker(
+            package_format=package_format,
+            source_date_epoch=source_date_epoch,
+            version_suffix_for_pypi=version_suffix_for_pypi,
+        )
     get_console().print("[success]Successfully prepared Airflow packages:")
     for file in sorted(DIST_DIR.glob("apache_airflow*")):
         get_console().print(file.name)
@@ -2078,3 +2102,292 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
     )
+
+
+PYTHON_CLIENT_DIR_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python"
+PYTHON_CLIENT_DIST_DIR_PATH = PYTHON_CLIENT_DIR_PATH / "dist"
+PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
+
+REPRODUCIBLE_BUILD_YAML = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
+
+VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
+SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
+OPENAPI_GENERATOR_CLI_VER = "5.4.0"
+
+GENERATED_CLIENT_DIRECTORIES_TO_COPY = ["airflow_client", "docs", "test"]
+FILES_TO_COPY_TO_CLIENT_REPO = [
+    ".gitignore",
+    ".openapi-generator-ignore",
+    "CHANGELOG.md",
+    "README.md",
+    "INSTALL",
+    "LICENSE",
+    "NOTICE",
+    "pyproject.toml",
+    "test_python_client.py",
+    "version.txt",
+]
+
+
+def _get_python_client_version(version_suffix_for_pypi):
+    from packaging.version import Version
+
+    python_client_version = VERSION_FILE.read_text().strip()
+    version = Version(python_client_version)
+    if version_suffix_for_pypi:
+        if version.pre:
+            currrent_suffix = version.pre[0] + str(version.pre[1])
+            if currrent_suffix != version_suffix_for_pypi:
+                get_console().print(
+                    f"[error]The version suffix for PyPI ({version_suffix_for_pypi}) does not match the "
+                    f"suffix in the version ({version})[/]"
+                )
+                sys.exit(1)
+    return version.base_version + version_suffix_for_pypi
+
+
+def _generate_python_client_sources(python_client_version: str) -> None:
+    get_console().print(f"\n[info]Generating client code in {PYTHON_CLIENT_TMP_DIR}[/]")
+    result = run_command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-u",
+            f"{os.getuid()}:{os.getgid()}",
+            "-v",
+            f"{TARGET_API_YAML_PATH}:/spec.yaml",
+            "-v",
+            f"{PYTHON_CLIENT_TMP_DIR}:/output",
+            f"openapitools/openapi-generator-cli:v{OPENAPI_GENERATOR_CLI_VER}",
+            "generate",
+            "--input-spec",
+            "/spec.yaml",
+            "--generator-name",
+            "python",
+            "--git-user-id",
+            f"{os.environ.get('GIT_USER')}",
+            "--output",
+            "/output",
+            "--package-name",
+            "airflow_client.client",
+            "--git-repo-id",
+            "airflow-client-python",
+            "--additional-properties",
+            f'packageVersion="{python_client_version}"',
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        get_console().print("[error]Failed to generate client code[/]")
+        get_console().print(result.stdout, markup=False)
+        get_console().print(result.stderr, markup=False, style="error")
+        sys.exit(result.returncode)
+    get_console().print(f"[success]Generated client code in {PYTHON_CLIENT_TMP_DIR}:[/]")
+    get_console().print(f"\n[info]Content of {PYTHON_CLIENT_TMP_DIR}:[/]")
+    for file in sorted(PYTHON_CLIENT_TMP_DIR.glob("*")):
+        get_console().print(f"[info]  {file.name}[/]")
+    get_console().print()
+
+
+def _copy_selected_sources_from_tmp_directory_to_clients_python():
+    get_console().print(
+        f"[info]Copying selected sources: {GENERATED_CLIENT_DIRECTORIES_TO_COPY} from "
+        f"{PYTHON_CLIENT_TMP_DIR} to {PYTHON_CLIENT_DIR_PATH}[/]"
+    )
+    for dir in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
+        source_dir = PYTHON_CLIENT_TMP_DIR / dir
+        target_dir = PYTHON_CLIENT_DIR_PATH / dir
+        get_console().print(f"[info]  Copying generated sources from {source_dir} to {target_dir}[/]")
+        shutil.rmtree(target_dir, ignore_errors=True)
+        shutil.copytree(source_dir, target_dir)
+        get_console().print(f"[success]  Copied generated sources from {source_dir} to {target_dir}[/]")
+    get_console().print(
+        f"[info]Copied selected sources {GENERATED_CLIENT_DIRECTORIES_TO_COPY} from "
+        f"{PYTHON_CLIENT_TMP_DIR} to {PYTHON_CLIENT_DIR_PATH}[/]\n"
+    )
+    get_console().print(f"\n[info]Content of {PYTHON_CLIENT_DIR_PATH}:[/]")
+    for file in sorted(PYTHON_CLIENT_DIR_PATH.glob("*")):
+        get_console().print(f"[info]  {file.name}[/]")
+    get_console().print()
+
+
+def _build_client_packages_with_hatch(source_date_epoch: int, package_format: str):
+    command = [
+        "hatch",
+        "build",
+        "-c",
+    ]
+    if package_format == "sdist" or package_format == "both":
+        command += ["-t", "sdist"]
+    if package_format == "wheel" or package_format == "both":
+        command += ["-t", "wheel"]
+    env_copy = os.environ.copy()
+    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    run_command(
+        cmd=command,
+        cwd=PYTHON_CLIENT_DIR_PATH,
+        env=env_copy,
+        check=True,
+    )
+    shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+
+
+def _build_client_packages_with_docker(source_date_epoch: int, package_format: str):
+    _build_local_build_image()
+    command = "hatch build -c "
+    if package_format == "sdist" or package_format == "both":
+        command += "-t sdist "
+    if package_format == "wheel" or package_format == "both":
+        command += "-t wheel "
+    container_id = f"airflow-build-{random.getrandbits(64):08x}"
+    result = run_command(
+        cmd=[
+            "docker",
+            "run",
+            "--name",
+            container_id,
+            "-t",
+            "-e",
+            f"SOURCE_DATE_EPOCH={source_date_epoch}",
+            "-e",
+            "HOME=/opt/airflow/files/home",
+            "-e",
+            "GITHUB_ACTIONS",
+            "-w",
+            "/opt/airflow/clients/python",
+            AIRFLOW_BUILD_IMAGE_TAG,
+            "bash",
+            "-c",
+            command,
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        get_console().print("[error]Error preparing Python client packages[/]")
+        fix_ownership_using_docker()
+        sys.exit(result.returncode)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    get_console().print()
+    # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
+    run_command(["docker", "cp", f"{container_id}:/opt/airflow/clients/python/dist/.", "./dist"], check=True)
+    run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
+
+
+@release_management.command(name="prepare-python-client", help="Prepares python client packages.")
+@option_package_format
+@option_version_suffix_for_pypi
+@option_use_local_hatch
+@click.option(
+    "--python-client-repo",
+    envvar="PYTHON_CLIENT_REPO",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
+    help="Directory where the python client repo is checked out",
+)
+@click.option(
+    "--only-publish-build-scripts",
+    envvar="ONLY_PUBLISH_BUILD_SCRIPTS",
+    is_flag=True,
+    help="Only publish updated build scripts to puthon client repo, not generated client code.",
+)
+@click.option(
+    "--security-schemes",
+    default="Basic,GoogleOpenID,Kerberos",
+    envvar="SECURITY_SCHEMES",
+    show_default=True,
+    help="Security schemes to be added to the API documentation (coma separated)",
+)
+@option_dry_run
+@option_verbose
+def prepare_python_client(
+    package_format: str,
+    version_suffix_for_pypi: str,
+    use_local_hatch: bool,
+    python_client_repo: Path | None,
+    only_publish_build_scripts: bool,
+    security_schemes: str,
+):
+    shutil.rmtree(PYTHON_CLIENT_TMP_DIR, ignore_errors=True)
+    PYTHON_CLIENT_TMP_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src=SOURCE_API_YAML_PATH, dst=TARGET_API_YAML_PATH)
+    import yaml
+
+    openapi_yaml = yaml.safe_load(TARGET_API_YAML_PATH.read_text())
+
+    # Add security schemes to documentation
+    security: list[dict[str, Any]] = []
+    for scheme in security_schemes.split(","):
+        security.append({scheme: []})
+    openapi_yaml["security"] = security
+    python_client_version = _get_python_client_version(version_suffix_for_pypi)
+    TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
+
+    _generate_python_client_sources(python_client_version=python_client_version)
+    _copy_selected_sources_from_tmp_directory_to_clients_python()
+
+    reproducible_build_yaml = yaml.safe_load(REPRODUCIBLE_BUILD_YAML.read_text())
+    source_date_epoch = reproducible_build_yaml["source-date-epoch"]
+
+    if python_client_repo:
+        if not only_publish_build_scripts:
+            get_console().print(
+                f"[info]Copying generated client from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
+            )
+            for dir in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
+                source_dir = PYTHON_CLIENT_DIR_PATH / dir
+                target_dir = python_client_repo / dir
+                get_console().print(f"[info]  Copying {source_dir} to {target_dir}[/]")
+                shutil.rmtree(target_dir, ignore_errors=True)
+                shutil.copytree(source_dir, target_dir)
+                get_console().print(f"[success]  Copied {source_dir} to {target_dir}[/]")
+            get_console().print(
+                f"[info]Copied generated client from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
+            )
+        get_console().print(
+            f"[info]Copying build scripts from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
+        )
+        for file in FILES_TO_COPY_TO_CLIENT_REPO:
+            source_file = PYTHON_CLIENT_DIR_PATH / file
+            target_file = python_client_repo / file
+            get_console().print(f"[info]  Copying {source_file} to {target_file}[/]")
+            shutil.copy(source_file, target_file)
+            get_console().print(f"[success]  Copied {source_file} to {target_file}[/]")
+        get_console().print(
+            f"[success]Copied build scripts from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
+        )
+        spec_dir = python_client_repo / "spec"
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        source_spec_file = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
+        target_spec_file = spec_dir / "v1.yaml"
+        get_console().print(f"[info]  Copying {source_spec_file} to {target_spec_file}[/]")
+        shutil.copy(source_spec_file, target_spec_file)
+        get_console().print(f"[success]  Copied {source_spec_file} to {target_spec_file}[/]")
+        get_console().print(
+            f"[success]Copied client code from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]\n"
+        )
+    else:
+        get_console().print(
+            "\n[warning]No python client repo directory provided - skipping copying the generated client[/]\n"
+        )
+    get_console().print(f"\n[info]Building packages in {PYTHON_CLIENT_DIST_DIR_PATH}[/]\n")
+    shutil.rmtree(PYTHON_CLIENT_DIST_DIR_PATH, ignore_errors=True)
+    PYTHON_CLIENT_DIST_DIR_PATH.mkdir(parents=True, exist_ok=True)
+    version = _get_python_client_version(version_suffix_for_pypi)
+    original_version = VERSION_FILE.read_text().strip()
+    if version_suffix_for_pypi:
+        VERSION_FILE.write_text(version)
+    try:
+        if use_local_hatch:
+            _build_client_packages_with_hatch(
+                source_date_epoch=source_date_epoch, package_format=package_format
+            )
+        else:
+            _build_client_packages_with_docker(
+                source_date_epoch=source_date_epoch, package_format=package_format
+            )
+        get_console().print(f"\n[success]Built packages in {DIST_DIR}[/]\n")
+    finally:
+        if version_suffix_for_pypi:
+            VERSION_FILE.write_text(original_version)
