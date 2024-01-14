@@ -320,6 +320,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files           |         |
 |                                                           | * Add license for all JINJA template files                   |         |
 |                                                           | * Add license for all Shell files                            |         |
+|                                                           | * Add license for all toml files                             |         |
 |                                                           | * Add license for all Python files                           |         |
 |                                                           | * Add license for all XML files                              |         |
 |                                                           | * Add license for all Helm template files                    |         |
