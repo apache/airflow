@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
@@ -75,6 +77,7 @@ class TestMongoToS3Operator:
             "mongo_collection",
         )
 
+    @pytest.mark.db_test
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.mock_operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
         ti = TaskInstance(task=self.mock_operator)

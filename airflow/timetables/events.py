@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Iterable
 import pendulum
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -58,10 +59,13 @@ class EventsTimetable(Timetable):
             self.event_dates.sort()
         self.restrict_to_events = restrict_to_events
         if description is None:
-            self.description = (
-                f"{len(self.event_dates)} Events between {self.event_dates[0]} and {self.event_dates[-1]}"
-            )
-            self._summary = f"{len(self.event_dates)} Events"
+            if self.event_dates:
+                self.description = (
+                    f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
+                )
+            else:
+                self.description = "No events"
+            self._summary = f"{len(self.event_dates)} events"
         else:
             self._summary = description
             self.description = description
@@ -79,21 +83,31 @@ class EventsTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        if last_automated_data_interval is None:
-            next_event = self.event_dates[0]
+        earliest = restriction.earliest
+        if not restriction.catchup:
+            current_time = timezone.utcnow()
+            if earliest is None or current_time > earliest:
+                earliest = pendulum.instance(current_time)
+
+        for next_event in self.event_dates:
+            if earliest and next_event < earliest:
+                continue
+            if last_automated_data_interval and next_event <= last_automated_data_interval.end:
+                continue
+            break
         else:
-            future_dates = itertools.dropwhile(
-                lambda when: when <= last_automated_data_interval.end, self.event_dates  # type: ignore
-            )
-            next_event = next(future_dates, None)  # type: ignore
-            if next_event is None:
-                return None
+            # We need to return None if self.event_dates is empty or,
+            # if not empty, when no suitable event can be found.
+            return None
+
+        if restriction.latest is not None and next_event > restriction.latest:
+            return None
 
         return DagRunInfo.exact(next_event)
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # If Timetable not restricted to events, run for the time specified
-        if not self.restrict_to_events:
+        if not self.restrict_to_events or not self.event_dates:
             return DataInterval.exact(run_after)
 
         # If restricted to events, run for the most recent past event

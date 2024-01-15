@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 
 CONN_ID = "aws_conn_test"
@@ -29,6 +32,33 @@ STATEMENT_ID = "statement_id"
 
 
 class TestRedshiftDataOperator:
+    def test_init(self):
+        op = RedshiftDataOperator(
+            task_id="fake_task_id",
+            database="fake-db",
+            sql="SELECT 1",
+            aws_conn_id="fake-conn-id",
+            region_name="eu-central-1",
+            verify="/spam/egg.pem",
+            botocore_config={"read_timeout": 42},
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            # Check deprecated region argument
+            assert op.region == "eu-central-1"
+        assert op.hook.client_type == "redshift-data"
+        assert op.hook.resource_type is None
+        assert op.hook.aws_conn_id == "fake-conn-id"
+        assert op.hook._region_name == "eu-central-1"
+        assert op.hook._verify == "/spam/egg.pem"
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+        op = RedshiftDataOperator(task_id="fake_task_id", database="fake-db", sql="SELECT 1")
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute(self, mock_exec_query):
         cluster_identifier = "cluster_identifier"

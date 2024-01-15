@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zenpy import Zenpy
 
@@ -41,8 +41,15 @@ class ZendeskHook(BaseHook):
     conn_type = "zendesk"
     hook_name = "Zendesk"
 
-    def __init__(self, zendesk_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return {
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"host": "Zendesk domain", "login": "Zendesk email"},
+        }
+
+    def __init__(self, zendesk_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.zendesk_conn_id = zendesk_conn_id
         self.base_api: BaseApi | None = None
         zenpy_client, url = self._init_conn()

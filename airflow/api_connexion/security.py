@@ -24,6 +24,7 @@ from flask import Response, g
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
+    AccessView,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -69,7 +70,7 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _requires_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _requires_access_fab
 
     return _requires_access_fab(permissions)
 
@@ -90,17 +91,6 @@ def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callab
     if is_authorized_callback():
         return func(*args, **kwargs)
     raise PermissionDenied()
-
-
-def requires_authentication(func: T):
-    """Decorator for functions that require authentication."""
-
-    @wraps(func)
-    def decorated(*args, **kwargs):
-        check_authentication()
-        return func(*args, **kwargs)
-
-    return cast(T, decorated)
 
 
 def requires_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
@@ -240,12 +230,12 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     return requires_access_decorator
 
 
-def requires_access_website() -> Callable[[T], T]:
+def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_website(),
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(access_view=access_view),
                 func=func,
                 args=args,
                 kwargs=kwargs,
@@ -256,9 +246,26 @@ def requires_access_website() -> Callable[[T], T]:
     return requires_access_decorator
 
 
-def get_readable_dags() -> list[str]:
-    return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+def requires_access_custom_view(
+    fab_action_name: str,
+    fab_resource_name: str,
+) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_custom_view(
+                    fab_action_name=fab_action_name, fab_resource_name=fab_resource_name
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
 
 
-def can_read_dag(dag_id: str) -> bool:
-    return get_airflow_app().appbuilder.sm.can_read_dag(dag_id, g.user)
+def get_readable_dags() -> set[str]:
+    return get_auth_manager().get_permitted_dag_ids(user=g.user)

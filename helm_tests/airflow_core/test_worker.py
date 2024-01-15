@@ -564,6 +564,42 @@ class TestWorker:
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
+        "airflow_version, init_container_enabled, expected_init_containers",
+        [
+            ("1.9.0", True, 2),
+            ("1.9.0", False, 2),
+            ("1.10.14", True, 2),
+            ("1.10.14", False, 2),
+            ("2.0.2", True, 2),
+            ("2.0.2", False, 2),
+            ("2.1.0", True, 2),
+            ("2.1.0", False, 2),
+            ("2.8.0", True, 3),
+            ("2.8.0", False, 2),
+        ],
+    )
+    def test_airflow_kerberos_init_container(
+        self, airflow_version, init_container_enabled, expected_init_containers
+    ):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "workers": {
+                    "kerberosInitContainer": {"enabled": init_container_enabled},
+                    "persistence": {"fixPermissions": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        initContainers = jmespath.search("spec.template.spec.initContainers", docs[0])
+        assert len(initContainers) == expected_init_containers
+
+        if expected_init_containers == 3:
+            assert initContainers[1]["name"] == "kerberos-init"
+            assert initContainers[1]["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
             ("1.9.0", "airflow worker"),
@@ -651,6 +687,219 @@ class TestWorker:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "globalScope, localScope, precedence",
+        [
+            ({}, {}, "true"),
+            ({}, {"safeToEvict": True}, "true"),
+            ({}, {"safeToEvict": False}, "false"),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": True,
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": False,
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"safeToEvict": True},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"safeToEvict": False},
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"safeToEvict": True},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"safeToEvict": False},
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": False,
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": False,
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": True,
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "safeToEvict": True,
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "safeToEvict": True,
+                },
+                "false",
+            ),
+        ],
+    )
+    def test_safetoevict_annotations(self, globalScope, localScope, precedence):
+        docs = render_chart(
+            values={"airflowPodAnnotations": globalScope, "workers": localScope},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.metadata.annotations", docs[0])[
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == precedence
+        )
+
+    def test_should_add_extra_volume_claim_templates(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume-airflow-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].metadata.name", docs[0]
+        )
+        assert "test-volume-airflow-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].metadata.name", docs[0]
+        )
+        assert "storage-class-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.storageClassName", docs[0]
+        )
+        assert "storage-class-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0])
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0])
+        assert "10Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
+        )
+        assert "20Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
+        )
+
+    @pytest.mark.parametrize(
+        "globalScope, localScope, precedence",
+        [
+            ({"scope": "global"}, {"podAnnotations": {}}, "global"),
+            ({}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({"scope": "global"}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({}, {}, None),
+        ],
+    )
+    def test_podannotations_precedence(self, globalScope, localScope, precedence):
+        docs = render_chart(
+            values={"airflowPodAnnotations": globalScope, "workers": localScope},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        if precedence:
+            assert jmespath.search("spec.template.metadata.annotations", docs[0])["scope"] == precedence
+        else:
+            assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
+
+    def test_worker_template_storage_class_name(self):
+        docs = render_chart(
+            values={"workers": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
@@ -733,6 +982,102 @@ class TestWorkerKedaAutoScaler:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+
+class TestWorkerHPAAutoScaler:
+    """Tests worker HPA auto scaler."""
+
+    def test_should_be_disabled_on_keda_enabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"enabled": True},
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=[
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/workers/worker-hpa.yaml",
+            ],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert len(docs) == 1
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "metrics, executor, expected_metrics",
+        [
+            # default metrics
+            (
+                None,
+                "CeleryExecutor",
+                {
+                    "type": "Resource",
+                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                },
+            ),
+            # custom metric
+            (
+                [
+                    {
+                        "type": "Pods",
+                        "pods": {
+                            "metric": {"name": "custom"},
+                            "target": {"type": "Utilization", "averageUtilization": 80},
+                        },
+                    }
+                ],
+                "CeleryKubernetesExecutor",
+                {
+                    "type": "Pods",
+                    "pods": {
+                        "metric": {"name": "custom"},
+                        "target": {"type": "Utilization", "averageUtilization": 80},
+                    },
+                },
+            ),
+        ],
+    )
+    def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
 
 
 class TestWorkerNetworkPolicy:

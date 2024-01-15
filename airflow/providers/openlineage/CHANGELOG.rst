@@ -26,6 +26,83 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Redshift SQL. (#35794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo. (#36362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add parent_run_id for COMPLETE and FAIL events (#36067)``
+* ``Add basic metrics to stats collector. (#35368)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Repair run_id for OpenLineage FAIL events (#36051)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+
+Misc
+~~~~
+
+* ``Remove ClassVar annotations. (#36084)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+1.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix bad regexp in mypy-providers specification in pre-commits (#35465)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Send column lineage from SQL operators. (#34843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 1.1.1
 .....
 

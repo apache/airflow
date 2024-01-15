@@ -104,7 +104,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
         slack = SlackAPIPostOperator(
             task_id="post_hello",
             dag=dag,
-            token="...",
             text="hello there!",
             channel="#random",
         )
@@ -114,10 +113,10 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param username: Username that airflow will be posting to Slack as. (templated)
     :param text: message to send to slack. (templated)
     :param icon_url: URL to icon used for this message
-    :param attachments: extra formatting details. (templated)
-        See https://api.slack.com/docs/attachments
-    :param blocks: extra block layouts. (templated)
+    :param blocks: A list of blocks to send with the message. (templated)
         See https://api.slack.com/reference/block-kit/blocks
+    :param attachments: (legacy) A list of attachments to send with the message. (templated)
+        See https://api.slack.com/docs/attachments
     """
 
     template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
@@ -135,8 +134,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         icon_url: str = (
             "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
         ),
-        attachments: list | None = None,
         blocks: list | None = None,
+        attachments: list | None = None,
         **kwargs,
     ) -> None:
         self.method = "chat.postMessage"

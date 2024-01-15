@@ -26,6 +26,8 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.models import Log
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def task_instance(session, create_task_instance, request):

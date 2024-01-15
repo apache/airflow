@@ -44,7 +44,7 @@ class JdbcHook(DbApiHook):
            configuration, you should make sure that you trust the users who can edit connections in the UI
            to not use it maliciously.
         4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
-           "local_settings.py" file.
+           ``local_settings.py`` file.
 
     See :doc:`/connections/jdbc` for full documentation.
 
@@ -74,8 +74,8 @@ class JdbcHook(DbApiHook):
         self._driver_path = driver_path
         self._driver_class = driver_class
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],

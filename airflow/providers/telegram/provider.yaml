@@ -21,8 +21,10 @@ name: Telegram
 description: |
     `Telegram <https://telegram.org/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288178
 versions:
+  - 4.3.0
   - 4.2.0
   - 4.1.1
   - 4.1.0
@@ -40,8 +42,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
-  - python-telegram-bot>=20.0.0
+  - apache-airflow>=2.6.0
+  - python-telegram-bot>=20.2
 
 integrations:
   - integration-name: Telegram

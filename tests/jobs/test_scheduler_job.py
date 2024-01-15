@@ -83,6 +83,8 @@ from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.mock_operators import CustomOperator
 from tests.utils.test_timezone import UTC
 
+pytestmark = pytest.mark.db_test
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
@@ -3034,11 +3036,6 @@ class TestSchedulerJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    # TODO: Investigate super-mysterious behaviour of this test hanging for sqlite. This test started
-    # To fail ONLY on sqlite but only on self-hosted runners and locally (not on public runners)
-    # We should uncomment it when we figure out what's going on
-    # Issue: https://github.com/apache/airflow/issues/35204
-    @pytest.mark.backend("mssql", "mysql", "postgres")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -3115,6 +3112,9 @@ class TestSchedulerJob:
             "test_invalid_dup_task.py",
             "test_ignore_this.py",
             "test_invalid_param.py",
+            "test_invalid_param2.py",
+            "test_invalid_param3.py",
+            "test_invalid_param4.py",
             "test_nested_dag.py",
             "test_imports.py",
             "__init__.py",
@@ -3151,7 +3151,7 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize(
         "adoptable_state",
-        State.adoptable_states,
+        list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state):
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name

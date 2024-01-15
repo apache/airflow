@@ -21,15 +21,8 @@ import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.slack.hooks.slack import SlackHook
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
@@ -46,13 +39,13 @@ class SlackNotifier(BaseNotifier):
     :param channel: The channel to send the message to. Optional
     :param username: The username to send the message as. Optional
     :param icon_url: The icon to use for the message. Optional
-    :param attachments: A list of attachments to send with the message. Optional
     :param blocks: A list of blocks to send with the message. Optional
     :param timeout: The maximum number of seconds the client will wait to connect
         and receive a response from Slack. Optional
     :param base_url: A string representing the Slack API base URL. Optional
     :param proxy: Proxy to make the Slack API call. Optional
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``. Optional
+    :param attachments: (legacy) A list of attachments to send with the message. Optional
     """
 
     template_fields = ("text", "channel", "username", "attachments", "blocks")

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 
-# content of conftest.py
 def pytest_configure(config):
     import sys
 

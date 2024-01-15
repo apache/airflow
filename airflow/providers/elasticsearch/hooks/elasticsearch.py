@@ -108,9 +108,7 @@ class ElasticsearchSQLHook(DbApiHook):
         if conn.extra_dejson.get("timeout", False):
             conn_args["timeout"] = conn.extra_dejson["timeout"]
 
-        conn = connect(**conn_args)
-
-        return conn
+        return connect(**conn_args)
 
     def get_uri(self) -> str:
         conn_id = getattr(self, self.conn_name_attr)
@@ -166,8 +164,8 @@ class ElasticsearchPythonHook(BaseHook):
                                 Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
     """
 
-    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
-        super().__init__()
+    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None, **kwargs):
+        super().__init__(**kwargs)
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
 

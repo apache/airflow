@@ -128,7 +128,6 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
             '"log" does not exist',  # postgres
             "no such table",  # sqlite
             "log' doesn't exist",  # mysql
-            "Invalid object name 'log'",  # mssql
         ]
         error_is_ok = e.args and any(x in e.args[0] for x in expected)
         if not error_is_ok:

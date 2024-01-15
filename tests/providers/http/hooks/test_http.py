@@ -31,6 +31,7 @@ import tenacity
 from aioresponses import aioresponses
 from requests.adapters import Response
 from requests.auth import AuthBase, HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -46,18 +47,23 @@ def aioresponse():
         yield async_response
 
 
-def get_airflow_connection(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
+def get_airflow_connection(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
 
 
-def get_airflow_connection_with_port(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test.com", port=1234)
+def get_airflow_connection_with_extra(extra: dict):
+    def inner(conn_id: str = "http_default"):
+        return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra=json.dumps(extra))
+
+    return inner
 
 
-def get_airflow_connection_with_login_and_password(unused_conn_id=None):
-    return Connection(
-        conn_id="http_default", conn_type="http", host="test.com", login="username", password="pass"
-    )
+def get_airflow_connection_with_port(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", port=1234)
+
+
+def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
 
 
 class TestHttpHook:
@@ -119,6 +125,64 @@ class TestHttpHook:
             assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
             assert conn.headers.get("bearer") == "test"
 
+    def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("allow_redirects") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == 3
+
+    def test_hook_ignore_proxies_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
+        )
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("proxies") is None
+            assert conn.proxies == {"http": "http://proxy:80", "https": "https://proxy:80"}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+
+    def test_hook_ignore_verify_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("verify") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is False
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+
+    def test_hook_ignore_cert_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("cert") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert == "cert.crt"
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
         from requests.exceptions import InvalidURL, MissingSchema
@@ -131,10 +195,12 @@ class TestHttpHook:
                 self.get_lowercase_hook.run("v1/test", data=data)
             mock_requests.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
+    @pytest.mark.db_test
     def test_hook_uses_provided_header(self):
         conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
         assert conn.headers.get("bearer") == "newT0k3n"
 
+    @pytest.mark.db_test
     def test_hook_has_no_header_from_extra(self):
         conn = self.get_hook.get_conn()
         assert conn.headers.get("bearer") is None
@@ -177,6 +243,7 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.http.hooks.http.requests.Session")
     def test_retry_on_conn_error(self, mocked_session):
         retry_args = dict(
@@ -405,9 +472,7 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ), mock.patch(
             "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
-        ) as tcp_keep_alive_send, mock.patch(
-            "requests.adapters.HTTPAdapter.send"
-        ) as http_send:
+        ) as tcp_keep_alive_send, mock.patch("requests.adapters.HTTPAdapter.send") as http_send:
             hook = HttpHook(method="GET")
             response = Response()
             response.status_code = HTTPStatus.OK
@@ -422,9 +487,7 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ), mock.patch(
             "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
-        ) as tcp_keep_alive_send, mock.patch(
-            "requests.adapters.HTTPAdapter.send"
-        ) as http_send:
+        ) as tcp_keep_alive_send, mock.patch("requests.adapters.HTTPAdapter.send") as http_send:
             hook = HttpHook(method="GET", tcp_keep_alive=False)
             response = Response()
             response.status_code = HTTPStatus.OK
@@ -463,6 +526,7 @@ class TestHttpAsyncHook:
 
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_do_api_call_async_unknown_method(self):
         """Test api call asynchronously for unknown http method."""
@@ -525,3 +589,62 @@ class TestHttpAsyncHook:
                 assert all(
                     key in headers and headers[key] == value for key, value in connection_extra.items()
                 )
+
+    @pytest.mark.asyncio
+    async def test_async_request_uses_connection_extra_with_requests_parameters(self):
+        """Test api call asynchronously with a connection that has extra field."""
+        connection_extra = {"bearer": "test"}
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={
+                **connection_extra,
+                **{
+                    "proxies": proxy,
+                    "timeout": 60,
+                    "verify": False,
+                    "allow_redirects": False,
+                    "max_redirects": 3,
+                },
+            }
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
+                assert mocked_function.call_args.kwargs.get("proxy") == proxy
+                assert mocked_function.call_args.kwargs.get("timeout") == 60
+                assert mocked_function.call_args.kwargs.get("verify_ssl") is False
+                assert mocked_function.call_args.kwargs.get("allow_redirects") is False
+                assert mocked_function.call_args.kwargs.get("max_redirects") == 3
+
+    def test_process_extra_options_from_connection(self):
+        extra_options = {}
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        conn = get_airflow_connection_with_extra(
+            extra={
+                "bearer": "test",
+                "stream": True,
+                "cert": "cert.crt",
+                "proxies": proxy,
+                "timeout": 60,
+                "verify": False,
+                "allow_redirects": False,
+                "max_redirects": 3,
+            }
+        )()
+
+        actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+        assert extra_options == {
+            "proxy": proxy,
+            "timeout": 60,
+            "verify_ssl": False,
+            "allow_redirects": False,
+            "max_redirects": 3,
+        }
+        assert actual == {"bearer": "test"}

@@ -27,7 +27,9 @@ https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
 from __future__ import annotations
 
 import os
+import pathlib
 from datetime import datetime, timedelta
+from os.path import join
 
 # [START import_module]
 # The DAG object; we'll need this to instantiate a DAG
@@ -55,10 +57,11 @@ with DAG(
     catchup=False,
 ) as dag:
     # [START SparkKubernetesOperator_DAG]
+    pi_example_path = pathlib.Path(__file__).parent.resolve()
     t1 = SparkKubernetesOperator(
         task_id="spark_pi_submit",
         namespace="default",
-        application_file="example_spark_kubernetes_spark_pi.yaml",
+        application_file=join(pi_example_path, "example_spark_kubernetes_spark_pi.yaml"),
         do_xcom_push=True,
         dag=dag,
     )

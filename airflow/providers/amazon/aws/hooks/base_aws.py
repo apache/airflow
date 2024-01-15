@@ -629,6 +629,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Verify or not SSL certificates boto3 client/resource read-only property."""
         return self.conn_config.verify
 
+    @cached_property
+    def account_id(self) -> str:
+        """Return associated AWS Account ID."""
+        return (
+            self.get_session(region_name=self.region_name)
+            .client(
+                service_name="sts",
+                endpoint_url=self.conn_config.get_service_endpoint_url("sts"),
+                config=self.config,
+                verify=self.verify,
+            )
+            .get_caller_identity()["Account"]
+        )
+
     def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
@@ -812,8 +826,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return retry_decorator
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],

@@ -39,6 +39,7 @@ from airflow.configuration import (
     get_airflow_home,
     get_all_expansion_variables,
     run_command,
+    write_default_airflow_configuration_if_needed,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
@@ -1133,7 +1134,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_deprecated_funcs(self):
         for func in [
-            "load_test_config",
             "get",
             "getboolean",
             "getfloat",
@@ -1650,3 +1650,90 @@ def test_error_when_contributing_to_existing_section():
             ):
                 conf.load_providers_configuration()
         assert conf.get("celery", "celery_app_name") == "test"
+
+
+class TestWriteDefaultAirflowConfigurationIfNeeded:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, tmp_path_factory):
+        self.test_airflow_home = tmp_path_factory.mktemp("airflow_home")
+        self.test_airflow_config = self.test_airflow_home / "airflow.cfg"
+        self.test_non_relative_path = tmp_path_factory.mktemp("other")
+
+        with pytest.MonkeyPatch.context() as monkeypatch_ctx:
+            self.monkeypatch = monkeypatch_ctx
+            self.patch_airflow_home(self.test_airflow_home)
+            self.patch_airflow_config(self.test_airflow_config)
+            yield
+
+    def patch_airflow_home(self, airflow_home):
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
+
+    def patch_airflow_config(self, airflow_config):
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
+
+    def test_default(self):
+        """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
+        assert not self.test_airflow_config.exists()
+        write_default_airflow_configuration_if_needed()
+        assert self.test_airflow_config.exists()
+
+    @pytest.mark.parametrize(
+        "relative_to_airflow_home",
+        [
+            pytest.param(True, id="relative-to-airflow-home"),
+            pytest.param(False, id="non-relative-to-airflow-home"),
+        ],
+    )
+    def test_config_already_created(self, relative_to_airflow_home):
+        if relative_to_airflow_home:
+            test_airflow_config = self.test_airflow_home / "test-existed-config"
+        else:
+            test_airflow_config = self.test_non_relative_path / "test-existed-config"
+
+        test_airflow_config.write_text("foo=bar")
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.read_text() == "foo=bar"
+
+    def test_config_path_relative(self):
+        """Test write default config in path relative to ${AIRFLOW_HOME}."""
+        test_airflow_config_parent = self.test_airflow_home / "config"
+        test_airflow_config = test_airflow_config_parent / "test-airflow.config"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert not test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.exists()
+
+    def test_config_path_non_relative_directory_exists(self):
+        """Test write default config in path non-relative to ${AIRFLOW_HOME} and directory exists."""
+        test_airflow_config_parent = self.test_non_relative_path
+        test_airflow_config = test_airflow_config_parent / "test-airflow.cfg"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.exists()
+
+    def test_config_path_non_relative_directory_not_exists(self):
+        """Test raise an error if path to config non-relative to ${AIRFLOW_HOME} and directory not exists."""
+        test_airflow_config_parent = self.test_non_relative_path / "config"
+        test_airflow_config = test_airflow_config_parent / "test-airflow.cfg"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert not test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        with pytest.raises(FileNotFoundError, match="not exists and it is not relative to"):
+            write_default_airflow_configuration_if_needed()
+        assert not test_airflow_config.exists()
+        assert not test_airflow_config_parent.exists()
+
+    def test_config_paths_is_directory(self):
+        """Test raise an error if AIRFLOW_CONFIG is a directory."""
+        test_airflow_config = self.test_airflow_home / "config-dir"
+        test_airflow_config.mkdir()
+        self.patch_airflow_config(test_airflow_config)
+
+        with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
+            write_default_airflow_configuration_if_needed()

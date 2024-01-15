@@ -147,6 +147,7 @@ class TestKylinCubeOperator:
         with pytest.raises(AirflowException):
             operator.execute(None)
 
+    @pytest.mark.db_test
     def test_render_template(self):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",
