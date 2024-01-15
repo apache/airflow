@@ -102,7 +102,7 @@ class AirbyteJobSensorAsync(AirbyteJobSensor):
         state = job.json()["job"]["status"]
         end_time = time.time() + self.timeout
 
-        self.log.info("Airbyte Job Id: Job %s" % self.airbyte_job_id)
+        self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
 
         if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
             self.defer(

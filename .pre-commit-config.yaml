@@ -269,7 +269,6 @@ repos:
          # so the user is informed to take action.
          - --line-length
          - '99999'
-         - --no-transform-percent
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
