@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-15T15:55:33.349713
+# This constraints file was automatically generated on 2024-01-15T20:16:05.240332
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -505,7 +505,7 @@ pkginfo==1.9.6
 platformdirs==3.11.0
 pluggy==1.3.0
 ply==3.11
-plyvel==1.5.0
+plyvel==1.5.1
 portalocker==2.8.2
 pprintpp==0.4.0
 pre-commit==3.6.0
