@@ -56,3 +56,10 @@ An example using the async way:
     :language: python
     :start-after: [START howto_operator_airbyte_asynchronous]
     :end-before: [END howto_operator_airbyte_asynchronous]
+
+An example using the async way and a deferrable sensor:
+
+.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
+    :language: python
+    :start-after: [START howto_operator_airbyte_asynchronous_deferrable]
+    :end-before: [END howto_operator_airbyte_asynchronous_deferrable]
