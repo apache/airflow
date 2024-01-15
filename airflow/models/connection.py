@@ -56,7 +56,7 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
     r"""Sanitizes the connection id and allows only specific characters to be within.
 
     Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
-    200 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
+    250 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
 
     The character selection is such that it prevents the injection of javascript or
     executable bits to avoid any awkward behaviour in the front-end.
