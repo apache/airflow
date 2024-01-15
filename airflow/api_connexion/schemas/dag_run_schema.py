@@ -108,8 +108,18 @@ class DAGRunSchema(SQLAlchemySchema):
     @post_dump
     def autofill(self, data, **kwargs):
         """Populate execution_date from logical_date for compatibility."""
+        ret_data = {}
         data["execution_date"] = data["logical_date"]
-        return data
+        if self.context.get("fields"):
+            ret_fields = self.context.get("fields")
+            for ret_field in ret_fields:
+                if ret_field not in data:
+                    raise ValueError(f"{ret_field} not in DAGRunSchema")
+                ret_data[ret_field] = data[ret_field]
+        else:
+            ret_data = data
+
+        return ret_data
 
 
 class SetDagRunStateFormSchema(Schema):

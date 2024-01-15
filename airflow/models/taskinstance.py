@@ -2361,6 +2361,8 @@ class TaskInstance(Base, LoggingMixin):
                     self.log.info(e)
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
+                _run_finished_callback(callbacks=self.task.on_skipped_callback, context=context)
+                session.commit()
                 self.state = TaskInstanceState.SKIPPED
             except AirflowRescheduleException as reschedule_exception:
                 self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
