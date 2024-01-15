@@ -586,6 +586,8 @@ def _get_template_context(
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
+    # TODO
+
     validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
     logical_date: DateTime = timezone.coerce_datetime(task_instance.execution_date)
@@ -735,6 +737,7 @@ def _get_template_context(
         "inlets": task.inlets,
         "logical_date": logical_date,
         "macros": macros,
+        "map_index_template": task.map_index_template,
         "next_ds": get_next_ds(),
         "next_ds_nodash": get_next_ds_nodash(),
         "next_execution_date": get_next_execution_date(),
@@ -1237,6 +1240,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    map_index_template = Column(String(64))
 
     external_executor_id = Column(StringID())
 
@@ -1412,6 +1416,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "map_index_template": task.map_index_template,
         }
 
     @reconstructor
@@ -2352,6 +2357,10 @@ class TaskInstance(Base, LoggingMixin):
         with set_current_task_instance_session(session=session):
             self.task = self.task.prepare_for_execution()
             context = self.get_template_context(ignore_param_exceptions=False)
+
+            dag = self.task.get_dag()
+            jinja_env = dag.get_template_env(force_sandboxed=True)
+            jinja_env.from_string("map_index_template").render(**context)
 
             try:
                 if not mark_success:

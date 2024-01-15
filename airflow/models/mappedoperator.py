@@ -200,6 +200,7 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
+        map_index_template = partial_kwargs.pop("map_index_template", None)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -231,6 +232,7 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
+            map_index_template=map_index_template,
         )
         return op
 
@@ -280,6 +282,7 @@ class MappedOperator(AbstractOperator):
     end_date: pendulum.DateTime | None
     upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
+    map_index_template: str | None
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.

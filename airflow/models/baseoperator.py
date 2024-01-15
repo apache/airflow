@@ -778,6 +778,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
+        map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,

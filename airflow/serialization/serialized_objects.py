@@ -1101,6 +1101,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                map_index_template=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
             )
