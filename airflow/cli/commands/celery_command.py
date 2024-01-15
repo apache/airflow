@@ -170,7 +170,7 @@ def worker(args):
         "--loglevel",
         celery_log_level,
         "--pidfile",
-        worker_pid_file_path,
+        worker_pid_file_path + ".celery.pid",
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])
