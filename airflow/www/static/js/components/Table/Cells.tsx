@@ -176,7 +176,7 @@ export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
 export const CodeCell = ({ cell: { value } }: CellProps) =>
   value ? <Code>{JSON.stringify(value)}</Code> : null;
 
-export const DatasetActionCell = ({ cell: { value, row } }: CellProps) => {
+export const DatasetActionCell = ({ cell: { row } }: CellProps) => {
   const {
     mutateAsync: apiCallToDeleteDataset,
     isLoading: deleteDatasetIsLoading,
@@ -198,9 +198,7 @@ export const DatasetActionCell = ({ cell: { value, row } }: CellProps) => {
             success: { title: "Dataset deleted" },
             error: {
               duration: 0,
-              render: () => {
-                return null; // will use errorToast util in mutation
-              },
+              render: () => null, // will use errorToast util in mutation
             },
             loading: { title: "Deleting..." },
           });

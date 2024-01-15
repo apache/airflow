@@ -612,6 +612,12 @@ export interface paths {
   "/datasets/{uri}": {
     /** Get a dataset by uri. */
     get: operations["get_dataset"];
+    /**
+     * Delete a dataset by uri.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dataset"];
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -4286,6 +4292,27 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  /**
+   * Delete a dataset by uri.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dataset: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /** Get dataset events */
   get_dataset_events: {
     parameters: {
@@ -5174,6 +5201,9 @@ export type GetDatasetsVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetVariables = CamelCasedPropertiesDeep<
   operations["get_dataset"]["parameters"]["path"]
+>;
+export type DeleteDatasetVariables = CamelCasedPropertiesDeep<
+  operations["delete_dataset"]["parameters"]["path"]
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
