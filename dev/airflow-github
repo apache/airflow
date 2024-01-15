@@ -324,6 +324,10 @@ def changelog(previous_version, target_version, github_token, disable_progress):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
     log = get_commits_between(repo, previous_version, target_version)
+
+    if disable_progress:
+        print(f"Processing {len(log)} commits")
+
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
