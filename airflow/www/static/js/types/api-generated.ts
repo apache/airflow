@@ -1470,10 +1470,10 @@ export interface components {
      * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
-      timezone?: components["schemas"]["Timezone"];
-      catchup?: boolean;
-      orientation?: string;
-      concurrency?: number;
+      timezone?: components["schemas"]["Timezone"] | null;
+      catchup?: boolean | null;
+      orientation?: string | null;
+      concurrency?: number | null;
       /**
        * Format: date-time
        * @description The DAG's start date.
@@ -1481,7 +1481,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"];
+      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -2472,6 +2472,8 @@ export interface components {
      * A comma-separated list of fully qualified names of fields.
      */
     UpdateMask: string[];
+    /** @description List of field for return. */
+    ReturnFields: string[];
   };
   requestBodies: {};
   headers: {};
@@ -2659,6 +2661,8 @@ export interface operations {
          * *New in version 2.6.0*
          */
         paused?: components["parameters"]["Paused"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2732,6 +2736,10 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -2997,6 +3005,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3062,6 +3072,10 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
         /** The DAG run ID. */
         dag_run_id: components["parameters"]["DAGRunID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -4098,6 +4112,10 @@ export interface operations {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
       };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
+      };
     };
     responses: {
       /** Success. */
@@ -4988,7 +5006,8 @@ export type PatchDagsVariables = CamelCasedPropertiesDeep<
     operations["patch_dags"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagVariables = CamelCasedPropertiesDeep<
-  operations["get_dag"]["parameters"]["path"]
+  operations["get_dag"]["parameters"]["path"] &
+    operations["get_dag"]["parameters"]["query"]
 >;
 export type DeleteDagVariables = CamelCasedPropertiesDeep<
   operations["delete_dag"]["parameters"]["path"]
@@ -5026,7 +5045,8 @@ export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<
   operations["get_dag_runs_batch"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagRunVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_run"]["parameters"]["path"]
+  operations["get_dag_run"]["parameters"]["path"] &
+    operations["get_dag_run"]["parameters"]["query"]
 >;
 export type DeleteDagRunVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_run"]["parameters"]["path"]
@@ -5133,7 +5153,8 @@ export type GetLogVariables = CamelCasedPropertiesDeep<
     operations["get_log"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_details"]["parameters"]["path"]
+  operations["get_dag_details"]["parameters"]["path"] &
+    operations["get_dag_details"]["parameters"]["query"]
 >;
 export type GetTasksVariables = CamelCasedPropertiesDeep<
   operations["get_tasks"]["parameters"]["path"] &

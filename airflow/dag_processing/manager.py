@@ -1177,14 +1177,17 @@ class DagFileProcessorManager(LoggingMixin):
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
         ]
 
-        for file_path, processor in self._processors.items():
-            self.log.debug(
-                "File path %s is still being processed (started: %s)",
-                processor.file_path,
-                processor.start_time.isoformat(),
-            )
+        if self.log.isEnabledFor(logging.DEBUG):
+            for file_path, processor in self._processors.items():
+                self.log.debug(
+                    "File path %s is still being processed (started: %s)",
+                    processor.file_path,
+                    processor.start_time.isoformat(),
+                )
 
-        self.log.debug("Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue))
+            self.log.debug(
+                "Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue)
+            )
 
         for file_path in files_paths_to_queue:
             self._file_stats.setdefault(file_path, DagFileProcessorManager.DEFAULT_FILE_STAT)

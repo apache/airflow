@@ -45,6 +45,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
     "commands": [
         "add-back-references",
+        "prepare-python-client",
         "publish-docs",
         "generate-constraints",
         "update-constraints",
@@ -57,8 +58,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
-                "--use-local-hatch",
                 "--version-suffix-for-pypi",
+                "--use-local-hatch",
             ],
         }
     ],
@@ -164,6 +165,19 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--skip-git-fetch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-python-client": [
+        {
+            "name": "Python client preparation flags",
+            "options": [
+                "--package-format",
+                "--version-suffix-for-pypi",
+                "--use-local-hatch",
+                "--python-client-repo",
+                "--only-publish-build-scripts",
+                "--security-schemes",
             ],
         }
     ],

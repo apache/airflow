@@ -152,3 +152,7 @@ PKG-INFO
 
 # checksum files
 .*\.md5sum
+
+# Openapi files
+.openapi-generator-ignore
+version.txt
