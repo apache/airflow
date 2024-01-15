@@ -125,7 +125,7 @@ class BatchSensor(BaseSensorOperator):
         if event["status"] != "success":
             message = f"Error while running job: {event}"
             # TODO: remove this if-else block when min_airflow_version is set to higher than the version that
-            # changed in https://github.com/apache/airflow/pull/33424 is released
+            # changed in https://github.com/apache/airflow/pull/33424 is released (2.7.1)
             if self.soft_fail:
                 raise AirflowSkipException(message)
             raise AirflowException(message)

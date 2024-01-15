@@ -262,31 +262,63 @@ def test_get_table_schemas_with_other_database():
 @pytest.mark.parametrize(
     "schema_mapping, expected",
     [
-        pytest.param({None: ["C1", "C2"]}, ["information_schema.columns.table_name IN ('C1', 'C2')"]),
+        pytest.param({None: {None: ["C1", "C2"]}}, "information_schema.columns.table_name IN ('C1', 'C2')"),
         pytest.param(
-            {"Schema1": ["Table1"], "Schema2": ["Table2"]},
-            [
-                "information_schema.columns.table_schema = 'Schema1' AND "
-                "information_schema.columns.table_name IN ('Table1')",
-                "information_schema.columns.table_schema = 'Schema2' AND "
-                "information_schema.columns.table_name IN ('Table2')",
-            ],
+            {None: {"Schema1": ["Table1"], "Schema2": ["Table2"]}},
+            "information_schema.columns.table_schema = 'Schema1' AND "
+            "information_schema.columns.table_name IN ('Table1') OR "
+            "information_schema.columns.table_schema = 'Schema2' AND "
+            "information_schema.columns.table_name IN ('Table2')",
         ),
         pytest.param(
-            {"Schema1": ["Table1", "Table2"]},
-            [
-                "information_schema.columns.table_schema = 'Schema1' AND "
-                "information_schema.columns.table_name IN ('Table1', 'Table2')",
-            ],
+            {None: {"Schema1": ["Table1", "Table2"]}},
+            "information_schema.columns.table_schema = 'Schema1' AND "
+            "information_schema.columns.table_name IN ('Table1', 'Table2')",
+        ),
+        pytest.param(
+            {"Database1": {"Schema1": ["Table1", "Table2"]}},
+            "information_schema.columns.table_database = 'Database1' "
+            "AND information_schema.columns.table_schema = 'Schema1' "
+            "AND information_schema.columns.table_name IN ('Table1', 'Table2')",
+        ),
+        pytest.param(
+            {"Database1": {"Schema1": ["Table1", "Table2"], "Schema2": ["Table3", "Table4"]}},
+            "information_schema.columns.table_database = 'Database1' "
+            "AND (information_schema.columns.table_schema = 'Schema1' "
+            "AND information_schema.columns.table_name IN ('Table1', 'Table2') "
+            "OR information_schema.columns.table_schema = 'Schema2' "
+            "AND information_schema.columns.table_name IN ('Table3', 'Table4'))",
+        ),
+        pytest.param(
+            {"Database1": {"Schema1": ["Table1", "Table2"]}, "Database2": {"Schema2": ["Table3", "Table4"]}},
+            "information_schema.columns.table_database = 'Database1' "
+            "AND information_schema.columns.table_schema = 'Schema1' "
+            "AND information_schema.columns.table_name IN ('Table1', 'Table2') OR "
+            "information_schema.columns.table_database = 'Database2' "
+            "AND information_schema.columns.table_schema = 'Schema2' "
+            "AND information_schema.columns.table_name IN ('Table3', 'Table4')",
         ),
     ],
 )
 def test_create_filter_clauses(schema_mapping, expected):
     information_table = Table(
-        "columns", MetaData(), *[Column("table_name"), Column("table_schema")], schema="information_schema"
+        "columns",
+        MetaData(),
+        *[
+            Column(name)
+            for name in [
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "udt_name",
+                "table_database",
+            ]
+        ],
+        schema="information_schema",
     )
     clauses = create_filter_clauses(schema_mapping, information_table)
-    assert [str(clause.compile(compile_kwargs={"literal_binds": True})) for clause in clauses] == expected
+    assert str(clauses.compile(compile_kwargs={"literal_binds": True})) == expected
 
 
 def test_create_create_information_schema_query():

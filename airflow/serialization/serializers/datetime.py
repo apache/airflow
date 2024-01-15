@@ -24,7 +24,7 @@ from airflow.serialization.serializers.timezone import (
     serialize as serialize_timezone,
 )
 from airflow.utils.module_loading import qualname
-from airflow.utils.timezone import convert_to_utc, is_naive
+from airflow.utils.timezone import parse_timezone
 
 if TYPE_CHECKING:
     import datetime
@@ -45,10 +45,8 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
     if isinstance(o, datetime):
         qn = qualname(o)
-        if is_naive(o):
-            o = convert_to_utc(o)
 
-        tz = serialize_timezone(o.tzinfo)
+        tz = serialize_timezone(o.tzinfo) if o.tzinfo else None
 
         return {TIMESTAMP: o.timestamp(), TIMEZONE: tz}, qn, __version__, True
 
@@ -65,25 +63,28 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
     import datetime
 
     from pendulum import DateTime
-    from pendulum.tz import fixed_timezone, timezone
 
     tz: datetime.tzinfo | None = None
     if isinstance(data, dict) and TIMEZONE in data:
         if version == 1:
             # try to deserialize unsupported timezones
             timezone_mapping = {
-                "EDT": fixed_timezone(-4 * 3600),
-                "CDT": fixed_timezone(-5 * 3600),
-                "MDT": fixed_timezone(-6 * 3600),
-                "PDT": fixed_timezone(-7 * 3600),
-                "CEST": timezone("CET"),
+                "EDT": parse_timezone(-4 * 3600),
+                "CDT": parse_timezone(-5 * 3600),
+                "MDT": parse_timezone(-6 * 3600),
+                "PDT": parse_timezone(-7 * 3600),
+                "CEST": parse_timezone("CET"),
             }
             if data[TIMEZONE] in timezone_mapping:
                 tz = timezone_mapping[data[TIMEZONE]]
             else:
-                tz = timezone(data[TIMEZONE])
+                tz = parse_timezone(data[TIMEZONE])
         else:
-            tz = deserialize_timezone(data[TIMEZONE][1], data[TIMEZONE][2], data[TIMEZONE][0])
+            tz = (
+                deserialize_timezone(data[TIMEZONE][1], data[TIMEZONE][2], data[TIMEZONE][0])
+                if data[TIMEZONE]
+                else None
+            )
 
     if classname == qualname(datetime.datetime) and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)

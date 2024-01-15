@@ -44,6 +44,9 @@ from airflow.utils.state import State
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 FAKE_EXCEPTION_MSG = "Fake Exception"
 
 
@@ -165,9 +168,7 @@ class TestCeleryExecutor:
             "airflow.providers.celery.executors.celery_executor_utils._execute_in_subprocess"
         ) as mock_subproc, mock.patch(
             "airflow.providers.celery.executors.celery_executor_utils._execute_in_fork"
-        ) as mock_fork, mock.patch(
-            "celery.app.task.Task.request"
-        ) as mock_task:
+        ) as mock_fork, mock.patch("celery.app.task.Task.request") as mock_task:
             mock_task.id = "abcdef-124215-abcdef"
             with expected_context:
                 celery_executor_utils.execute_command(command)
@@ -346,3 +347,14 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
             "You have configured a result_backend using the protocol `rediss`,"
             " it is highly recommended to use an alternative result_backend (i.e. a database)."
         ) in caplog.text
+
+
+@conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
+def test_sentinel_kwargs_loaded_from_string():
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
+        "service_name": "mymaster"
+    }

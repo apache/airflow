@@ -111,7 +111,7 @@ class SlackWebhookHook(BaseHook):
         retry_handlers: list[RetryHandler] | None = None,
         **extra_client_args: Any,
     ):
-        super().__init__()
+        super().__init__(logger_name=extra_client_args.pop("logger_name", None))
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.timeout = timeout
         self.proxy = proxy
@@ -231,7 +231,7 @@ class SlackWebhookHook(BaseHook):
         :param unfurl_links: Option to indicate whether text url should unfurl.
         :param unfurl_media: Option to indicate whether media url should unfurl.
         :param headers: Request headers for this request.
-        :param attachments: A collection of attachments.
+        :param attachments: (legacy) A collection of attachments.
         """
         body = {
             "text": text,

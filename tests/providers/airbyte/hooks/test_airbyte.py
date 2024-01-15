@@ -26,6 +26,8 @@ from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestAirbyteHook:
     """
@@ -110,7 +112,8 @@ class TestAirbyteHook:
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
-    def test_wait_for_job_timeout(self, mock_get_job):
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
+    def test_wait_for_job_timeout(self, mock_cancel_job, mock_get_job):
         mock_get_job.side_effect = [
             self.return_value_get_job(self.hook.PENDING),
             self.return_value_get_job(self.hook.RUNNING),
@@ -120,7 +123,9 @@ class TestAirbyteHook:
 
         calls = [mock.call(job_id=self.job_id)]
         mock_get_job.assert_has_calls(calls)
+        mock_cancel_job.assert_has_calls(calls)
         assert mock_get_job.mock_calls == calls
+        assert mock_cancel_job.mock_calls == calls
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
     def test_wait_for_job_state_unrecognized(self, mock_get_job):

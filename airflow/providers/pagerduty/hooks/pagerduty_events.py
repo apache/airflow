@@ -47,8 +47,8 @@ class PagerdutyEventsHook(BaseHook):
     conn_type = "pagerduty_events"
     hook_name = "Pagerduty Events"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host", "extra"],
@@ -58,9 +58,12 @@ class PagerdutyEventsHook(BaseHook):
         }
 
     def __init__(
-        self, integration_key: str | None = None, pagerduty_events_conn_id: str | None = None
+        self,
+        integration_key: str | None = None,
+        pagerduty_events_conn_id: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.integration_key = None
         self._session = None
 

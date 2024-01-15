@@ -19,32 +19,34 @@ from __future__ import annotations
 
 import pendulum
 import pytest
+import time_machine
 
-from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
+from airflow.utils.timezone import utc
 
-START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # Precedes all events
+BEFORE_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # Precedes all events
+START_DATE = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
 
 EVENT_DATES = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),  # deliberate duplicate, should be ignored
-    pendulum.DateTime(2021, 10, 9, tzinfo=TIMEZONE),  # deliberately out of order
-    pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 7, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),  # deliberate duplicate, should be ignored
+    pendulum.DateTime(2021, 10, 9, tzinfo=utc),  # deliberately out of order
+    pendulum.DateTime(2021, 9, 10, tzinfo=utc),
 ]
 
 EVENT_DATES_SORTED = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 10, 9, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 7, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 10, tzinfo=utc),
+    pendulum.DateTime(2021, 10, 9, tzinfo=utc),
 ]
 
-NON_EVENT_DATE = pendulum.DateTime(2021, 10, 1, tzinfo=TIMEZONE)
-MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE)
+NON_EVENT_DATE = pendulum.DateTime(2021, 10, 1, tzinfo=utc)
+MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=utc)
 
 
 @pytest.fixture()
@@ -93,7 +95,7 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
     Test that when using strict event dates, manual runs before the first event have the first event's date
     as the start interval
     """
-    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(run_after=START_DATE)
+    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(run_after=BEFORE_DATE)
     expected_data_interval = DataInterval.exact(EVENT_DATES[0])
     assert expected_data_interval == manual_run_data_interval
 
@@ -101,8 +103,15 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
 @pytest.mark.parametrize(
     "last_automated_data_interval, expected_next_info",
     [
+        pytest.param(None, DagRunInfo.interval(START_DATE, START_DATE)),
+        pytest.param(
+            DataInterval(EVENT_DATES_SORTED[0], EVENT_DATES_SORTED[0]),
+            DagRunInfo.interval(START_DATE, START_DATE),
+        ),
+    ]
+    + [
         pytest.param(DataInterval(day1, day1), DagRunInfo.interval(day2, day2))
-        for day1, day2 in zip(EVENT_DATES_SORTED, EVENT_DATES_SORTED[1:])
+        for day1, day2 in zip(EVENT_DATES_SORTED[1:], EVENT_DATES_SORTED[2:])
     ]
     + [pytest.param(DataInterval(EVENT_DATES_SORTED[-1], EVENT_DATES_SORTED[-1]), None)],
 )
@@ -118,3 +127,52 @@ def test_subsequent_weekday_schedule(
         restriction=restriction,
     )
     assert next_info == expected_next_info
+
+
+@pytest.mark.parametrize(
+    "current_date",
+    [
+        pytest.param(pendulum.DateTime(2021, 9, 1, tzinfo=utc), id="when-current-date-is-before-first-event"),
+        pytest.param(pendulum.DateTime(2021, 9, 8, tzinfo=utc), id="when-current-date-is-in-the-middle"),
+        pytest.param(pendulum.DateTime(2021, 12, 9, tzinfo=utc), id="when-current-date-is-after-last-event"),
+    ],
+)
+@pytest.mark.parametrize(
+    "last_automated_data_interval",
+    [
+        pytest.param(None, id="first-run"),
+        pytest.param(DataInterval(start=BEFORE_DATE, end=BEFORE_DATE), id="subsequent-run"),
+    ],
+)
+def test_no_catchup_first_starts(
+    last_automated_data_interval: DataInterval | None,
+    current_date,
+    unrestricted_timetable: Timetable,
+) -> None:
+    # we don't use the last_automated_data_interval here because it's always less than the first event
+    expected_date = max(current_date, START_DATE, EVENT_DATES_SORTED[0])
+    expected_info = None
+    if expected_date <= EVENT_DATES_SORTED[-1]:
+        expected_info = DagRunInfo.interval(start=expected_date, end=expected_date)
+
+    with time_machine.travel(current_date):
+        next_info = unrestricted_timetable.next_dagrun_info(
+            last_automated_data_interval=last_automated_data_interval,
+            restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
+        )
+    assert next_info == expected_info
+
+
+def test_empty_timetable() -> None:
+    empty_timetable = EventsTimetable(event_dates=[])
+    next_info = empty_timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
+    )
+    assert next_info is None
+
+
+def test_empty_timetable_manual_run() -> None:
+    empty_timetable = EventsTimetable(event_dates=[])
+    manual_run_data_interval = empty_timetable.infer_manual_data_interval(run_after=START_DATE)
+    assert manual_run_data_interval == DataInterval(start=START_DATE, end=START_DATE)

@@ -34,6 +34,8 @@ from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from flask import Flask
 

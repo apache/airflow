@@ -19,10 +19,13 @@ from __future__ import annotations
 
 from typing import IO, Any
 
-from azure.identity import DefaultAzureCredential
 from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
 
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureFileShareHook(BaseHook):
@@ -39,25 +42,9 @@ class AzureFileShareHook(BaseHook):
     conn_type = "azure_fileshare"
     hook_name = "Azure FileShare"
 
-    def __init__(
-        self,
-        share_name: str | None = None,
-        file_path: str | None = None,
-        directory_path: str | None = None,
-        azure_fileshare_conn_id: str = "azure_fileshare_default",
-    ) -> None:
-        super().__init__()
-        self._conn_id = azure_fileshare_conn_id
-        self.share_name = share_name
-        self.file_path = file_path
-        self.directory_path = directory_path
-        self._account_url: str | None = None
-        self._connection_string: str | None = None
-        self._account_access_key: str | None = None
-        self._sas_token: str | None = None
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -70,8 +57,8 @@ class AzureFileShareHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -86,6 +73,24 @@ class AzureFileShareHook(BaseHook):
                 "connection_string": "account url or token (optional)",
             },
         }
+
+    def __init__(
+        self,
+        share_name: str | None = None,
+        file_path: str | None = None,
+        directory_path: str | None = None,
+        azure_fileshare_conn_id: str = "azure_fileshare_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._conn_id = azure_fileshare_conn_id
+        self.share_name = share_name
+        self.file_path = file_path
+        self.directory_path = directory_path
+        self._account_url: str | None = None
+        self._connection_string: str | None = None
+        self._account_access_key: str | None = None
+        self._sas_token: str | None = None
 
     def get_conn(self) -> None:
         conn = self.get_connection(self._conn_id)
@@ -102,6 +107,16 @@ class AzureFileShareHook(BaseHook):
             return f"https://{account_url}.file.core.windows.net"
         return account_url
 
+    def _get_sync_default_azure_credential(self):
+        conn = self.get_connection(self._conn_id)
+        extras = conn.extra_dejson
+        managed_identity_client_id = extras.get("managed_identity_client_id")
+        workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
+        return get_sync_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
+
     @property
     def share_service_client(self):
         self.get_conn()
@@ -114,11 +129,14 @@ class AzureFileShareHook(BaseHook):
             return ShareServiceClient(account_url=self._account_url, credential=credential)
         else:
             return ShareServiceClient(
-                account_url=self._account_url, credential=DefaultAzureCredential(), token_intent="backup"
+                account_url=self._account_url,
+                credential=self._get_sync_default_azure_credential(),
+                token_intent="backup",
             )
 
     @property
     def share_directory_client(self):
+        self.get_conn()
         if self._connection_string:
             return ShareDirectoryClient.from_connection_string(
                 conn_str=self._connection_string,
@@ -138,12 +156,13 @@ class AzureFileShareHook(BaseHook):
                 account_url=self._account_url,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
-                credential=DefaultAzureCredential(),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
     @property
     def share_file_client(self):
+        self.get_conn()
         if self._connection_string:
             return ShareFileClient.from_connection_string(
                 conn_str=self._connection_string,
@@ -163,7 +182,7 @@ class AzureFileShareHook(BaseHook):
                 account_url=self._account_url,
                 share_name=self.share_name,
                 file_path=self.file_path,
-                credential=DefaultAzureCredential(),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 

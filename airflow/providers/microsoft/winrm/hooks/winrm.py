@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 
-# TODO: Fixme please - I have too complex implementation
+# TODO: FIXME please - I have too complex implementation
 
 
 class WinRMHook(BaseHook):
@@ -90,8 +90,9 @@ class WinRMHook(BaseHook):
         message_encryption: str | None = "auto",
         credssp_disable_tlsv1_2: bool = False,
         send_cbt: bool = True,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
         self.remote_host = remote_host

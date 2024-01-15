@@ -294,6 +294,13 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <_howto/operator:PythonVirtualenvOperator>`_ which will
+   dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 Special case - adding dependencies via requirements.txt file
 ============================================================
 
@@ -332,6 +339,19 @@ that conflicts with the version of apache-airflow that you are using.
 
 Run ``docker compose build`` to build the image, or add ``--build`` flag to ``docker compose up`` or
 ``docker compose run`` commands to build the image automatically as needed.
+
+Special case - Adding a custom config file
+==========================================
+
+If you have a custom config file and wish to use it in your Airflow instance, you need to perform the following steps:
+
+1) Remove comment from the ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'`` line
+   in the ``docker-compose.yaml`` file.
+
+2) Place your custom ``airflow.cfg`` file in the local config folder.
+
+3) If your config file has a different name than ``airflow.cfg``, adjust the filename in
+   ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'``
 
 Networking
 ==========

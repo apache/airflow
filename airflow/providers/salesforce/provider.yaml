@@ -21,8 +21,12 @@ name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1703288165
 versions:
+  - 5.6.1
+  - 5.6.0
+  - 5.5.1
   - 5.5.0
   - 5.4.3
   - 5.4.2
@@ -47,9 +51,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - simple-salesforce>=1.0.0
-  - pandas>=0.17.1
+  - pandas>=1.2.5
 
 integrations:
   - integration-name: Salesforce

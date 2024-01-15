@@ -60,10 +60,10 @@ IMAGE = "bash"
 GCLOUD_COMMAND = "gcloud container clusters get-credentials {} --zone {} --project {}"
 KUBE_ENV_VAR = "KUBECONFIG"
 FILE_NAME = "/tmp/mock_name"
-KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.{}"
+KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
 GKE_HOOK_MODULE_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine"
 GKE_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEHook"
-KUB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute"
+KUB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute"
 TEMP_FILE = "tempfile.NamedTemporaryFile"
 GKE_OP_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator"
 CLUSTER_URL = "https://test-host"
@@ -295,6 +295,7 @@ class TestGKEPodOperator:
 
         fetch_cluster_info_mock.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("use_internal_ip", [True, False])
     @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
     def test_cluster_info(self, get_cluster_mock, use_internal_ip):
@@ -320,6 +321,7 @@ class TestGKEPodOperator:
         assert cluster_url == CLUSTER_PRIVATE_URL if use_internal_ip else CLUSTER_URL
         assert ssl_ca_cert == SSL_CA_CERT
 
+    @pytest.mark.db_test
     def test_default_gcp_conn_id(self):
         gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,

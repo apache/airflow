@@ -62,6 +62,7 @@ class HiveOperator(BaseOperator):
         This can make monitoring easier.
     :param hive_cli_params: parameters passed to hive CLO
     :param auth: optional authentication option passed for the Hive connection
+    :param proxy_user: Run HQL code as this user.
     """
 
     template_fields: Sequence[str] = (
@@ -72,6 +73,7 @@ class HiveOperator(BaseOperator):
         "hiveconfs",
         "mapred_job_name",
         "mapred_queue_priority",
+        "proxy_user",
     )
     template_ext: Sequence[str] = (
         ".hql",
@@ -95,6 +97,7 @@ class HiveOperator(BaseOperator):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,7 +115,7 @@ class HiveOperator(BaseOperator):
         self.mapred_job_name = mapred_job_name
         self.hive_cli_params = hive_cli_params
         self.auth = auth
-
+        self.proxy_user = proxy_user
         job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
@@ -131,6 +134,7 @@ class HiveOperator(BaseOperator):
             mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
+            proxy_user=self.proxy_user,
         )
 
     @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)

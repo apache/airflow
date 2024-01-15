@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
-from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
@@ -36,7 +36,6 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
-
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(
@@ -62,6 +61,7 @@ def dag_processor(args):
 
     job_runner = _create_dag_processor_job_runner(args)
 
+    reload_configuration_for_dag_processing()
     run_command_with_daemon_option(
         args=args,
         process_name="dag-processor",

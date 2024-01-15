@@ -118,6 +118,7 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
@@ -272,6 +273,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -312,9 +314,11 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -456,6 +460,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -478,6 +483,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -496,6 +502,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -510,6 +517,8 @@ Dsn
 dsn
 dttm
 dtypes
+du
+duckdb
 durations
 dylib
 Dynamodb
@@ -544,8 +553,10 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -636,6 +647,7 @@ ga
 Gantt
 gantt
 gapic
+gapped
 gbq
 gcc
 gcloud
@@ -679,6 +691,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+graphviz
 greenlet
 Groupalia
 groupId
@@ -788,7 +801,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -799,6 +814,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -851,6 +867,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -885,6 +902,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -924,6 +942,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1021,6 +1040,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1069,8 +1089,11 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch
@@ -1118,6 +1141,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1125,16 +1149,20 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1341,6 +1369,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl
@@ -1418,6 +1447,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1615,9 +1645,12 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
+ukey
 ulimit
+ulimits
 Umask
 umask
 Un
@@ -1660,6 +1693,8 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
+upserting
 upserts
 Upsight
 upstreams
@@ -1689,6 +1724,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1711,6 +1748,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

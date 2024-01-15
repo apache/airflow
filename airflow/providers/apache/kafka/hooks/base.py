@@ -38,12 +38,12 @@ class KafkaBaseHook(BaseHook):
 
     def __init__(self, kafka_config_id=default_conn_name, *args, **kwargs):
         """Initialize our Base."""
-        super().__init__()
+        super().__init__(**kwargs)
         self.kafka_config_id = kafka_config_id
         self.get_conn
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password", "port", "host"],

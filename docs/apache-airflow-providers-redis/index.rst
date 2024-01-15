@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Logging <logging/index>
 
 .. toctree::
@@ -76,7 +77,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.4.0
+Release: 3.6.0
 
 Provider package
 ----------------
@@ -94,11 +95,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==========================
 PIP package         Version required
 ==================  ==========================
-``apache-airflow``  ``>=2.5.0``
-``redis``           ``>=4.5.2,<5.0.0,!=4.5.5``
+``apache-airflow``  ``>=2.6.0``
+``redis``           ``>=4.5.2,!=4.5.5,<5.0.0``
 ==================  ==========================

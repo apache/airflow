@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import logging
 import random
-from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated.classic import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DataSyncOperator(BaseOperator):
+class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
     """Find, Create, Update, Execute and Delete AWS DataSync Tasks.
 
     If ``do_xcom_push`` is True, then the DataSync TaskArn and TaskExecutionArn
@@ -46,7 +46,6 @@ class DataSyncOperator(BaseOperator):
         environment. The default behavior is to create a new Task if there are 0, or
         execute the Task if there was 1 Task, or fail if there were many Tasks.
 
-    :param aws_conn_id: AWS connection to use.
     :param wait_interval_seconds: Time to wait between two
         consecutive calls to check TaskExecution status.
     :param max_iterations: Maximum number of
@@ -91,6 +90,16 @@ class DataSyncOperator(BaseOperator):
         ``boto3.start_task_execution(TaskArn=task_arn, **task_execution_kwargs)``
     :param  delete_task_after_execution: If True then the TaskArn which was executed
         will be deleted from AWS DataSync on successful completion.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :raises AirflowException: If ``task_arn`` was not specified, or if
         either ``source_location_uri`` or ``destination_location_uri`` were
         not specified.
@@ -100,7 +109,8 @@ class DataSyncOperator(BaseOperator):
     :raises AirflowException: If Task creation, update, execution or delete fails.
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = DataSyncHook
+    template_fields: Sequence[str] = aws_template_fields(
         "task_arn",
         "source_location_uri",
         "destination_location_uri",
@@ -122,7 +132,6 @@ class DataSyncOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
         wait_interval_seconds: int = 30,
         max_iterations: int = 60,
         wait_for_completion: bool = True,
@@ -142,7 +151,6 @@ class DataSyncOperator(BaseOperator):
         super().__init__(**kwargs)
 
         # Assignments
-        self.aws_conn_id = aws_conn_id
         self.wait_interval_seconds = wait_interval_seconds
         self.max_iterations = max_iterations
         self.wait_for_completion = wait_for_completion
@@ -155,12 +163,8 @@ class DataSyncOperator(BaseOperator):
         self.allow_random_location_choice = allow_random_location_choice
 
         self.create_task_kwargs = create_task_kwargs or {}
-        self.create_source_location_kwargs = {}
-        if create_source_location_kwargs:
-            self.create_source_location_kwargs = create_source_location_kwargs
-        self.create_destination_location_kwargs = {}
-        if create_destination_location_kwargs:
-            self.create_destination_location_kwargs = create_destination_location_kwargs
+        self.create_source_location_kwargs = create_source_location_kwargs or {}
+        self.create_destination_location_kwargs = create_destination_location_kwargs or {}
 
         self.update_task_kwargs = update_task_kwargs or {}
         self.task_execution_kwargs = task_execution_kwargs or {}
@@ -189,16 +193,9 @@ class DataSyncOperator(BaseOperator):
         self.destination_location_arn: str | None = None
         self.task_execution_arn: str | None = None
 
-    @cached_property
-    def hook(self) -> DataSyncHook:
-        """Create and return DataSyncHook.
-
-        :return DataSyncHook: An DataSyncHook instance.
-        """
-        return DataSyncHook(
-            aws_conn_id=self.aws_conn_id,
-            wait_interval_seconds=self.wait_interval_seconds,
-        )
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "wait_interval_seconds": self.wait_interval_seconds}
 
     @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> DataSyncHook:

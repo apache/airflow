@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest import mock
 
 from airflow.models import Connection
@@ -31,7 +32,7 @@ def mock_base_gcp_hook_default_project_id(
     impersonation_chain=None,
     delegate_to=None,
 ):
-    self.extras_list = {"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}
+    self.standard_extras_list = {"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}
     self._conn = gcp_conn_id
     self.impersonation_chain = impersonation_chain
     self._client = None
@@ -47,7 +48,7 @@ def mock_base_gcp_hook_no_default_project_id(
     impersonation_chain=None,
     delegate_to=None,
 ):
-    self.extras_list = {}
+    self.standard_extras_list = {}
     self._conn = gcp_conn_id
     self.impersonation_chain = impersonation_chain
     self._client = None
@@ -57,9 +58,13 @@ def mock_base_gcp_hook_no_default_project_id(
     self.delegate_to = delegate_to
 
 
-GCP_CONNECTION_WITH_PROJECT_ID = Connection(extra=json.dumps({"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}))
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    GCP_CONNECTION_WITH_PROJECT_ID = None
+    GCP_CONNECTION_WITHOUT_PROJECT_ID = None
 
-GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(extra=json.dumps({}))
+else:
+    GCP_CONNECTION_WITH_PROJECT_ID = Connection(extra=json.dumps({"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}))
+    GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(extra=json.dumps({}))
 
 
 def get_open_mock():

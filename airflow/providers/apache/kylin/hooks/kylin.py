@@ -32,13 +32,19 @@ class KylinHook(BaseHook):
     :param dsn: dsn
     """
 
+    conn_name_attr = "kylin_conn_id"
+    default_conn_name = "kylin_default"
+    conn_type = "kylin"
+    hook_name = "Apache Kylin"
+
     def __init__(
         self,
-        kylin_conn_id: str = "kylin_default",
+        kylin_conn_id: str = default_conn_name,
         project: str | None = None,
         dsn: str | None = None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.kylin_conn_id = kylin_conn_id
         self.project = project
         self.dsn = dsn

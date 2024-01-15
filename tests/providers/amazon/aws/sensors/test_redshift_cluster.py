@@ -16,10 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import boto3
+import pytest
 from moto import mock_redshift
 
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+
+MODULE = "airflow.providers.amazon.aws.sensors.redshift_cluster"
+
+
+@pytest.fixture
+def deferrable_op():
+    return RedshiftClusterSensor(
+        task_id="test_cluster_sensor",
+        cluster_identifier="test_cluster",
+        target_status="available",
+        deferrable=True,
+    )
 
 
 class TestRedshiftClusterSensor:
@@ -75,3 +92,44 @@ class TestRedshiftClusterSensor:
         )
 
         assert op.poke({})
+
+    @mock.patch(f"{MODULE}.RedshiftClusterSensor.defer")
+    @mock.patch(f"{MODULE}.RedshiftClusterSensor.poke", return_value=True)
+    def test_execute_finish_before_deferred(
+        self,
+        mock_poke,
+        mock_defer,
+        deferrable_op,
+    ):
+        """Assert task is not deferred when it receives a finish status before deferring"""
+
+        deferrable_op.execute({})
+        assert not mock_defer.called
+
+    @mock.patch(f"{MODULE}.RedshiftClusterSensor.poke", return_value=False)
+    def test_execute(self, mock_poke, deferrable_op):
+        """Test RedshiftClusterSensor that a task with wildcard=True
+        is deferred and an RedshiftClusterTrigger will be fired when executed method is called"""
+
+        with pytest.raises(TaskDeferred) as exc:
+            deferrable_op.execute(None)
+        assert isinstance(
+            exc.value.trigger, RedshiftClusterTrigger
+        ), "Trigger is not a RedshiftClusterTrigger"
+
+    def test_redshift_sensor_async_execute_failure(self, deferrable_op):
+        """Test RedshiftClusterSensor with an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            deferrable_op.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )
+
+    def test_redshift_sensor_async_execute_complete(self, deferrable_op):
+        """Asserts that logging occurs as expected"""
+
+        with mock.patch.object(deferrable_op.log, "info") as mock_log_info:
+            deferrable_op.execute_complete(
+                context=None, event={"status": "success", "cluster_state": "available"}
+            )
+        mock_log_info.assert_called_with("Cluster Identifier %s is in %s state", "test_cluster", "available")

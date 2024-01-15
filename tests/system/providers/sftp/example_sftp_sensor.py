@@ -46,7 +46,11 @@ with DAG(
     tags=["example", "sftp"],
 ) as dag:
     # [START howto_operator_sftp_sensor_decorator]
-    @task.sftp_sensor(task_id="sftp_sensor", path=FULL_FILE_PATH, poke_interval=10)
+    @task.sftp_sensor(  # type: ignore[attr-defined]
+        task_id="sftp_sensor",  # type: ignore[attr-defined]
+        path=FULL_FILE_PATH,
+        poke_interval=10,
+    )
     def sftp_sensor_decorator():
         print("Files were successfully found!")
         # add your logic

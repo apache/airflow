@@ -96,6 +96,7 @@ class TestEmrAddStepsOperator:
                 job_flow_name=job_flow_name,
             )
 
+    @pytest.mark.db_test
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")
         ti = TaskInstance(task=self.operator)
@@ -119,6 +120,7 @@ class TestEmrAddStepsOperator:
 
         assert self.operator.steps == expected_args
 
+    @pytest.mark.db_test
     def test_render_template_from_file(self, mocked_hook_client):
         dag = DAG(
             dag_id="test_file",

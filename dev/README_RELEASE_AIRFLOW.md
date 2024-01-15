@@ -30,16 +30,17 @@
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Reproducible package check](#reproducible-package-check)
   - [SVN check](#svn-check)
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
-  - [Source code check](#source-code-check)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
+  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -75,7 +76,7 @@ For obvious reasons, you can't cherry-pick every change from `main` into the rel
 some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
 
 In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release;
-also changes in dependencies (setup.py, setup.cfg) resulting from releasing newer versions of packages that Airflow depends on.
+also changes in dependencies (pyproject.toml) resulting from releasing newer versions of packages that Airflow depends on.
 Other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport
 (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported),
 it's OK to leave it out of the release at your sole discretion as the release manager -
@@ -258,6 +259,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+  with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
+  with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
@@ -430,10 +434,70 @@ At least 3 (+1) votes should be recorded in accordance to
 
 The legal checks include:
 
+* verifying if packages can be reproducibly built from sources
 * checking if the packages are present in the right dist folder on svn
 * verifying if all the sources have correct licences
 * verifying if release manager signed the releases with the right key
 * verifying if all the checksums are valid for the release
+
+## Reproducible package check
+
+Airflow supports reproducible builds, which means that the packages prepared from the same sources should
+produce binary identical packages in reproducible way. You should check if the packages can be
+binary-reproduced when built from the sources.
+
+Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version
+you are checking):
+
+```shell script
+VERSION=X.Y.Zrc1
+git checkout ${VERSION}
+export AIRFLOW_REPO_ROOT=$(pwd)
+rm -rf dist/*
+breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-package --package-format both
+```
+
+The last - build step - by default will use Dockerized build and building of Python client packages
+will be done in a docker container.  However, if you have  `hatch` installed locally you can use
+`--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
+
+```bash
+breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+```
+
+This is generally faster and requires less resources/network bandwidth.
+
+The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
+
+The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
+reproducible `.whl`, `.tar.gz` packages in the dist folder.
+
+Change to the directory where you have the packages from svn:
+
+```shell script
+# First clone the repo if you do not have it
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+
+# Then compare the packages
+cd asf-dist/dev/airflow/X.Y.Zrc1
+for i in ${AIRFLOW_REPO_ROOT}/dist/*
+do
+  echo "Checking if $(basename $i) is the same as $i"
+  diff "$(basename $i)" "$i" && echo "OK"
+done
+```
+
+The output should be empty (files are identical).
+In case the files are different, you should see:
+
+```
+Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
+```
+
+
 
 ## SVN check
 
@@ -574,81 +638,6 @@ Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
 
-## Source code check
-
-You should check if the sources in the packages produced are the same as coming from the tag in git.
-
-In checked out sources of Airflow:
-
-```bash
-git checkout X.Y.Zrc1
-export SOURCE_DIR=$(pwd)
-```
-
-Change to the directory where you have the packages from svn:
-
-Check if sources are the same as in the tag:
-
-```bash
-cd X.Y.Zrc1
-tar -xvzf *-source.tar.gz
-pushd apache-airflow-X.Y.Z
-diff -r airflow "${SOURCE_DIR}"
-popd && rm -rf apache-airflow-X.Y.Z
-```
-
-The output should only miss some files - but they should not show any differences in the files:
-
-```
-Only in /Users/jarek/code/airflow: .DS_Store
-Only in /Users/jarek/code/airflow: .asf.yaml
-Only in /Users/jarek/code/airflow: .bash_aliases
-Only in /Users/jarek/code/airflow: .bash_completion
-Only in /Users/jarek/code/airflow: .bash_history
-...
-```
-
-
-Check if .whl is the same as in tag:
-
-```
-unzip -d a *.whl
-pushd a
-diff -r airflow "${SOURCE_DIR}"
-popd && rm -rf a
-```
-
-The output should only miss some files - but they should not show any differences in the files:
-
-```
-Only in /Users/jarek/code/airflow: .DS_Store
-Only in /Users/jarek/code/airflow: .asf.yaml
-Only in /Users/jarek/code/airflow: .bash_aliases
-Only in /Users/jarek/code/airflow: .bash_completion
-Only in /Users/jarek/code/airflow: .bash_history
-...
-```
-
-Check if sdist are the same as in the tag:
-
-```bash
-cd X.Y.Zrc1
-tar -xvzf apache-airflow-X.Y.Z.tar.gz
-pushd apache-airflow-X.Y.Z
-diff -r airflow "${SOURCE_DIR}"
-popd && rm -rf apache-airflow-X.Y.Z
-```
-
-The output should only miss some files - but they should not show any differences in the files:
-
-```
-Only in /Users/jarek/code/airflow: .DS_Store
-Only in /Users/jarek/code/airflow: .asf.yaml
-Only in /Users/jarek/code/airflow: .bash_aliases
-Only in /Users/jarek/code/airflow: .bash_completion
-Only in /Users/jarek/code/airflow: .bash_history
-...
-```
 
 # Verify the release candidate by Contributors
 
@@ -761,6 +750,47 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
+## Remove chicken-egg providers
+
+For the first MINOR (X.Y.0) release you need to do few more steps if there are new "chicken-egg" providers
+that have min-airflow version set to X.Y.0
+
+* NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
+
+1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
+   version. Find the place where the provider should be added, add it with the latest provider version.
+
+```
+apache-airflow-providers-PROVIDER==VERSION
+```
+
+Commit, push and tag this change with ``constraints-X.Y.Z`` tag:
+
+```bash
+git add
+git commit -m "Add chicken-egg provider apache-airflow-providers-PROVIDER"
+git tag -s constraints-X.Y.Z --force
+git push -f apache constraints-X.Y.Z
+```
+
+
+2. remove providers from ``CHICKEN_EGG_PROVIDERS`` list  in ``src/airflow_breeze/global_constants.py``
+   that have >= ``X.Y.0`` in the corresponding provider.yaml file.
+
+
+3. In case the provider should also be installed in the image (it is part of ``dev/prod_image_installed_providers.txt``)
+   it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
+
+```Dockerfile
+ARG AIRFLOW_EXTRAS=".....,<provider>,...."
+```
+
+This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
+
+4. Make sure to update Airflow version in ``v2-*-test`` branch after cherry-picking to X.Y.1.dev0 in
+   ``airflow/__init__.py``
+
+
 ## Manually prepare production Docker Image
 
 Building the image is triggered by running the
@@ -771,7 +801,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use v2-*-stable branch to run the workflow.
+Make sure you use ``v2-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -1005,29 +1035,27 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 After releasing airflow core, we need to check if we have to follow up with API clients release.
 
-Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
-ASF policy does not allow to vote against multiple artifacts with different versions.
+Clients are released in a separate process, with their own vote.
 
-### API Clients versioning policy
-
-For major/minor version release, always release new versions of the API clients.
+Clients can be found here:
 
 - [Python client](https://github.com/apache/airflow-client-python)
 - [Go client](https://github.com/apache/airflow-client-go)
 
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
-There are other external reasons for which we might want to release a patch version for clients only, but they are not
-tied to an airflow release and therefore out of scope.
+### API Clients versioning policy
 
-To determine if you should also release API clients you can run:
+Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+changed, clients need to be released.
+
+To determine if you should release API clients, you can run from the airflow repository:
 
 ```shell
-./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+./dev/airflow-github api-clients-policy 2.3.2 2.4.0
 ```
 
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
-> You need to check for each client what is the next patch version to be released.
+> All clients follow SemVer and you should check what the appropriate new version for each client should be. Depending on the current
+> client version and type of content added (feature, fix, breaking change etc.) appropriately increment the version number.
 
 ### Releasing the clients
 

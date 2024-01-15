@@ -205,9 +205,9 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param notebook_execution_name: Optional name for the notebook execution.
     :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
         runtime for execution.
-    :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
+    :param notebook_instance_security_group_id: The unique identifier of the Amazon EC2
         security group to associate with the EMR notebook for this notebook execution.
-    :param: master_instance_security_group_id: Optional unique ID of an EC2 security
+    :param master_instance_security_group_id: Optional unique ID of an EC2 security
         group to associate with the master instance of the EMR cluster for this notebook execution.
     :param tags: Optional list of key value pair to associate with the notebook execution.
     :param waiter_max_attempts: Maximum number of tries before failing.
@@ -623,7 +623,6 @@ class EmrContainerOperator(BaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
-        self.log.info("%s", event["message"])
         return event["job_id"]
 
     def on_kill(self) -> None:
@@ -1173,6 +1172,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "name",
     )
 
     template_fields_renderers = {
@@ -1226,7 +1226,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
-        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.name = name
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
@@ -1268,14 +1268,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         self.log.info("Starting job on Application: %s", self.application_id)
-        response = self.hook.conn.start_job_run(
-            clientToken=self.client_request_token,
-            applicationId=self.application_id,
-            executionRoleArn=self.execution_role_arn,
-            jobDriver=self.job_driver,
-            configurationOverrides=self.configuration_overrides,
-            name=self.name,
+        self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        args = {
+            "clientToken": self.client_request_token,
+            "applicationId": self.application_id,
+            "executionRoleArn": self.execution_role_arn,
+            "jobDriver": self.job_driver,
+            "name": self.name,
             **self.config,
+        }
+        if self.configuration_overrides is not None:
+            args["configurationOverrides"] = self.configuration_overrides
+        response = self.hook.conn.start_job_run(
+            **args,
         )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:

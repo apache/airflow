@@ -32,8 +32,8 @@ class JenkinsHook(BaseHook):
     conn_type = "jenkins"
     hook_name = "Jenkins"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
@@ -45,8 +45,8 @@ class JenkinsHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
@@ -59,8 +59,8 @@ class JenkinsHook(BaseHook):
             },
         }
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         connection = self.get_connection(conn_id)
         self.connection = connection
         connection_prefix = "http"

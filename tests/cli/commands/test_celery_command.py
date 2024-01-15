@@ -31,6 +31,8 @@ from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestWorkerPrecheck:
     @mock.patch("airflow.settings.validate_session")
@@ -256,7 +258,7 @@ class TestFlowerCommand:
         mock_celery_app.start.assert_called_once_with(
             [
                 "flower",
-                "amqp://guest:guest@rabbitmq:5672/",
+                conf.get("celery", "BROKER_URL"),
                 "--address=my-hostname",
                 "--port=3333",
                 "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",
@@ -311,7 +313,7 @@ class TestFlowerCommand:
         mock_celery_app.start.assert_called_once_with(
             [
                 "flower",
-                "amqp://guest:guest@rabbitmq:5672/",
+                conf.get("celery", "BROKER_URL"),
                 "--address=my-hostname",
                 "--port=3333",
                 "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",

@@ -37,19 +37,21 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_cloud_run"
 
 region = "us-central1"
 job_name_prefix = "cloudrun-system-test-job"
 job1_name = f"{job_name_prefix}1"
 job2_name = f"{job_name_prefix}2"
+job3_name = f"{job_name_prefix}3"
 
 create1_task_name = "create-job1"
 create2_task_name = "create-job2"
 
 execute1_task_name = "execute-job1"
 execute2_task_name = "execute-job2"
+execute3_task_name = "execute-job3"
 
 update_job1_task_name = "update-job1"
 
@@ -69,6 +71,9 @@ def _assert_executed_jobs_xcom(ti):
 
     job2_dicts = ti.xcom_pull(task_ids=[execute2_task_name], key="return_value")
     assert job2_name in job2_dicts[0]["name"]
+
+    job3_dicts = ti.xcom_pull(task_ids=[execute3_task_name], key="return_value")
+    assert job3_name in job3_dicts[0]["name"]
 
 
 def _assert_created_jobs_xcom(ti):
@@ -181,6 +186,31 @@ with DAG(
     )
     # [END howto_operator_cloud_run_execute_job_deferrable_mode]
 
+    # [START howto_operator_cloud_run_execute_job_with_overrides]
+    overrides = {
+        "container_overrides": [
+            {
+                "name": "job",
+                "args": ["python", "main.py"],
+                "env": [{"name": "ENV_VAR", "value": "value"}],
+                "clearArgs": False,
+            }
+        ],
+        "task_count": 1,
+        "timeout": "60s",
+    }
+
+    execute3 = CloudRunExecuteJobOperator(
+        task_id=execute3_task_name,
+        project_id=PROJECT_ID,
+        region=region,
+        overrides=overrides,
+        job_name=job3_name,
+        dag=dag,
+        deferrable=False,
+    )
+    # [END howto_operator_cloud_run_execute_job_with_overrides]
+
     assert_executed_jobs = PythonOperator(
         task_id="assert-executed-jobs", python_callable=_assert_executed_jobs_xcom, dag=dag
     )
@@ -237,7 +267,7 @@ with DAG(
     (
         (create1, create2)
         >> assert_created_jobs
-        >> (execute1, execute2)
+        >> (execute1, execute2, execute3)
         >> assert_executed_jobs
         >> list_jobs_limit
         >> assert_jobs_limit
