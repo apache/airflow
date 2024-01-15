@@ -137,13 +137,33 @@ dependencies:
   - json-merge-patch>=0.2
   - looker-sdk>=22.2.0
   - pandas-gbq
-  - pandas>=0.17.1
+  - pandas>=1.2.5
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
   - PyOpenSSL
   - sqlalchemy-bigquery>=1.2.1
   - sqlalchemy-spanner>=1.6.2
+
+additional-extras:
+  - name: apache.beam
+    dependencies:
+      - apache-beam[gcp]
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: leveldb
+    dependencies:
+      - plyvel
+  - name: oracle
+    dependencies:
+      - apache-airflow-providers-oracle>=3.1.0
+  - name: facebook
+    dependencies:
+      - apache-airflow-providers-facebook>=2.2.0
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon>=2.6.0
 
 integrations:
   - integration-name: Google Analytics (GA4)
@@ -1217,26 +1237,6 @@ extra-links:
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
   - airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink
-
-additional-extras:
-  - name: apache.beam
-    dependencies:
-      - apache-beam[gcp]
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.2.0
-  - name: leveldb
-    dependencies:
-      - plyvel
-  - name: oracle
-    dependencies:
-      - apache-airflow-providers-oracle>=3.1.0
-  - name: facebook
-    dependencies:
-      - apache-airflow-providers-facebook>=2.2.0
-  - name: amazon
-    dependencies:
-      - apache-airflow-providers-amazon>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

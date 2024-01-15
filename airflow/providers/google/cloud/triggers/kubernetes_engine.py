@@ -25,13 +25,8 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 from google.cloud.container_v1.types import Operation
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-
-try:
-    from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 

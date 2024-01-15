@@ -77,8 +77,8 @@ class PagerdutyHook(BaseHook):
             ),
         }
 
-    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
-        super().__init__()
+    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.routing_key = None
         self._session = None
 

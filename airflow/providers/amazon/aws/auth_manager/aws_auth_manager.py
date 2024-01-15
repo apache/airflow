@@ -122,7 +122,23 @@ class AwsAuthManager(BaseAuthManager):
         details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self.is_logged_in()
+        dag_id = details.id if details else None
+        context = (
+            None
+            if access_entity is None
+            else {
+                "dag_entity": {
+                    "string": access_entity.value,
+                },
+            }
+        )
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.DAG,
+            user=user or self.get_user(),
+            entity_id=dag_id,
+            context=context,
+        )
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None

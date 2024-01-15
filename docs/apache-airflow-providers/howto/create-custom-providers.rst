@@ -196,8 +196,8 @@ names, so preferably choose package that is in your "domain".
 
 You need to do the following to turn an existing Python package into a provider (see below for examples):
 
-* Add the ``apache_airflow_provider`` entry point in the ``setup.cfg`` - this tells airflow where to get
-  the required provider metadata
+* Add the ``apache_airflow_provider`` entry point in the ``pyproject.toml`` file - this tells airflow
+  where to get the required provider metadata
 * Create the function that you refer to in the first step as part of your package: this functions returns a
   dictionary that contains all meta-data about your provider package
 * If you want Airflow to link to documentation of your Provider in the providers page, make sure
@@ -211,29 +211,27 @@ You need to do the following to turn an existing Python package into a provider 
 .. exampleinclude:: /../../airflow/provider_info.schema.json
     :language: json
 
-Example ``setup.cfg``:
+Example ``pyproject.toml``:
 
-.. code-block:: cfg
+.. code-block:: toml
 
-  [options.entry_points]
-  # the function get_provider_info is defined in myproviderpackage.somemodule
-  apache_airflow_provider=
-    provider_info=myproviderpackage.somemodule:get_provider_info
+   [project.entry-points."apache_airflow_provider"]
+   provider_info = "airflow.providers.myproviderpackage.get_provider_info:get_provider_info"
 
-Example ``myproviderpackage/somemodule.py``:
+
+Example ``myproviderpackage/get_provider_info.py``:
 
 .. code-block:: Python
 
-  def get_provider_info():
-      return {
-          "package-name": "my-package-name",
-          "name": "name",
-          "description": "a description",
-          "hook-class-names": [
-              "myproviderpackage.hooks.source.SourceHook",
-          ],
-      }
-
+   def get_provider_info():
+       return {
+           "package-name": "my-package-name",
+           "name": "name",
+           "description": "a description",
+           "hook-class-names": [
+               "myproviderpackage.hooks.source.SourceHook",
+           ],
+       }
 
 
 **Is there a convention for a connection id and type?**

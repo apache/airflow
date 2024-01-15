@@ -184,10 +184,10 @@ class AzureDataFactoryHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name, **kwargs):
         self._conn: DataFactoryManagementClient | None = None
         self.conn_id = azure_data_factory_conn_id
-        super().__init__()
+        super().__init__(**kwargs)
 
     def get_conn(self) -> DataFactoryManagementClient:
         if self._conn is not None:

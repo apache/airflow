@@ -1569,7 +1569,7 @@ The CI image is built automatically as needed, however it can be rebuilt manuall
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
+However, changes to sensitive files like ``pyproject.toml`` or ``Dockerfile.ci`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 Breeze has built in mechanism to check if your local image has not diverged too much from the
@@ -1981,6 +1981,30 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-airflow-package
 
 
+Preparing airflow tarball
+"""""""""""""""""""""""""
+
+You can prepare airflow source tarball using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball
+
+This prepares airflow -source.tar.gz package in the dist folder.
+
+You must specify ``--version`` flag which is a pre-release version of Airflow you are preparing the
+tarball for.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+
+.. image:: ./images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-tarball.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-tarball
+
+
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
 
@@ -2024,6 +2048,28 @@ When we prepare final release, we automate some of the steps we need to do.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_start-rc-process.svg
   :width: 100%
   :alt: Breeze release-management start-rc-process
+
+
+Preparing Python Clients
+""""""""""""""""""""""""
+
+The **Python client** source code can be generated and Python client packages could be built. For that you
+need to have python client's repository checked out
+
+
+.. code-block:: bash
+
+     breeze release-management prepare-python-client --python-client-repo ~/code/airflow-client-python
+
+You can also generate python client with custom security schemes.
+
+These are all of the available flags for the command:
+
+.. image:: ./images/breeze/output_release-management_prepare-python-client.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-python-client.svg
+  :width: 100%
+  :alt: Breeze release management prepare Python client
+
 
 Releasing Production images
 """""""""""""""""""""""""""
@@ -2299,7 +2345,7 @@ These are all available flags of ``release-management add-back-references`` comm
 Generating constraints
 """"""""""""""""""""""
 
-Whenever setup.py gets modified, the CI main job will re-generate constraint files. Those constraint
+Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
@@ -2341,14 +2387,14 @@ These are all available flags of ``generate-constraints`` command:
   :width: 100%
   :alt: Breeze generate-constraints
 
-In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
+In case someone modifies ``pyproject.toml``, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
 the procedure described in the
 `Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
-This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
-and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
+This bumps the constraint files to latest versions and stores hash of ``pyproject.toml``. The generated constraint
+and ``pyproject.toml`` hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
 Updating constraints
@@ -2697,17 +2743,17 @@ disappear when you exit Breeze shell.
 
 When you want to add dependencies permanently, then it depends what kind of dependency you add.
 
-If you want to add core dependency that should always be installed - you need to add it to ``setup.cfg``
-to ``install_requires`` section. If you want to add it to one of the optional core extras, you should
-add it in the extra definition in ``setup.py`` (you need to find out where it is defined). If you want
-to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
+If you want to add core dependency that should always be installed - you need to add it to ``pyproject.toml``
+to ``dependencies`` section. If you want to add it to one of the optional core extras, you should
+add it in the extra definition in ``pyproject.toml`` (you need to find out where it is defined).
+If you want to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
 directory - but remember that this should be followed by running pre-commit that will automatically update
-the ``generated/provider_dependencies.json`` directory with the new dependencies:
+the ``pyproject.toml`` with the new dependencies as the ``provider.yaml`` files are not used directly, they
+are used to update ``pyproject.toml`` file:
 
 .. code-block:: bash
 
     pre-commit run update-providers-dependencies  --all-files
-
 
 You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
 command - which provides autocomplete.

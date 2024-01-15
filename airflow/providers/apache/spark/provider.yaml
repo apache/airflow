@@ -55,7 +55,12 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - pyspark
-  - grpcio-status
+  - grpcio-status>=1.59.0
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.4.0
 
 integrations:
   - integration-name: Apache Spark
@@ -95,8 +100,3 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
     name: pyspark
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0

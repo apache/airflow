@@ -123,8 +123,9 @@ class YandexCloudBaseHook(BaseHook):
         default_folder_id: str | None = None,
         default_public_ssh_key: str | None = None,
         default_service_account_id: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         if connection_id:
             warnings.warn(
                 "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",

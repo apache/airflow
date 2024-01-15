@@ -44,14 +44,14 @@ class RedisHook(BaseHook):
     conn_type = "redis"
     hook_name = "Redis"
 
-    def __init__(self, redis_conn_id: str = default_conn_name) -> None:
+    def __init__(self, redis_conn_id: str = default_conn_name, **kwargs) -> None:
         """
         Prepares hook to connect to a Redis database.
 
         :param conn_id:     the name of the connection that has the parameters
                             we need to connect to Redis.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.redis_conn_id = redis_conn_id
         self.redis = None
         self.host = None

@@ -103,8 +103,9 @@ class BaseDatabricksHook(BaseHook):
         retry_delay: float = 1.0,
         retry_args: dict[Any, Any] | None = None,
         caller: str = "Unknown",
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self.timeout_seconds = timeout_seconds
         if retry_limit < 1:

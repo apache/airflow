@@ -74,10 +74,13 @@ IMPORTANT NOTE ABOUT EXTRAS !!!
 
 You can specify extras as single coma-separated parameter to install. For example
 
-* google,amazon,microsoft.azure
-* devel_all
+* devel - to have all development dependencies required to test core.
+* devel-* - to selectively install tools that we use to run scripts, tests, static checks etc.
+* google,amazon,microsoft_azure - to install dependencies needed at runtime by specified providers
+* devel-all-dbs - to have all development dependencies required for all DB providers
+* devel-all - to have all development dependencies required for all providers
 
-Note that "devel_all" installs all possible dependencies and we have > 600 of them,
+Note that "devel-all" installs all possible dependencies and we have > 600 of them,
 which might not be possible to install cleanly on your host because of lack of
 system packages. It's easier to install extras one-by-one as needed.
 

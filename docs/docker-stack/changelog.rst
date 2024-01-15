@@ -37,6 +37,12 @@ the Airflow team.
 Airflow 2.8
 ~~~~~~~~~~~
 
+* 2.8.1
+
+   * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
+     during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
+     however **MySQL** libraries were installed in the final image.
+
 * 2.8.0
 
    * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
@@ -46,14 +52,6 @@ Airflow 2.8
      problems when building custom images. You are advised to make sure your system level dependencies are
      working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
      it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
-
-   * The "latest" image (i.e. default Airflow image when ``apache/airflow`` is used or
-     ``apache/airflow:slim-latest``) uses now the newest supported Python version. Previously it was using
-     the "default" Python version which was Python 3.8 as of Airflow 2.7. With Airflow reference images
-     released for Airflow 2.8.0, the images are going to use Python 3.11 as this is the latest supported
-     version for Airflow 2.8 line. Users can use Python 3.8 by using ``apache/airflow:2.8.0-python3.8`` and
-     ``apache/airflow:slim-2.8.0-python-3.8`` images respectively so while the change is potentially
-     breaking, it is very easy to switch to the previous behaviour.
 
    * By default the images now have "MariaDB" client installed. Previous images had "MySQL" client installed.
      The MariaDB client is a drop-in replacement for "MySQL" one and is compatible with MySQL. This might

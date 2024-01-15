@@ -592,6 +592,28 @@ workers:
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
+  # Allow HPA (KEDA must be disabled).
+  hpa:
+    enabled: false
+
+    # Minimum number of workers created by HPA
+    minReplicaCount: 0
+
+    # Maximum number of workers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   persistence:
     # Enable persistent volumes
     enabled: true

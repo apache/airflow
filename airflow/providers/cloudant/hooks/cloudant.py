@@ -48,8 +48,8 @@ class CloudantHook(BaseHook):
             "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},
         }
 
-    def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, cloudant_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.cloudant_conn_id = cloudant_conn_id
 
     def get_conn(self) -> cloudant:

@@ -946,24 +946,32 @@ metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_use_pattern_match:
+      description: |
+        If true, metrics_allow_list and metrics_block_list will use regex pattern matching
+        anywhere within the metric name instead of only prefix matching at the start of the name.
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "False"
     metrics_allow_list:
       description: |
-        If you want to avoid emitting all the available metrics, you can configure an
-        allow list of prefixes (comma separated) to send only the metrics that start
-        with the elements of the list (e.g: "scheduler,executor,dagrun")
+        Configure an allow list (comma separated string) to send only certain metrics.
+        If metrics_use_pattern_match is false, match only the exact metric name prefix.
+        If metrics_use_pattern_match is true, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: ~
+      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
-        If you want to avoid emitting all the available metrics, you can configure a
-        block list of prefixes (comma separated) to filter out metrics that start with
-        the elements of the list (e.g: "scheduler,executor,dagrun").
+        Configure a block list (comma separated string) to block certain metrics from being emitted.
         If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
+        If metrics_use_pattern_match is false, match only the exact metric name prefix.
+        If metrics_use_pattern_match is true, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: ~
+      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
@@ -1632,6 +1640,27 @@ webserver:
       description: |
         Define the color of text in the navigation bar
       version_added: 2.8.0
+      type: string
+      example: ~
+      default: "#51504f"
+    navbar_hover_color:
+      description: |
+        Define the color of navigation bar links when hovered
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "#eee"
+    navbar_text_hover_color:
+      description: |
+        Define the color of text in the navigation bar when hovered
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "#51504f"
+    navbar_logo_text_color:
+      description: |
+        Define the color of the logo text
+      version_added: 2.9.0
       type: string
       example: ~
       default: "#51504f"
