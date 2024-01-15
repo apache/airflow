@@ -66,7 +66,7 @@ def delete_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
             detail=f"The Dataset with uri: `{uri}` was not found",
         )
     if dataset.consuming_dags or dataset.producing_tasks:
-        raise AirflowException("Dataset is still referenced by other DAG")
+        return "Dataset is still referenced by other DAG", HTTPStatus.CONFLICT
 
     session.delete(dataset)
     return NoContent, HTTPStatus.NO_CONTENT
