@@ -422,3 +422,54 @@ def test_serialize_sensitive_kwargs():
     assert loaded_trigger.tuple_param == ("value1", 2)
     assert loaded_trigger.bool_param is True
     assert loaded_trigger.nested_dict_param == {"key1": {"key2": "value1", "key3": 2}}
+
+
+class TestTrigger(BaseTrigger):
+    def __init__(self, param1, param2):
+        super().__init__()
+        self.param1 = param1
+        self.param2 = param2
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.models.test_trigger.TestTrigger",
+            {
+                "param1": self.param1,
+                "param2": self.param2,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent({})
+
+
+@pytest.mark.db_test
+def test_trigger_with_encryption_rotate_fernet_key(session):
+    """Tests rotating encrypted trigger kwargs."""
+    key1 = Fernet.generate_key()
+    key2 = Fernet.generate_key()
+
+    with conf_vars({("core", "fernet_key"): key1.decode()}):
+        test_trigger = TestTrigger(param1="value1", param2="value2")
+        session.add(Trigger.from_object(test_trigger))
+        session.commit()
+        db_trigger = (
+            session.query(Trigger).filter(Trigger.classpath == "tests.models.test_trigger.TestTrigger").one()
+        )
+        assert db_trigger.kwargs["param1"] != "value1"
+        assert db_trigger.kwargs["param2"] != "value2"
+        assert (
+            TriggerRunner().trigger_row_to_trigger_instance(db_trigger, TestTrigger).serialize()
+            == test_trigger.serialize()
+        )
+
+    # Test decrypt of old value with new key
+    with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
+        # Test decrypt of new value with new key
+        db_trigger.rotate_fernet_key()
+        assert db_trigger.kwargs["param1"] != "value1"
+        assert db_trigger.kwargs["param2"] != "value2"
+        assert (
+            TriggerRunner().trigger_row_to_trigger_instance(db_trigger, TestTrigger).serialize()
+            == test_trigger.serialize()
+        )

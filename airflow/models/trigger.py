@@ -111,6 +111,25 @@ class Trigger(Base):
             secure_kwargs[key] = _encrypt(value)
         return cls(classpath=classpath, kwargs=secure_kwargs)
 
+    def rotate_fernet_key(self):
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
+        from airflow.models.crypto import get_fernet
+
+        fernet = get_fernet()
+
+        def _rotate(_value: Any) -> Any:
+            if isinstance(_value, str):
+                return fernet.rotate(_value.encode("utf-8")).decode("utf-8")
+            if isinstance(_value, dict):
+                return {k: _rotate(v) for k, v in _value.items()}
+            if isinstance(_value, list):
+                return [_rotate(v) for v in _value]
+            if isinstance(_value, tuple):
+                return tuple(_rotate(v) for v in _value)
+            return _value
+
+        self.kwargs = _rotate(self.kwargs)
+
     @classmethod
     @internal_api_call
     @provide_session
