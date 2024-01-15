@@ -30,7 +30,7 @@ from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login, client_without_login
+from tests.test_utils.www import client_with_login, client_without_login, client_without_login_as_admin
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -128,6 +128,11 @@ def user_client(app):
 @pytest.fixture()
 def anonymous_client(app):
     return client_without_login(app)
+
+
+@pytest.fixture()
+def anonymous_client_as_admin(app):
+    return client_without_login_as_admin(app)
 
 
 class _TemplateWithContext(NamedTuple):
