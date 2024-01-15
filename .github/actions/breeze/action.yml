@@ -45,6 +45,8 @@ runs:
     - name: "Free space"
       shell: bash
       run: breeze ci free-space
+      env:
+        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
     - name: "Get Python version"
       shell: bash
       run: >
@@ -54,3 +56,5 @@ runs:
     - name: "Disable cheatsheet"
       shell: bash
       run: breeze setup config --no-cheatsheet --no-asciiart
+      env:
+        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
