@@ -79,7 +79,11 @@ class TestAvpCommands:
                 params.append("--verbose")
             init_avp(self.arg_parser.parse_args(params))
 
-        if not dry_run:
+        if dry_run:
+            mock_boto3.create_policy_store.assert_not_called()
+            mock_boto3.update_policy_store.assert_not_called()
+            mock_boto3.put_schema.assert_not_called()
+        else:
             mock_boto3.create_policy_store.assert_called_once_with(
                 validationSettings={
                     "mode": "OFF",
@@ -158,7 +162,10 @@ class TestAvpCommands:
                 params.append("--verbose")
             update_schema(self.arg_parser.parse_args(params))
 
-        if not dry_run:
+        if dry_run:
+            mock_boto3.update_policy_store.assert_not_called()
+            mock_boto3.put_schema.assert_not_called()
+        else:
             assert mock_boto3.update_policy_store.call_count == 2
             mock_boto3.put_schema.assert_called_once_with(
                 policyStoreId=policy_store_id,

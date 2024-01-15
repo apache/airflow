@@ -47,7 +47,7 @@ def init_avp(args):
     if not is_new_policy_store:
         print(
             f"Since an existing policy store with description '{args.policy_store_description}' has been found in Amazon Verified Permissions, "
-            "the CLI makes no changes to this policy store for security reasons. "
+            "the CLI nade no changes to this policy store for security reasons. "
             "Any modification to this policy store must be done manually.",
         )
     else:
@@ -106,7 +106,9 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
     else:
         print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
         if args.dry_run:
-            print("Dry run, not creating the policy store.")
+            print(
+                "Dry run, not creating the policy store with description '{args.policy_store_description}'."
+            )
             return None, True
 
         response = client.create_policy_store(
@@ -126,7 +128,7 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
 def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
     """Set the policy store schema."""
     if args.dry_run:
-        print("Dry run, not updating the schema.")
+        print(f"Dry run, not updating the schema of the policy store with ID '{policy_store_id}'.")
         return
 
     if args.verbose:
