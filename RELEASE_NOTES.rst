@@ -21,6 +21,82 @@
 
 .. towncrier release notes start
 
+Airflow 2.8.1 (2024-01-19)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Target version for core dependency ``pendulum`` package set to 3
+
+  Support for pendulum 2.1.2 will be saved for a while, presumably until the next feature version of Airflow.
+  It is advised to upgrade user code to use pendulum 3 as soon as possible. (#36281)
+- Airflow packaging specification follows modern Python packaging standards.
+
+  We standardized Airflow dependency configuration to follow latest development in Python packaging by
+  using pyproject.toml. Airflow is now compliant with those accepted PEPs:
+
+  * `PEP-440 Version Identification and Dependency Specification <https://www.python.org/dev/peps/pep-0440/>`__
+  * `PEP-517 A build-system independent format for source trees <https://www.python.org/dev/peps/pep-0517/>`__
+  * `PEP-518 Specifying Minimum Build System Requirements for Python Projects <https://www.python.org/dev/peps/pep-0518/>`__
+  * `PEP-561 Distributing and Packaging Type Information <https://www.python.org/dev/peps/pep-0561/>`__
+  * `PEP-621 Storing project metadata in pyproject.toml <https://www.python.org/dev/peps/pep-0621/>`__
+  * `PEP-660 Editable installs for pyproject.toml based builds (wheel based) <https://www.python.org/dev/peps/pep-0660/>`__
+  * `PEP-685 Comparison of extra names for optional distribution dependencies <https://www.python.org/dev/peps/pep-0685/>`__
+
+  Also we implement multiple license files support coming from Draft, not yet accepted (but supported by hatchling) PEP:
+  * `PEP 639 Improving License Clarity with Better Package Metadata <https://peps.python.org/pep-0639/>`__
+
+  This has almost no noticeable impact on users if they are using modern Python packaging and development tools, generally
+  speaking Airflow should behave as it did before when installing it from PyPI and it should be much easier to install
+  it for development purposes using ``pip install -e ".[devel]"``.
+
+  The differences from the user side are:
+
+  * Airflow extras now get extras normalized to ``-`` (following PEP-685) instead of ``_`` and ``.``
+    (as it was before in some extras). When you install airflow with such extras (for example ``dbt.core`` or
+    ``all_dbs``) you should use ``-`` instead of ``_`` and ``.``.
+
+  In most modern tools this will work in backwards-compatible way, but in some old version of those tools you might need to
+  replace ``_`` and ``.`` with ``-``. You can also get warnings that the extra you are installing does not exist - but usually
+  this warning is harmless and the extra is installed anyway. It is, however, recommended to change to use ``-`` in extras in your dependency
+  specifications for all Airflow extras.
+
+  * Released airflow package does not contain ``devel``, ``devel-*``, ``doc`` and ``doc-gen`` extras.
+    Those extras are only available when you install Airflow from sources in ``--editable`` mode. This is
+    because those extras are only used for development and documentation building purposes and are not needed
+    when you install Airflow for production use. Those dependencies had unspecified and varying behaviour for
+    released packages anyway and you were not supposed to use them in released packages.
+
+  * The ``all`` and ``all-*`` extras were not always working correctly when installing Airflow using constraints
+    because they were also considered as development-only dependencies. With this change, those dependencies are
+    now properly handling constraints and they will install properly with constraints, pulling the right set
+    of providers and dependencies when constraints are used. (#36537)
+- Graphviz dependency is now an optional one, not required one.
+
+  The ``graphviz`` dependency has been problematic as Airflow required dependency - especially for
+  ARM-based installations. Graphviz packages require binary graphviz libraries - which is already a
+  limitation, but they also require to install graphviz Python bindings to be build and installed.
+  This does not work for older Linux installation but - more importantly - when you try to install
+  Graphviz libraries for Python 3.8, 3.9 for ARM M1 MacBooks, the packages fail to install because
+  Python bindings compilation for M1 can only work for Python 3.10+.
+
+  This is not a breaking change technically - the CLIs to render the DAGs is still there and IF you
+  already have graphviz installed, it will continue working as it did before. The only problem when it
+  does not work is where you do not have graphviz installed it will raise an error and inform that you need it.
+
+  Graphviz will remain to be installed for most users:
+
+  * the Airflow Image will still contain graphviz library, because
+    it is added there as extra
+  * when previous version of Airflow has been installed already, then
+    graphviz library is already installed there and Airflow will
+    continue working as it did
+
+  The only change will be a new installation of new version of Airflow from the scratch, where graphviz will
+  need to be specified as extra or installed separately in order to enable DAG rendering option. (#36647)
+
+
 Airflow 2.8.0 (2023-12-18)
 --------------------------
 
