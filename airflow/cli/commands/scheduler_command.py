@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from argparse import Namespace
-from contextlib import contextmanager, ExitStack
+from contextlib import ExitStack, contextmanager
 from multiprocessing import Process
 
 from airflow import settings
