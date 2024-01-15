@@ -581,7 +581,7 @@ class KubernetesPodOperator(BaseOperator):
                     remote_pod=self.remote_pod,
                 )
             except Exception:
-                # If one task got makred as failed, it should not raise exception which might cause retry.
+                # If one task got marked as failed, it should not raise exception which might cause retry.
                 # https://github.com/apache/airflow/issues/36471
                 if not self._killed:
                     raise
@@ -685,7 +685,7 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=remote_pod,
             )
         except Exception:
-            # If one task got makred as failed, it should not raise exception which might cause retry.
+            # If one task got marked as failed, it should not raise exception which might cause retry.
             # https://github.com/apache/airflow/issues/36471
             if not self._killed:
                 raise
@@ -846,7 +846,7 @@ class KubernetesPodOperator(BaseOperator):
             try:
                 self.client.delete_namespaced_pod(**kwargs)
             except kubernetes.client.exceptions.ApiException:
-                self.log.warning("The pod no longer exists")
+                self.log.warning("Pod %s no longer exists", self.pod.metadata.name)
 
     def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
