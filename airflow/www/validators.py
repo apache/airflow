@@ -20,9 +20,9 @@ from __future__ import annotations
 import json
 from json import JSONDecodeError
 
-from wtforms.validators import EqualTo, Regexp, ValidationError
+from wtforms.validators import EqualTo, ValidationError
 
-from airflow.models.connection import RE_SANITIZE_CONN_ID
+from airflow.models.connection import CONN_ID_MAX_LEN, sanitize_conn_id
 from airflow.utils import helpers
 
 
@@ -86,7 +86,7 @@ class ValidKey:
     Validates values that will be used as keys.
 
     :param max_length:
-        The maximum length of the given key
+        The maximum allowed length of the given key
     """
 
     def __init__(self, max_length=200):
@@ -111,8 +111,27 @@ class ReadOnly:
         field.flags.readonly = True
 
 
-class ValidConnID(Regexp):
-    """Validates the connection ID adheres to the desired format."""
+class ValidConnID:
+    """
+    Validates the connection ID adheres to the desired format.
 
-    def __init__(self, flags=0, message="The connection ID provided does not match the desired spec"):
-        super().__init__(RE_SANITIZE_CONN_ID, flags, message)
+
+    :param max_length:
+        The maximum allowed length of the given Connection ID.
+    """
+
+    message = (
+        "Connection ID must be alphanumeric characters plus dashes, dots, hashes, colons, semicolons, "
+        "underscores, exclamation marks, and parentheses"
+    )
+
+    def __init__(
+        self,
+        max_length: int = CONN_ID_MAX_LEN,
+    ):
+        self.max_length = max_length
+
+    def __call__(self, form, field):
+        if field.data:
+            if sanitize_conn_id(field.data, self.max_length) is None:
+                raise ValidationError(f"{self.message} for 1 and up to {self.max_length} matches")

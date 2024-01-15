@@ -219,7 +219,7 @@ class TestConnection:
             # a valid connection as well
             (
                 Connection(
-                    conn_id="a_valid_conn_id_!!$$%%",
+                    conn_id="a_valid_conn_id_!!##",
                     conn_type="type",
                     login="user",
                     password="pass",
@@ -228,7 +228,7 @@ class TestConnection:
                     schema="schema",
                     extra={"param1": "val1", "param2": "val2"},
                 ),
-                "a_valid_conn_id_!!$$%%",
+                "a_valid_conn_id_!!##",
             ),
             # a valid connection as well testing dashes
             (

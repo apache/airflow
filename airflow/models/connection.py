@@ -40,8 +40,10 @@ from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
-# the symbols @,#,$,%,&,!,-,_,.,:,\,/ and () from 1 matches up to 200.
-RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\@\#\$\%\&\!\(\)\*\-\.\:\/\\]{1,200}$")
+# the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
+RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+# the conn ID max len should be 250
+CONN_ID_MAX_LEN: int = 250
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -50,20 +52,23 @@ def parse_netloc_to_hostname(*args, **kwargs):
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
-def sanitize_conn_id(conn_id: str | None) -> str | None:
+def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | None:
     r"""Sanitizes the connection id and allows only specific characters to be within.
 
-    Namely, it allows alphanumeric characters plus the symbols @,#,$,%,&,!,-,_,.,:,\,/ and ()
-    from 1 and up to 200 consecutive matches.
+    Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
+    200 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
 
     The character selection is such that it prevents the injection of javascript or
-    executable bits in order to avoid any awkward behavior in the front-end.
+    executable bits to avoid any awkward behaviour in the front-end.
 
     :param conn_id: The connection id to sanitize.
+    :param max_length: The max length of the connection ID, by default it is 250.
     :return: the sanitized string, `None` otherwise.
     """
-    # check if `conn_id` or our match group is `None`
-    if conn_id is None or (res := re2.match(RE_SANITIZE_CONN_ID, conn_id)) is None:
+    # check if `conn_id` or our match group is `None` and the `conn_id` is within the specified length.
+    if (not isinstance(conn_id, str) or len(conn_id) > max_length) or (
+        res := re2.match(RE_SANITIZE_CONN_ID, conn_id)
+    ) is None:
         return None
 
     # if we reach here, then we matched something, return the first match
@@ -73,7 +78,7 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
-    """Parse a URI string to get correct Hostname."""
+    """Parse a URI string to get the correct Hostname."""
     hostname = unquote(uri_parts.hostname or "")
     if "/" in hostname:
         hostname = uri_parts.netloc
