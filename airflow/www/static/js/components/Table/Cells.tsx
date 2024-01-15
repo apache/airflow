@@ -180,7 +180,7 @@ export const DatasetActionCell = ({ cell: { row } }: CellProps) => {
   const {
     mutateAsync: apiCallToDeleteDataset,
     isLoading: deleteDatasetIsLoading,
-  } = useDeleteDataset(row.original);
+  } = useDeleteDataset(row.original.uri);
 
   const toast = useToast();
 
