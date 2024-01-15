@@ -38,8 +38,6 @@ if TYPE_CHECKING:
 
     from airflow.triggers.base import BaseTrigger
 
-ENCRYPTED_KWARGS_PREFIX = "encrypted__"
-
 
 class Trigger(Base):
     """
@@ -94,14 +92,23 @@ class Trigger(Base):
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         from airflow.models.crypto import get_fernet
 
+        fernet = get_fernet()
+
+        def _encrypt(_value: Any) -> Any:
+            if isinstance(_value, str):
+                return fernet.encrypt(_value.encode("utf-8")).decode("utf-8")
+            if isinstance(_value, dict):
+                return {k: _encrypt(v) for k, v in _value.items()}
+            if isinstance(_value, list):
+                return [_encrypt(v) for v in _value]
+            if isinstance(_value, tuple):
+                return tuple(_encrypt(v) for v in _value)
+            return _value
+
         classpath, kwargs = trigger.serialize()
         secure_kwargs = {}
-        fernet = get_fernet()
-        for k, v in kwargs.items():
-            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
-                secure_kwargs[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
-            else:
-                secure_kwargs[k] = v
+        for key, value in kwargs.items():
+            secure_kwargs[key] = _encrypt(value)
         return cls(classpath=classpath, kwargs=secure_kwargs)
 
     @classmethod
