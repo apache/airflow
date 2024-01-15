@@ -41,6 +41,8 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
 # the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
+#
+# You can try the regex here: https://regex101.com/r/69033B/1
 RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
@@ -57,6 +59,8 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
 
     Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
     250 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
+
+    You can try to play with the regex here: https://regex101.com/r/69033B/1
 
     The character selection is such that it prevents the injection of javascript or
     executable bits to avoid any awkward behaviour in the front-end.

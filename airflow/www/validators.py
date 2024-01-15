@@ -115,7 +115,6 @@ class ValidConnID:
     """
     Validates the connection ID adheres to the desired format.
 
-
     :param max_length:
         The maximum allowed length of the given Connection ID.
     """
