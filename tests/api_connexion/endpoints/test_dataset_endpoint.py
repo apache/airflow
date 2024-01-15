@@ -21,8 +21,9 @@ import urllib
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -105,6 +106,46 @@ class TestDeleteDatasetEndpoint(TestDatasetEndpoint):
         assert response.status_code == 204
         datasets = session.query(DatasetModel).all()
         assert len(datasets) == 0
+
+    def test_delete_should_respond_409(self, session):
+        dag_model = DagModel(
+            dag_id="dag_1",
+            fileloc="/tmp/dag_1.py",
+            schedule_interval="2 2 * * *",
+            is_active=True,
+            is_paused=False,
+        )
+
+        dataset_model = DatasetModel(
+            id=1,
+            uri="s3://bucket/key",
+            extra={"foo": "bar"},
+            created_at=timezone.parse(self.default_time),
+            updated_at=timezone.parse(self.default_time),
+        )
+
+        dag_schedule_dataset_reference_model = DagScheduleDatasetReference(
+            dataset_id=1,
+            dag_id="dag_1",
+            created_at=timezone.parse(self.default_time),
+            updated_at=timezone.parse(self.default_time),
+        )
+
+        session.add(dag_model)
+        session.add(dataset_model)
+        session.add(dag_schedule_dataset_reference_model)
+        session.commit()
+
+        datasets = session.query(DatasetModel).all()
+        assert len(datasets) == 1
+        response = self.client.delete(
+            f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 409
+        datasets = session.query(DatasetModel).all()
+        assert len(datasets) == 1
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(

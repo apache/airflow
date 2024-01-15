@@ -1945,7 +1945,7 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
-          
+
     delete:
       summary: Delete a dataset
       description: |

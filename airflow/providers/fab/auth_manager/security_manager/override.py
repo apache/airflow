@@ -30,19 +30,36 @@ import jwt
 import re2
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
-from flask_appbuilder.const import (AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER,
-                                    LOGMSG_ERR_SEC_ADD_REGISTER_USER, LOGMSG_ERR_SEC_AUTH_LDAP,
-                                    LOGMSG_ERR_SEC_AUTH_LDAP_TLS, LOGMSG_WAR_SEC_LOGIN_FAILED,
-                                    LOGMSG_WAR_SEC_NOLDAP_OBJ, MICROSOFT_KEY_SET_URL)
+from flask_appbuilder.const import (
+    AUTH_DB,
+    AUTH_LDAP,
+    AUTH_OAUTH,
+    AUTH_OID,
+    AUTH_REMOTE_USER,
+    LOGMSG_ERR_SEC_ADD_REGISTER_USER,
+    LOGMSG_ERR_SEC_AUTH_LDAP,
+    LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
+    LOGMSG_WAR_SEC_LOGIN_FAILED,
+    LOGMSG_WAR_SEC_NOLDAP_OBJ,
+    MICROSOFT_KEY_SET_URL,
+)
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from flask_appbuilder.security.registerviews import (RegisterUserDBView, RegisterUserOAuthView,
-                                                     RegisterUserOIDView)
-from flask_appbuilder.security.views import (AuthDBView, AuthLDAPView, AuthOAuthView, AuthOIDView,
-                                             AuthRemoteUserView, RegisterUserModelView)
+from flask_appbuilder.security.registerviews import (
+    RegisterUserDBView,
+    RegisterUserOAuthView,
+    RegisterUserOIDView,
+)
+from flask_appbuilder.security.views import (
+    AuthDBView,
+    AuthLDAPView,
+    AuthOAuthView,
+    AuthOIDView,
+    AuthRemoteUserView,
+    RegisterUserModelView,
+)
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager
-from flask_jwt_extended import current_user as current_user_jwt
+from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
@@ -55,19 +72,35 @@ from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
-from airflow.providers.fab.auth_manager.models import (Action, Permission, RegisterUser, Resource, Role, User,
-                                                       assoc_permission_role)
+from airflow.providers.fab.auth_manager.models import (
+    Action,
+    Permission,
+    RegisterUser,
+    Resource,
+    Role,
+    User,
+    assoc_permission_role,
+)
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
-from airflow.providers.fab.auth_manager.views.permissions import (ActionModelView, PermissionPairModelView,
-                                                                  ResourceModelView)
+from airflow.providers.fab.auth_manager.views.permissions import (
+    ActionModelView,
+    PermissionPairModelView,
+    ResourceModelView,
+)
 from airflow.providers.fab.auth_manager.views.roles_list import CustomRoleModelView
-from airflow.providers.fab.auth_manager.views.user import (CustomUserDBModelView, CustomUserLDAPModelView,
-                                                           CustomUserOAuthModelView, CustomUserOIDModelView,
-                                                           CustomUserRemoteUserModelView)
-from airflow.providers.fab.auth_manager.views.user_edit import (CustomResetMyPasswordView,
-                                                                CustomResetPasswordView,
-                                                                CustomUserInfoEditView)
+from airflow.providers.fab.auth_manager.views.user import (
+    CustomUserDBModelView,
+    CustomUserLDAPModelView,
+    CustomUserOAuthModelView,
+    CustomUserOIDModelView,
+    CustomUserRemoteUserModelView,
+)
+from airflow.providers.fab.auth_manager.views.user_edit import (
+    CustomResetMyPasswordView,
+    CustomResetPasswordView,
+    CustomUserInfoEditView,
+)
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -2376,8 +2409,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
         if verify_signature:
-            from authlib.jose import JsonWebKey
-            from authlib.jose import jwt as authlib_jwt
+            from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
             keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())
             claims = authlib_jwt.decode(id_token, keyset)
