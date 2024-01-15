@@ -219,7 +219,7 @@ class TestAzureBatchHook:
 
         results = hook.wait_for_job_tasks_to_complete("myjob", 60)
         assert results == []
-        hook.connection.task.list.assert_called_once_with("myjob", 60)
+        hook.connection.task.list.assert_called_once_with("myjob")
 
     @mock.patch(f"{MODULE}.BatchServiceClient")
     def test_wait_for_all_task_to_complete_failures(self, mock_batch):
@@ -244,7 +244,7 @@ class TestAzureBatchHook:
 
         results = hook.wait_for_job_tasks_to_complete("myjob", 60)
         assert results == [tasks[1]]
-        hook.connection.task.list.assert_called_once_with("myjob", 60)
+        hook.connection.task.list.assert_called_once_with("myjob")
 
     @mock.patch(f"{MODULE}.BatchServiceClient")
     def test_connection_success(self, mock_batch):
