@@ -28,6 +28,7 @@ from tests.test_utils.config import conf_vars
 mock_boto3 = Mock()
 
 
+@pytest.mark.db_test
 class TestAvpCommands:
     def setup_method(self):
         mock_boto3.reset_mock()
