@@ -1536,7 +1536,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(
                     slim_image_name,
                     f"{dockerhub_repo}:slim-{airflow_version}",
@@ -1568,7 +1568,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(image_name, f"{dockerhub_repo}:{airflow_version}")
     # in case of re-tagging the images might need few seconds to refresh multi-platform images in DockerHub
     time.sleep(10)
