@@ -24,11 +24,7 @@ import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
 import useErrorToast from "src/utils/useErrorToast";
 
-interface Props {
-  uri: string;
-}
-
-export default function useDeleteDataset({ uri }: Props) {
+export default function useDeleteDataset(uri: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const datasetUrl = getMetaValue("dataset_api").replace(
