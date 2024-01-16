@@ -90,11 +90,13 @@ class TestSFTPSensor:
         sftp_sensor = SFTPSensor(
             task_id="unit_test",
             path="/path/to/file/2024-01-01-11-22-33.txt",
-            newer_than='{{ dag_run.logical_date.add(days=1, hours=-2) }}',
+            newer_than="{{ dag_run.logical_date.add(days=1, hours=-2) }}",
         )
         context = {"ds": "2024-01-01"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/2024-01-02-11-20-33.txt")
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
+            "/path/to/file/2024-01-02-11-20-33.txt"
+        )
         assert not output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
