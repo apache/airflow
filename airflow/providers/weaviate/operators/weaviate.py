@@ -81,6 +81,7 @@ class WeaviateIngestOperator(BaseOperator):
                 "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
                 " you should use 'input_data' instead",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.input_data = input_json
         else:

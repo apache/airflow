@@ -325,7 +325,9 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         for deprecated_field, replacement in deprecated_body_fields_with_replacement:
             if self._body_field(deprecated_field):
                 warnings.warn(
-                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead."
+                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
                 )
 
     def execute(self, context: Context) -> str:
@@ -513,7 +515,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             "The `get_gke_config_file` method is deprecated, "
             "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
     @cached_property

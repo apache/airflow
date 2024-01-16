@@ -102,6 +102,7 @@ class GKEHook(GoogleBaseHook):
         warnings.warn(
             "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.get_cluster_manager_client()
 
@@ -111,6 +112,7 @@ class GKEHook(GoogleBaseHook):
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.get_conn()
 

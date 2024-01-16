@@ -129,6 +129,7 @@ class TableauHook(BaseHook):
             "Authentication via personal access token is deprecated. "
             "Please, use the password authentication to avoid inconsistencies.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
