@@ -614,7 +614,8 @@ asana = [
   "asana>=0.10,<4.0.0",
 ]
 atlassian-jira = [
-  "atlassian-python-api>=1.14.2",
+  "atlassian-python-api>=1.14.2,<3.41.6",
+  "beautifulsoup4",
 ]
 celery = [
   "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
