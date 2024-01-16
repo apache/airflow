@@ -109,7 +109,7 @@ class DruidHook(BaseHook):
         code = req_index.status_code
         if code not in [200, 202]:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
+            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed
