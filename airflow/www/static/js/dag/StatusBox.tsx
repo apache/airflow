@@ -65,6 +65,7 @@ export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
     background={state && stateColors[state] ? stateColors[state] : "white"}
     borderRadius="2px"
     borderWidth={state ? 0 : 1}
+    transform="translateY(2px)"
     {...rest}
   />
 );
