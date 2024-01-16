@@ -59,7 +59,6 @@ with DAG(
 
     # Task dependency created via `XComArgs`:
     #   async_source_destination >> airbyte_sensor
-    #   async_source_destination_deferrable >> airbyte_sensor_deferrable
 
 from tests.system.utils import get_test_run  # noqa: E402
 
