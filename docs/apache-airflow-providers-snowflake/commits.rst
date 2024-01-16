@@ -35,14 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.1
+.....
+
+Latest change: 2023-12-22
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`5fe5d31a46 <https://github.com/apache/airflow/commit/5fe5d31a46885fbb2fb6ba9c0bd551a6b57d129a>`_  2023-12-22   ``Return common data structure in DBApi derived classes``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+=================================================================================================  ===========  ================================================================================
+
+5.2.0
+.....
+
+Latest change: 2023-12-08
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+=================================================================================================  ===========  =======================================================================
+
 5.1.2
 .....
 
-Latest change: 2023-11-20
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `f8dd192483 <https://github.com/apache/airflow/commit/f8dd19248345ac259153812c68b65fc39accfcfd>`_  2023-11-20   ``OpenLineage integration tried to use non-existed method in SnowflakeHook (#35752)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``

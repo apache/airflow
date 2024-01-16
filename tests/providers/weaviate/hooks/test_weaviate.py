@@ -16,10 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
+import pandas as pd
 import pytest
+import requests
+import weaviate
+from weaviate import ObjectAlreadyExistsException
 
 from airflow.models import Connection
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
@@ -35,7 +40,7 @@ def weaviate_hook():
     mock_conn = Mock()
 
     # Patch the WeaviateHook get_connection method to return the mock connection
-    with patch.object(WeaviateHook, "get_connection", return_value=mock_conn):
+    with mock.patch.object(WeaviateHook, "get_connection", return_value=mock_conn):
         hook = WeaviateHook(conn_id=TEST_CONN_ID)
     return hook
 
@@ -179,6 +184,183 @@ class TestWeaviateHook:
             additional_headers={},
         )
 
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    def test_create_object(self, mock_gen_uuid, weaviate_hook):
+        """
+        Test the create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        return_value = weaviate_hook.create_object({"name": "Test"}, "TestClass")
+        mock_gen_uuid.assert_called_once()
+        mock_client.data_object.create.assert_called_once_with(
+            {"name": "Test"}, "TestClass", uuid=mock_gen_uuid.return_value
+        )
+        assert return_value
+
+    def test_create_object_already_exists_return_none(self, weaviate_hook):
+        """
+        Test the create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        mock_client.data_object.create.side_effect = ObjectAlreadyExistsException
+        return_value = weaviate_hook.create_object({"name": "Test"}, "TestClass")
+        assert return_value is None
+
+    def test_get_object(self, weaviate_hook):
+        """
+        Test the get_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object(class_name="TestClass", uuid="uuid")
+        mock_client.data_object.get.assert_called_once_with(class_name="TestClass", uuid="uuid")
+
+    def test_get_of_get_or_create_object(self, weaviate_hook):
+        """
+        Test the get part of get_or_create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name="TestClass")
+        mock_client.data_object.get.assert_called_once_with(
+            class_name="TestClass",
+            consistency_level=None,
+            tenant=None,
+        )
+
+    @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
+    def test_create_of_get_or_create_object(self, mock_gen_uuid, weaviate_hook):
+        """
+        Test the create part of get_or_create_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object = MagicMock(return_value=None)
+        mock_create_object = MagicMock()
+        weaviate_hook.create_object = mock_create_object
+        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name="TestClass")
+        mock_create_object.assert_called_once_with(
+            {"name": "Test"},
+            "TestClass",
+            uuid=mock_gen_uuid.return_value,
+            consistency_level=None,
+            tenant=None,
+            vector=None,
+        )
+
+    def test_create_of_get_or_create_object_raises_valueerror(self, weaviate_hook):
+        """
+        Test that if data_object is None or class_name is None, ValueError is raised.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.get_object = MagicMock(return_value=None)
+        mock_create_object = MagicMock()
+        weaviate_hook.create_object = mock_create_object
+        with pytest.raises(ValueError):
+            weaviate_hook.get_or_create_object(data_object=None, class_name="TestClass")
+        with pytest.raises(ValueError):
+            weaviate_hook.get_or_create_object(data_object={"name": "Test"}, class_name=None)
+
+    def test_get_all_objects(self, weaviate_hook):
+        """
+        Test the get_all_objects method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        objects = [
+            {"deprecations": None, "objects": [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]},
+            {"deprecations": None, "objects": []},
+        ]
+        mock_get_object = MagicMock()
+        weaviate_hook.get_object = mock_get_object
+        mock_get_object.side_effect = objects
+
+        return_value = weaviate_hook.get_all_objects(class_name="TestClass")
+        assert weaviate_hook.get_object.call_args_list == [
+            mock.call(after=None, class_name="TestClass"),
+            mock.call(after=3, class_name="TestClass"),
+        ]
+        assert return_value == [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]
+
+    def test_get_all_objects_returns_dataframe(self, weaviate_hook):
+        """
+        Test the get_all_objects method of WeaviateHook can return a dataframe.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        objects = [
+            {"deprecations": None, "objects": [{"name": "Test1", "id": 2}, {"name": "Test2", "id": 3}]},
+            {"deprecations": None, "objects": []},
+        ]
+        mock_get_object = MagicMock()
+        weaviate_hook.get_object = mock_get_object
+        mock_get_object.side_effect = objects
+
+        return_value = weaviate_hook.get_all_objects(class_name="TestClass", as_dataframe=True)
+        assert weaviate_hook.get_object.call_args_list == [
+            mock.call(after=None, class_name="TestClass"),
+            mock.call(after=3, class_name="TestClass"),
+        ]
+        import pandas
+
+        assert isinstance(return_value, pandas.DataFrame)
+
+    def test_delete_object(self, weaviate_hook):
+        """
+        Test the delete_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.delete_object(uuid="uuid", class_name="TestClass")
+        mock_client.data_object.delete.assert_called_once_with("uuid", class_name="TestClass")
+
+    def test_update_object(self, weaviate_hook):
+        """
+        Test the update_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.update_object(
+            uuid="uuid", class_name="TestClass", data_object={"name": "Test"}, tenant="2d"
+        )
+        mock_client.data_object.update.assert_called_once_with(
+            {"name": "Test"}, "TestClass", "uuid", tenant="2d"
+        )
+
+    def test_validate_object(self, weaviate_hook):
+        """
+        Test the validate_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.validate_object(class_name="TestClass", data_object={"name": "Test"}, uuid="2d")
+        mock_client.data_object.validate.assert_called_once_with({"name": "Test"}, "TestClass", uuid="2d")
+
+    def test_replace_object(self, weaviate_hook):
+        """
+        Test the replace_object method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.replace_object(
+            uuid="uuid", class_name="TestClass", data_object={"name": "Test"}, tenant="2d"
+        )
+        mock_client.data_object.replace.assert_called_once_with(
+            {"name": "Test"}, "TestClass", "uuid", tenant="2d"
+        )
+
+    def test_object_exists(self, weaviate_hook):
+        """
+        Test the object_exists method of WeaviateHook.
+        """
+        mock_client = MagicMock()
+        weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+        weaviate_hook.object_exists(class_name="TestClass", uuid="2d")
+        mock_client.data_object.exists.assert_called_once_with("2d", class_name="TestClass")
+
 
 def test_create_class(weaviate_hook):
     """
@@ -226,7 +408,15 @@ def test_create_schema(weaviate_hook):
     mock_client.schema.create.assert_called_once_with(test_schema_json)
 
 
-def test_batch_data(weaviate_hook):
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        ([{"name": "John"}, {"name": "Jane"}], 2),
+        (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
+    ],
+    ids=("data as list of dicts", "data as dataframe"),
+)
+def test_batch_data(data, expected_length, weaviate_hook):
     """
     Test the batch_data method of WeaviateHook.
     """
@@ -236,12 +426,446 @@ def test_batch_data(weaviate_hook):
 
     # Define test data
     test_class_name = "TestClass"
-    test_data = [{"name": "John"}, {"name": "Jane"}]
 
     # Test the batch_data method
-    weaviate_hook.batch_data(test_class_name, test_data)
+    weaviate_hook.batch_data(test_class_name, data)
 
     # Assert that the batch_data method was called with the correct arguments
     mock_client.batch.configure.assert_called_once()
     mock_batch_context = mock_client.batch.__enter__.return_value
-    assert mock_batch_context.add_data_object.call_count == len(test_data)
+    assert mock_batch_context.add_data_object.call_count == expected_length
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_batch_data_retry(get_conn, weaviate_hook):
+    """Test to ensure retrying working as expected"""
+    data = [{"name": "chandler"}, {"name": "joey"}, {"name": "ross"}]
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [None, error, None, error, None]
+    get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
+    weaviate_hook.batch_data("TestClass", data)
+    assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
+
+
+@pytest.mark.parametrize(
+    argnames=["get_schema_value", "existing", "expected_value"],
+    argvalues=[
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "ignore", [{"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "replace", [{"class": "B"}, {"class": "C"}]),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "fail", {}),
+        ({"classes": [{"class": "A"}, {"class": "B"}]}, "invalid_option", {}),
+    ],
+    ids=["ignore", "replace", "fail", "invalid_option"],
+)
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_classes")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_scenarios(
+    get_schema, create_schema, delete_classes, get_schema_value, existing, expected_value, weaviate_hook
+):
+    schema_json = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    with ExitStack() as stack:
+        delete_classes.return_value = None
+        if existing in ["fail", "invalid_option"]:
+            stack.enter_context(pytest.raises(ValueError))
+        get_schema.return_value = get_schema_value
+        weaviate_hook.create_or_replace_classes(schema_json=schema_json, existing=existing)
+        create_schema.assert_called_once_with({"classes": expected_value})
+        if existing == "replace":
+            delete_classes.assert_called_once_with(class_names=["B"])
+
+
+@mock.patch("builtins.open")
+@mock.patch("json.load")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, weaviate_hook):
+    """Test if schema_json is path to a json file"""
+    get_schema.return_value = {"classes": [{"class": "A"}, {"class": "B"}]}
+    load.return_value = {
+        "B": {"class": "B"},
+        "C": {"class": "C"},
+    }
+    weaviate_hook.create_or_replace_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
+    create_schema.assert_called_once_with({"classes": [{"class": "C"}]})
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+def test_delete_classes(get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    get_client.return_value.schema.delete_class.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == ["class_a"]
+
+    get_client.return_value.schema.delete_class.side_effect = weaviate.UnexpectedStatusCodeException(
+        "something failed", requests.Response()
+    )
+    with pytest.raises(weaviate.UnexpectedStatusCodeException):
+        weaviate_hook.delete_classes("class_a", if_error="stop")
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_client")
+def test_http_errors_of_delete_classes(get_client, weaviate_hook):
+    class_names = ["class_a", "class_b"]
+    resp = requests.Response()
+    resp.status_code = 429
+    get_client.return_value.schema.delete_class.side_effect = [
+        requests.exceptions.HTTPError(response=resp),
+        None,
+        requests.exceptions.ConnectionError,
+        None,
+    ]
+    error_list = weaviate_hook.delete_classes(class_names, if_error="continue")
+    assert error_list == []
+    assert get_client.return_value.schema.delete_class.call_count == 4
+
+
+@pytest.mark.parametrize(
+    argnames=["classes_to_test", "expected_result"],
+    argvalues=[
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "invalid_property",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        }
+                    ],
+                },
+            ],
+            False,
+        ),
+        (
+            [
+                {
+                    "class": "invalid_class",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                    ],
+                },
+            ],
+            False,
+        ),
+        (
+            [
+                {
+                    "class": "Author",
+                    "description": "Authors info",
+                    "properties": [
+                        {
+                            "name": "last_name",
+                            "description": "Last name of the author",
+                            "dataType": ["text"],
+                        },
+                        {
+                            "name": "name",
+                            "description": "Name of the author",
+                            "dataType": ["text"],
+                            "extra_key": "some_value",
+                        },
+                    ],
+                },
+            ],
+            True,
+        ),
+    ],
+    ids=(
+        "property_level_check",
+        "class_level_check",
+        "invalid_property",
+        "invalid_class",
+        "swapped_properties",
+    ),
+)
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
+def test_contains_schema(get_schema, classes_to_test, expected_result, weaviate_hook):
+    get_schema.return_value = {
+        "classes": [
+            {
+                "class": "Author",
+                "description": "Authors info",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                ],
+            },
+            {
+                "class": "Article",
+                "description": "An article written by an Author",
+                "properties": [
+                    {
+                        "name": "name",
+                        "description": "Name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                    {
+                        "name": "last_name",
+                        "description": "Last name of the author",
+                        "dataType": ["text"],
+                        "extra_key": "some_value",
+                    },
+                ],
+            },
+        ]
+    }
+    assert weaviate_hook.check_subset_of_schema(classes_to_test) == expected_result
+
+
+@mock.patch("weaviate.util.generate_uuid5")
+def test___generate_uuids(generate_uuid5, weaviate_hook):
+    df = pd.DataFrame.from_dict({"name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]})
+    with pytest.raises(ValueError, match=r"Columns last_name don't exist in dataframe"):
+        weaviate_hook._generate_uuids(
+            df=df, class_name="test", unique_columns=["name", "age", "gender", "last_name"]
+        )
+
+    df = pd.DataFrame.from_dict(
+        {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
+    )
+    with pytest.raises(
+        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify 'uuid_column'"
+    ):
+        weaviate_hook._generate_uuids(df=df, class_name="test", unique_columns=["name", "age", "gender"])
+
+    with pytest.raises(
+        ValueError,
+        match=r"Property age already in dataset. Consider renaming or specify a different 'uuid_column'.",
+    ):
+        weaviate_hook._generate_uuids(
+            df=df, uuid_column="age", class_name="test", unique_columns=["name", "age", "gender"]
+        )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_object")
+def test__delete_objects(delete_object, weaviate_hook):
+    resp = requests.Response()
+    resp.status_code = 429
+    requests.exceptions.HTTPError(response=resp)
+    http_429_exception = requests.exceptions.HTTPError(response=resp)
+
+    resp = requests.Response()
+    resp.status_code = 404
+    not_found_exception = weaviate.exceptions.UnexpectedStatusCodeException(
+        message="object not found", response=resp
+    )
+
+    delete_object.side_effect = [not_found_exception, None, http_429_exception, http_429_exception, None]
+    weaviate_hook._delete_objects(uuids=["1", "2", "3"], class_name="test")
+    assert delete_object.call_count == 5
+
+
+def test__prepare_document_to_uuid_map(weaviate_hook):
+    input_data = [
+        {"id": "1", "name": "ross", "age": "12", "gender": "m"},
+        {"id": "2", "name": "bob", "age": "22", "gender": "m"},
+        {"id": "3", "name": "joy", "age": "15", "gender": "f"},
+    ]
+    grouped_data = weaviate_hook._prepare_document_to_uuid_map(
+        data=input_data, group_key="gender", get_value=lambda x: x["name"]
+    )
+    assert grouped_data == {"m": {"ross", "bob"}, "f": {"joy"}}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map")
+def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
+    _get_documents_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid2", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "dfg.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    _prepare_document_to_uuid_map.return_value = {
+        "abc.doc": {"uuid1", "uuid56", "uuid2"},
+        "xyz.doc": {"uuid4", "uuid5"},
+        "hjk.doc": {"uuid8", "uuid0", "uuid12"},
+    }
+    (
+        _,
+        changed_documents,
+        unchanged_docs,
+        new_documents,
+    ) = weaviate_hook._get_segregated_documents(
+        data=pd.DataFrame(),
+        document_column="doc_key",
+        uuid_column="id",
+        class_name="doc",
+    )
+    assert changed_documents == {"abc.doc"}
+    assert unchanged_docs == {"xyz.doc"}
+    assert new_documents == {"hjk.doc"}
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_error_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
+    _generate_uuids.return_value = (df, "id")
+    with pytest.raises(ValueError, match="Documents abc.xml already exists. You can either skip or replace"):
+        weaviate_hook.create_or_replace_document_objects(
+            data=df, document_column="doc", class_name="test", existing="error"
+        )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_skip_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    class_name = "test"
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
+    _generate_uuids.return_value = (df, "id")
+
+    weaviate_hook.create_or_replace_document_objects(
+        data=df, class_name=class_name, existing="skip", document_column="doc"
+    )
+
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"], df[df["doc"].isin(new_documents)]
+    )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_replace_option_of_create_or_replace_document_objects(
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "age": ["12", "22", "15"],
+            "gender": ["m", "m", "f"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+
+    class_name = "test"
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {"abc.xml": {"uuid"}},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    batch_data.return_value = []
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
+    _generate_uuids.return_value = (df, "id")
+    weaviate_hook.create_or_replace_document_objects(
+        data=df, class_name=class_name, existing="replace", document_column="doc"
+    )
+    _delete_all_documents_objects.assert_called_with(
+        document_keys=list(changed_documents),
+        total_objects_count=1,
+        document_column="doc",
+        class_name="test",
+        batch_delete_error=[],
+        tenant=None,
+        batch_config_params=None,
+        verbose=False,
+    )
+    pd.testing.assert_frame_equal(
+        batch_data.call_args_list[0].kwargs["data"],
+        df[df["doc"].isin(changed_documents.union(new_documents))],
+    )

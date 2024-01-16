@@ -26,7 +26,6 @@ from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
     get_airflow_extras,
-    get_airflow_version,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
@@ -62,7 +61,7 @@ class BuildProdParams(CommonBuildParams):
         if self.install_airflow_version:
             return self.install_airflow_version
         else:
-            return get_airflow_version()
+            return self._get_version_with_suffix()
 
     @property
     def image_type(self) -> str:
@@ -191,7 +190,7 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def docker_context_files(self) -> str:
-        return "docker-context-files"
+        return "./docker-context-files"
 
     @property
     def airflow_image_kubernetes(self) -> str:
@@ -211,11 +210,8 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
-        self._req_arg("INSTALL_MSSQL_CLIENT", self.install_mssql_client)
-        self._req_arg("INSTALL_MYSQL_CLIENT", self.install_mysql_client)
         self._req_arg("INSTALL_PACKAGES_FROM_CONTEXT", self.install_packages_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
-        self._req_arg("INSTALL_PROVIDERS_FROM_SOURCES", self.install_providers_from_sources)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         # optional build args
         self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
@@ -228,14 +224,18 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command)
         self._opt_arg("ADDITIONAL_RUNTIME_APT_DEPS", self.additional_runtime_apt_deps)
         self._opt_arg("ADDITIONAL_RUNTIME_APT_ENV", self.additional_runtime_apt_env)
+        self._opt_arg("BUILD_PROGRESS", self.build_progress)
+        self._opt_arg("COMMIT_SHA", self.commit_sha)
         self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
         self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
+        self._req_arg("INSTALL_MSSQL_CLIENT", self.install_mssql_client)
+        self._opt_arg("INSTALL_MYSQL_CLIENT", self.install_mysql_client)
+        self._req_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
         self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
-        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
-        self._opt_arg("COMMIT_SHA", self.commit_sha)
-        self._opt_arg("BUILD_PROGRESS", self.build_progress)
         self._opt_arg("USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES", self.use_constraints_for_context_packages)
+        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())
         return build_args

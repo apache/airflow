@@ -93,7 +93,7 @@ class SlackHook(BaseHook):
         retry_handlers: list[RetryHandler] | None = None,
         **extra_client_args: Any,
     ) -> None:
-        super().__init__()
+        super().__init__(logger_name=extra_client_args.pop("logger_name", None))
         self.slack_conn_id = slack_conn_id
         self.base_url = base_url
         self.timeout = timeout

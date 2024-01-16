@@ -31,6 +31,7 @@ LOGIN_PASSWORD = "password"
 LOGIN_HOST = "host"
 LOGIN_PORT = 5439
 LOGIN_SCHEMA = "dev"
+MOCK_REGION_NAME = "eu-north-1"
 
 
 class TestRedshiftSQLHookConn:
@@ -139,16 +140,16 @@ class TestRedshiftSQLHookConn:
         mock_db_pass = "aws_token"
 
         # Mock AWS Connection
-        mock_aws_hook_conn.get_cluster_credentials.return_value = {
-            "DbPassword": mock_db_pass,
-            "DbUser": mock_db_user,
+        mock_aws_hook_conn.get_credentials.return_value = {
+            "dbPassword": mock_db_pass,
+            "dbUser": mock_db_user,
         }
 
         self.db_hook.get_conn()
 
         # Check boto3 'redshift' client method `get_cluster_credentials` call args
-        mock_aws_hook_conn.get_cluster_credentials.assert_called_once_with(
-            DbName=LOGIN_SCHEMA,
+        mock_aws_hook_conn.get_credentials.assert_called_once_with(
+            dbName=LOGIN_SCHEMA,
             workgroupName=mock_work_group,
             durationSeconds=3600,
         )
@@ -240,3 +241,46 @@ class TestRedshiftSQLHookConn:
                 ClusterIdentifier=expected_cluster_identifier,
                 AutoCreate=False,
             )
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
+    @pytest.mark.parametrize(
+        "connection_host, connection_extra, expected_identity",
+        [
+            # test without a connection host but with a cluster_identifier in connection extra
+            (
+                None,
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                f"cluster_identifier_from_extra.{MOCK_REGION_NAME}",
+            ),
+            # test with a connection host and without a cluster_identifier in connection extra
+            (
+                "cluster_identifier_from_host.id.my_region.redshift.amazonaws.com",
+                {"iam": True},
+                "cluster_identifier_from_host.my_region",
+            ),
+            # test with both connection host and cluster_identifier in connection extra
+            (
+                "cluster_identifier_from_host.x.y",
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                f"cluster_identifier_from_extra.{MOCK_REGION_NAME}",
+            ),
+            # test when hostname doesn't match pattern
+            (
+                "1.2.3.4",
+                {},
+                "1.2.3.4",
+            ),
+        ],
+    )
+    def test_get_openlineage_redshift_authority_part(
+        self,
+        connection_host,
+        connection_extra,
+        expected_identity,
+    ):
+        self.connection.host = connection_host
+        self.connection.extra = json.dumps(connection_extra)
+
+        assert f"{expected_identity}:{LOGIN_PORT}" == self.db_hook._get_openlineage_redshift_authority_part(
+            self.connection
+        )

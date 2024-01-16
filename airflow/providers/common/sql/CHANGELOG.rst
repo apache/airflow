@@ -25,6 +25,35 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+* ``Make "placeholder" of ODBC configurable in UI (#36000)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+* ``SQLCheckOperator fails if returns dict with any False values (#36273)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Add Architecture Decision Record for common.sql introduction (#36015)``
+
+
 1.8.1
 .....
 

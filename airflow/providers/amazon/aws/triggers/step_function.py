@@ -43,6 +43,7 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = 30,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
@@ -56,7 +57,13 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return StepFunctionHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from opsgenie_sdk import (
     AlertApi,
     ApiClient,
@@ -50,8 +52,8 @@ class OpsgenieAlertHook(BaseHook):
     conn_type = "opsgenie"
     hook_name = "Opsgenie"
 
-    def __init__(self, opsgenie_conn_id: str = "opsgenie_default") -> None:
-        super().__init__()  # type: ignore[misc]
+    def __init__(self, opsgenie_conn_id: str = "opsgenie_default", **kwargs) -> None:
+        super().__init__(**kwargs)  # type: ignore[misc]
         self.conn_id = opsgenie_conn_id
         configuration = Configuration()
         conn = self.get_connection(self.conn_id)
@@ -156,3 +158,11 @@ class OpsgenieAlertHook(BaseHook):
         except OpenApiException as e:
             self.log.exception("Exception when calling AlertApi->delete_alert: %s\n", e)
             raise e
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["port", "schema", "login", "extra"],
+            "relabeling": {"password": "Opsgenie API Key"},
+        }

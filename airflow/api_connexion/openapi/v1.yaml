@@ -231,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: "2.8.0.dev0"
+  version: "2.9.0.dev0"
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -421,6 +421,7 @@ paths:
         - $ref: "#/components/parameters/FilterTags"
         - $ref: "#/components/parameters/OnlyActive"
         - $ref: "#/components/parameters/Paused"
+        - $ref: "#/components/parameters/ReturnFields"
         - name: dag_id_pattern
           in: query
           schema:
@@ -497,6 +498,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -733,6 +736,7 @@ paths:
         - $ref: "#/components/parameters/FilterUpdatedAtLTE"
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: List of DAG runs.
@@ -814,6 +818,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_run
       tags: [DAGRun]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -1755,6 +1761,8 @@ paths:
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -2127,7 +2135,7 @@ paths:
       description: |
         Get a list of roles.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_roles
       tags: [Role]
@@ -2153,7 +2161,7 @@ paths:
       description: |
         Create a new role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_role
       tags: [Role]
@@ -2187,7 +2195,7 @@ paths:
       description: |
         Get a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_role
       tags: [Role]
@@ -2211,7 +2219,7 @@ paths:
       description: |
         Update a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_role
       tags: [Role]
@@ -2246,7 +2254,7 @@ paths:
       description: |
         Delete a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_role
       tags: [Role]
@@ -2269,7 +2277,7 @@ paths:
       description: |
         Get a list of permissions.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_permissions
       tags: [Permission]
@@ -2295,7 +2303,7 @@ paths:
       description: |
         Get a list of users.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_users
       tags: [User]
@@ -2321,7 +2329,7 @@ paths:
       description: |
         Create a new user with unique username and email.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_user
       tags: [User]
@@ -2356,7 +2364,7 @@ paths:
       description: |
         Get a user with a specific username.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_user
       tags: [User]
@@ -2380,7 +2388,7 @@ paths:
       description: |
         Update fields for a user.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_user
       tags: [User]
@@ -2414,7 +2422,7 @@ paths:
       description: |
         Delete a user with a specific username.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_user
       tags: [User]
@@ -3571,15 +3579,19 @@ components:
           properties:
             timezone:
               $ref: "#/components/schemas/Timezone"
+              nullable: true
             catchup:
               type: boolean
               readOnly: true
+              nullable: true
             orientation:
               type: string
               readOnly: true
+              nullable: true
             concurrency:
               type: number
               readOnly: true
+              nullable: true
             start_date:
               type: string
               format: "date-time"
@@ -3591,6 +3603,7 @@ components:
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
+              nullable: true
             doc_md:
               type: string
               readOnly: true
@@ -3738,8 +3751,6 @@ components:
           readOnly: true
         weight_rule:
           $ref: "#/components/schemas/WeightRule"
-        priority_weight_strategy:
-          $ref: "#/components/schemas/PriorityWeightStrategy"
         ui_color:
           $ref: "#/components/schemas/Color"
         ui_fgcolor:
@@ -4769,15 +4780,10 @@ components:
     WeightRule:
       description: Weight rule.
       type: string
-      nullable: true
       enum:
         - downstream
         - upstream
         - absolute
-
-    PriorityWeightStrategy:
-      description: Priority weight strategy.
-      type: string
 
     HealthStatus:
       description: Health status
@@ -5259,6 +5265,16 @@ components:
         A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
+
+    ReturnFields:
+      in: query
+      name: fields
+      schema:
+        type: array
+        items:
+          type: string
+      description: |
+        List of field for return.
 
   # Reusable request bodies
   requestBodies: {}

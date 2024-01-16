@@ -27,7 +27,7 @@
 Package apache-airflow-providers-docker
 ------------------------------------------------------
 
-`Docker <https://docs.docker.com/install/>`__
+`Docker <https://www.docker.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``docker``.
@@ -35,14 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.1
+.....
+
+Latest change: 2023-12-21
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`d039437fc2 <https://github.com/apache/airflow/commit/d039437fc2c01ebdc93bcb409e0218997e3bfadd>`_  2023-12-21   ``Allow DockerOperator.skip_on_exit_code to be zero (#36360)``
+`1fa18cb974 <https://github.com/apache/airflow/commit/1fa18cb9740a2eb39d079b42ad24787772e5699f>`_  2023-12-20   ``Remove remaining Airflow 2.5 backcompat code from Docker Provider (#36325)``
+=================================================================================================  ===========  ==============================================================================
+
+3.9.0
+.....
+
+Latest change: 2023-12-12
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`64931b1a65 <https://github.com/apache/airflow/commit/64931b1a65a22cb5c6fa6921ed5f4d00f011abd9>`_  2023-12-12   ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+`f9c952bb7f <https://github.com/apache/airflow/commit/f9c952bb7f5b8dd321bd33697d3fcddc16c39d8c>`_  2023-12-09   ``Fix broken log streaming from #35677 (#36127)``
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`882108862d <https://github.com/apache/airflow/commit/882108862dcaf08e7f5da519b3d186048d4ec7f9>`_  2023-12-06   ``Fix 'enable_logging=True' not working in 'DockerSwarmOperator' (#35677)``
+`c905fe88de <https://github.com/apache/airflow/commit/c905fe88de6382cbf610b1fffa0159a7a0b5558f>`_  2023-11-25   ``Update information about links into the provider.yaml files (#35837)``
+=================================================================================================  ===========  ================================================================================
+
 3.8.2
 .....
 
-Latest change: 2023-11-19
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `5a6dcfd865 <https://github.com/apache/airflow/commit/5a6dcfd8655c9622f3838a0e66948dc3091afccb>`_  2023-11-12   ``Refactor docker operator attribute validations and docs (#35571)``

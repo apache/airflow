@@ -24,6 +24,7 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -46,8 +47,8 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
 # Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
+ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
@@ -73,7 +74,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0", "v1.29.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -81,9 +82,13 @@ ALLOWED_EXECUTORS = [
     "CeleryKubernetesExecutor",
     "SequentialExecutor",
 ]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
@@ -111,9 +116,9 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "23.3.1"
+PIP_VERSION = "23.3.2"
 
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
@@ -194,7 +199,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine
     # Some additional conversion for various platforms...
-    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
 
 
@@ -206,7 +211,6 @@ SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
 POSTGRES_HOST_PORT = "25433"
 MYSQL_HOST_PORT = "23306"
-MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
@@ -225,8 +229,6 @@ if USE_MYSQL_INNOVATION_RELEASE:
 else:
     CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
-DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -331,6 +333,7 @@ COMMITTERS = [
     "sekikn",
     "turbaszek",
     "uranusjr",
+    "utkarsharma2",
     "vikramkoka",
     "vincbeck",
     "xinbinhuang",
@@ -379,8 +382,7 @@ with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open(
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "setup.py",
-    "setup.cfg",
+    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
     "generated/provider_dependencies.json",
@@ -422,18 +424,19 @@ DEFAULT_EXTRAS = [
     "amazon",
     "async",
     "celery",
-    "cncf.kubernetes",
-    "daskexecutor",
+    "cncf-kubernetes",
+    "common-io",
     "docker",
     "elasticsearch",
     "ftp",
     "google",
-    "google_auth",
+    "google-auth",
+    "graphviz",
     "grpc",
     "hashicorp",
     "http",
     "ldap",
-    "microsoft.azure",
+    "microsoft-azure",
     "mysql",
     "odbc",
     "openlineage",
@@ -448,6 +451,35 @@ DEFAULT_EXTRAS = [
     "statsd",
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]
+
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "fab",
+    ]
+)
+
+
+def _exclusion(providers: Iterable[str]) -> str:
+    return " ".join([f"apache_airflow_providers_{provider.replace('.', '_')}*" for provider in providers])
+
+
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab"]),
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "fab"]),
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.7.1",
+        "remove-providers": _exclusion(["common.io", "fab"]),
+    },
 ]
 
 

@@ -275,9 +275,8 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @classmethod
     def _generate_insert_sql(
-        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """Generate the INSERT SQL statement.
 
@@ -292,7 +291,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
@@ -332,7 +331,9 @@ class PostgresHook(DbApiHook):
         if is_redshift:
             authority = self._get_openlineage_redshift_authority_part(connection)
         else:
-            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
+            authority = DbApiHook.get_openlineage_authority_part(  # type: ignore[attr-defined]
+                connection, default_port=5432
+            )
 
         return DatabaseInfo(
             scheme="postgres" if not is_redshift else "redshift",
@@ -366,8 +367,8 @@ class PostgresHook(DbApiHook):
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": [],
             "relabeling": {

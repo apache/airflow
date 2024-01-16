@@ -314,6 +314,7 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
@@ -459,6 +460,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -481,6 +483,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -515,6 +518,7 @@ dsn
 dttm
 dtypes
 du
+duckdb
 durations
 dylib
 Dynamodb
@@ -549,6 +553,7 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
 eof
@@ -686,6 +691,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+graphviz
 greenlet
 Groupalia
 groupId
@@ -861,6 +867,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -895,6 +902,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -934,6 +942,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1083,6 +1092,8 @@ Oozie
 openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch
@@ -1138,6 +1149,7 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
@@ -1435,6 +1447,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1632,6 +1645,7 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
 ukey

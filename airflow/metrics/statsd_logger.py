@@ -27,6 +27,7 @@ from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
+    get_validator,
     validate_stat,
 )
 
@@ -160,8 +161,6 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
     from statsd import StatsClient
 
     stats_class = conf.getimport("metrics", "statsd_custom_client_path", fallback=None)
-    metrics_validator: ListValidator
-
     if stats_class:
         if not issubclass(stats_class, StatsClient):
             raise AirflowConfigException(
@@ -179,17 +178,7 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
         port=conf.getint("metrics", "statsd_port"),
         prefix=conf.get("metrics", "statsd_prefix"),
     )
-    if conf.get("metrics", "metrics_allow_list", fallback=None):
-        metrics_validator = AllowListValidator(conf.get("metrics", "metrics_allow_list"))
-        if conf.get("metrics", "metrics_block_list", fallback=None):
-            log.warning(
-                "Ignoring metrics_block_list as both metrics_allow_list "
-                "and metrics_block_list have been set"
-            )
-    elif conf.get("metrics", "metrics_block_list", fallback=None):
-        metrics_validator = BlockListValidator(conf.get("metrics", "metrics_block_list"))
-    else:
-        metrics_validator = AllowListValidator()
+
     influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
     metric_tags_validator = BlockListValidator(conf.get("metrics", "statsd_disabled_tags", fallback=None))
-    return SafeStatsdLogger(statsd, metrics_validator, influxdb_tags_enabled, metric_tags_validator)
+    return SafeStatsdLogger(statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator)

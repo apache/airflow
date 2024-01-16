@@ -20,10 +20,10 @@ import json
 import os
 import subprocess
 from importlib.util import find_spec
+from pathlib import Path
 
 import pytest
 
-# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import (
@@ -33,10 +33,20 @@ from docker_tests.docker_tests_utils import (
     run_python_in_docker,
 )
 
-# isort:on (needed to workaround isort bug)
-from setup import PREINSTALLED_PROVIDERS
-
-INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "airflow" / "providers" / "installed_providers.txt"
+DEV_DIR_PATH = SOURCE_ROOT / "dev"
+AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH = DEV_DIR_PATH / "airflow_pre_installed_providers.txt"
+PROD_IMAGE_PROVIDERS_FILE_PATH = DEV_DIR_PATH / "prod_image_installed_providers.txt"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+SLIM_IMAGE_PROVIDERS = [
+    f"apache-airflow-providers-{provider_id.replace('.','-')}"
+    for provider_id in AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH.read_text().splitlines()
+    if not provider_id.startswith("#")
+]
+REGULAR_IMAGE_PROVIDERS = [
+    f"apache-airflow-providers-{provider_id.replace('.','-')}"
+    for provider_id in PROD_IMAGE_PROVIDERS_FILE_PATH.read_text().splitlines()
+    if not provider_id.startswith("#")
+]
 
 
 class TestCommands:
@@ -80,23 +90,22 @@ class TestCommands:
 class TestPythonPackages:
     def test_required_providers_are_installed(self):
         if os.environ.get("TEST_SLIM_IMAGE"):
-            lines = PREINSTALLED_PROVIDERS
+            packages_to_install = set(SLIM_IMAGE_PROVIDERS)
+            package_file = AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH
         else:
-            lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
-        packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
+            packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
+            package_file = PROD_IMAGE_PROVIDERS_FILE_PATH
         assert len(packages_to_install) != 0
-
         output = run_bash_in_docker(
             "airflow providers list --output json", stderr=subprocess.DEVNULL, return_output=True
         )
         providers = json.loads(output)
-        packages_installed = {d["package_name"] for d in providers}
+        packages_installed = set(d["package_name"] for d in providers)
         assert len(packages_installed) != 0
 
-        assert packages_to_install == packages_installed, (
-            f"List of expected installed packages and image content mismatch. "
-            f"Check {INSTALLED_PROVIDER_PATH} file."
-        )
+        assert (
+            packages_to_install == packages_installed
+        ), f"List of expected installed packages and image content mismatch. Check {package_file} file."
 
     def test_pip_dependencies_conflict(self):
         try:
@@ -122,7 +131,6 @@ class TestPythonPackages:
         ],
         "celery": ["celery", "flower", "vine"],
         "cncf.kubernetes": ["kubernetes", "cryptography"],
-        "dask": ["cloudpickle", "distributed"],
         "docker": ["docker"],
         "elasticsearch": ["elasticsearch"],
         "google": [
@@ -159,6 +167,7 @@ class TestPythonPackages:
         "grpc": ["grpc", "google.auth", "google_auth_httplib2"],
         "hashicorp": ["hvac"],
         "ldap": ["ldap"],
+        "mysql": ["MySQLdb", *(["mysql"] if bool(find_spec("mysql")) else [])],
         "postgres": ["psycopg2"],
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
@@ -168,8 +177,6 @@ class TestPythonPackages:
         "statsd": ["statsd"],
         "virtualenv": ["virtualenv"],
     }
-    if bool(find_spec("mysql")):
-        PACKAGE_IMPORTS["mysql"] = ["mysql"]
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())

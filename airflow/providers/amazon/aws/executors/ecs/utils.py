@@ -44,7 +44,6 @@ CONFIG_DEFAULTS = {
     "conn_id": "aws_default",
     "max_run_task_attempts": "3",
     "assign_public_ip": "False",
-    "launch_type": "FARGATE",
     "platform_version": "LATEST",
     "check_health_on_startup": "True",
 }
@@ -81,6 +80,7 @@ class RunTaskKwargsConfigKeys(BaseConfigKeys):
     """Keys loaded into the config which are valid ECS run_task kwargs."""
 
     ASSIGN_PUBLIC_IP = "assign_public_ip"
+    CAPACITY_PROVIDER_STRATEGY = "capacity_provider_strategy"
     CLUSTER = "cluster"
     LAUNCH_TYPE = "launch_type"
     PLATFORM_VERSION = "platform_version"

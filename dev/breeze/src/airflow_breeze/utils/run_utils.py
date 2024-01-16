@@ -365,11 +365,6 @@ def commit_sha():
         return "COMMIT_SHA_NOT_FOUND"
 
 
-def filter_out_none(**kwargs) -> dict:
-    """Filters out all None values from parameters passed."""
-    return {key: val for key, val in kwargs.items() if val is not None}
-
-
 def check_if_image_exists(image: str) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],

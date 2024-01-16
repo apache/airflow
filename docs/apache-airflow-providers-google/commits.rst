@@ -42,14 +42,73 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.13.1
+.......
+
+Latest change: 2023-12-28
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`49ce3ed006 <https://github.com/apache/airflow/commit/49ce3ed00677d899e3f7d62ce82577882feeb42e>`_  2023-12-28   ``Remove backcompat code for stackdriver (#36442)``
+`cba3ca7067 <https://github.com/apache/airflow/commit/cba3ca70671a1a6dfc2311c7b00659ab0413f746>`_  2023-12-28   ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
+`127c0725b9 <https://github.com/apache/airflow/commit/127c0725b9eb7c8be015ac10d74f963e3d6383ae>`_  2023-12-27   ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``
+`9e55f51a9f <https://github.com/apache/airflow/commit/9e55f51a9fd0555b910d97dff9482933dd42ed72>`_  2023-12-27   ``Remove unused '_parse_version' function (#36450)``
+`75faf1115d <https://github.com/apache/airflow/commit/75faf1115d990746784e25280c0b326b3b557b86>`_  2023-12-27   ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)``
+`794ce730aa <https://github.com/apache/airflow/commit/794ce730aa18ded08c06134ed311a39818168728>`_  2023-12-26   ``Revert "Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)" (#36440)``
+=================================================================================================  ===========  =================================================================================================
+
+10.13.0
+.......
+
+Latest change: 2023-12-23
+
+=================================================================================================  ===========  ============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`2c2763f806 <https://github.com/apache/airflow/commit/2c2763f806517ae514d5614d519966da02ff4371>`_  2023-12-22   ``Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)``
+`10c4c352f9 <https://github.com/apache/airflow/commit/10c4c352f93296ff4434fffe863aa249ad3fea5c>`_  2023-12-20   ``Minor fix to DataprocCreateClusterOperator operator docs. (#36322)``
+`881d88b4da <https://github.com/apache/airflow/commit/881d88b4da90fbc053f9d911b80d1aa015a12e02>`_  2023-12-19   ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
+`5ab43d5541 <https://github.com/apache/airflow/commit/5ab43d5541a68c5c90fe849f19e344bcdeddd44f>`_  2023-12-19   ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+`d793fda391 <https://github.com/apache/airflow/commit/d793fda39161be9281d3d4da54e2e2b4f6344b4d>`_  2023-12-18   ``Add ability to run streaming Job for BeamRunPythonPipelineOperator in non deferrable mode (#36108)``
+`92335417d8 <https://github.com/apache/airflow/commit/92335417d881c01b0d2ef77ad254f3f3b491df4c>`_  2023-12-17   ``Add use_glob to GCSObjectExistenceSensor (#34137)``
+`e9ba37bb58 <https://github.com/apache/airflow/commit/e9ba37bb58da0e3d6739ec063f7160f50487d3b8>`_  2023-12-17   ``Add code snippet formatting in docstrings via Ruff (#36262)``
+`ffb003a58e <https://github.com/apache/airflow/commit/ffb003a58e6bd8dbff4de8c0e35e4b69560e914c>`_  2023-12-17   ``fix(bigquery.py): pass correct project_id to triggerer (#35200)``
+`e83a98603e <https://github.com/apache/airflow/commit/e83a98603ef15c7d57910c482ba75eb76ed79553>`_  2023-12-14   ``iterate through blobs before checking prefixes (#36202)``
+`4c73d613b1 <https://github.com/apache/airflow/commit/4c73d613b11107eb8ee3cc70fe6233d5ee3a0b29>`_  2023-12-13   ``Fix incompatibility with google-cloud-monitoring 2.18.0 (#36200)``
+`8fbacb8a5f <https://github.com/apache/airflow/commit/8fbacb8a5fb4168a335ad080a6b806fee3d85737>`_  2023-12-13   ``Update 'retry' param typing in PubSubAsyncHook (#36198)``
+`64931b1a65 <https://github.com/apache/airflow/commit/64931b1a65a22cb5c6fa6921ed5f4d00f011abd9>`_  2023-12-12   ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+`47a9c8a4a4 <https://github.com/apache/airflow/commit/47a9c8a4a4ecc4da34bd210d56331e97f9fe8e7e>`_  2023-12-12   ``Added Datascan Profiling (#35696)``
+`3dddfb4a4a <https://github.com/apache/airflow/commit/3dddfb4a4ae112544fd02e09a5633961fa725a36>`_  2023-12-11   ``Add overrides to template fields of Google Cloud Run Jobs Execute Operator (#36133)``
+`fcd993b852 <https://github.com/apache/airflow/commit/fcd993b852b91b6227e7a4b316c8c912797ac4a9>`_  2023-12-11   ``Upgrade to latest pre-commit plugins (#36163)``
+`343bac956b <https://github.com/apache/airflow/commit/343bac956b48aac80a7daaf0715e04d2cc37b373>`_  2023-12-11   ``Review and mark found potential SSH security issues by bandit (#36162)``
+`cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
+`8d0c5d9008 <https://github.com/apache/airflow/commit/8d0c5d900875ce3b9dda1a86f1de534759e9d7f6>`_  2023-12-09   ``Change retry type for Google Dataflow Client to async one (#36141)``
+`aba58adb83 <https://github.com/apache/airflow/commit/aba58adb83435e96e66027de5163756301a6ddf5>`_  2023-12-08   ``Allow storage options to be passed (#35820)``
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`ca20f07a16 <https://github.com/apache/airflow/commit/ca20f07a16934d93792773d788b64652009065ce>`_  2023-12-06   ``GCP Secrets Backend Impersonation (#36072)``
+`d0f4512ecb <https://github.com/apache/airflow/commit/d0f4512ecb9c0683a60be7b0de8945948444df8e>`_  2023-12-04   ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
+`86b1bd22d1 <https://github.com/apache/airflow/commit/86b1bd22d14792d89ddc43627e4a72dcb628c5f0>`_  2023-12-01   ``Fix CloudRunExecuteJobOperator not able to retrieve the Cloud Run job status in deferrable mode (#36012)``
+`cf052dc64f <https://github.com/apache/airflow/commit/cf052dc64f00e851427a41a34ffe576fd39be51b>`_  2023-12-01   ``Add feature to build "chicken-egg" packages from sources (#35890)``
+`5d74ffb320 <https://github.com/apache/airflow/commit/5d74ffb32095d534866f029d085198bc783d82c2>`_  2023-11-27   ``Fix gcs listing - ensure blobs are loaded (#34919)``
+`99b68e2db2 <https://github.com/apache/airflow/commit/99b68e2db2af4724a43e50a57480136f8a986e30>`_  2023-11-27   ``Add OpenLineage support to GcsOperators - Delete, Transform and TimeSpanTransform (#35838)``
+`373d8a57b2 <https://github.com/apache/airflow/commit/373d8a57b225a1a5e79b92c3d84b618b3522bfa5>`_  2023-11-25   ``Deprecate 'CloudComposerEnvironmentSensor' in favor of 'CloudComposerCreateEnvironmentOperator' with defer mode (#35775)``
+`e2a5dbf8b4 <https://github.com/apache/airflow/commit/e2a5dbf8b47b35f2d836c81f8e9e7190a7f66d38>`_  2023-11-25   ``allow multiple elements in impersonation chain (#35694)``
+`770f16425c <https://github.com/apache/airflow/commit/770f16425c3b48b8dd11d2a6fb852404e43d88ca>`_  2023-11-25   ``Add support for service account impersonation with computeEngineSSHHook (google provider) and IAP tunnel (#35136)``
+=================================================================================================  ===========  ============================================================================================================================
+
 10.12.0
 .......
 
-Latest change: 2023-11-22
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  =========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `72ba63e0b9 <https://github.com/apache/airflow/commit/72ba63e0b97110a47c9882fd0a644cb0d74dcc20>`_  2023-11-22   ``added Topic params for schema_settings and message_retention_duration. (#35767)``
 `2a06e278d2 <https://github.com/apache/airflow/commit/2a06e278d290e36e861bd3c40fdc9318e620aa16>`_  2023-11-21   ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
 `1fae1a50e9 <https://github.com/apache/airflow/commit/1fae1a50e97fae9e414d062acb4f1e641523fa5a>`_  2023-11-21   ``Add OpenLineage support to GCSToBigQueryOperator (#35778)``

@@ -706,13 +706,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis: Iterator[TI] = with_row_locks(
+        tis_query: Query = with_row_locks(
             query,
             of=TI,
             session=session,
             **skip_locked(session=session),
         )
-        tis = session.scalars(tis)
+        tis: Iterator[TI] = session.scalars(tis_query)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -1833,9 +1833,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskOutletDatasetReference,
                 isouter=True,
             )
-            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
-            # group by id and select all columns.
-            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .group_by(DatasetModel.id)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

@@ -31,7 +31,7 @@ def get_removed_provider_ids() -> list[str]:
     removed_provider_ids = []
     for provider_path in PROVIDERS_DIR.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
-        if provider_yaml.get("removed"):
+        if provider_yaml["state"] == "removed":
             removed_provider_ids.append(
                 provider_yaml["package-name"][len("apache-airflow-providers-") :].replace("-", ".")
             )

@@ -60,8 +60,9 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
@@ -200,7 +201,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
         return f"{conn_type}://{host}/{endpoint}"
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> None:
         raise NotImplementedError()
 
     def insert_rows(
@@ -211,5 +212,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplementedError:
+    ) -> None:
         raise NotImplementedError()

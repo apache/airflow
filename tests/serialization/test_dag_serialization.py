@@ -1236,6 +1236,7 @@ class TestStringifiedDAGs:
             "on_execute_callback": None,
             "on_failure_callback": None,
             "on_retry_callback": None,
+            "on_skipped_callback": None,
             "on_success_callback": None,
             "outlets": [],
             "owner": "airflow",
@@ -1243,7 +1244,6 @@ class TestStringifiedDAGs:
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 1,
-            "priority_weight_strategy": "downstream",
             "queue": "default",
             "resources": None,
             "retries": 0,
@@ -1255,7 +1255,7 @@ class TestStringifiedDAGs:
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
-            "weight_rule": None,
+            "weight_rule": "downstream",
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

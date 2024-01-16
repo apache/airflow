@@ -69,9 +69,9 @@ class AzureSynapseHook(BaseHook):
     default_conn_name: str = "azure_synapse_default"
     hook_name: str = "Azure Synapse"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -82,8 +82,8 @@ class AzureSynapseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -94,12 +94,12 @@ class AzureSynapseHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = "", **kwargs):
         self.job_id: int | None = None
         self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
-        super().__init__()
+        super().__init__(**kwargs)
 
     def _get_field(self, extras, name):
         return get_field(
@@ -253,8 +253,8 @@ class AzureSynapsePipelineHook(BaseHook):
     default_conn_name: str = "azure_synapse_connection"
     hook_name: str = "Azure Synapse Pipeline"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -264,8 +264,8 @@ class AzureSynapsePipelineHook(BaseHook):
             "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -273,12 +273,15 @@ class AzureSynapsePipelineHook(BaseHook):
         }
 
     def __init__(
-        self, azure_synapse_workspace_dev_endpoint: str, azure_synapse_conn_id: str = default_conn_name
+        self,
+        azure_synapse_workspace_dev_endpoint: str,
+        azure_synapse_conn_id: str = default_conn_name,
+        **kwargs,
     ):
         self._conn = None
         self.conn_id = azure_synapse_conn_id
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint
-        super().__init__()
+        super().__init__(**kwargs)
 
     def _get_field(self, extras, name):
         return get_field(

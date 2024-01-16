@@ -114,7 +114,7 @@ Package apache-airflow-providers-weaviate
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.0.0
+Release: 1.3.0
 
 Provider package
 ----------------
@@ -132,11 +132,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.5.0``
+``apache-airflow``   ``>=2.6.0``
 ``weaviate-client``  ``>=3.24.2``
+``pandas``           ``>=0.17.1``
 ===================  ==================

@@ -63,7 +63,7 @@ core:
     executor:
       description: |
         The executor class that airflow should use. Choices include
-        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``DaskExecutor``,
+        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
         ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
         full import path to the class when using a custom executor.
       version_added: ~
@@ -76,7 +76,7 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
+      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -306,17 +306,6 @@ core:
       description: |
         The weighting method used for the effective total priority weight of the task
       version_added: 2.2.0
-      version_deprecated: 2.8.0
-      deprecation_reason: |
-        This option is deprecated and will be removed in Airflow 3.0.
-        Please use ``default_task_priority_weight_strategy`` instead.
-      type: string
-      example: ~
-      default: ~
-    default_task_priority_weight_strategy:
-      description: |
-        The strategy used for the effective total priority weight of the task
-      version_added: 2.8.0
       type: string
       example: ~
       default: "downstream"
@@ -955,24 +944,32 @@ metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_use_pattern_match:
+      description: |
+        If true, metrics_allow_list and metrics_block_list will use regex pattern matching
+        anywhere within the metric name instead of only prefix matching at the start of the name.
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "False"
     metrics_allow_list:
       description: |
-        If you want to avoid emitting all the available metrics, you can configure an
-        allow list of prefixes (comma separated) to send only the metrics that start
-        with the elements of the list (e.g: "scheduler,executor,dagrun")
+        Configure an allow list (comma separated string) to send only certain metrics.
+        If metrics_use_pattern_match is false, match only the exact metric name prefix.
+        If metrics_use_pattern_match is true, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: ~
+      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
-        If you want to avoid emitting all the available metrics, you can configure a
-        block list of prefixes (comma separated) to filter out metrics that start with
-        the elements of the list (e.g: "scheduler,executor,dagrun").
+        Configure a block list (comma separated string) to block certain metrics from being emitted.
         If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
+        If metrics_use_pattern_match is false, match only the exact metric name prefix.
+        If metrics_use_pattern_match is true, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: ~
+      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
@@ -1644,6 +1641,27 @@ webserver:
       type: string
       example: ~
       default: "#51504f"
+    navbar_hover_color:
+      description: |
+        Define the color of navigation bar links when hovered
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "#eee"
+    navbar_text_hover_color:
+      description: |
+        Define the color of text in the navigation bar when hovered
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "#51504f"
+    navbar_logo_text_color:
+      description: |
+        Define the color of the logo text
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "#51504f"
     default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
@@ -1752,6 +1770,8 @@ webserver:
       type: string
       example: ~
       default: "True"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
@@ -1828,6 +1848,8 @@ webserver:
       type: boolean
       example: ~
       default: "True"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     auth_rate_limit:
       description: |
         Rate limit for authentication endpoints.
@@ -1835,6 +1857,8 @@ webserver:
       type: string
       example: ~
       default: "5 per 40 second"
+      version_deprecated: 2.9.0
+      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
@@ -1866,6 +1890,13 @@ webserver:
       type: boolean
       example: "False"
       default: "False"
+    allowed_payload_size:
+      description: |
+        The maximum size of the request payload (in MB) that can be sent.
+      version_added: 2.8.1
+      type: float
+      example: ~
+      default: "1.0"
 email:
   description: |
     Configuration email backend and whether to
@@ -2373,6 +2404,25 @@ scheduler:
       type: string
       example: ~
       default: "^[A-Za-z0-9_.~:+-]+$"
+    create_cron_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time for cron schedules, when
+        a cron string is provided to `schedule` argument of a DAG. If True,
+        CronDataIntervalTimetable is used, which is the legacy Airflow behavior suitable
+        for DAGs with well-defined data_interval you get contiguous intervals from the end of the previous
+        interval up to the scheduled datetime. If False, CronTriggerTimetable is used,
+        which is closer to the behavior of cron itself.
+
+        Notably, for CronTriggerTimetable, the logical_date is the same as the time the DAG Run will try to
+        schedule, while for CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
+        but the DAG Run will try to schedule at the end of the data interval. For more differences
+        between the two Timetables, see
+        https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html#differences-between-the-two-cron-timetables
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "True"
+      see_also: ":ref:`Differences between the two cron timetables`"
 triggerer:
   description: ~
   options:

@@ -38,9 +38,12 @@ class PigCliHook(BaseHook):
     hook_name = "Pig Client Wrapper"
 
     def __init__(
-        self, pig_cli_conn_id: str = default_conn_name, pig_properties: list[str] | None = None
+        self,
+        pig_cli_conn_id: str = default_conn_name,
+        pig_properties: list[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         conn = self.get_connection(pig_cli_conn_id)
         conn_pig_properties = conn.extra_dejson.get("pig_properties")
         if conn_pig_properties:

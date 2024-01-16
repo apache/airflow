@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import secrets
 import shlex
 import string
 import warnings
@@ -32,7 +31,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
-from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -51,6 +49,11 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
+    add_pod_suffix,
+    create_pod_id,
+)
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
@@ -80,61 +83,6 @@ if TYPE_CHECKING:
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-
-
-def _rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :meta private:
-    """
-    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
-
-
-def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
-    """Add random string to pod name while staying under max len.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :meta private:
-    """
-    suffix = "-" + _rand_str(rand_len)
-    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
-
-
-def _create_pod_id(
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    *,
-    max_length: int = 80,
-    unique: bool = True,
-) -> str:
-    """
-    Generate unique pod ID given a dag_id and / or task_id.
-
-    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
-
-    :param dag_id: DAG ID
-    :param task_id: Task ID
-    :param max_length: max number of characters
-    :param unique: whether a random string suffix should be added
-    :return: A valid identifier for a kubernetes pod name
-    """
-    if not (dag_id or task_id):
-        raise ValueError("Must supply either dag_id or task_id.")
-    name = ""
-    if dag_id:
-        name += dag_id
-    if task_id:
-        if name:
-            name += "-"
-        name += task_id
-    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
-    if unique:
-        return _add_pod_suffix(pod_name=base_name, max_len=max_length)
-    else:
-        return base_name
 
 
 class PodReattachFailure(AirflowException):
@@ -218,6 +166,7 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
+    :param pod_template_dict: pod template dictionary (templated)
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
@@ -246,10 +195,13 @@ class KubernetesPodOperator(BaseOperator):
         Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
-    :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+    :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
         in V1PodSpec.
     :param progress_callback: Callback function for receiving k8s container logs.
     """
+
+    # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
+    #  - airflow/decorators/__init__.pyi  (by a separate PR)
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
@@ -267,6 +219,7 @@ class KubernetesPodOperator(BaseOperator):
         "labels",
         "config_file",
         "pod_template_file",
+        "pod_template_dict",
         "namespace",
         "container_resources",
         "volumes",
@@ -288,7 +241,7 @@ class KubernetesPodOperator(BaseOperator):
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
         volumes: list[k8s.V1Volume] | None = None,
-        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,
@@ -322,6 +275,7 @@ class KubernetesPodOperator(BaseOperator):
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
+        pod_template_dict: dict | None = None,
         priority_class_name: str | None = None,
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
@@ -338,20 +292,6 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # container_resources parameter.
-        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
-            raise AirflowException(
-                "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead."
-            )
-        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
-        # node_selector parameter.
-        if "node_selectors" in kwargs:
-            raise ValueError(
-                "Param `node_selectors` supplied. This param is no longer supported. "
-                "Use `node_selector` instead."
-            )
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
@@ -404,6 +344,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log_events_on_failure = log_events_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
+        self.pod_template_dict = pod_template_dict
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
@@ -413,7 +354,7 @@ class KubernetesPodOperator(BaseOperator):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
@@ -595,11 +536,13 @@ class KubernetesPodOperator(BaseOperator):
     def execute_sync(self, context: Context):
         result = None
         try:
-            self.pod_request_obj = self.build_pod_request_obj(context)
-            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-                pod_request_obj=self.pod_request_obj,
-                context=context,
-            )
+            if self.pod_request_obj is None:
+                self.pod_request_obj = self.build_pod_request_obj(context)
+            if self.pod is None:
+                self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                    pod_request_obj=self.pod_request_obj,
+                    context=context,
+                )
             # push to xcom now so that if there is an error we still have the values
             ti = context["ti"]
             ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
@@ -672,6 +615,7 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        self.log.debug("Triggered with event: %s", event)
         pod = None
         try:
             pod = self.hook.get_pod(
@@ -682,7 +626,11 @@ class KubernetesPodOperator(BaseOperator):
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self.write_logs(pod)
-                raise AirflowException(event["message"])
+                if "stack_trace" in event:
+                    message = f"{event['message']}\n{event['stack_trace']}"
+                else:
+                    message = event["message"]
+                raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
@@ -735,34 +683,37 @@ class KubernetesPodOperator(BaseOperator):
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
             istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        ):
+        )
+
+        if failed:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
-            self.process_pod_deletion(remote_pod, reraise=False)
+        self.process_pod_deletion(remote_pod, reraise=False)
 
+        if self.skip_on_exit_code:
+            container_statuses = (
+                remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
+            ) or []
+            base_container_status = next(
+                (x for x in container_statuses if x.name == self.base_container_name), None
+            )
+            exit_code = (
+                base_container_status.state.terminated.exit_code
+                if base_container_status
+                and base_container_status.state
+                and base_container_status.state.terminated
+                else None
+            )
+            if exit_code in self.skip_on_exit_code:
+                raise AirflowSkipException(
+                    f"Pod {pod and pod.metadata.name} returned exit code {exit_code}. Skipping."
+                )
+
+        if failed:
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
-            if self.skip_on_exit_code is not None:
-                container_statuses = (
-                    remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
-                ) or []
-                base_container_status = next(
-                    (x for x in container_statuses if x.name == self.base_container_name), None
-                )
-                exit_code = (
-                    base_container_status.state.terminated.exit_code
-                    if base_container_status
-                    and base_container_status.state
-                    and base_container_status.state.terminated
-                    else None
-                )
-                if exit_code in self.skip_on_exit_code:
-                    raise AirflowSkipException(
-                        f"Pod {pod and pod.metadata.name} returned exit code "
-                        f"{self.skip_on_exit_code}. Skipping."
-                    )
             raise AirflowException(
                 "\n".join(
                     filter(
@@ -775,8 +726,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                 )
             )
-        else:
-            self.process_pod_deletion(remote_pod, reraise=False)
 
     def _read_pod_events(self, pod, *, reraise=True):
         """Will fetch and emit events from pod."""
@@ -892,6 +841,11 @@ class KubernetesPodOperator(BaseOperator):
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.pod_template_dict:
+            self.log.debug("Pod template dict found, will parse for base pod")
+            pod_template = pod_generator.PodGenerator.deserialize_model_dict(self.pod_template_dict)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
         else:
@@ -947,12 +901,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = _create_pod_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+            pod.metadata.name = create_pod_id(
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
+            pod.metadata.name = add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

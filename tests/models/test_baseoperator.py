@@ -792,19 +792,11 @@ class TestBaseOperator:
 
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
-        assert op.weight_rule is None
+        assert WeightRule.DOWNSTREAM == op.weight_rule
 
-    def test_priority_weight_strategy_default(self):
-        op = BaseOperator(task_id="test_task")
-        assert op.priority_weight_strategy == "downstream"
-
-    def test_deprecated_weight_rule_override(self):
+    def test_weight_rule_override(self):
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
         assert WeightRule.UPSTREAM == op.weight_rule
-
-    def test_priority_weight_strategy_override(self):
-        op = BaseOperator(task_id="test_task", priority_weight_strategy="upstream")
-        assert op.priority_weight_strategy == "upstream"
 
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")

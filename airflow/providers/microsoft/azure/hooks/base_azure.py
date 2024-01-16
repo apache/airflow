@@ -47,9 +47,9 @@ class AzureBaseHook(BaseHook):
     conn_type = "azure"
     hook_name = "Azure"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -60,8 +60,8 @@ class AzureBaseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -86,10 +86,10 @@ class AzureBaseHook(BaseHook):
             },
         }
 
-    def __init__(self, sdk_client: Any, conn_id: str = "azure_default"):
+    def __init__(self, sdk_client: Any, conn_id: str = "azure_default", **kwargs):
         self.sdk_client = sdk_client
         self.conn_id = conn_id
-        super().__init__()
+        super().__init__(**kwargs)
 
     def get_conn(self) -> Any:
         """

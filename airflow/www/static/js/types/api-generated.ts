@@ -676,13 +676,13 @@ export interface paths {
     /**
      * Get a list of roles.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_roles"];
     /**
      * Create a new role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_role"];
   };
@@ -690,19 +690,19 @@ export interface paths {
     /**
      * Get a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_role"];
     /**
      * Delete a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_role"];
     /**
      * Update a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_role"];
     parameters: {
@@ -716,7 +716,7 @@ export interface paths {
     /**
      * Get a list of permissions.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_permissions"];
   };
@@ -724,13 +724,13 @@ export interface paths {
     /**
      * Get a list of users.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_users"];
     /**
      * Create a new user with unique username and email.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_user"];
   };
@@ -738,19 +738,19 @@ export interface paths {
     /**
      * Get a user with a specific username.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_user"];
     /**
      * Delete a user with a specific username.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_user"];
     /**
      * Update fields for a user.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_user"];
     parameters: {
@@ -1470,10 +1470,10 @@ export interface components {
      * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
-      timezone?: components["schemas"]["Timezone"];
-      catchup?: boolean;
-      orientation?: string;
-      concurrency?: number;
+      timezone?: components["schemas"]["Timezone"] | null;
+      catchup?: boolean | null;
+      orientation?: string | null;
+      concurrency?: number | null;
       /**
        * Format: date-time
        * @description The DAG's start date.
@@ -1481,7 +1481,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"];
+      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -1561,7 +1561,6 @@ export interface components {
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
-      priority_weight_strategy?: components["schemas"]["PriorityWeightStrategy"];
       ui_color?: components["schemas"]["Color"];
       ui_fgcolor?: components["schemas"]["Color"];
       template_fields?: string[];
@@ -2235,11 +2234,9 @@ export interface components {
       | "always";
     /**
      * @description Weight rule.
-     * @enum {string|null}
+     * @enum {string}
      */
-    WeightRule: ("downstream" | "upstream" | "absolute") | null;
-    /** @description Priority weight strategy. */
-    PriorityWeightStrategy: string;
+    WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
      * @enum {string|null}
@@ -2475,6 +2472,8 @@ export interface components {
      * A comma-separated list of fully qualified names of fields.
      */
     UpdateMask: string[];
+    /** @description List of field for return. */
+    ReturnFields: string[];
   };
   requestBodies: {};
   headers: {};
@@ -2662,6 +2661,8 @@ export interface operations {
          * *New in version 2.6.0*
          */
         paused?: components["parameters"]["Paused"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2735,6 +2736,10 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3000,6 +3005,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3065,6 +3072,10 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
         /** The DAG run ID. */
         dag_run_id: components["parameters"]["DAGRunID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -4101,6 +4112,10 @@ export interface operations {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
       };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
+      };
     };
     responses: {
       /** Success. */
@@ -4403,7 +4418,7 @@ export interface operations {
   /**
    * Get a list of roles.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_roles: {
     parameters: {
@@ -4435,7 +4450,7 @@ export interface operations {
   /**
    * Create a new role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_role: {
     responses: {
@@ -4458,7 +4473,7 @@ export interface operations {
   /**
    * Get a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_role: {
     parameters: {
@@ -4482,7 +4497,7 @@ export interface operations {
   /**
    * Delete a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_role: {
     parameters: {
@@ -4503,7 +4518,7 @@ export interface operations {
   /**
    * Update a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_role: {
     parameters: {
@@ -4540,7 +4555,7 @@ export interface operations {
   /**
    * Get a list of permissions.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_permissions: {
     parameters: {
@@ -4565,7 +4580,7 @@ export interface operations {
   /**
    * Get a list of users.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_users: {
     parameters: {
@@ -4597,7 +4612,7 @@ export interface operations {
   /**
    * Create a new user with unique username and email.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_user: {
     responses: {
@@ -4621,7 +4636,7 @@ export interface operations {
   /**
    * Get a user with a specific username.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_user: {
     parameters: {
@@ -4649,7 +4664,7 @@ export interface operations {
   /**
    * Delete a user with a specific username.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_user: {
     parameters: {
@@ -4674,7 +4689,7 @@ export interface operations {
   /**
    * Update fields for a user.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_user: {
     parameters: {
@@ -4955,9 +4970,6 @@ export type TriggerRule = CamelCasedPropertiesDeep<
 export type WeightRule = CamelCasedPropertiesDeep<
   components["schemas"]["WeightRule"]
 >;
-export type PriorityWeightStrategy = CamelCasedPropertiesDeep<
-  components["schemas"]["PriorityWeightStrategy"]
->;
 export type HealthStatus = CamelCasedPropertiesDeep<
   components["schemas"]["HealthStatus"]
 >;
@@ -4994,7 +5006,8 @@ export type PatchDagsVariables = CamelCasedPropertiesDeep<
     operations["patch_dags"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagVariables = CamelCasedPropertiesDeep<
-  operations["get_dag"]["parameters"]["path"]
+  operations["get_dag"]["parameters"]["path"] &
+    operations["get_dag"]["parameters"]["query"]
 >;
 export type DeleteDagVariables = CamelCasedPropertiesDeep<
   operations["delete_dag"]["parameters"]["path"]
@@ -5032,7 +5045,8 @@ export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<
   operations["get_dag_runs_batch"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagRunVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_run"]["parameters"]["path"]
+  operations["get_dag_run"]["parameters"]["path"] &
+    operations["get_dag_run"]["parameters"]["query"]
 >;
 export type DeleteDagRunVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_run"]["parameters"]["path"]
@@ -5139,7 +5153,8 @@ export type GetLogVariables = CamelCasedPropertiesDeep<
     operations["get_log"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_details"]["parameters"]["path"]
+  operations["get_dag_details"]["parameters"]["path"] &
+    operations["get_dag_details"]["parameters"]["query"]
 >;
 export type GetTasksVariables = CamelCasedPropertiesDeep<
   operations["get_tasks"]["parameters"]["path"] &

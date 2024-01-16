@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make "placeholder" of ODBC configurable in UI (#36000)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+
 4.2.0
 .....
 

@@ -21,7 +21,6 @@ import stat
 from airflow_breeze.utils.run_utils import (
     change_directory_permission,
     change_file_permission,
-    filter_out_none,
 )
 
 
@@ -44,10 +43,3 @@ def test_change_directory_permission(tmp_path):
         and (mode & stat.S_IXGRP)
         and (mode & stat.S_IXOTH)
     )
-
-
-def test_filter_out_none():
-    dict_input_with_none = {"sample": None, "sample1": "One", "sample2": "Two", "samplen": None}
-    expected_dict_output = {"sample1": "One", "sample2": "Two"}
-    output_dict = filter_out_none(**dict_input_with_none)
-    assert output_dict == expected_dict_output

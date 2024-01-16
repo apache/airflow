@@ -36,7 +36,7 @@ import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.auth import _cloud_sdk, compute_engine
+from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from google.auth.exceptions import RefreshError
 from google.auth.transport import _http_client
@@ -188,8 +188,8 @@ class GoogleBaseHook(BaseHook):
     conn_type = "google_cloud_platform"
     hook_name = "Google Cloud"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -221,8 +221,8 @@ class GoogleBaseHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -234,8 +234,9 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -628,6 +629,7 @@ class GoogleBaseAsyncHook(BaseHook):
     sync_hook_class: Any = None
 
     def __init__(self, **kwargs: Any):
+        super().__init__(logger_name=kwargs.pop("logger_name", None))
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

@@ -44,7 +44,10 @@ We have the following Groups of files for CI that determine which tests are run:
   Open API specification and determine that we should run dedicated API tests.
 * `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
 * `Setup files` - change in the setup files indicates that we should run  `upgrade to newer dependencies` -
-  setup.* files, pyproject.toml, generated dependencies files in `generated` folder
+  pyproject.toml and  generated dependencies files in `generated` folder. The dependency files and part of
+  the pyproject.toml are automatically generated from the provider.yaml files in provider by
+  the `update-providers-dependencies` pre-commit. The provider.yaml is a single source of truth for each
+  provider.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
    and airflow documentation)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
@@ -74,9 +77,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 ## Selective check decision rules
 
 * `Full tests` case is enabled when the event is PUSH, or SCHEDULE or we miss commit info or any of the
-  important environment files (setup.py, setup.cfg, provider.yaml, Dockerfile, build scripts) changed or
-  when `full tests needed` label is set.  That enables all matrix combinations of variables (representative)
-  and all possible test type. No further checks are performed.
+  important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
+  `generated/provider_dependencies.json` etc.) changed or  when `full tests needed` label is set.
+  That enables all matrix combinations of variables (representative) and all possible test type. No further
+  checks are performed. See also [1] note below.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
   is enabled.
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
@@ -164,7 +168,6 @@ Github Actions to pass the list of parameters to a command to execute
 | default-helm-version               | Which Helm version to use as default                                                                    | v3.9.4                                              |                |
 | default-kind-version               | Which Kind version to use as default                                                                    | v0.16.0                                             |                |
 | default-kubernetes-version         | Which Kubernetes version to use as default                                                              | v1.25.2                                             |                |
-| default-mssql-version              | Which MsSQL version to use as default                                                                   | 2017-latest                                         |                |
 | default-mysql-version              | Which MySQL version to use as default                                                                   | 5.7                                                 |                |
 | default-postgres-version           | Which Postgres version to use as default                                                                | 10                                                  |                |
 | default-python-version             | Which Python version to use as default                                                                  | 3.8                                                 |                |
@@ -178,8 +181,6 @@ Github Actions to pass the list of parameters to a command to execute
 | kubernetes-combos-list-as-string   | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.8-v1.25.2 3.9-v1.26.4                             | *              |
 | kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                                  | ['v1.25.2']                                         |                |
 | kubernetes-versions-list-as-string | All Kubernetes versions to use for tests as space-separated string                                      | v1.25.2                                             | *              |
-| mssql-exclude                      | Which versions of MsSQL to exclude for tests as JSON array                                              | []                                                  |                |
-| mssql-versions                     | Which versions of MsSQL to use for tests as JSON array                                                  | ['2017-latest']                                     |                |
 | mysql-exclude                      | Which versions of MySQL to exclude for tests as JSON array                                              | []                                                  |                |
 | mysql-versions                     | Which versions of MySQL to use for tests as JSON array                                                  | ['5.7']                                             |                |
 | needs-api-codegen                  | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                                |                |
@@ -199,3 +200,20 @@ Github Actions to pass the list of parameters to a command to execute
 | skip-provider-tests                | When provider tests should be skipped (on non-main branch or when no provider changes detected)         | true                                                |                |
 | sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                                  |                |
 | upgrade-to-newer-dependencies      | Whether the image build should attempt to upgrade all dependencies (might be true/false or commit hash) | false                                               |                |
+
+
+[1] Note for deciding if `full tests needed` mode is enabled and provider.yaml files.
+
+When we decided whether to run `full tests` we do not check (directly) if provider.yaml files changed,
+even if they are single source of truth for provider dependencies and when you add a dependency there,
+the environment changes and generally full tests are advised.
+
+This is because provider.yaml change will automatically trigger (via `update-provider-dependencies` pre-commit)
+generation of `generated/provider_dependencies.json` and `pyproject.toml` gets updated as well. This is a far
+better indication if we need to run full tests than just checking if provider.yaml files changed, because
+provider.yaml files contain more information than just dependencies - they are the single source of truth
+for a lot of information for each provider and sometimes (for example when we update provider documentation
+or when new Hook class is added), we do not need to run full tests.
+
+That's why we do not base our `full tests needed` decision on changes in dependency files that are generated
+from the `provider.yaml` files.

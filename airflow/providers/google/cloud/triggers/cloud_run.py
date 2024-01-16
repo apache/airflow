@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from google.longrunning import operations_pb2
+    from google.longrunning import operations_pb2  # type: ignore[attr-defined]
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 
@@ -102,21 +102,21 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         while timeout is None or timeout > 0:
             operation: operations_pb2.Operation = await hook.get_operation(self.operation_name)
             if operation.done:
-                # An operation can only have one of those two combinations: if it is succeeded, then
-                # the response field will be populated, else, then the error field will be.
-                if operation.response is not None:
+                # An operation can only have one of those two combinations: if it is failed, then
+                # the error field will be populated, else, then the response field will be.
+                if operation.error.SerializeToString():
                     yield TriggerEvent(
                         {
-                            "status": RunJobStatus.SUCCESS,
+                            "status": RunJobStatus.FAIL.value,
+                            "operation_error_code": operation.error.code,
+                            "operation_error_message": operation.error.message,
                             "job_name": self.job_name,
                         }
                     )
                 else:
                     yield TriggerEvent(
                         {
-                            "status": RunJobStatus.FAIL,
-                            "operation_error_code": operation.error.code,
-                            "operation_error_message": operation.error.message,
+                            "status": RunJobStatus.SUCCESS.value,
                             "job_name": self.job_name,
                         }
                     )

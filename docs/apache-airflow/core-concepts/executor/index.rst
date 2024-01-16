@@ -63,7 +63,6 @@ There are two types of executors - those that run tasks *locally* (inside the ``
 
     celery
     celery_kubernetes
-    dask
     kubernetes
     local_kubernetes
 

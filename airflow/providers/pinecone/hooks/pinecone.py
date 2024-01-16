@@ -43,8 +43,8 @@ class PineconeHook(BaseHook):
     conn_type = "pinecone"
     hook_name = "Pinecone"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -66,7 +66,8 @@ class PineconeHook(BaseHook):
             "relabeling": {"login": "Pinecone Environment", "password": "Pinecone API key"},
         }
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
+    def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.get_conn()
 
