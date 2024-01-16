@@ -73,7 +73,7 @@ const LogBlock = ({ parsedLogs, wrap, tryNumber }: Props) => {
       borderRadius={3}
       borderColor="blue.500"
     >
-      <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
+      {parsedLogs}
       <div ref={codeBlockBottomDiv} />
     </Code>
   );
