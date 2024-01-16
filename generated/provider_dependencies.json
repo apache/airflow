@@ -934,6 +934,15 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "qdrant": {
+    "deps": [
+      "qdrant_client>=1.7.0"
+    ],
+    "devel-deps": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "redis": {
     "deps": [
       "apache-airflow>=2.6.0",
