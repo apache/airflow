@@ -959,6 +959,17 @@ config:
         type: boolean
         example: "True"
         default: "True"
+      adopt_task_instances:
+        description: |
+          If True, the executor will try to adopt orphaned task instances from a SchedulerJob
+          shutdown event, for example when a scheduler container is re-deployed or terminated.
+          If False, the executor will terminate all active AWS Batch Jobs when the scheduler shuts down.
+          More documentation can be found in the Airflow docs:
+          ``https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html#scheduler-tuneables``.
+        version_added: "8.17"
+        type: boolean
+        example: "True"
+        default: "False"
   aws_auth_manager:
     description: |
       This section only applies if you are using the AwsAuthManager. In other words, if you set

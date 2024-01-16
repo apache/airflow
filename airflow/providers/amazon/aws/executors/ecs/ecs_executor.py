@@ -26,7 +26,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -52,7 +52,7 @@ from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
         ExecutorConfigType,
@@ -110,6 +110,11 @@ class AwsEcsExecutor(BaseExecutor):
         self.IS_BOTO_CONNECTION_HEALTHY = False
 
         self.run_task_kwargs = self._load_run_kwargs()
+        self.adopt_task_instances = conf.getboolean(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.ADOPT_TASK_INSTANCES,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.ADOPT_TASK_INSTANCES],
+        )
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
@@ -393,6 +398,9 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
+                # Add Fargate task ARN to executor event buffer, which gets saved
+                # in TaskInstance.external_executor_id.
+                self.event_buffer[task_key] = (State.QUEUED, task.task_arn)
         if failure_reasons:
             self.log.error(
                 "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
@@ -456,7 +464,10 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to end %s", self.__class__.__name__)
 
     def terminate(self):
-        """Kill all ECS processes by calling Boto3's StopTask API."""
+        """Kill all ECS processes by calling Boto3's StopTask API if adopt_task_instances option is False."""
+        if self.adopt_task_instances:
+            return
+
         try:
             for arn in self.active_workers.get_all_arns():
                 self.ecs.stop_task(
@@ -493,3 +504,43 @@ class AwsEcsExecutor(BaseExecutor):
                     'container "name" must be provided in "containerOverrides" configuration'
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
+
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+        """
+        Try to adopt running task instances if adopt_task_instances option is set to True.
+
+        These tasks instances should have an ECS process which can be adopted by the unique task ARN.
+        Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
+        """
+        if not self.adopt_task_instances:
+            # Do not try to adopt task instances, return all orphaned tasks for clearing
+            return tis
+
+        adopted_tis: list[TaskInstance] = []
+
+        if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+            task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
+
+            for task in task_descriptions:
+                ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                self.active_workers.add_task(
+                    task,
+                    ti.key,
+                    ti.queue,
+                    ti.command_as_list(),
+                    ti.executor_config,
+                    ti.prev_attempted_tries + 1,
+                )
+                adopted_tis.append(ti)
+
+        if adopted_tis:
+            tasks = [f"{task} in state {task.state}" for task in adopted_tis]
+            task_instance_str = "\n\t".join(tasks)
+            self.log.info(
+                "Adopted the following %d tasks from a dead executor:\n\t%s",
+                len(adopted_tis),
+                task_instance_str,
+            )
+
+        not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
+        return not_adopted_tis

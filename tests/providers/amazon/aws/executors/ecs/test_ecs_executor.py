@@ -36,6 +36,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
+from airflow.models import TaskInstance
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
@@ -829,6 +831,72 @@ class TestAwsEcsExecutor:
             "test failure" in caplog.messages[0]
         )
 
+    def test_terminate_with_task_adoption(self, mock_executor):
+        """Test that executor does not shut down active ECS tasks when adopt_task_instances is True."""
+        mock_executor.adopt_task_instances = True
+        mock_executor.terminate()
+
+        # tasks are not terminated
+        mock_executor.ecs.stop_task.assert_not_called()
+
+    def test_try_adopt_task_instances(self, mock_executor):
+        """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
+        mock_executor.adopt_task_instances = True
+
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {
+                    "taskArn": "001",
+                    "lastStatus": "RUNNING",
+                    "desiredStatus": "RUNNING",
+                    "containers": [{"name": "some-ecs-container"}],
+                },
+                {
+                    "taskArn": "002",
+                    "lastStatus": "RUNNING",
+                    "desiredStatus": "RUNNING",
+                    "containers": [{"name": "another-ecs-container"}],
+                },
+            ],
+            "failures": [],
+        }
+
+        orphaned_tasks = [
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+        ]
+        orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
+        orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
+        orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
+        for task in orphaned_tasks:
+            task.prev_attempted_tries = 1
+
+        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+
+        mock_executor.ecs.describe_tasks.assert_called_once()
+        # Two of the three tasks should be adopted.
+        assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
+        # The remaining one task is unable to be adopted.
+        assert 1 == len(not_adopted_tasks)
+
+    def test_try_adopt_task_instances_disabled(self, mock_executor):
+        """Test that executor won't adopt orphaned task instances if adopt_task_instances is False."""
+        orphaned_tasks = [
+            mock.Mock(TaskInstance),
+            mock.Mock(TaskInstance),
+            mock.Mock(TaskInstance),
+        ]
+
+        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+
+        # Ensure that describe_tasks is not called.
+        mock_executor.ecs.describe_tasks.assert_not_called()
+        # No orphaned tasks are stored in active workers.
+        assert len(mock_executor.active_workers) == 0
+        # All tasks are unable to be adopted.
+        assert len(orphaned_tasks) == len(not_adopted_tasks)
+
 
 class TestEcsExecutorConfig:
     @pytest.fixture()
@@ -899,6 +967,7 @@ class TestEcsExecutorConfig:
                 AllEcsConfigKeys.AWS_CONN_ID,
                 AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
                 AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+                AllEcsConfigKeys.ADOPT_TASK_INSTANCES,
             ]:
                 assert expected_key not in found_keys.keys()
             else:
