@@ -40,9 +40,7 @@ connect to your account.
 
 You can trigger a synchronization job in Airflow in two ways with the Operator. The first one is a synchronous process.
 This Operator will initiate the Airbyte job, and the Operator manages the job status. Another way is to use the flag
-``async = True`` so the Operator only triggers the job and returns the ``job_id``, passed to either the AirbyteSensor or
-the AirbyteSensorAsync. The AirbyteSensorAsync functions as a `Deferrable Operator <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html>`__,
-while the AirbyteSensor functions as a traditional `Airflow Sensor <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/sensors.html>`__.
+``async = True`` so the Operator only triggers the job and returns the ``job_id``, passed to the AirbyteSensor.
 
 An example using the synchronous way:
 
@@ -57,10 +55,3 @@ An example using the async way:
     :language: python
     :start-after: [START howto_operator_airbyte_asynchronous]
     :end-before: [END howto_operator_airbyte_asynchronous]
-
-An example using the async way and a deferrable sensor:
-
-.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
-    :language: python
-    :start-after: [START howto_operator_airbyte_asynchronous_deferrable]
-    :end-before: [END howto_operator_airbyte_asynchronous_deferrable]

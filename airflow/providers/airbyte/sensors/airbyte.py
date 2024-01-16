@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -47,11 +49,30 @@ class AirbyteJobSensor(BaseSensorOperator):
         self,
         *,
         airbyte_job_id: int,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
         **kwargs,
     ) -> None:
+        if deferrable:
+            if "poke_interval" not in kwargs:
+                # TODO: Remove once deprecated
+                if "polling_interval" in kwargs:
+                    kwargs["poke_interval"] = kwargs["polling_interval"]
+                    warnings.warn(
+                        "Argument `poll_interval` is deprecated and will be removed "
+                        "in a future release.  Please use `poke_interval` instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    kwargs["poke_interval"] = 5
+
+                if "timeout" not in kwargs:
+                    kwargs["timeout"] = 60 * 60 * 24 * 7
+
         super().__init__(**kwargs)
+        self.deferrable = deferrable
         self.airbyte_conn_id = airbyte_conn_id
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
@@ -82,48 +103,38 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.log.info("Waiting for job %s to complete.", self.airbyte_job_id)
         return False
 
-
-class AirbyteJobSensorAsync(AirbyteJobSensor):
-    """
-    A deferrable drop-in replacement for AirbyteJobSensor.
-
-    Will defers itself to avoid taking up a worker slot while it is waiting.
-
-    .. seealso::
-        For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/operator:AirbyteJobSensorAsync`
-
-    """
-
     def execute(self, context: Context) -> Any:
         """Submits a job which generates a run_id and gets deferred."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
-        job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-        state = job.json()["job"]["status"]
-        end_time = time.time() + self.timeout
-
-        self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
-
-        if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=AirbyteSyncTrigger(
-                    conn_id=self.airbyte_conn_id,
-                    job_id=self.airbyte_job_id,
-                    end_time=end_time,
-                    poll_interval=60,
-                ),
-                method_name="execute_complete",
-            )
-        elif state == hook.SUCCEEDED:
-            self.log.info("%s completed successfully.", self.task_id)
-            return
-        elif state == hook.ERROR:
-            raise AirflowException(f"Job failed:\n{job}")
-        elif state == hook.CANCELLED:
-            raise AirflowException(f"Job was cancelled:\n{job}")
+        if not self.deferrable:
+            super().execute(context)
         else:
-            raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}")
+            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+            job = hook.get_job(job_id=(int(self.airbyte_job_id)))
+            state = job.json()["job"]["status"]
+            end_time = time.time() + self.timeout
+
+            self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
+
+            if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=AirbyteSyncTrigger(
+                        conn_id=self.airbyte_conn_id,
+                        job_id=self.airbyte_job_id,
+                        end_time=end_time,
+                        poll_interval=60,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif state == hook.SUCCEEDED:
+                self.log.info("%s completed successfully.", self.task_id)
+                return
+            elif state == hook.ERROR:
+                raise AirflowException(f"Job failed:\n{job}")
+            elif state == hook.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{job}")
+            else:
+                raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}")
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """
