@@ -97,12 +97,6 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      // If there are any links, make them hyperlinks
-      parsedLine = parsedLine.replace(
-        /((https?:\/\/|http:\/\/)[^\s]+)/g,
-        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
-      );
-
       parsedLines.push(parsedLine);
     }
   });
