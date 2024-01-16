@@ -100,7 +100,7 @@ def archive_deterministically(dir_to_archive, dest_archive, prepend_path=None, t
         # packaging (in case of exceptional situations like running out of disk space).
         temp_file = f"{dest_archive}.temp~"
         with os.fdopen(os.open(temp_file, os.O_WRONLY | os.O_CREAT, 0o644), "wb") as out_file:
-            with gzip.GzipFile("wb", fileobj=out_file, mtime=0) as gzip_file:
+            with gzip.GzipFile(fileobj=out_file, mtime=0, mode="wb") as gzip_file:
                 with tarfile.open(fileobj=gzip_file, mode="w:") as tar_file:
                     for entry in file_list:
                         arcname = entry

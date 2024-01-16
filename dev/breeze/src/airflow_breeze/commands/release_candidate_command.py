@@ -88,6 +88,8 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
         run_command(
             [
                 "git",
+                "-c",
+                "tar.umask=0077",
                 "archive",
                 "--format=tar.gz",
                 f"{version}",
