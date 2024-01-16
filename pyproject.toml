@@ -864,7 +864,7 @@ pgvector = [
   "pgvector>=0.2.3",
 ]
 pinecone = [
-  "pinecone-client>=2.2.4",
+  "pinecone-client>=2.2.4,<3.0",
 ]
 postgres = [
   "apache-airflow[common_sql]",

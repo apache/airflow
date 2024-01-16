@@ -898,7 +898,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "pinecone-client>=2.2.4"
+      "pinecone-client>=2.2.4,<3.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
