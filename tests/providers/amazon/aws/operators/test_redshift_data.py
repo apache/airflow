@@ -32,6 +32,32 @@ DATABASE = "database"
 STATEMENT_ID = "statement_id"
 
 
+@pytest.fixture
+def deferrable_operator():
+    cluster_identifier = "cluster_identifier"
+    db_user = "db_user"
+    secret_arn = "secret_arn"
+    statement_name = "statement_name"
+    parameters = [{"name": "id", "value": "1"}]
+    poll_interval = 5
+
+    operator = RedshiftDataOperator(
+        aws_conn_id=CONN_ID,
+        task_id=TASK_ID,
+        sql=SQL,
+        database=DATABASE,
+        cluster_identifier=cluster_identifier,
+        db_user=db_user,
+        secret_arn=secret_arn,
+        statement_name=statement_name,
+        parameters=parameters,
+        wait_for_completion=False,
+        poll_interval=poll_interval,
+        deferrable=True,
+    )
+    return operator
+
+
 class TestRedshiftDataOperator:
     def test_init(self):
         op = RedshiftDataOperator(
@@ -218,7 +244,6 @@ class TestRedshiftDataOperator:
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
         poll_interval = 5
-        wait_for_completion = True
 
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
@@ -230,7 +255,7 @@ class TestRedshiftDataOperator:
             secret_arn=secret_arn,
             statement_name=statement_name,
             parameters=parameters,
-            wait_for_completion=True,
+            wait_for_completion=False,
             poll_interval=poll_interval,
             deferrable=True,
         )
@@ -247,7 +272,7 @@ class TestRedshiftDataOperator:
             statement_name=statement_name,
             parameters=parameters,
             with_event=False,
-            wait_for_completion=wait_for_completion,
+            wait_for_completion=False,
             poll_interval=poll_interval,
         )
 
@@ -257,121 +282,33 @@ class TestRedshiftDataOperator:
         return_value=False,
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
-    def test_execute_defer(self, mock_exec_query, check_query_is_finished):
-        cluster_identifier = "cluster_identifier"
-        db_user = "db_user"
-        secret_arn = "secret_arn"
-        statement_name = "statement_name"
-        parameters = [{"name": "id", "value": "1"}]
-        poll_interval = 5
-
-        operator = RedshiftDataOperator(
-            aws_conn_id=CONN_ID,
-            task_id=TASK_ID,
-            sql=SQL,
-            database=DATABASE,
-            cluster_identifier=cluster_identifier,
-            db_user=db_user,
-            secret_arn=secret_arn,
-            statement_name=statement_name,
-            parameters=parameters,
-            wait_for_completion=False,
-            poll_interval=poll_interval,
-            deferrable=True,
-        )
+    def test_execute_defer(self, mock_exec_query, check_query_is_finished, deferrable_operator):
         with pytest.raises(TaskDeferred) as exc:
-            operator.execute(None)
+            deferrable_operator.execute(None)
 
         assert isinstance(exc.value.trigger, RedshiftDataTrigger)
 
-    def test_execute_complete_failure(self):
+    def test_execute_complete_failure(self, deferrable_operator):
         """Tests that an AirflowException is raised in case of error event"""
-
-        cluster_identifier = "cluster_identifier"
-        db_user = "db_user"
-        secret_arn = "secret_arn"
-        statement_name = "statement_name"
-        parameters = [{"name": "id", "value": "1"}]
-        poll_interval = 5
-
-        operator = RedshiftDataOperator(
-            aws_conn_id=CONN_ID,
-            task_id=TASK_ID,
-            sql=SQL,
-            database=DATABASE,
-            cluster_identifier=cluster_identifier,
-            db_user=db_user,
-            secret_arn=secret_arn,
-            statement_name=statement_name,
-            parameters=parameters,
-            wait_for_completion=False,
-            poll_interval=poll_interval,
-            deferrable=True,
-        )
-
         with pytest.raises(AirflowException):
-            operator.execute_complete(
+            deferrable_operator.execute_complete(
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_execute_complete_exception(self):
-        """Tests that an AirflowException is raised in case of error event"""
-
-        cluster_identifier = "cluster_identifier"
-        db_user = "db_user"
-        secret_arn = "secret_arn"
-        statement_name = "statement_name"
-        parameters = [{"name": "id", "value": "1"}]
-        poll_interval = 5
-
-        operator = RedshiftDataOperator(
-            aws_conn_id=CONN_ID,
-            task_id=TASK_ID,
-            sql=SQL,
-            database=DATABASE,
-            cluster_identifier=cluster_identifier,
-            db_user=db_user,
-            secret_arn=secret_arn,
-            statement_name=statement_name,
-            parameters=parameters,
-            wait_for_completion=False,
-            poll_interval=poll_interval,
-            deferrable=True,
-        )
-
+    def test_execute_complete_exception(self, deferrable_operator):
+        """Tests that an AirflowException is raised in case of empty event"""
         with pytest.raises(AirflowException) as exc:
-            operator.execute_complete(context=None, event=None)
+            deferrable_operator.execute_complete(context=None, event=None)
             assert exc.value.args[0] == "Did not receive valid event from the trigerrer"
 
-    def test_execute_complete(self):
+    def test_execute_complete(self, deferrable_operator):
         """Asserts that logging occurs as expected"""
 
-        cluster_identifier = "cluster_identifier"
-        db_user = "db_user"
-        secret_arn = "secret_arn"
-        statement_name = "statement_name"
-        parameters = [{"name": "id", "value": "1"}]
-        poll_interval = 5
+        deferrable_operator.statement_id = "uuid"
 
-        operator = RedshiftDataOperator(
-            aws_conn_id=CONN_ID,
-            task_id=TASK_ID,
-            sql=SQL,
-            database=DATABASE,
-            cluster_identifier=cluster_identifier,
-            db_user=db_user,
-            secret_arn=secret_arn,
-            statement_name=statement_name,
-            parameters=parameters,
-            wait_for_completion=False,
-            poll_interval=poll_interval,
-            deferrable=True,
-        )
-        operator.statement_id = "uuid"
-
-        with mock.patch.object(operator.log, "info") as mock_log_info:
+        with mock.patch.object(deferrable_operator.log, "info") as mock_log_info:
             assert (
-                operator.execute_complete(
+                deferrable_operator.execute_complete(
                     context=None, event={"status": "success", "message": "Job completed"}
                 )
                 == "uuid"
