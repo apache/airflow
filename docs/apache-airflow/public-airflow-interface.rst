@@ -102,7 +102,7 @@ Operators
 
 The base classes :class:`~airflow.models.baseoperator.BaseOperator` and :class:`~airflow.sensors.base.BaseSensorOperator` are public and may be extended to make new operators.
 
-Subclasses of BaseOperator which are published in Apache Airflow are public in behavior but not in structure.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.  So if you extend subclasses of BaseOperator y
+Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
 
 Task Instances
 --------------
