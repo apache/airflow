@@ -153,7 +153,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                         task_id=self.task_id,
                         poll_interval=self.poll_interval,
                         aws_conn_id=self.aws_conn_id,
-                        region=self.region,
+                        region_name=self.region_name,
                     ),
                     method_name="execute_complete",
                 )

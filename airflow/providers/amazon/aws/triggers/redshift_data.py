@@ -31,7 +31,7 @@ class RedshiftDataTrigger(BaseTrigger):
     :param task_id: task ID of the Dag
     :param poll_interval:  polling period in seconds to check for the status
     :param aws_conn_id: AWS connection ID for redshift
-    :param region: aws region to use
+    :param region_name: aws region to use
     """
 
     def __init__(
@@ -40,14 +40,14 @@ class RedshiftDataTrigger(BaseTrigger):
         task_id: str,
         poll_interval: int,
         aws_conn_id: str | None = "aws_default",
-        region: str | None = None,
+        region_name: str | None = None,
     ):
         super().__init__()
         self.statement_id = statement_id
         self.task_id = task_id
         self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
-        self.region = region
+        self.region_name = region_name
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes RedshiftDataTrigger arguments and classpath."""
@@ -58,13 +58,12 @@ class RedshiftDataTrigger(BaseTrigger):
                 "task_id": self.task_id,
                 "aws_conn_id": self.aws_conn_id,
                 "poll_interval": self.poll_interval,
-                "region": self.region,
+                "region_name": self.region_name,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        # hook = RedshiftDataHook(aws_conn_id=self.aws_conn_id, poll_interval=self.poll_interval)
-        hook = RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+        hook = RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         try:
             response = await hook.check_query_is_finished_async(self.statement_id)
             if not response:
