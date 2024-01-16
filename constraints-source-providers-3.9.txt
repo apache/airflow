@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-15T21:21:08.442765
+# This constraints file was automatically generated on 2024-01-16T10:02:35.954647
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -82,7 +82,7 @@ astroid==2.15.8
 asttokens==2.4.1
 async-timeout==4.0.3
 atlasclient==1.0.0
-atlassian-python-api==3.41.4
+atlassian-python-api==3.41.5
 attrs==23.2.0
 aws-sam-translator==1.83.0
 aws-xray-sdk==2.12.1
@@ -141,7 +141,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.43
+cohere==4.44
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -596,13 +596,13 @@ vine==5.1.0
 virtualenv==20.25.0
 watchtower==3.0.1
 wcwidth==0.2.13
-weaviate-client==3.26.0
+weaviate-client==3.26.1
 websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.252.0
+yandexcloud==0.253.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.45
