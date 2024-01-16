@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
@@ -513,34 +514,35 @@ class AwsEcsExecutor(BaseExecutor):
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
         """
         if not self.adopt_task_instances:
-            # Do not try to adopt task instances, return all orphaned tasks for clearing
+            # Do not try to adopt task instances, return all orphaned tasks for clearing.
             return tis
 
-        adopted_tis: list[TaskInstance] = []
+        with Stats.timer("ecs_executor.adopt_task_instances.duration"):
+            adopted_tis: list[TaskInstance] = []
 
-        if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
-            task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
+            if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+                task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
 
-            for task in task_descriptions:
-                ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
-                self.active_workers.add_task(
-                    task,
-                    ti.key,
-                    ti.queue,
-                    ti.command_as_list(),
-                    ti.executor_config,
-                    ti.prev_attempted_tries + 1,
+                for task in task_descriptions:
+                    ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                    self.active_workers.add_task(
+                        task,
+                        ti.key,
+                        ti.queue,
+                        ti.command_as_list(),
+                        ti.executor_config,
+                        ti.prev_attempted_tries + 1,
+                    )
+                    adopted_tis.append(ti)
+
+            if adopted_tis:
+                tasks = [f"{task} in state {task.state}" for task in adopted_tis]
+                task_instance_str = "\n\t".join(tasks)
+                self.log.info(
+                    "Adopted the following %d tasks from a dead executor:\n\t%s",
+                    len(adopted_tis),
+                    task_instance_str,
                 )
-                adopted_tis.append(ti)
 
-        if adopted_tis:
-            tasks = [f"{task} in state {task.state}" for task in adopted_tis]
-            task_instance_str = "\n\t".join(tasks)
-            self.log.info(
-                "Adopted the following %d tasks from a dead executor:\n\t%s",
-                len(adopted_tis),
-                task_instance_str,
-            )
-
-        not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
-        return not_adopted_tis
+            not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
+            return not_adopted_tis
