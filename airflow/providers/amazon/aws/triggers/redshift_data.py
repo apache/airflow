@@ -41,13 +41,18 @@ class RedshiftDataTrigger(BaseTrigger):
         poll_interval: int,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__()
         self.statement_id = statement_id
         self.task_id = task_id
-        self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
+
+        self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes RedshiftDataTrigger arguments and classpath."""
@@ -59,13 +64,23 @@ class RedshiftDataTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "poll_interval": self.poll_interval,
                 "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
+    @property
+    def hook(self) -> RedshiftDataHook:
+        return RedshiftDataHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         try:
-            response = await hook.check_query_is_finished_async(self.statement_id)
+            response = await self.hook.check_query_is_finished_async(self.statement_id)
             if not response:
                 response = {"status": "error", "message": f"{self.task_id} failed"}
             yield TriggerEvent(response)

@@ -49,6 +49,8 @@ class TestRedshiftDataTrigger:
             "poll_interval": POLL_INTERVAL,
             "aws_conn_id": TEST_CONN_ID,
             "region_name": None,
+            "botocore_config": None,
+            "verify": None,
         }
 
     @pytest.mark.asyncio

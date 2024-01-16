@@ -154,6 +154,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                         poll_interval=self.poll_interval,
                         aws_conn_id=self.aws_conn_id,
                         region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                     ),
                     method_name="execute_complete",
                 )
