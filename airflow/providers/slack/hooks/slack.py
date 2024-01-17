@@ -305,7 +305,6 @@ class SlackHook(BaseHook):
             raise ValueError("Either `file` or `content` must be provided, not both.")
         if file:
             file = Path(file)
-            filename = filename or file.name
             file_uploads: FileUploadTypeDef = {"file": file.__fspath__(), "filename": filename or file.name}
         else:
             file_uploads = {"content": content, "filename": filename}
@@ -330,9 +329,9 @@ class SlackHook(BaseHook):
 
     def get_channel_id(self, channel_name: str) -> str:
         """
-        Retrieves Slack channel id by the channel name.
+        Retrieves a Slack channel id by a channel name.
 
-        It continuously iterates over all slack channels (public and private)
+        It continuously iterates over all Slack channels (public and private)
         until it finds the desired channel name in addition cache results for further usage.
 
         .. seealso::
