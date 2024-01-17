@@ -18,19 +18,23 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
+import re
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+import requests
+import yaml
 from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
+from kubernetes.utils.create_from_yaml import FailToCreateError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEDeploymentHook, GKEHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
@@ -45,6 +49,45 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+
+
+class GKEClusterAuthDetails:
+    """
+    Helper for fetching information about cluster for connecting.
+
+    :param cluster_name: The name of the Google Kubernetes Engine cluster the pod should be spawned in.
+    :param project_id: The Google Developers Console project id.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param cluster_hook: airflow hook for working with kubernetes cluster.
+    """
+
+    def __init__(
+        self,
+        cluster_name,
+        project_id,
+        use_internal_ip,
+        cluster_hook,
+    ):
+        self.cluster_name = cluster_name
+        self.project_id = project_id
+        self.use_internal_ip = use_internal_ip
+        self.cluster_hook = cluster_hook
+        self._cluster_url = None
+        self._ssl_ca_cert = None
+
+    def fetch_cluster_info(self) -> tuple[str, str | None]:
+        """Fetch cluster info for connecting to it."""
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
+            project_id=self.project_id,
+        )
+
+        if not self.use_internal_ip:
+            self._cluster_url = f"https://{cluster.endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+        self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
+        return self._cluster_url, self._ssl_ca_cert
 
 
 class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
@@ -386,6 +429,152 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
             )
 
         return self._hook
+
+
+class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
+    """
+    Installs Kueue of specific version inside Cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEStartKueueInsideClusterOperator`
+
+    .. seealso::
+        For more details about Kueue have a look at the reference:
+        https://kueue.sigs.k8s.io/docs/overview/
+
+    :param project_id: The Google Developers Console [project ID or project number].
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster resides.
+    :param cluster_name: The Cluster name in which to install Kueue.
+    :param kueue_version: Version of Kueue to install.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "location",
+        "kueue_version",
+        "cluster_name",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (KubernetesEngineClusterLink(),)
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        kueue_version: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.kueue_version = kueue_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+        self._kueue_yaml_url = (
+            f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
+        )
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def deployment_hook(self) -> GKEDeploymentHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKEDeploymentHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    @cached_property
+    def pod_hook(self) -> GKEPodHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKEPodHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    @staticmethod
+    def _get_yaml_content_from_file(kueue_yaml_url) -> list[dict]:
+        """Download content of YAML file and separate it into several dictionaries."""
+        response = requests.get(kueue_yaml_url, allow_redirects=True)
+        yaml_dicts = []
+        if response.status_code == 200:
+            yaml_data = response.text
+            documents = re.split(r"---\n", yaml_data)
+
+            for document in documents:
+                document_dict = yaml.safe_load(document)
+                yaml_dicts.append(document_dict)
+        else:
+            raise AirflowException("Was not able to read the yaml file from given URL")
+        return yaml_dicts
+
+    def execute(self, context: Context):
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
+            project_id=self.project_id,
+        )
+        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=cluster)
+
+        yaml_objects = self._get_yaml_content_from_file(kueue_yaml_url=self._kueue_yaml_url)
+
+        if self.cluster_hook.check_cluster_autoscaling_ability(cluster=cluster):
+            try:
+                self.pod_hook.apply_from_yaml_file(yaml_objects=yaml_objects)
+
+                self.deployment_hook.check_kueue_deployment_running(
+                    name="kueue-controller-manager", namespace="kueue-system"
+                )
+
+                self.log.info("Kueue installed successfully!")
+            except FailToCreateError:
+                self.log.info("Kueue is already enabled for the cluster")
+        else:
+            self.log.info(
+                "Cluster doesn't have ability to autoscale, will not install Kueue inside. Aborting"
+            )
 
 
 class GKEStartPodOperator(KubernetesPodOperator):
