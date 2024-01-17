@@ -309,7 +309,8 @@ class TestRedshiftDataOperator:
         with mock.patch.object(deferrable_operator.log, "info") as mock_log_info:
             assert (
                 deferrable_operator.execute_complete(
-                    context=None, event={"status": "success", "message": "Job completed"}
+                    context=None,
+                    event={"status": "success", "message": "Job completed", "statement_id": "uuid"},
                 )
                 == "uuid"
             )

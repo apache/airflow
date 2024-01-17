@@ -82,7 +82,11 @@ class RedshiftDataTrigger(BaseTrigger):
         try:
             response = await self.hook.check_query_is_finished_async(self.statement_id)
             if not response:
-                response = {"status": "error", "message": f"{self.task_id} failed"}
+                response = {
+                    "status": "error",
+                    "message": f"{self.task_id} failed",
+                    "statement_id": self.statement_id,
+                }
             yield TriggerEvent(response)
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            yield TriggerEvent({"status": "error", "message": str(e), "statement_id": self.statement_id})

@@ -63,7 +63,12 @@ class TestRedshiftDataTrigger:
                     {"status": "error", "message": "test error", "statement_id": "uuid", "type": "failed"}
                 ),
             ),
-            (False, TriggerEvent({"status": "error", "message": f"{TEST_TASK_ID} failed"})),
+            (
+                False,
+                TriggerEvent(
+                    {"status": "error", "message": f"{TEST_TASK_ID} failed", "statement_id": "uuid"}
+                ),
+            ),
         ],
     )
     @mock.patch(
@@ -102,4 +107,4 @@ class TestRedshiftDataTrigger:
         )
         task = [i async for i in trigger.run()]
         assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        assert TriggerEvent({"status": "error", "message": "Test exception", "statement_id": "uuid"}) in task

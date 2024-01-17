@@ -23,7 +23,6 @@ from pprint import pformat
 from typing import TYPE_CHECKING, Any, Iterable
 
 import botocore.exceptions
-from asgiref.sync import sync_to_async
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -230,11 +229,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param poll_interval: how often in seconds to check the query status
         """
         try:
-            client = await sync_to_async(self.get_conn)()
             while await self.is_still_running(statement_id):
                 await asyncio.sleep(poll_interval)
 
-            resp = client.describe_statement(Id=statement_id)
+            resp = await self.async_conn.describe_statement(Id=statement_id)
             status = resp["Status"]
             if status == FINISHED_STATE:
                 return {"status": "success", "statement_id": statement_id}
@@ -267,6 +265,5 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        client = await sync_to_async(self.get_conn)()
-        desc = client.describe_statement(Id=statement_id)
+        desc = await self.async_conn.describe_statement(Id=statement_id)
         return desc["Status"] in RUNNING_STATES

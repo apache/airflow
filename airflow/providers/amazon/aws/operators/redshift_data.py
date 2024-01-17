@@ -179,16 +179,17 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             msg = f"context: {context}, error message: {event['message']}"
             raise AirflowException(msg)
 
-        if not self.statement_id:
+        statement_id = event["statement_id"]
+        if not statement_id:
             raise AirflowException("statement_id should not be empty.")
 
         self.log.info("%s completed successfully.", self.task_id)
         if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=self.statement_id)
+            result = self.hook.conn.get_statement_result(Id=statement_id)
             self.log.debug("Statement result: %s", result)
             return result
-        else:
-            return self.statement_id
+
+        return statement_id
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
