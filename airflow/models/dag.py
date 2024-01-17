@@ -3248,12 +3248,6 @@ class DAG(LoggingMixin):
         :param dags: dags to query
         :param session: sqlalchemy session object
         """
-        load_only_option = load_only(
-            DagRun.dag_id,
-            DagRun.execution_date,
-            DagRun.data_interval_start,
-            DagRun.data_interval_end,
-        )
         if len(dags) == 1:
             # Index optimized fast path to avoid more complicated & slower groupby queryplan
             existing_dag_id = list(dags)[0].dag_id
@@ -3282,7 +3276,14 @@ class DAG(LoggingMixin):
                 DagRun.dag_id == last_automated_runs_subq.c.dag_id,
                 DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
             )
-        return query.options(load_only_option)
+        return query.options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.execution_date,
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+            )
+        )
 
     @provide_session
     def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
