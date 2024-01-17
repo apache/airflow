@@ -3268,8 +3268,13 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self, project_id: str | None, job_id: str | None, session: ClientSession
     ) -> Job:
         """Get the specified job resource by job ID and project ID."""
-        with await self.service_file_as_context() as f:
-            return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
+        token = await self.get_token(session=session)
+        return Job(
+            job_id=job_id,
+            project=project_id,
+            token=token,
+            session=cast(Session, session),
+        )
 
     async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
         async with ClientSession() as s:
@@ -3513,11 +3518,11 @@ class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
             access to the specified project.
         :param session: aiohttp ClientSession
         """
-        with await self.service_file_as_context() as file:
-            return Table_async(
-                dataset_name=dataset,
-                table_name=table_id,
-                project=project_id,
-                service_file=file,
-                session=cast(Session, session),
-            )
+        token = await self.get_token(session=session)
+        return Table_async(
+            dataset_name=dataset,
+            table_name=table_id,
+            project=project_id,
+            token=token,
+            session=cast(Session, session),
+        )

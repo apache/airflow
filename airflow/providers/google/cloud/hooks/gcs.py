@@ -1391,5 +1391,8 @@ class GCSAsyncHook(GoogleBaseAsyncHook):
 
     async def get_storage_client(self, session: ClientSession) -> Storage:
         """Returns a Google Cloud Storage service object."""
-        with await self.service_file_as_context() as file:
-            return Storage(service_file=file, session=cast(Session, session))
+        token = await self.get_token(session=session)
+        return Storage(
+            token=token,
+            session=cast(Session, session),
+        )
