@@ -51,11 +51,6 @@ SQL_MULTIPLE_STMTS = (
     "values (200); insert into user_test (i) values (300); select i from user_test order by i;"
 )
 
-SQL_MULTIPLE_STMTS_FAILED = (
-    "create123 or replace table user_test (i int); insert into user_test (i) "
-    "values (200); insert into user_test (i) values (300); select i from user_test order by i;"
-)
-
 SINGLE_STMT = "select i from user_test order by i;"
 
 
