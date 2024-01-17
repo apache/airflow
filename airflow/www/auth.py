@@ -116,7 +116,7 @@ def has_access_with_pk(f):
         else:
             log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -173,7 +173,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             403,
         )
     elif not get_auth_manager().is_logged_in():
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
