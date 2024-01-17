@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 # fmt: off
-"""Sensors."""
+"""
+Sensors.
+
+:sphinx-autoapi-skip:
+"""
 from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
