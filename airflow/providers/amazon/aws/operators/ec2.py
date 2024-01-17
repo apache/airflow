@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
