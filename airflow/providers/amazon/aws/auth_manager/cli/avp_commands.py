@@ -25,9 +25,17 @@ from typing import TYPE_CHECKING
 import boto3
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_REGION_NAME_KEY, CONF_SECTION_NAME
 from airflow.utils import cli as cli_utils
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+try:
+    from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import avp_commands. This feature is only available in Airflow "
+        "version >= 2.8.0 where Auth Managers are introduced."
+    )
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient

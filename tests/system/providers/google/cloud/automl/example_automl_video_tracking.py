@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSSynchronizeBucketsOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
-    CreateAutoMLImageTrainingJobOperator,
+    CreateAutoMLVideoTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
@@ -45,38 +45,38 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_automl_vision_obj_detect"
+DAG_ID = "example_automl_video_track"
 REGION = "us-central1"
-IMAGE_DISPLAY_NAME = f"automl-vision-detect-{ENV_ID}"
-MODEL_DISPLAY_NAME = f"automl-vision-detect-model-{ENV_ID}"
+VIDEO_DISPLAY_NAME = f"auto-ml-video-tracking-{ENV_ID}"
+MODEL_DISPLAY_NAME = f"auto-ml-video-tracking-model-{ENV_ID}"
 
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
-IMAGE_GCS_BUCKET_NAME = f"bucket_image_detect_{ENV_ID}".replace("_", "-")
+VIDEO_GCS_BUCKET_NAME = f"bucket_video_tracking_{ENV_ID}".replace("_", "-")
 
-IMAGE_DATASET = {
-    "display_name": f"image-detect-dataset-{ENV_ID}",
-    "metadata_schema_uri": schema.dataset.metadata.image,
-    "metadata": Value(string_value="image-dataset"),
+VIDEO_DATASET = {
+    "display_name": f"video-dataset-{ENV_ID}",
+    "metadata_schema_uri": schema.dataset.metadata.video,
+    "metadata": Value(string_value="video-dataset"),
 }
-IMAGE_DATA_CONFIG = [
+VIDEO_DATA_CONFIG = [
     {
-        "import_schema_uri": schema.dataset.ioformat.image.bounding_box,
-        "gcs_source": {"uris": [f"gs://{IMAGE_GCS_BUCKET_NAME}/automl/object_detection.csv"]},
+        "import_schema_uri": schema.dataset.ioformat.video.object_tracking,
+        "gcs_source": {"uris": [f"gs://{VIDEO_GCS_BUCKET_NAME}/automl/tracking.csv"]},
     },
 ]
 
 
-# Example DAG for AutoML Vision Object Detection
+# Example DAG for AutoML Video Intelligence Object Tracking
 with DAG(
     DAG_ID,
-    schedule="@once",  # Override to match your needs
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "automl", "vision", "object-detection"],
+    tags=["example", "auto_ml", "video", "tracking"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=IMAGE_GCS_BUCKET_NAME,
+        bucket_name=VIDEO_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
     )
@@ -84,59 +84,53 @@ with DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl/datasets/vision",
-        destination_bucket=IMAGE_GCS_BUCKET_NAME,
+        source_object="automl/datasets/video",
+        destination_bucket=VIDEO_GCS_BUCKET_NAME,
         destination_object="automl",
         recursive=True,
     )
 
-    create_image_dataset = CreateDatasetOperator(
-        task_id="image_dataset",
-        dataset=IMAGE_DATASET,
+    create_video_dataset = CreateDatasetOperator(
+        task_id="video_dataset",
+        dataset=VIDEO_DATASET,
         region=REGION,
         project_id=PROJECT_ID,
     )
-    image_dataset_id = create_image_dataset.output["dataset_id"]
+    video_dataset_id = create_video_dataset.output["dataset_id"]
 
-    import_image_dataset = ImportDataOperator(
-        task_id="import_image_data",
-        dataset_id=image_dataset_id,
+    import_video_dataset = ImportDataOperator(
+        task_id="import_video_data",
+        dataset_id=video_dataset_id,
         region=REGION,
         project_id=PROJECT_ID,
-        import_configs=IMAGE_DATA_CONFIG,
+        import_configs=VIDEO_DATA_CONFIG,
     )
 
-    # [START howto_cloud_create_image_object_detection_training_job_operator]
-    create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
-        task_id="auto_ml_image_task",
-        display_name=IMAGE_DISPLAY_NAME,
-        dataset_id=image_dataset_id,
-        prediction_type="object_detection",
-        multi_label=False,
+    # [START howto_cloud_create_video_tracking_training_job_operator]
+    create_auto_ml_video_training_job = CreateAutoMLVideoTrainingJobOperator(
+        task_id="auto_ml_video_task",
+        display_name=VIDEO_DISPLAY_NAME,
+        prediction_type="object_tracking",
         model_type="CLOUD",
-        training_fraction_split=0.6,
-        validation_fraction_split=0.2,
-        test_fraction_split=0.2,
-        budget_milli_node_hours=20000,
+        dataset_id=video_dataset_id,
         model_display_name=MODEL_DISPLAY_NAME,
-        disable_early_stopping=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
-    # [END howto_cloud_create_image_object_detection_training_job_operator]
+    # [END howto_cloud_create_video_tracking_training_job_operator]
 
-    delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
-        task_id="delete_auto_ml_training_job",
-        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_image_task', "
+    delete_auto_ml_video_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_auto_ml_video_training_job",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_video_task', "
         "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_image_dataset = DeleteDatasetOperator(
-        task_id="delete_image_dataset",
-        dataset_id=image_dataset_id,
+    delete_video_dataset = DeleteDatasetOperator(
+        task_id="delete_video_dataset",
+        dataset_id=video_dataset_id,
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -144,7 +138,7 @@ with DAG(
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
-        bucket_name=IMAGE_GCS_BUCKET_NAME,
+        bucket_name=VIDEO_GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
@@ -152,14 +146,14 @@ with DAG(
         # TEST SETUP
         [
             create_bucket >> move_dataset_file,
-            create_image_dataset,
+            create_video_dataset,
         ]
-        >> import_image_dataset
+        >> import_video_dataset
         # TEST BODY
-        >> create_auto_ml_image_training_job
+        >> create_auto_ml_video_training_job
         # TEST TEARDOWN
-        >> delete_auto_ml_image_training_job
-        >> delete_image_dataset
+        >> delete_auto_ml_video_training_job
+        >> delete_video_dataset
         >> delete_bucket
     )
 
