@@ -24,7 +24,6 @@ import warnings
 from glob import glob
 from typing import Any
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -53,7 +52,7 @@ class FileTrigger(BaseTrigger):
             warnings.warn(
                 "`poll_interval` has been deprecated and will be removed in future."
                 "Please use `poke_interval` instead.",
-                AirflowProviderDeprecationWarning,
+                DeprecationWarning,
                 stacklevel=2,
             )
             self.poke_interval: float = kwargs["poll_interval"]
