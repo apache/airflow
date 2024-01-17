@@ -26,7 +26,15 @@
 
 Changelog
 ---------
-* ``Change default parquet_row_group_size in BaseSQLToGCSOperator (#36817)``
+The default value of ``parquet_row_group_size`` in ``BaseSQLToGCSOperator`` has changed from 1 to
+100000, in order to have a default that provides better compression efficiency and performance of
+reading the data in the output Parquet files. In many cases, the previous value of 1 resulted in
+very large files, long task durations and out of memory issues. A default value of 100000 may require
+more memory to execute the operator, in which case users can override the ``parquet_row_group_size``
+parameter in the operator. All operators that are derived from ``BaseSQLToGCSOperator`` are affected
+when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
+``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``.
+
 
 10.13.1
 .......
