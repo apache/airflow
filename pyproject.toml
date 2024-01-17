@@ -549,6 +549,7 @@ amazon = [
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "PyAthena>=3.0.10",
 ]
 apache-beam = [
   "apache-beam>=2.53.0",
