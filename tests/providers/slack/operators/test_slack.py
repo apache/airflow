@@ -71,6 +71,20 @@ class TestSlackAPIOperator:
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **hook_extra_kwargs
         )
 
+    @pytest.mark.parametrize("slack_method", [pytest.param("", id="empty"), pytest.param(None, id="none")])
+    def test_empty_method(self, slack_method):
+        warning_message = "Define `method` parameter as empty string or None is deprecated"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            # Should only raise a warning on task initialisation
+            op = SlackAPIOperator(
+                task_id="test-mask-token",
+                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+                method=slack_method,
+            )
+
+        with pytest.raises(ValueError, match="Expected non empty `method` attribute"):
+            op.execute({})
+
 
 class TestSlackAPIPostOperator:
     def setup_method(self):

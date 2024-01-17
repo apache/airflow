@@ -52,7 +52,7 @@ class SlackAPIOperator(BaseOperator):
         self,
         *,
         slack_conn_id: str = SlackHook.default_conn_name,
-        method: str,
+        method: str | None = None,
         api_params: dict | None = None,
         base_url: str | None = None,
         proxy: str | None = None,
@@ -60,6 +60,13 @@ class SlackAPIOperator(BaseOperator):
         retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
+        if not method:
+            warnings.warn(
+                "Define `method` parameter as empty string or None is deprecated. "
+                "In the future it will raise an error on task initialisation.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(**kwargs)
         self.slack_conn_id = slack_conn_id
         self.method = method
@@ -95,6 +102,9 @@ class SlackAPIOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if not self.method:
+            msg = f"Expected non empty `method` attribute in {type(self).__name__!r}, but got {self.method!r}"
+            raise ValueError(msg)
         if not self.api_params:
             self.construct_api_call_params()
         self.hook.call(self.method, json=self.api_params)
@@ -142,14 +152,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
         attachments: list | None = None,
         **kwargs,
     ) -> None:
-        self.method = "chat.postMessage"
+        super().__init__(method="chat.postMessage", **kwargs)
         self.channel = channel
         self.username = username
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments or []
         self.blocks = blocks or []
-        super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {
@@ -230,6 +239,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
             channels = channel
 
+        super().__init__(method="files.upload", **kwargs)
         self.channels = channels
         self.initial_comment = initial_comment
         self.filename = filename
@@ -237,7 +247,6 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.content = content
         self.title = title
         self.method_version = method_version
-        super().__init__(method="files.upload", **kwargs)
 
     @property
     def _method_resolver(self):
