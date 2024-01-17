@@ -35,7 +35,6 @@ parameter in the operator. All operators that are derived from ``BaseSQLToGCSOpe
 when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
 ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``.
 
-
 10.13.1
 .......
 
