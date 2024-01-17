@@ -1561,6 +1561,7 @@ TaskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
+taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta
