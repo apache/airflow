@@ -26,6 +26,7 @@
 
 Changelog
 ---------
+* ``Change default parquet_row_group_size in BaseSQLToGCSOperator (#36817)``
 
 10.13.1
 .......
