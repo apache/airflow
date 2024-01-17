@@ -280,6 +280,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
         if isinstance(result, list):
             rows: list[Row] = result
+            if not rows:
+                return []
             rows_fields = rows[0].__fields__
             rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
             return cast(List[tuple], [rows_object(*row) for row in rows])
