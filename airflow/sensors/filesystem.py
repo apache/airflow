@@ -22,6 +22,7 @@ import os
 from glob import glob
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -58,7 +59,13 @@ class FileSensor(BaseSensorOperator):
     ui_color = "#91818a"
 
     def __init__(
-        self, *, filepath, fs_conn_id="fs_default", recursive=False, deferrable: bool = False, **kwargs
+        self,
+        *,
+        filepath,
+        fs_conn_id="fs_default",
+        recursive=False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.filepath = filepath
