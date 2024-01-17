@@ -4135,3 +4135,36 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
+
+
+def test_get_latest_runs_query_one_dag(dag_maker, session):
+    with dag_maker(dag_id="dag1") as dag1:
+        ...
+    query = DAG._get_latest_runs_query(dags=[dag1], session=session)
+    actual = [x.strip() for x in str(query.compile()).splitlines()]
+    expected = [
+        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
+    ]
+    assert actual == expected
+
+
+def test_get_latest_runs_query_two_dags(dag_maker, session):
+    with dag_maker(dag_id="dag1") as dag1:
+        ...
+    with dag_maker(dag_id="dag2") as dag2:
+        ...
+    query = DAG._get_latest_runs_query(dags=[dag1, dag2], session=session)
+    actual = [x.strip() for x in str(query.compile()).splitlines()]
+    print("\n".join(actual))
+    expected = [
+        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+        "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
+        "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
+    ]
+    assert actual == expected
