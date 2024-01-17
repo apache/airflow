@@ -21,7 +21,7 @@ name: gRPC
 description: |
     `gRPC <https://grpc.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288139
 versions:
   - 3.4.1

@@ -128,29 +128,27 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 The provider packages can be in one of several states.
 
-* The `ready` state the provider package is released as part of the regular release cycle (including the
-  documentation, package building and publishing). This is the default state for all providers.
-* The `not-ready` state is when the provider has `not-ready` field set to `true` in the `provider.yaml` file.
-  This is usually used when the provider has some in-progress changes (usually API changes) that we do not
-  want to release yet as part of the regular release cycle. Providers in this state are excluded from being
-  released as part of the regular release cycle (including documentation building). You can build and prepare
-  such provider when you explicitly specify it as argument of a release command or by passing
+* The `not-ready` state is used when the provider has some in-progress changes (usually API changes) that
+  we do not  want to release yet as part of the regular release cycle. Providers in this state are excluded
+  from being  released as part of the regular release cycle (including documentation building). You can build
+  and prepare  such provider when you explicitly specify it as argument of a release command or by passing
   `--include-not-ready-providers` flag in corresponding command. The `not-ready` providers are treated as
   regular providers when it comes to running tests and preparing and releasing packages in `CI` - as we want
   to make sure they are properly releasable any time and we want them to contribute to dependencies and we
-  want to test them.
-* The `suspended` state is when the provider has `suspended` field set to `true` in the `provider.yaml` file.
-  This is used when we have a good reason to suspend such provider, following the devlist discussion and
-  vote or "lazy consensus". The process of suspension is described in [Provider's docs](../PROVIDERS.rst).
+  want to test them. Also in case of preinstalled providers, the `not-ready` providers are contributing
+  their dependencies rather than the provider package to requirements of Airflow.
+* The `ready` state is the usual state of the provider that is released in the regular release cycle
+  (including the documentation, package building and publishing). This is the state most providers are in.
+* The `suspended` state is used when we have a good reason to suspend such provider, following the devlist
+  discussion and vote or "lazy consensus". The process of suspension is described in [Provider's docs](../PROVIDERS.rst).
   The `suspended` providers are excluded from being released as part of the regular release cycle (including
   documentation building) but also they do not contribute dependencies to the CI image and their tests are
   not run in CI process. You can build and prepare such provider when you explicitly specify it as argument
   of a release command or by passing `--include-suspended-providers` flag in corresponding command (but it
   might or might not work at any time as the provider release commands are not regularly run on CI for the
   suspended providers). The `suspended` providers are not released as part of the regular release cycle.
-* The `removed` state is when the provider is marked as `removed` - usually after some period of time being
-  `suspended`. This is a temporary state after the provider has been voted (or agreed in "lazy consensus") to
-  be removed and it is only used for exactly one release cycle - in order to produce the final version of
+* The `removed` state is a temporary state after the provider has been voted (or agreed in "lazy consensus")
+  to be removed and it is only used for exactly one release cycle - in order to produce the final version of
   the package - identical to the previous version with the exception of the removal notice. The process
   of removal is described in [Provider's docs](../PROVIDERS.rst).  The `removed` providers are included in
   the regular release cycle (including documentation building) because the `--include-removed-providers`
@@ -223,6 +221,9 @@ In case you prepare provider documentation for just a few selected providers, yo
 breeze release-management prepare-provider-documentation [packages]
 ```
 
+In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
+you want to release it before you switch their state to ``ready``), you need to pass
+``--include-not-ready-providers`` flag to the command above.
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
@@ -251,6 +252,10 @@ In case you prepare provider documentation for just a few selected providers, yo
 ```shell script
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
+
+In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
+you want to release it before you switch their state to ``ready``), you need to pass
+``--include-not-ready-providers`` flag to the command above.
 
 NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
 specify the base branch via `--base-branch` parameter.
@@ -319,6 +324,11 @@ if you only build few packages, run:
 breeze release-management prepare-provider-packages  --include-removed-providers \
 --package-format both PACKAGE PACKAGE ....
 ```
+
+In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
+you want to release it before you switch their state to ``ready``), you need to pass
+``--include-not-ready-providers`` flag to the command above.
+
 
 * Sign all your packages
 
@@ -638,7 +648,6 @@ Please vote accordingly:
 [ ] +0 no opinion
 [ ] -1 disapprove with the reason
 
-
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
@@ -649,7 +658,11 @@ the artifact checksums when we actually release.
 The status of testing the providers by the community is kept here:
 <TODO COPY LINK TO THE ISSUE CREATED>
 
-You can find packages as well as detailed changelog following the below links:
+The issue is also the easiest way to see important PRs included in the RC candidates.
+Detailed changelog for the providers will be published in the documentation after the
+RC candidates are released.
+
+You can find the RC packages in PyPI following these links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
@@ -992,35 +1005,53 @@ that the Airflow works as you expected.
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
 
-Subject:
+In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers). In case
+some providers were  excluded, explain why they were excluded and what is the plan for them
+(otherwise remove the optional part of the message). There are two options for releasing
+the next RC candidates:
+
+* They will be released as an ad-hoc release with accelerated vote
+  period on their own (when there are not many changes to other providers in the meantime and when
+  we have a small bugfix for the providers that we want to release quickly.
+
+* They will be included together with the next wave of releases (our tooling
+  supports automated calculation of RC version for candidates for the next wave of releases that
+  already had earlier RCs.
+
+Email subject:
 
 ```
 [RESULT][VOTE] Airflow Providers - release of DATE OF RELEASE
 ```
 
-Message:
+Email content:
 
 ```
 Hello,
 
-Apache Airflow Providers (based on RC1) have been accepted.
+Apache Airflow Providers prepared on DATE OF RELEASE have been accepted.
 
 3 "+1" binding votes received:
-- Jarek Potiuk  (binding)
-- Kaxil Naik (binding)
-- Tomasz Urbaszek (binding)
+- FIRST LAST NAME (binding)
+- FIRST LAST NAME (binding)
+- FIRST LAST NAME (binding)
 
+2 "+1" non-binding votes received:
+- FIRST LAST NAME
+- FIRST LAST NAME
 
-Vote thread:
-https://lists.apache.org/thread.html/736404ca3d2b2143b296d0910630b9bd0f8b56a0c54e3a05f4c8b5fe@%3Cdev.airflow.apache.org%3E
+[optional] The providers PROVIDER, PROVIDER have been excluded from the release.
+This is due to REASON HERE.
+The next RC candidates for those providers will be released [in the next wave
+of providers] or [as an ad-hoc release on their own with accelerated vote period].
+
+Vote thread: https://lists.apache.org/thread/cs6mcvpn2lk9w2p4oz43t20z3fg5nl7l
 
 I'll continue with the release process, and the release announcement will follow shortly.
 
 Cheers,
 <your name>
 ```
-
-
 
 ## Publish release to SVN
 
@@ -1178,11 +1209,12 @@ cd ${AIRFLOW_REPO_ROOT}
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
 git pull
-branch="update-providers-metadata-$(date '+%Y-%m-%d%n')"
+current_date=$(date '+%Y-%m-%d%n')
+branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata --refresh-constraints
 git add -p .
-git commit -m "Update providers metadata ${branch}"
+git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -1195,17 +1227,15 @@ the artifacts have been published.
 
 Subject:
 
-[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
+[ANNOUNCE] Apache Airflow Providers prepared on DATE OF RELEASE are released
 
 Body:
 
-```shell script
-cat <<EOF
+```
 Dear Airflow community,
 
-I'm happy to announce that new versions of Airflow Providers packages were just released.
-
-TODO: If there is just a few packages to release - paste the links to PyPI packages. Otherwise delete this TODO (too many links make the message unclear).
+I'm happy to announce that new versions of Airflow Providers packages prepared on DATE OF RELEASE
+were just released. Full list of PyPI packages released is added at the end of the message.
 
 The source release, as well as the binary releases, are available here:
 
@@ -1215,9 +1245,14 @@ You can install the providers via PyPI: https://airflow.apache.org/docs/apache-a
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
+----
+
+Full list of released PyPI packages:
+
+TODO: Paste the list of packages here that you put on the side. Sort them alphabetically.
+
 Cheers,
 <your name>
-EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
@@ -1275,9 +1310,9 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
 
-```shell script
-Thank you everyone.
-Providers are released
+```
+Thank you everyone. Providers are released.
+
 I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```
 

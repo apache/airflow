@@ -21,20 +21,25 @@
                 "type": "string"
             }
         },
-        "suspended": {
-            "description": "If set to true, the provider is suspended and it's not a candidate for release nor contributes dependencies to constraint calculations/CI image. Tests are excluded.",
-            "type:": "boolean"
-        },
-        "removed": {
-            "description": "If set to true, the provider is also removed and will be soon removed from the code",
-            "type:": "boolean"
-        },
-        "not-ready": {
-            "description": "If set to true, the provider is not included by default in release commands - for example when provider release or documentation is being prepared (not-ready providers are enabled in CI by default)",
-            "type:": "boolean"
+        "state": {
+            "description": "State of provider: might be not-ready, regular, suspended, removed.",
+            "type:": "string",
+            "enum": [
+                "not-ready",
+                "ready",
+                "suspended",
+                "removed"
+            ]
         },
         "dependencies": {
             "description": "Dependencies that should be added to the provider",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "devel-dependencies": {
+            "description": "Dependencies that should be added to development requirements of the provider",
             "type": "array",
             "items": {
                 "type": "string"
@@ -309,6 +314,13 @@
                 "type": "string"
             }
         },
+        "auth-managers": {
+            "type": "array",
+            "description": "Auth managers class names",
+            "items": {
+                "type": "string"
+            }
+        },
         "logging": {
             "type": "array",
             "description": "Logging Task Handlers class names",
@@ -455,7 +467,7 @@
         "name",
         "package-name",
         "description",
-        "suspended",
+        "state",
         "source-date-epoch",
         "dependencies",
         "versions"

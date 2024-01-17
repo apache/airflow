@@ -231,11 +231,6 @@ def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
-@compiles(CreateTableAs, "mssql")
-def _compile_create_table_as__mssql(element, compiler, **kw):
-    return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
-
-
 def _build_query(
     *,
     orm_model,

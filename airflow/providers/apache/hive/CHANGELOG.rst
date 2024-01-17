@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+6.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'hive_to_samba.py' (#36486)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 6.4.0
 .....
 

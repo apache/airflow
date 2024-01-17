@@ -25,7 +25,7 @@ dependencies:
   - apache-airflow>=2.6.0
   - sendgrid>=6.0.0
 
-suspended: false
+state: ready
 source-date-epoch: 1703288168
 versions:
   - 3.4.0

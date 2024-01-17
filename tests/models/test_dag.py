@@ -37,6 +37,7 @@ import pendulum
 import pytest
 import time_machine
 from dateutil.relativedelta import relativedelta
+from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -676,8 +677,8 @@ class TestDag:
         """
         Make sure DST transitions are properly observed
         """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55), dst_rule=pendulum.PRE_TRANSITION)
+        local_tz = Timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55, fold=0))
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
@@ -706,7 +707,7 @@ class TestDag:
         Make sure DST transitions are properly observed
         """
         local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3), dst_rule=pendulum.PRE_TRANSITION)
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3, fold=0))
 
         utc = timezone.convert_to_utc(start)
 
@@ -735,7 +736,7 @@ class TestDag:
         Make sure DST transitions are properly observed
         """
         local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2), dst_rule=pendulum.PRE_TRANSITION)
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2, fold=0))
 
         utc = timezone.convert_to_utc(start)
 
@@ -1507,6 +1508,34 @@ class TestDag:
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag_callback_crash"},
         )
+
+        dag.clear()
+        self._clean_up(dag_id)
+
+    def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
+        """
+        Tests avoid crashes when a removed task is the last one in the list of task instance
+        """
+        dag_id = "test_dag_callback_with_removed_task"
+        mock_callback = mock.MagicMock()
+        with DAG(
+            dag_id=dag_id,
+            on_success_callback=mock_callback,
+            on_failure_callback=mock_callback,
+        ) as dag:
+            EmptyOperator(task_id="faketastic")
+            task_removed = EmptyOperator(task_id="removed_task")
+
+        with create_session() as session:
+            dag_run = dag.create_dagrun(State.RUNNING, TEST_DATE, run_type=DagRunType.MANUAL, session=session)
+            dag._remove_task(task_removed.task_id)
+            tis = dag_run.get_task_instances(session=session)
+            tis[-1].state = TaskInstanceState.REMOVED
+            assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
+
+            # should not raise any exception
+            dag.handle_callback(dag_run, success=True)
+            dag.handle_callback(dag_run, success=False)
 
         dag.clear()
         self._clean_up(dag_id)

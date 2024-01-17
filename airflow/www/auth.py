@@ -22,7 +22,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import flash, redirect, render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.const import (
     FLAMSG_ERR_SEC_ACCESS_DENIED,
@@ -107,14 +107,10 @@ def has_access_with_pk(f):
             _permission_name = self.method_permission_name.get(f.__name__)
             if _permission_name:
                 permission_str = f"{PERMISSION_PREFIX}{_permission_name}"
-        if (
-            get_auth_manager().is_logged_in()
-            and permission_str in self.base_permissions
-            and self.appbuilder.sm.has_access(
-                action_name=permission_str,
-                resource_name=self.class_permission_name,
-                resource_pk=kwargs.get("pk"),
-            )
+        if permission_str in self.base_permissions and self.appbuilder.sm.has_access(
+            action_name=permission_str,
+            resource_name=self.class_permission_name,
+            resource_pk=kwargs.get("pk"),
         ):
             return f(self, *args, **kwargs)
         else:
@@ -176,10 +172,12 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             ),
             403,
         )
+    elif not get_auth_manager().is_logged_in():
+        return redirect(get_auth_manager().get_url_login(next=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
-    return redirect(get_auth_manager().get_url_login(next=request.url))
+    return redirect(url_for("Airflow.index"))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:

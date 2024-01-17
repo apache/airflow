@@ -115,10 +115,10 @@ One of the important factors impacting DAG loading time, that might be overlooke
 that top-level imports might take surprisingly a lot of time and they can generate a lot of overhead
 and this can be easily avoided by converting them to local imports inside Python callables for example.
 
-Consider the example below - the first DAG will parse significantly slower (in the orders of seconds)
-than equivalent DAG where the ``numpy`` module is imported as local import in the callable.
+Consider the two examples below. In the first example, DAG will take an additional 1000 seconds to parse
+than the functionally equivalent DAG in the second example where the ``expensive_api_call`` is executed from the context of its task.
 
-Bad example:
+Not avoiding top-level DAG code:
 
 .. code-block:: python
 
@@ -127,7 +127,13 @@ Bad example:
   from airflow import DAG
   from airflow.decorators import task
 
-  import numpy as np  # <-- THIS IS A VERY BAD IDEA! DON'T DO THAT!
+
+  def expensive_api_call():
+      print("Hello from Airflow!")
+      sleep(1000)
+
+
+  my_expensive_response = expensive_api_call()
 
   with DAG(
       dag_id="example_python_operator",
@@ -138,15 +144,10 @@ Bad example:
   ) as dag:
 
       @task()
-      def print_array():
-          """Print Numpy array."""
-          a = np.arange(15).reshape(3, 5)
-          print(a)
-          return a
+      def print_expensive_api_call():
+          print(my_expensive_response)
 
-      print_array()
-
-Good example:
+Avoiding top-level DAG code:
 
 .. code-block:: python
 
@@ -154,6 +155,12 @@ Good example:
 
   from airflow import DAG
   from airflow.decorators import task
+
+
+  def expensive_api_call():
+      sleep(1000)
+      return "Hello from Airflow!"
+
 
   with DAG(
       dag_id="example_python_operator",
@@ -164,19 +171,44 @@ Good example:
   ) as dag:
 
       @task()
-      def print_array():
-          """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
+      def print_expensive_api_call():
+          my_expensive_response = expensive_api_call()
+          print(my_expensive_response)
 
-          a = np.arange(15).reshape(3, 5)
-          print(a)
-          return a
+In the first example, ``expensive_api_call`` is executed each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the second example, ``expensive_api_call`` is only called when the task is running and thus is able to be parsed without suffering any performance hits. To test it out yourself, implement the first DAG and see "Hello from Airflow!" printed in the scheduler logs!
 
-      print_array()
+Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that can also impact the performance of the scheduler. The following example illustrates how to handle expensive imports.
 
-In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+.. code-block:: python
 
-Since it is not always obvious, see the next chapter to check how my code is "top-level" code.
+  # It's ok to import modules that are not expensive to load at top-level of a DAG file
+  import random
+  import pendulum
+
+  # Expensive imports should be avoided as top level imports, because DAG files are parsed frequently, resulting in top-level code being executed.
+  #
+  # import pandas
+  # import torch
+  # import tensorflow
+  #
+
+  ...
+
+
+  @task()
+  def do_stuff_with_pandas_and_torch():
+      import pandas
+      import torch
+
+      # do some operations using pandas and torch
+
+
+  @task()
+  def do_stuff_with_tensorflow():
+      import tensorflow
+
+      # do some operations using tensorflow
+
 
 How to check if my code is "top-level" code
 -------------------------------------------

@@ -48,7 +48,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class BaseXCom(Base, LoggingMixin):
+class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     """Base class for XCom objects."""
 
     __tablename__ = "xcom"
@@ -97,9 +97,7 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint(
-            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

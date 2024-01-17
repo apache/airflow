@@ -29,6 +29,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_db_reset,
     option_debug_resources,
+    option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_forward_credentials,
@@ -38,7 +39,6 @@ from airflow_breeze.commands.common_options import (
     option_include_success_outputs,
     option_integration,
     option_mount_sources,
-    option_mssql_version,
     option_mysql_version,
     option_parallelism,
     option_postgres_version,
@@ -452,7 +452,6 @@ option_remove_arm_packages = click.option(
 @option_forward_credentials
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_integration
 @option_image_tag_for_running
 @option_use_airflow_version
@@ -471,6 +470,7 @@ option_remove_arm_packages = click.option(
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -500,7 +500,6 @@ def command_for_tests(**kwargs):
 @option_forward_credentials
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @option_image_tag_for_running
 @option_use_airflow_version
 @option_mount_sources
@@ -513,6 +512,7 @@ def command_for_tests(**kwargs):
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -548,6 +548,7 @@ def command_for_db_tests(**kwargs):
 @option_collect_only
 @option_debug_resources
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
@@ -589,6 +590,7 @@ def _run_test_command(
     db_reset: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
+    downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
     extra_pytest_args: tuple,
@@ -613,7 +615,6 @@ def _run_test_command(
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_xdist: bool,
-    mssql_version: str = "",
     mysql_version: str = "",
     postgres_version: str = "",
 ):
@@ -632,6 +633,7 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -639,7 +641,6 @@ def _run_test_command(
         image_tag=image_tag,
         integration=integration,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         parallel_test_types_list=test_list,
         parallelism=parallelism,
@@ -713,7 +714,6 @@ def _run_test_command(
 @option_image_tag_for_running
 @option_integration
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_postgres_version
 @option_python
@@ -731,7 +731,6 @@ def integration_tests(
     image_tag: str | None,
     integration: tuple,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     postgres_version: str,
     python: str,
@@ -749,7 +748,6 @@ def integration_tests(
         image_tag=image_tag,
         integration=integration,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         postgres_version=postgres_version,
         python=python,

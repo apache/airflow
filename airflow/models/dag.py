@@ -116,6 +116,7 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
+from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -138,7 +139,7 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from pendulum.tz.timezone import Timezone
+    from pendulum.tz.timezone import FixedTimezone, Timezone
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -213,7 +214,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timetable:
+def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
     if interval is NOTSET:
         return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
@@ -226,8 +227,11 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
-        return CronDataIntervalTimetable(interval, timezone)
-    raise ValueError(f"{interval!r} is not a valid interval.")
+        if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
+            return CronDataIntervalTimetable(interval, timezone)
+        else:
+            return CronTriggerTimetable(interval, timezone=timezone)
+    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -529,7 +533,7 @@ class DAG(LoggingMixin):
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(date, tz=tzinfo).timezone
-        self.timezone: Timezone = tz or settings.TIMEZONE
+        self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if "end_date" in self.default_args and self.default_args["end_date"]:
@@ -1462,6 +1466,8 @@ class DAG(LoggingMixin):
             # context for the callback.
             if dag.partial:
                 tis = [ti for ti in tis if not ti.state == State.NONE]
+            # filter out removed tasks
+            tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -2228,7 +2234,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        dag_ids: list[str] = [],
+        dag_ids: list[str] | None = None,
     ) -> None:
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",

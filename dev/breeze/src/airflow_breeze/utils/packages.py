@@ -53,16 +53,6 @@ HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 
-# TODO: use single source of truth for those
-# for now we need to keep them in sync with the ones in setup.py
-PREINSTALLED_PROVIDERS = [
-    "common.sql",
-    "ftp",
-    "http",
-    "imap",
-    "sqlite",
-]
-
 
 class EntityType(Enum):
     Operators = "Operators"
@@ -156,6 +146,7 @@ def refresh_provider_metadata_with_provider_id(provider_id: str):
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
+@lru_cache(maxsize=1)
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """
     Load all data from providers files
@@ -207,11 +198,7 @@ def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
 
 @lru_cache
 def get_suspended_provider_ids() -> list[str]:
-    return [
-        provider_id
-        for provider_id, provider_metadata in get_provider_packages_metadata().items()
-        if provider_metadata.get("suspended", False)
-    ]
+    return get_available_packages(include_suspended=True, include_regular=False)
 
 
 @lru_cache
@@ -221,20 +208,12 @@ def get_suspended_provider_folders() -> list[str]:
 
 @lru_cache
 def get_removed_provider_ids() -> list[str]:
-    return [
-        provider_id
-        for provider_id, provider_metadata in get_provider_packages_metadata().items()
-        if provider_metadata.get("removed", False)
-    ]
+    return get_available_packages(include_removed=True, include_regular=False)
 
 
 @lru_cache
 def get_not_ready_provider_ids() -> list[str]:
-    return [
-        provider_id
-        for provider_id, provider_metadata in get_provider_packages_metadata().items()
-        if provider_metadata.get("not-ready", False)
-    ]
+    return get_available_packages(include_not_ready=True, include_regular=False)
 
 
 def get_provider_requirements(provider_id: str) -> list[str]:
@@ -249,6 +228,7 @@ def get_available_packages(
     include_suspended: bool = False,
     include_removed: bool = False,
     include_not_ready: bool = False,
+    include_regular: bool = True,
 ) -> list[str]:
     """
     Return provider ids for all packages that are available currently (not suspended).
@@ -256,28 +236,33 @@ def get_available_packages(
     :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
-    :param include_not_ready: whether the not-ready ppackages should be included
+    :param include_not_ready: whether the not-ready packages should be included
+    :param include_regular: whether the regular packages should be included
     :param include_non_provider_doc_packages: whether the non-provider doc packages should be included
            (packages like apache-airflow, helm-chart, docker-stack)
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_ids: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    available_packages = []
-    not_ready_provider_ids = get_not_ready_provider_ids()
-    if not include_not_ready:
-        provider_ids = [
-            provider_id for provider_id in provider_ids if provider_id not in not_ready_provider_ids
-        ]
+    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+
+    valid_states = set()
+    if include_not_ready:
+        valid_states.add("not-ready")
+    if include_regular:
+        valid_states.update({"ready", "pre-release"})
+    if include_suspended:
+        valid_states.add("suspended")
+    if include_removed:
+        valid_states.add("removed")
+    available_packages: list[str] = [
+        provider_id
+        for provider_id, provider_dependencies in provider_dependencies.items()
+        if provider_dependencies["state"] in valid_states
+    ]
     if include_non_provider_doc_packages:
         available_packages.extend(REGULAR_DOC_PACKAGES)
     if include_all_providers:
         available_packages.append("all-providers")
-    available_packages.extend(provider_ids)
-    if include_suspended:
-        available_packages.extend(get_suspended_provider_ids())
-    if include_removed:
-        available_packages.extend(get_removed_provider_ids())
     return sorted(set(available_packages))
 
 
@@ -325,7 +310,7 @@ def get_short_package_name(long_form_provider: str) -> str:
     else:
         if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
             raise ValueError(
-                f"Invalid provider name: {long_form_provider}. " f"Should start with {LONG_PROVIDERS_PREFIX}"
+                f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
             )
         return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
 
@@ -499,7 +484,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
         plugins=plugins,
-        removed=provider_info.get("removed", False),
+        removed=provider_info["state"] == "removed",
     )
 
 
@@ -666,7 +651,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             )
         else:
             get_console().print(
-                f"[error]Error {ex}[/]\n" f"[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
+                f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
             )
             sys.exit(1)
     get_console().print("[info]Fetching full history and tags from remote.")

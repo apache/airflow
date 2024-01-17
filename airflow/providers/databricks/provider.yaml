@@ -21,7 +21,7 @@ name: Databricks
 description: |
     `Databricks <https://databricks.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288125
 versions:
   - 6.0.0
@@ -66,6 +66,16 @@ dependencies:
   # The 2.9.1 (to be released soon) already contains the fix
   - databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0
   - aiohttp>=3.6.3, <4
+
+additional-extras:
+  # pip install apache-airflow-providers-databricks[sdk]
+  - name: sdk
+    description: Install Databricks SDK
+    dependencies:
+      - databricks-sdk==0.10.0
+
+devel-dependencies:
+  - deltalake>=0.12.0
 
 integrations:
   - integration-name: Databricks
@@ -129,10 +139,3 @@ connection-types:
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
-
-additional-extras:
-  # pip install apache-airflow-providers-databricks[sdk]
-  - name: sdk
-    description: Install Databricks SDK
-    dependencies:
-      - databricks-sdk==0.10.0

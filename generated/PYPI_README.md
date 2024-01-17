@@ -37,6 +37,13 @@ PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTO
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
+<picture width="500">
+  <img
+    src="https://github.com/apache/airflow/blob/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635/docs/apache-airflow/img/logos/wordmark_1.png?raw=true"
+    alt="Apache Airflow logo"
+  />
+</picture>
+
 [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
@@ -47,19 +54,16 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.8.0)       |
-|-------------|------------------------|------------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.25, 1.26, 1.27, 1.28       |
-| PostgreSQL  | 12, 13, 14, 15, 16     | 12, 13, 14, 15, 16           |
-| MySQL       | 8.0, Innovation        | 8.0, Innovation              |
-| SQLite      | 3.15.0+                | 3.15.0+                      |
-| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
+|             | Main version (dev)           | Stable version (2.8.0)       |
+|-------------|------------------------------|------------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11         |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28       |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
+| MySQL       | 8.0, Innovation              | 8.0, Innovation              |
+| SQLite      | 3.15.0+                      | 3.15.0+                      |
 
 \* Experimental
-
-\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -98,7 +102,7 @@ Documentation for dependent projects like provider packages, Docker image, Helm 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open, and
 applications usually pin them, but we should do neither and both simultaneously. We decided to keep
-our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
+our dependencies as open as possible (in `pyproject.toml`) so users can install different versions of libraries
 if needed. This means that `pip install apache-airflow` will not work from time to time or will
 produce unusable Airflow installation.
 

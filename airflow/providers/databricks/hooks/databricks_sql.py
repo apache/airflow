@@ -174,7 +174,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -249,7 +249,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     if handler is not None:
                         raw_result = handler(cur)
                         if self.return_tuple:
@@ -280,6 +280,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
         if isinstance(result, list):
             rows: list[Row] = result
+            if not rows:
+                return []
             rows_fields = rows[0].__fields__
             rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
             return cast(List[tuple], [rows_object(*row) for row in rows])

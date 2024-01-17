@@ -285,6 +285,40 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
+def _get_dagbag_dag_details(dag: DAG) -> dict:
+    """Return a dagbag dag details dict."""
+    return {
+        "dag_id": dag.dag_id,
+        "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
+        "is_paused": dag.get_is_paused(),
+        "is_active": dag.get_is_active(),
+        "is_subdag": dag.is_subdag,
+        "last_parsed_time": None,
+        "last_pickled": None,
+        "last_expired": None,
+        "scheduler_lock": None,
+        "pickle_id": dag.pickle_id,
+        "default_view": dag.default_view,
+        "fileloc": dag.fileloc,
+        "file_token": None,
+        "owners": dag.owner,
+        "description": dag.description,
+        "schedule_interval": dag.schedule_interval,
+        "timetable_description": dag.timetable.description,
+        "tags": dag.tags,
+        "max_active_tasks": dag.max_active_tasks,
+        "max_active_runs": dag.max_active_runs,
+        "has_task_concurrency_limits": any(
+            t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
+        ),
+        "has_import_errors": False,
+        "next_dagrun": None,
+        "next_dagrun_data_interval_start": None,
+        "next_dagrun_data_interval_end": None,
+        "next_dagrun_create_after": None,
+    }
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -351,8 +385,20 @@ def dag_next_execution(args) -> None:
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def dag_list_dags(args) -> None:
+@provide_session
+def dag_list_dags(args, session=NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
+    cols = args.columns if args.columns else []
+    invalid_cols = [c for c in cols if c not in dag_schema.fields]
+    valid_cols = [c for c in cols if c in dag_schema.fields]
+    if invalid_cols:
+        from rich import print as rich_print
+
+        rich_print(
+            f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {invalid_cols}.  "
+            f"List of valid columns: {list(dag_schema.fields.keys())}",
+            file=sys.stderr,
+        )
     dagbag = DagBag(process_subdir(args.subdir))
     if dagbag.import_errors:
         from rich import print as rich_print
@@ -362,15 +408,19 @@ def dag_list_dags(args) -> None:
             "For details, run `airflow dags list-import-errors`",
             file=sys.stderr,
         )
+
+    def get_dag_detail(dag: DAG) -> dict:
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        if dag_model:
+            dag_detail = dag_schema.dump(dag_model)
+        else:
+            dag_detail = _get_dagbag_dag_details(dag)
+        return {col: dag_detail[col] for col in valid_cols}
+
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
         output=args.output,
-        mapper=lambda x: {
-            "dag_id": x.dag_id,
-            "filepath": x.filepath,
-            "owner": x.owner,
-            "paused": x.get_is_paused(),
-        },
+        mapper=get_dag_detail,
     )
 
 
@@ -515,7 +565,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
     dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
@@ -535,6 +585,9 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+    if dr and dr.state == DagRunState.FAILED:
+        raise SystemExit("DagRun failed")
 
 
 @cli_utils.action_cli

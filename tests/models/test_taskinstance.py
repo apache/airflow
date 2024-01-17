@@ -3172,6 +3172,26 @@ class TestTaskInstance:
 
         assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
+    def test_skipped_task_call_on_skipped_callback(self, dag_maker):
+        def raise_skip_exception():
+            raise AirflowSkipException
+
+        callback_function = mock.MagicMock()
+
+        with dag_maker(dag_id="test_skipped_task"):
+            task = PythonOperator(
+                task_id="test_skipped_task",
+                python_callable=raise_skip_exception,
+                on_skipped_callback=callback_function,
+            )
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        ti = dr.task_instances[0]
+        ti.task = task
+        ti.run()
+        assert State.SKIPPED == ti.state
+        assert callback_function.called
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):
@@ -3953,14 +3973,7 @@ class TestMappedTaskInstanceReceiveValue:
 
 def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
     backend = os.environ.get("BACKEND")
-    if backend == "mssql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
-        ]
-    elif backend == "mysql":
+    if backend == "mysql":
         return [
             "SELECT xcom.value",
             "FROM xcom",

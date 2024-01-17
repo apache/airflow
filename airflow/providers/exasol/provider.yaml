@@ -21,7 +21,7 @@ name: Exasol
 description: |
     `Exasol <https://www.exasol.com/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288132
 versions:
   - 4.4.1
@@ -55,7 +55,7 @@ dependencies:
   - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.10.0
   - pyexasol>=0.5.1
-  - pandas>=0.17.1
+  - pandas>=1.2.5
 
 integrations:
   - integration-name: Exasol

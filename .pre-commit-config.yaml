@@ -95,6 +95,16 @@ repos:
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
+        name: Add license for all toml files
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        files: \.toml$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - scripts/ci/license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
         name: Add license for all Python files
         exclude: ^\.github/.*$|^.*/.*_vendor/
         files: \.py$|\.pyi$
@@ -125,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|^airflow/reproducible_build.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -173,18 +183,6 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.8
-    hooks:
-      # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
-      # host CPU to it's fullest
-      - id: ruff
-        name: ruff-lint
-        args: [--fix]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
-      - id: ruff-format
-        name: ruff-format
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
     hooks:
@@ -256,7 +254,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/reproducible_build.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -286,11 +284,6 @@ repos:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
-  - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.15
-    hooks:
-      - id: validate-pyproject
-        name: Validate pyproject.toml
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
@@ -300,6 +293,26 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local pre-commits are run
     hooks:
+      - id: ruff
+        name: Run 'ruff' for extremely fast Python linting
+        description: "Run 'ruff' for extremely fast Python linting"
+        entry: ruff check --force-exclude
+        language: python
+        types_or: [python, pyi]
+        args: [--fix]
+        require_serial: true
+        additional_dependencies: ["ruff==0.1.11"]
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+      - id: ruff-format
+        name: Run 'ruff format' for extremely fast Python formatting
+        description: "Run 'ruff format' for extremely fast Python formatting"
+        entry: ./scripts/ci/pre_commit/pre_commit_ruff_format.py
+        language: python
+        types_or: [python, pyi]
+        args: []
+        require_serial: true
+        additional_dependencies: ["ruff==0.1.11"]
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
         entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
@@ -325,13 +338,6 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
-      - id: check-setup-order
-        name: Check order of dependencies in setup.cfg and setup.py
-        language: python
-        files: ^setup\.cfg$|^setup\.py$
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-k8s-not-used
         name: Check airflow.kubernetes imports are not used
         language: python
@@ -354,14 +360,6 @@ repos:
         require_serial: true
         exclude: ^airflow/kubernetes/|^airflow/providers/
         entry: ./scripts/ci/pre_commit/pre_commit_check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-extra-packages-references
-        name: Checks setup extra packages
-        description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
-        language: python
-        files: ^setup\.py$|^docs/apache-airflow/extra-packages-ref\.rst$|^airflow/providers/.*/provider\.yaml$
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-provider-compatibility
         name: Check compatibility of Providers with Airflow
@@ -392,19 +390,34 @@ repos:
         files: ^airflow/providers/.*/hooks/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
-        name: Update cross-dependencies for providers packages
+        name: Update dependencies for provider packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
-        files: ^airflow/providers/.*\.py$|^airflow/providers/.*/provider\.yaml$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^airflow/providers/.*/provider\.yaml$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^scripts/ci/pre_commit/pre_commit_update_providers_dependencies\.py$
         pass_filenames: false
-        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
+        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
+      - id: check-extra-packages-references
+        name: Checks setup extra packages
+        description: Checks if all the extras defined in pyproject.toml are listed in extra-packages-ref.rst file
+        language: python
+        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^pyproject.toml
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_extra_packages_ref.py
+        additional_dependencies: ['rich>=12.4.4', 'tomli', 'tabulate']
+      - id: check-pyproject-toml-order
+        name: Check order of dependencies in pyproject.toml
+        language: python
+        files: ^pyproject\.toml$
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_pyproject_toml.py
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
         files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -567,6 +580,7 @@ repos:
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
+          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py$|
@@ -704,7 +718,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^airflow/providers/installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^dev/.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
@@ -736,7 +750,7 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-www-assets
-        name: Compile www assets
+        name: Compile www assets (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -745,7 +759,7 @@ repos:
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
       - id: compile-www-assets-dev
-        name: Compile www assets in dev mode
+        name: Compile www assets in dev mode (manual)
         language: node
         stages: ['manual']
         'types_or': [javascript, ts, tsx]
@@ -776,11 +790,27 @@ repos:
         additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
+      - id: check-integrations-list-consistent
+        name: Sync integrations list with docs
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
+        language: python
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
+        require_serial: true
+        pass_filenames: false
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
         files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
+        pass_filenames: false
+        require_serial: true
+      - id: update-reproducible-source-date-epoch
+        name: Update Source Date Epoch for reproducible builds
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_source_date_epoch.py
+        files: ^RELEASE_NOTES.rst$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -1073,14 +1103,32 @@ repos:
         files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-core
-        name: Run mypy for core
+      - id: mypy-dev
+        stages: [ 'manual' ]
+        name: Run mypy for dev (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py dev
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: [ 'rich>=12.4.4' ]
+      - id: mypy-airflow
+        name: Run mypy for airflow
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflow
+        stages: [ 'manual' ]
+        name: Run mypy for airflow (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py airflow
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1089,12 +1137,30 @@ repos:
         exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-providers
+        stages: ['manual']
+        name: Run mypy for providers (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py airflow/providers
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-docs
+        stages: ['manual']
+        name: Run mypy for /docs/ folder (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py docs
+        pass_filenames: false
+        files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: check-provider-yaml-valid

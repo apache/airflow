@@ -38,16 +38,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.3.0
 .....
 
-Latest change: 2023-12-26
+Latest change: 2023-12-30
 
-=================================================================================================  ===========  ===============================================================================
+=================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===============================================================================
+=================================================================================================  ===========  ===========================================================================================================
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+`0a741b2fe6 <https://github.com/apache/airflow/commit/0a741b2fe674e62f693e73937aec5fb97c204b6a>`_  2023-12-28   ``Handle  list like input objects in weavaite's 'create_or_replace_document_objects' hook method (#36475)``
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
 `8850715e22 <https://github.com/apache/airflow/commit/8850715e22dc8fd69dfc234efed805cc75708938>`_  2023-12-26   ``Remove 'insertion_errors' as required argument (#36435)``
 `97d2266b2d <https://github.com/apache/airflow/commit/97d2266b2dfe1c6d3a0185926a7508b7039575a2>`_  2023-12-24   ``Add WeaviateDocumentIngestOperator (#36402)``
 `ff3b8daac0 <https://github.com/apache/airflow/commit/ff3b8daac0cbf3c885ea1479b1fb9cfcb2261f21>`_  2023-12-23   ``Add 'uuid_column', 'tenant' params to WeaviateIngestOperator (#36387)``
 `75d74b1f3a <https://github.com/apache/airflow/commit/75d74b1f3a535fdc3624077bde3a34d1abcf641e>`_  2023-12-23   ``Add create_or_replace_document_objects method to weaviate provider (#36177)``
-=================================================================================================  ===========  ===============================================================================
+=================================================================================================  ===========  ===========================================================================================================
 
 1.2.0
 .....

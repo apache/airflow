@@ -19,7 +19,7 @@ package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
-suspended: false
+state: ready
 source-date-epoch: 1703747626
 versions:
   - 8.5.1
@@ -94,6 +94,9 @@ dependencies:
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=9.0.0
+
+devel-dependencies:
+  - pywinrm
 
 integrations:
   - integration-name: Microsoft Azure Batch

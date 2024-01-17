@@ -54,7 +54,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -107,7 +106,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -159,6 +157,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
             ],
         },
         {
@@ -213,7 +212,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
                 "--db-reset",
             ],
         },
@@ -228,7 +226,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Asset compilation options",
             "options": [
-                "--skip-asset-compilation",
+                "--skip-assets-compilation",
                 "--dev-mode",
             ],
         },

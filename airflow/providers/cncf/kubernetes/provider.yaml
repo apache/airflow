@@ -21,7 +21,7 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703747586
 versions:
   - 7.13.0
@@ -112,6 +112,7 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
+      - airflow.providers.cncf.kubernetes.operators.custom_object_launcher
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource

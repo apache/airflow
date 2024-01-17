@@ -21,9 +21,10 @@ name: Atlassian Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
-suspended: false
-source-date-epoch: 1703288118
+state: ready
+source-date-epoch: 1704610485
 versions:
+  - 2.5.0
   - 2.4.0
   - 2.3.0
   - 2.2.0
@@ -36,7 +37,10 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - atlassian-python-api>=1.14.2
+  # Changes in `3.41.6` introduce incorrect import of `beautifulsoup4`
+  - atlassian-python-api>=1.14.2,<3.41.6
+  # `beautifulsoup4` not listed in `atlassian-python-api` install requirements however depend on it
+  - beautifulsoup4
 
 integrations:
   - integration-name: Atlassian Jira

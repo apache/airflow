@@ -275,7 +275,7 @@ const config = {
     }),
     new LicensePlugin({
       additionalFiles: {
-        "../../../../licenses/LICENSES-ui.txt": formatLicenses,
+        "../../../../3rd-party-licenses/LICENSES-ui.txt": formatLicenses,
       },
       unacceptableLicenseTest: (licenseIdentifier) =>
         [

@@ -21,7 +21,7 @@ name: Hashicorp
 description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
-suspended: false
+state: ready
 source-date-epoch: 1703288140
 versions:
   - 3.6.1
@@ -50,7 +50,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - hvac>=0.10
+  - hvac>=1.1.0
 
 integrations:
   - integration-name: Hashicorp Vault
