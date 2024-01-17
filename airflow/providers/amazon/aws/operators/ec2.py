@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -183,21 +183,35 @@ class EC2CreateInstanceOperator(BaseOperator):
             MaxCount=self.max_count,
             **self.config,
         )["Instances"]
-        instance_ids = []
-        for instance in instances:
-            instance_ids.append(instance["InstanceId"])
-            self.log.info("Created EC2 instance %s", instance["InstanceId"])
+
+        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+        for instance_id in instance_ids:
+            self.log.info("Created EC2 instance %s", instance_id)
 
             if self.wait_for_completion:
                 ec2_hook.get_waiter("instance_running").wait(
-                    InstanceIds=[instance["InstanceId"]],
+                    InstanceIds=[instance_id],
                     WaiterConfig={
                         "Delay": self.poll_interval,
                         "MaxAttempts": self.max_attempts,
                     },
                 )
 
+        # leave "_on_kill_instance_ids" in place for finishing post-processing
         return instance_ids
+
+    def on_kill(self) -> None:
+        instance_ids = getattr(self, "_on_kill_instance_ids", [])
+
+        if instance_ids:
+            self.log.info("on_kill: Terminating instance/s %s", ", ".join(instance_ids))
+            ec2_hook = EC2Hook(
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                api_type="client_type",
+            )
+            ec2_hook.conn.terminate_instances(InstanceIds=instance_ids)
+        super().on_kill()
 
 
 class EC2TerminateInstanceOperator(BaseOperator):
