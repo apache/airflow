@@ -895,10 +895,10 @@ describe your problem.
     run Breeze with no problems.
 
 
-ETIMEOUT Error
+ETIMEDOUT Error
 --------------
 
-When running ``breeze start-airflow``, the following output might be observed:
+When running ``breeze start-airflow``, either normally or in ``dev-mode``, the following output might be observed:
 
 .. code-block:: bash
 
@@ -942,7 +942,7 @@ could be 3-4.
   export ASSET_COMPILATION_WAIT_MULTIPLIER=3
 
 This error is actually caused by the following error during the asset compilation which resulted in
-ETIMEOUT when ``npm`` command is trying to install required packages:
+``ETIMEDOUT`` when ``npm`` command is trying to install required packages:
 
 .. code-block:: bash
 
@@ -962,6 +962,20 @@ In this case, disabling IPv6 in the host machine and using IPv4 instead resolved
 
 The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
 blocked by it, or your proxy setting has not been done properly.
+
+It could also be possible that you have a proxy which is not available from your network, leading to the timeout
+issue. You may try running the below commands in the same terminal and then try the ``breeze start-airflow`` command:
+
+.. code-block::
+
+    npm config delete http-proxy
+    npm config delete https-proxy
+
+    npm config rm proxy
+    npm config rm https-proxy
+
+    set HTTP_PROXY=null
+    set HTTPS_PROXY=null
 
 Advanced commands
 =================

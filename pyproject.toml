@@ -549,6 +549,7 @@ amazon = [
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "PyAthena>=3.0.10",
 ]
 apache-beam = [
   "apache-beam>=2.53.0",
@@ -614,7 +615,8 @@ asana = [
   "asana>=0.10,<4.0.0",
 ]
 atlassian-jira = [
-  "atlassian-python-api>=1.14.2",
+  "atlassian-python-api>=1.14.2,<3.41.6",
+  "beautifulsoup4",
 ]
 celery = [
   "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
@@ -863,7 +865,7 @@ pgvector = [
   "pgvector>=0.2.3",
 ]
 pinecone = [
-  "pinecone-client>=2.2.4",
+  "pinecone-client>=2.2.4,<3.0",
 ]
 postgres = [
   "apache-airflow[common_sql]",

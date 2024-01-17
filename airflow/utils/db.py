@@ -139,6 +139,13 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="athena_default",
+            conn_type="athena",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="aws_default",
             conn_type="aws",
         ),

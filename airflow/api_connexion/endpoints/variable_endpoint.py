@@ -137,8 +137,7 @@ def post_variables() -> Response:
     """Create a variable."""
     try:
         data = variable_schema.load(get_json_request_dict())
-
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
-    Variable.set(data["key"], data["val"])
+    Variable.set(data["key"], data["val"], description=data.get("description", None))
     return variable_schema.dump(data)
