@@ -107,7 +107,8 @@ class DruidHook(BaseHook):
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
 
         code = req_index.status_code
-        if code not in [200, 202]:
+        not_accepted = not (200 <= code < 300)
+        if not_accepted:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
             raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
