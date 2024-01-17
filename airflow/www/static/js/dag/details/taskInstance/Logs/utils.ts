@@ -37,6 +37,10 @@ export const logLevelColorMapping = {
   [LogLevel.CRITICAL]: "red.400",
 };
 
+function escapeHTMLTags(html: string): string {
+  return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
@@ -97,6 +101,17 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
+      const tagRegex = /<[a-z][\s\S]*>/i;
+      if (!tagRegex.test(parsedLine)) {
+        // If there are any links without HTML injection aka tags, make it a hyperlink
+        parsedLine = parsedLine.replace(
+          /((https?:\/\/|http:\/\/)[^\s]+)/g,
+          '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+        );
+      } else {
+        parsedLine = escapeHTMLTags(parsedLine);
+      }
+
       parsedLines.push(parsedLine);
     }
   });
