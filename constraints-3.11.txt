@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-17T15:57:32.397971
+# This constraints file was automatically generated on 2024-01-17T20:14:22.084670
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -220,7 +220,7 @@ azure-synapse-artifacts==0.18.0
 azure-synapse-spark==0.7.0
 backoff==2.2.1
 bcrypt==4.1.2
-beautifulsoup4==4.12.2
+beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
 black==24.1a1
@@ -425,7 +425,7 @@ looker-sdk==23.20.1
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.0.1
+marshmallow-oneofschema==3.1.0
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.20.2
 matplotlib-inline==0.1.6

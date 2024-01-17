@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-17T15:51:41.764413
+# This constraints file was automatically generated on 2024-01-17T20:04:50.024837
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -82,7 +82,7 @@ asn1crypto==1.5.1
 astroid==2.15.8
 asttokens==2.4.1
 atlasclient==1.0.0
-atlassian-python-api==3.41.5
+atlassian-python-api==3.41.7
 attrs==23.2.0
 aws-sam-translator==1.83.0
 aws-xray-sdk==2.12.1
@@ -113,7 +113,7 @@ azure-synapse-artifacts==0.18.0
 azure-synapse-spark==0.7.0
 backoff==2.2.1
 bcrypt==4.1.2
-beautifulsoup4==4.12.2
+beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
 black==24.1a1
@@ -318,7 +318,7 @@ looker-sdk==23.20.1
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.0.1
+marshmallow-oneofschema==3.1.0
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.20.2
 matplotlib-inline==0.1.6
