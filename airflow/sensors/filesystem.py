@@ -94,7 +94,9 @@ class FileSensor(BaseSensorOperator):
         return False
 
     def execute(self, context: Context) -> None:
-        if self.deferrable and not self.poke(context=context):
+        if not self.deferrable:
+            super().execute(context=context)
+        if not self.poke(context=context):
             self.defer(
                 timeout=datetime.timedelta(seconds=self.timeout),
                 trigger=FileTrigger(

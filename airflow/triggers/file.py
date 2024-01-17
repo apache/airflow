@@ -52,7 +52,7 @@ class FileTrigger(BaseTrigger):
         if kwargs.get("poll_interval") is not None:
             warnings.warn(
                 "`poll_interval` has been deprecated and will be removed in future."
-                "Please use `poke_interval_interval` instead.",
+                "Please use `poke_interval` instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
