@@ -35,7 +35,7 @@ class FileTrigger(BaseTrigger):
         be a glob.
     :param recursive: when set to ``True``, enables recursive directory matching behavior of
         ``**`` in glob filepath parameter. Defaults to ``False``.
-    param poke_interval: Time that the job should wait in between each try
+    :param poke_interval: Time that the job should wait in between each try
     """
 
     def __init__(
