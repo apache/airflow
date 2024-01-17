@@ -34,6 +34,10 @@ KUBERNETES_POD_LINK = (
     KUBERNETES_BASE_LINK
     + "/pod/{location}/{cluster_name}/{namespace}/{pod_name}/details?project={project_id}"
 )
+KUBERNETES_JOB_LINK = (
+    KUBERNETES_BASE_LINK
+    + "/job/{location}/{cluster_name}/{namespace}/{job_name}/details?project={project_id}"
+)
 
 
 class KubernetesEngineClusterLink(BaseGoogleLink):
@@ -79,6 +83,31 @@ class KubernetesEnginePodLink(BaseGoogleLink):
                 "cluster_name": task_instance.cluster_name,
                 "namespace": task_instance.pod.metadata.namespace,
                 "pod_name": task_instance.pod.metadata.name,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class KubernetesEngineJobLink(BaseGoogleLink):
+    """Helper class for constructing Kubernetes Engine Job Link."""
+
+    name = "Kubernetes Job"
+    key = "kubernetes_job_conf"
+    format_str = KUBERNETES_JOB_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=KubernetesEngineJobLink.key,
+            value={
+                "location": task_instance.location,
+                "cluster_name": task_instance.cluster_name,
+                "namespace": task_instance.job.metadata.namespace,
+                "job_name": task_instance.job.metadata.name,
                 "project_id": task_instance.project_id,
             },
         )

@@ -192,6 +192,25 @@ lot less resources wasted on idle Operators or Sensors:
     :start-after: [START howto_operator_gke_start_pod_xcom_async]
     :end-before: [END howto_operator_gke_start_pod_xcom_async]
 
+Run a Job on a GKE cluster
+""""""""""""""""""""""""""
+
+There are two operators available in order to run a job on a GKE cluster:
+
+* :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`
+* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartJobOperator`
+
+``GKEStartJobOperator`` extends ``KubernetesJobOperator`` to provide authorization using Google Cloud credentials.
+There is no need to manage the ``kube_config`` file, as it will be generated automatically.
+All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEStartJobOperator``.
+For more information on ``KubernetesJobOperator``, please look at: :ref:`howto/operator:KubernetesJobOperator` guide.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_start_job]
+    :end-before: [END howto_operator_gke_start_job]
+
 Reference
 ^^^^^^^^^
 

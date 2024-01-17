@@ -15,12 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+K8s YAML Manager.
+
+This module provides a functions for working with K8s yaml.
 """
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
-from kubernetes.client import models as k8s
+if TYPE_CHECKING:
+    from kubernetes.client import models as k8s
 
 
 def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
@@ -107,10 +112,11 @@ def reconcile_job_specs(
     if not base_spec and client_spec:
         return client_spec
     elif client_spec and base_spec:
-        client_spec.containers = reconcile_containers(base_spec.containers, client_spec.containers)
-        merged_spec = extend_object_field(base_spec, client_spec, "init_containers")
-        merged_spec = extend_object_field(base_spec, merged_spec, "volumes")
-        return merge_objects(base_spec, merged_spec)
+        client_spec.template.spec = reconcile_pod_specs(base_spec.template.spec, client_spec.template.spec)
+        client_spec.template.metadata = reconcile_metadata(
+            base_spec.template.metadata, client_spec.template.metadata
+        )
+        return merge_objects(base_spec, client_spec)
 
     return None
 
