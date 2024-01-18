@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
+    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
     from mypy_boto3_redshift_data.type_defs import DescribeStatementResponseTypeDef
 
 FINISHED_STATE = "FINISHED"
@@ -234,8 +235,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        desc = await self.async_conn.describe_statement(Id=statement_id)
-        return desc["Status"] in RUNNING_STATES
+        async with self.async_conn as client:
+            desc = await client.describe_statement(Id=statement_id)
+            return desc["Status"] in RUNNING_STATES
 
     async def check_query_is_finished_async(self, statement_id: str) -> bool:
         """Async function to check statement is finished.
@@ -245,5 +247,6 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        resp = await self.async_conn.describe_statement(Id=statement_id)
-        return self.parse_statement_resposne(resp)
+        async with self.async_conn as client:
+            resp = await client.describe_statement(Id=statement_id)
+            return self.parse_statement_resposne(resp)
