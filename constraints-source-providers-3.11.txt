@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-17T20:04:50.024837
+# This constraints file was automatically generated on 2024-01-18T10:15:06.144718
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -48,7 +48,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2023.12.0
-aiobotocore==2.9.0
+aiobotocore==2.9.1
 aiofiles==23.2.1
 aiohttp==3.9.1
 aioitertools==0.11.0
@@ -82,7 +82,7 @@ asn1crypto==1.5.1
 astroid==2.15.8
 asttokens==2.4.1
 atlasclient==1.0.0
-atlassian-python-api==3.41.7
+atlassian-python-api==3.41.8
 attrs==23.2.0
 aws-sam-translator==1.83.0
 aws-xray-sdk==2.12.1
@@ -128,7 +128,7 @@ celery==5.3.6
 certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.8
+cfn-lint==0.84.0
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -602,7 +602,7 @@ yamllint==1.33.0
 yandexcloud==0.253.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.45
+zenpy==2.0.46
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
