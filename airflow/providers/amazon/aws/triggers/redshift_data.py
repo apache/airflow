@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any, AsyncIterator
 
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
@@ -69,7 +70,7 @@ class RedshiftDataTrigger(BaseTrigger):
             },
         )
 
-    @property
+    @cached_property
     def hook(self) -> RedshiftDataHook:
         return RedshiftDataHook(
             aws_conn_id=self.aws_conn_id,
