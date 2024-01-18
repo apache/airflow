@@ -96,7 +96,7 @@ class QdrantIngestOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """Upload points to a Qdrant collection."""
-        self.hook.upsert(
+        self.hook.conn.upload_collection(
             collection_name=self.collection_name,
             vectors=self.vectors,
             payload=self.payload,

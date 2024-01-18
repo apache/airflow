@@ -17,23 +17,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from airflow.models import DAG
 from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
-
-
-class MockQdrantHook:
-    """Mocking QdrantHook to avoid actual external calls"""
-
-    def create_collection(self, *args, **kwargs):
-        pass
-
-    @staticmethod
-    def upsert(*args, **kwargs):
-        return Mock()
 
 
 @pytest.fixture
@@ -65,13 +54,10 @@ class TestQdrantIngestOperator:
         )
 
         with patch(
-            "airflow.providers.qdrant.operators.qdrant.QdrantIngestOperator.hook",
-            new_callable=MockQdrantHook,
+            "airflow.providers.qdrant.operators.qdrant.QdrantIngestOperator.hook"
         ) as mock_hook_instance:
-            mock_hook_instance.upsert = Mock()
-
             task.execute(context={})
-            mock_hook_instance.upsert.assert_called_once_with(
+            mock_hook_instance.conn.upload_collection.assert_called_once_with(
                 collection_name="test_collection",
                 vectors=vectors,
                 ids=ids,
