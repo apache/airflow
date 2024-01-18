@@ -455,16 +455,18 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## What goes into the next release?
 
-Often you will see an issue that is assigned to specific milestone with Airflow version, or PR that gets merged
-to the main branch and you might wonder which release the merged PR will be released in or which release the
-issue will be fixed in. The answer to it is as usual - it depends. The answer is different for PRs and Issues.
+Often you will see an issue that is assigned to specific milestone with Airflow version, or a PR that gets merged
+to the main branch and you might wonder which release the merged PR(s) will be released in or which release the fixed
+issues will be in. The answer to this is as usual - it depends on various scenarios. The answer is different for PRs and Issues.
 
-To add a bit of context, ee are following the [Semver](https://semver.org/) versioning scheme as described in
+To add a bit of context, we are following the [Semver](https://semver.org/) versioning scheme as described in
 [Airflow release process](https://airflow.apache.org/docs/apache-airflow/stable/release-process.html). More
-details are explained in detail in this README in [Semantic versioning](#semantic-versioning) chapter, but
-in short, we have `MAJOR.MINOR.PATCH` versions of Airflow, where `MAJOR` version is incremented when there
-are breaking changes, `MINOR` version is incremented when there are new features added, and `PATCH` version
-is incremented when there are only bug-fixes and doc-only changes.
+details are explained in detail in this README under the [Semantic versioning](#semantic-versioning) chapter, but
+in short, we have `MAJOR.MINOR.PATCH` versions of Airflow.
+
+* `MAJOR` version is incremented in case of breaking changes
+* `MINOR` version is incremented when there are new features added
+* `PATCH` version is incremented when there are only bug-fixes and doc-only changes
 
 Generally we release `MINOR` versions of Airflow from a branch that is named after the MINOR version. For example
 `2.7.*` releases are released from `v2-7-stable` branch, `2.8.*` releases are released from `v2-8-stable`
@@ -472,22 +474,24 @@ branch, etc.
 
 Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
 PRs merged to `main` (unless they get reverted), will find their way to the next `MINOR` release. For example
-if the last release is `2.7.0` or `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
+if the last release is `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
 is `2.8.0` and all PRs merged to main will be released in `2.8.0`. There is a brief period of time when we
-cut a new `MINOR` release branch and prepare alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
+cut a new `MINOR` release branch and prepare the alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
 where PRs merged to main will only be released in the following `MINOR` release.
 
 However, some PRs (bug-fixes and doc-only changes) when merged, can be cherry-picked to current `MINOR` branch
 and released in the next `PATCHLEVEL` release - for example when the last released version from `v2-7-stable`
-branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers and attempt by the
-release manager to cherry-pick them is made. If successful, they will be released in `2.7.3`. The final
-decision about cherry-picking is made by the release manager.
+branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers, the release manager
+will try to cherry-pick them into the release branch. If successful, they will be released in `2.7.3`.
+The final decision about cherry-picking is made by the release manager.
 
 Marking issues with a milestone is a bit different. Maintainers do not mark issues with a milestone usually,
 normally they are only marked in PRs. If PR linked to the issue (and "fixing it") gets merged and released
 in a specific version following the process described above, the issue will be automatically closed, no
 milestone will be set for the issue, you need to check the PR that fixed the issue to see which version
-it was released in. However sometimes maintainers mark issues with specific milestone, which means that the
+it was released in.
+
+However, sometimes maintainers mark issues with specific milestone, which means that the
 issue is important to become a candidate to take a look when the release is being prepared. Since this is an
 Open-Source project, where basically all contributors volunteer their time, there is no guarantee that specific
 issue will be fixed in specific version. We do not want to hold the release because some issue is not fixed,
