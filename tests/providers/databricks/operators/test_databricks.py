@@ -982,7 +982,6 @@ class TestDatabricksSubmitRunDeferrableOperator:
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
 
-
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
     def test_databricks_submit_run_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
