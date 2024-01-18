@@ -35,7 +35,7 @@ Changelog
   more memory to execute the operator, in which case users can override the ``parquet_row_group_size``
   parameter in the operator. All operators that are derived from ``BaseSQLToGCSOperator`` are affected
   when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
-  ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``.
+  ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``. Due to the above we treat this change as bug fix.
 
 10.13.1
 .......
