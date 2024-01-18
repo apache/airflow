@@ -132,18 +132,25 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if operator.wait_for_termination:
-        operator.defer(
-            trigger=DatabricksExecutionTrigger(
-                run_id=operator.run_id,
-                databricks_conn_id=operator.databricks_conn_id,
-                polling_period_seconds=operator.polling_period_seconds,
-                retry_limit=operator.databricks_retry_limit,
-                retry_delay=operator.databricks_retry_delay,
-                retry_args=operator.databricks_retry_args,
-                run_page_url=run_page_url,
-            ),
-            method_name=DEFER_METHOD_NAME,
-        )
+        run_info = hook.get_run(operator.run_id)
+        run_state = RunState(**run_info["state"])
+        if not run_state.is_terminal:
+            operator.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=operator.run_id,
+                    databricks_conn_id=operator.databricks_conn_id,
+                    polling_period_seconds=operator.polling_period_seconds,
+                    retry_limit=operator.databricks_retry_limit,
+                    retry_delay=operator.databricks_retry_delay,
+                    retry_args=operator.databricks_retry_args,
+                    run_page_url=run_page_url,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        else:
+            if run_state.is_successful:
+                log.info("%s completed successfully.", operator.task_id)
+                return
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
