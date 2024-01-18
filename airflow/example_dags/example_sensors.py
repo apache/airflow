@@ -98,6 +98,10 @@ with DAG(
     t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing")
     # [END example_file_sensor]
 
+    # [START example_file_sensor_async]
+    t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing", deferrable=True)
+    # [END example_file_sensor_async]
+
     t7 = BashOperator(
         task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
     )
