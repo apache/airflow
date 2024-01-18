@@ -499,6 +499,10 @@ so in such case release manager will reassign such unfixed issues to the next mi
 fixed in time for the current release. Therefore, the milestone for issue is more of an intent that it should be
 looked at, than promise it will be fixed in the version.
 
+More context and **FAQ** about the patchlevel release can be found in the
+[What goes into the next release](dev/WHAT_GOES_INTO_NEXT_RELEASE.md) document in the `dev` folder of the
+repository.
+
 ## Can I use the Apache Airflow logo in my presentation?
 
 Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
