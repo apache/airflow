@@ -456,6 +456,7 @@ class DAG(LoggingMixin):
         concurrency: int | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
+        max_failure_runs: int = airflow_conf.getint("core", "max_failure_runs_per_dag"),
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
@@ -3594,6 +3595,7 @@ class DagModel(Base):
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
+    max_failure_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
     has_import_errors = Column(Boolean(), default=False, server_default="0")
@@ -3644,6 +3646,10 @@ class DagModel(Base):
 
         if self.max_active_runs is None:
             self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
+
+        if self.max_failure_runs is None:
+            self.max_failure_runs = airflow_conf.getint("core", "max_failure_runs_per_dag")
+
 
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
@@ -3942,6 +3948,7 @@ def dag(
     concurrency: int | None = None,
     max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
     max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
+    max_failure_runs: int = airflow_conf.getint("core", "max_failure_runs_per_dag"),
     dagrun_timeout: timedelta | None = None,
     sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
