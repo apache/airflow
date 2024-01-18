@@ -150,7 +150,6 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
         else:
             if run_state.is_successful:
                 log.info("%s completed successfully.", operator.task_id)
-                return
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
