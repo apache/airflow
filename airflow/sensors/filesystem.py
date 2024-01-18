@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import os
+from functools import cached_property
 from glob import glob
 from typing import TYPE_CHECKING, Sequence
 
@@ -73,15 +74,15 @@ class FileSensor(BaseSensorOperator):
         self.recursive = recursive
         self.deferrable = deferrable
 
-    @property
-    def path(self):
+    @cached_property
+    def path(self) -> str:
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
         full_path = os.path.join(basepath, self.filepath)
-        self.log.info("Poking for file %s", full_path)
         return full_path
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
+        self.log.info("Poking for file %s", self.path)
         for path in glob(self.path, recursive=self.recursive):
             if os.path.isfile(path):
                 mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d%H%M%S")
