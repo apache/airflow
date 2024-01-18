@@ -877,6 +877,34 @@ class TestNumRetry:
         assert 5 == instance.num_retries
 
 
+class TestCredentialsToken:
+    @pytest.mark.asyncio
+    async def test_get_project(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        token = hook.CredentialsToken(mock_credentials, project=PROJECT_ID)
+        assert await token.get_project() == PROJECT_ID
+
+    @pytest.mark.asyncio
+    async def test_get(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        token = hook.CredentialsToken(mock_credentials, project=PROJECT_ID)
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    async def test_from_hook(self, get_creds_and_project, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://",
+        )
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        token = await hook.CredentialsToken.from_hook(instance)
+        assert token.credentials == "CREDENTIALS"
+        assert token.project == "PROJECT_ID"
+
+
 class TestGoogleBaseAsyncHook:
     @pytest.mark.asyncio
     @mock.patch("google.auth.default")
