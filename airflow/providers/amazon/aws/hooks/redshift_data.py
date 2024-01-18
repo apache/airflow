@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+    from mypy_boto3_redshift_data.type_defs import DescribeStatementResponseTypeDef
 
 FINISHED_STATE = "FINISHED"
 FAILED_STATE = "FAILED"
@@ -136,7 +136,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         resp = self.conn.describe_statement(Id=statement_id)
         return self.parse_statement_resposne(resp)
 
-    def parse_statement_resposne(self, resp: dict[str, Any]) -> bool:
+    def parse_statement_resposne(self, resp: DescribeStatementResponseTypeDef) -> bool:
         """Parse the response of describe_statement."""
         status = resp["Status"]
         if status == FINISHED_STATE:
