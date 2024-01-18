@@ -154,32 +154,32 @@ You need to ensure that you have the appropriate level of permissions (see next 
 IAM Permissions
 """""""""""""""
 
-You need to ensure you have the following IAM permissions to run tasks via the EcsRunTaskOperator.
+You need to ensure you have the following IAM permissions to run tasks via the EcsRunTaskOperator:
 
 .. code-block::
 
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ecs:RunTask",
-                "ecs:DescribeTasks"
-            ],
-            "Resource": [ "arn:aws:ecs:{aws region}:{aws account number}:task_definition/{task definition family}" ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "iam:PassRole"
-            ]
-            "Resource": [ "arn:aws:iam::{aws account number}:role/{task execution role name}
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-              "ecs:DescribeTasks",
-            ],
-            "Resource": [ "arn:aws:ecs:{aws region}:{aws account number}:task/{ecs cluster name}/*" ]
-        }
+  {
+      "Effect": "Allow",
+      "Action": [
+          "ecs:RunTask",
+          "ecs:DescribeTasks",
+      ]
+      "Resource": [ "arn:aws:ecs:{aws region}:{aws account number}:task_definition/{task definition family}" ]
+  },
+  {
+      "Effect": "Allow",
+      "Action": [
+          "iam:PassRole"
+      ]
+      "Resource": [ "arn:aws:iam::{aws account number}:role/{task execution role name}" ]
+  },
+  {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeTasks",
+      ],
+      "Resource": [ "arn:aws:ecs:{aws region}:{aws account number}:task/{ecs cluster name}/*" ]
+  }
 
 If you use the "reattach=True" (the default is False), you need to add further permissions.
 You need to add the following additional Actions to the IAM policy.
