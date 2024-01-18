@@ -608,7 +608,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
                 "method to obtain cluster object.",
                 AirflowProviderDeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
             # Remove result of apply defaults
             if "params" in kwargs:
@@ -878,7 +878,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, "
             "please use `DataprocUpdateClusterOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
     def _build_scale_cluster_data(self) -> dict:
@@ -1311,7 +1311,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1403,7 +1403,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1496,7 +1496,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1591,7 +1591,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1682,7 +1682,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1796,7 +1796,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(

@@ -229,6 +229,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 warnings.warn(
                     "Argument `wait_for_termination` is False and `deferrable` is True , hence "
                     "`deferrable` parameter doesn't have any effect",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:

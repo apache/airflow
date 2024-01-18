@@ -104,7 +104,12 @@ class YandexCloudBaseHook(BaseHook):
                 )
             ).strip()
         except KeyError:
-            warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
+            warnings.warn(
+                f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager",
+                UserWarning,
+                stacklevel=2,
+            )
+
             return None
 
     @classmethod
