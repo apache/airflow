@@ -276,7 +276,7 @@
   "atlassian.jira": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "atlassian-python-api>=1.14.2,<3.41.6",
+      "atlassian-python-api>=1.14.2,!=3.41.6",
       "beautifulsoup4"
     ],
     "devel-deps": [],
