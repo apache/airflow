@@ -43,6 +43,7 @@ Currently, **officially** using Airflow:
 1. [Akamai](https://www.akamai.com/) [[@anirudhbagri](https://github.com/anirudhbagri)]
 1. [Akamas](https://akamas.io) [[@GiovanniPaoloGibilisco](https://github.com/GiovanniPaoloGibilisco), [@lucacavazzana](https://github.com/lucacavazzana)]
 1. [Alan](https://alan.eu) [[@charles-go](https://github.com/charles-go)]
+1. [AliFone](https://www.alifone.com.br/)]
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 1. [Allo-Media](https://www.allo-media.net) [[@merwan](https://github.com/merwan/)]
 1. [AloPeyk](https://alopeyk.com) [[@blcksrx](https://github.com/blcksrx), [@AloPeyk](https://github.com/AloPeyk)]
@@ -523,4 +524,3 @@ Currently, **officially** using Airflow:
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]
 1. [好大夫在线](https://www.haodf.com/) [[@leiguorui](https://github.com/leiguorui)]
-1. [AliFone](https://www.alifone.com.br/)]
