@@ -17,10 +17,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from functools import cached_property
 from typing import Any, AsyncIterator
 
-from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+from airflow.providers.amazon.aws.hooks.redshift_data import (
+    ABORTED_STATE,
+    FAILED_STATE,
+    RedshiftDataHook,
+    RedshiftDataQueryAbortedError,
+    RedshiftDataQueryFailedError,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -81,13 +88,26 @@ class RedshiftDataTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            response = await self.hook.check_query_is_finished_async(self.statement_id)
-            if not response:
+            while await self.hook.is_still_running(self.statement_id):
+                await asyncio.sleep(self.poll_interval)
+
+            is_finished = await self.hook.check_query_is_finished_async(self.statement_id)
+            if is_finished:
+                response = {"status": "success", "statement_id": self.statement_id}
+            else:
                 response = {
                     "status": "error",
-                    "message": f"{self.task_id} failed",
                     "statement_id": self.statement_id,
+                    "message": f"{self.task_id} failed",
                 }
             yield TriggerEvent(response)
-        except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e), "statement_id": self.statement_id})
+        except (RedshiftDataQueryFailedError, RedshiftDataQueryAbortedError) as error:
+            response = {
+                "status": "error",
+                "statement_id": self.statement_id,
+                "message": str(error),
+                "type": FAILED_STATE if isinstance(error, RedshiftDataQueryFailedError) else ABORTED_STATE,
+            }
+            yield TriggerEvent(response)
+        except Exception as error:
+            yield TriggerEvent({"status": "error", "statement_id": self.statement_id, "message": str(error)})

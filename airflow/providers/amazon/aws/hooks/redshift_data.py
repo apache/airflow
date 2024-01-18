@@ -17,12 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import time
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, Iterable
-
-import botocore.exceptions
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -35,6 +32,14 @@ FAILED_STATE = "FAILED"
 ABORTED_STATE = "ABORTED"
 FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
 RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
+
+
+class RedshiftDataQueryFailedError(ValueError):
+    """Raise an error that redshift data query failed."""
+
+
+class RedshiftDataQueryAbortedError(ValueError):
+    """Raise an error that redshift data query was aborted."""
 
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
@@ -129,6 +134,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     def check_query_is_finished(self, statement_id: str) -> bool:
         """Check whether query finished, raise exception is failed."""
         resp = self.conn.describe_statement(Id=statement_id)
+        return self.parse_statement_resposne(resp)
+
+    def parse_statement_resposne(self, resp: dict[str, Any]) -> bool:
+        """Parse the response of describe_statement."""
         status = resp["Status"]
         if status == FINISHED_STATE:
             num_rows = resp.get("ResultRows")
@@ -136,12 +145,15 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 self.log.info("Processed %s rows", num_rows)
             return True
         elif status in FAILURE_STATES:
-            raise ValueError(
-                f"Statement {statement_id!r} terminated with status {status}. "
+            exception_cls = (
+                RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
+            )
+            raise exception_cls(
+                f"Statement {resp['Id']} terminated with status {status}. "
                 f"Response details: {pformat(resp)}"
             )
 
-        self.log.info("Query %s", status)
+        self.log.info("Query status: %s", status)
         return False
 
     def get_table_primary_key(
@@ -217,49 +229,6 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         return pk_columns or None
 
-    async def check_query_is_finished_async(
-        self, statement_id: str, poll_interval: int = 10
-    ) -> dict[str, str]:
-        """Async function to check statement is finished.
-
-        It takes statement_id, makes async connection to redshift data to get the query status
-        by statement_id and returns the query status.
-
-        :param statement_id: the UUID of the statement
-        :param poll_interval: how often in seconds to check the query status
-        """
-        try:
-            while await self.is_still_running(statement_id):
-                await asyncio.sleep(poll_interval)
-
-            resp = await self.async_conn.describe_statement(Id=statement_id)
-            status = resp["Status"]
-            if status == FINISHED_STATE:
-                return {"status": "success", "statement_id": statement_id}
-            elif status == FAILED_STATE:
-                return {
-                    "status": "error",
-                    "message": f"Error: {resp['QueryString']} query Failed due to, {resp['Error']}",
-                    "statement_id": statement_id,
-                    "type": status,
-                }
-            elif status == ABORTED_STATE:
-                return {
-                    "status": "error",
-                    "message": "The query run was stopped by the user.",
-                    "statement_id": statement_id,
-                    "type": status,
-                }
-
-            return {
-                "status": "error",
-                "message": f"Unexpected statue {status}",
-                "statement_id": statement_id,
-                "type": status,
-            }
-        except botocore.exceptions.ClientError as error:
-            return {"status": "error", "message": str(error), "type": "ERROR"}
-
     async def is_still_running(self, statement_id: str) -> bool:
         """Async function to check whether the query is still running.
 
@@ -267,3 +236,14 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         """
         desc = await self.async_conn.describe_statement(Id=statement_id)
         return desc["Status"] in RUNNING_STATES
+
+    async def check_query_is_finished_async(self, statement_id: str) -> bool:
+        """Async function to check statement is finished.
+
+        It takes statement_id, makes async connection to redshift data to get the query status
+        by statement_id and returns the query status.
+
+        :param statement_id: the UUID of the statement
+        """
+        resp = await self.async_conn.describe_statement(Id=statement_id)
+        return self.parse_statement_resposne(resp)

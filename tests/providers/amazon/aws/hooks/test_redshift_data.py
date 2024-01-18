@@ -22,7 +22,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+from airflow.providers.amazon.aws.hooks.redshift_data import (
+    RedshiftDataHook,
+    RedshiftDataQueryAbortedError,
+    RedshiftDataQueryFailedError,
+)
 
 SQL = "sql"
 DATABASE = "database"
@@ -314,38 +318,35 @@ class TestRedshiftDataHook:
         assert response == expected_result
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running")
+    async def test_check_query_is_finished_async(self, mock_is_still_running, mock_conn):
+        hook = RedshiftDataHook()
+        mock_is_still_running.return_value = False
+        mock_conn.describe_statement = mock.AsyncMock()
+        mock_conn.describe_statement.return_value = {"Id": "uuid", "Status": "FINISHED"}
+        is_finished = await hook.check_query_is_finished_async(statement_id="uuid")
+        assert is_finished is True
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "describe_statement_response, expected_result",
-        [
-            ({"Status": "FINISHED"}, {"status": "success", "statement_id": "uuid"}),
+        "describe_statement_response, expected_exception",
+        (
             (
-                {"Status": "FAILED", "QueryString": "select 1", "Error": "Test error"},
-                {
-                    "status": "error",
-                    "message": "Error: select 1 query Failed due to, Test error",
-                    "statement_id": "uuid",
-                    "type": "FAILED",
-                },
+                {"Id": "uuid", "Status": "FAILED", "QueryString": "select 1", "Error": "Test error"},
+                RedshiftDataQueryFailedError,
             ),
-            (
-                {"Status": "ABORTED"},
-                {
-                    "status": "error",
-                    "message": "The query run was stopped by the user.",
-                    "statement_id": "uuid",
-                    "type": "ABORTED",
-                },
-            ),
-        ],
+            ({"Id": "uuid", "Status": "ABORTED"}, RedshiftDataQueryAbortedError),
+        ),
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running")
-    async def test_get_query_status(
-        self, mock_is_still_running, mock_conn, describe_statement_response, expected_result
+    async def test_check_query_is_finished_async_exception(
+        self, mock_is_still_running, mock_conn, describe_statement_response, expected_exception
     ):
         hook = RedshiftDataHook()
         mock_is_still_running.return_value = False
         mock_conn.describe_statement = mock.AsyncMock()
         mock_conn.describe_statement.return_value = describe_statement_response
-        response = await hook.check_query_is_finished_async(statement_id="uuid")
-        assert response == expected_result
+        with pytest.raises(expected_exception):
+            await hook.check_query_is_finished_async(statement_id="uuid")

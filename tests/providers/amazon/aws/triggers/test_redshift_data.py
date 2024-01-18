@@ -21,6 +21,12 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.hooks.redshift_data import (
+    ABORTED_STATE,
+    FAILED_STATE,
+    RedshiftDataQueryAbortedError,
+    RedshiftDataQueryFailedError,
+)
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -58,10 +64,8 @@ class TestRedshiftDataTrigger:
         "return_value, response",
         [
             (
-                {"status": "error", "message": "test error", "statement_id": "uuid", "type": "failed"},
-                TriggerEvent(
-                    {"status": "error", "message": "test error", "statement_id": "uuid", "type": "failed"}
-                ),
+                True,
+                TriggerEvent({"status": "success", "statement_id": "uuid"}),
             ),
             (
                 False,
@@ -74,11 +78,17 @@ class TestRedshiftDataTrigger:
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished_async"
     )
-    async def test_redshift_data_trigger_run(self, mock_get_query_status, return_value, response):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running",
+        return_value=False,
+    )
+    async def test_redshift_data_trigger_run(
+        self, mocked_is_still_running, mock_check_query_is_finised_async, return_value, response
+    ):
         """
         Tests that RedshiftDataTrigger only fires once the query execution reaches a successful state.
         """
-        mock_get_query_status.return_value = return_value
+        mock_check_query_is_finised_async.return_value = return_value
         trigger = RedshiftDataTrigger(
             statement_id="uuid",
             task_id=TEST_TASK_ID,
@@ -90,14 +100,47 @@ class TestRedshiftDataTrigger:
         assert response == actual
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "raised_exception, expected_response",
+        [
+            (
+                RedshiftDataQueryFailedError("Failed"),
+                {
+                    "status": "error",
+                    "statement_id": "uuid",
+                    "message": "Failed",
+                    "type": FAILED_STATE,
+                },
+            ),
+            (
+                RedshiftDataQueryAbortedError("Aborted"),
+                {
+                    "status": "error",
+                    "statement_id": "uuid",
+                    "message": "Aborted",
+                    "type": ABORTED_STATE,
+                },
+            ),
+            (
+                Exception(f"{TEST_TASK_ID} failed"),
+                {"status": "error", "statement_id": "uuid", "message": f"{TEST_TASK_ID} failed"},
+            ),
+        ],
+    )
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished_async"
     )
-    async def test_redshift_data_trigger_exception(self, mock_get_query_status):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running",
+        return_value=False,
+    )
+    async def test_redshift_data_trigger_exception(
+        self, mocked_is_still_running, mock_check_query_is_finised_async, raised_exception, expected_response
+    ):
         """
         Test that RedshiftDataTrigger fires the correct event in case of an error.
         """
-        mock_get_query_status.side_effect = Exception("Test exception")
+        mock_check_query_is_finised_async.side_effect = raised_exception
 
         trigger = RedshiftDataTrigger(
             statement_id="uuid",
@@ -107,4 +150,4 @@ class TestRedshiftDataTrigger:
         )
         task = [i async for i in trigger.run()]
         assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception", "statement_id": "uuid"}) in task
+        assert TriggerEvent(expected_response) in task
