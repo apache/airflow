@@ -253,7 +253,9 @@ class TestSnowflakeSqlApiOperator:
 
     @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
-    def test_snowflake_sql_api_execute_operator_async(self, mock_db_hook, mock_sql, statement_count):
+    def test_snowflake_sql_api_execute_operator_async(
+        self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
+    ):
         """
         Asserts that a task is deferred and an SnowflakeSqlApiTrigger will be fired
         when the SnowflakeSqlApiOperator is executed.
@@ -265,6 +267,9 @@ class TestSnowflakeSqlApiOperator:
             statement_count=statement_count,
             deferrable=True,
         )
+
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(create_context(operator))
