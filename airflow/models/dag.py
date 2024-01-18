@@ -364,6 +364,8 @@ class DAG(LoggingMixin):
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
+    :param max_failure_runs: maximum number of consecutive failed DAG runs, beyond this
+        the scheduler will disable the DAG
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
@@ -618,12 +620,18 @@ class DAG(LoggingMixin):
         self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
+        self.max_failure_runs = max_failure_runs
         if self.timetable.active_runs_limit is not None:
             if self.timetable.active_runs_limit < self.max_active_runs:
                 raise AirflowException(
                     f"Invalid max_active_runs: {type(self.timetable)} "
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
+        if self.max_failure_runs is not None and self.max_failure_runs < 0:
+            raise AirflowException(
+                f"Invalid max_failure_runs: {str(self.max_failure_runs)}"
+                f"requires max_failure_runs >= 0"
+            )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
@@ -3124,6 +3132,7 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
+            orm_dag.max_failure_runs = dag.max_failure_runs
             orm_dag.has_task_concurrency_limits = any(
                 t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
                 for t in dag.tasks
@@ -4003,6 +4012,7 @@ def dag(
                 concurrency=concurrency,
                 max_active_tasks=max_active_tasks,
                 max_active_runs=max_active_runs,
+                max_failure_runs=max_failure_runs,
                 dagrun_timeout=dagrun_timeout,
                 sla_miss_callback=sla_miss_callback,
                 default_view=default_view,
