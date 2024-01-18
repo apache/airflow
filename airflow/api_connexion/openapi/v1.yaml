@@ -4959,7 +4959,7 @@ components:
         type: string
         format: path
       required: true
-      description: The encoded Dataset URI
+      description: The [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) Dataset URI.
 
     PoolName:
       in: path
