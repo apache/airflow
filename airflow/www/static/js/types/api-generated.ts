@@ -620,7 +620,7 @@ export interface paths {
     delete: operations["delete_dataset"];
     parameters: {
       path: {
-        /** The encoded Dataset URI */
+        /** The [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) Dataset URI. */
         uri: components["parameters"]["DatasetURI"];
       };
     };
@@ -2336,7 +2336,7 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The encoded Dataset URI */
+    /** @description The [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) Dataset URI. */
     DatasetURI: string;
     /** @description The pool name. */
     PoolName: string;
@@ -4276,7 +4276,7 @@ export interface operations {
   get_dataset: {
     parameters: {
       path: {
-        /** The encoded Dataset URI */
+        /** The [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) Dataset URI. */
         uri: components["parameters"]["DatasetURI"];
       };
     };
@@ -4300,7 +4300,7 @@ export interface operations {
   delete_dataset: {
     parameters: {
       path: {
-        /** The encoded Dataset URI */
+        /** The [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) Dataset URI. */
         uri: components["parameters"]["DatasetURI"];
       };
     };
