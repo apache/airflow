@@ -1944,7 +1944,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, dag_id: str, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
-        run_id = request.values.get("run_id", "").replace(" ", "+")
+        run_id = request.values.get("run_id", "")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
