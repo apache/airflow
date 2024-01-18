@@ -17,6 +17,7 @@
 """Executes a Kubernetes Job."""
 from __future__ import annotations
 
+import copy
 import logging
 import os
 from functools import cached_property
@@ -31,9 +32,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.k8s_yaml_manager import (
-    reconcile_jobs,
-)
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -181,7 +180,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             self.log.debug("Job template file found, will parse for base job")
             job_template = self.deserialize_job_template_file(self.job_template_file)
             if self.full_job_spec:
-                job_template = reconcile_jobs(job_template, self.full_job_spec)
+                job_template = self.reconcile_jobs(job_template, self.full_job_spec)
         elif self.full_job_spec:
             job_template = self.full_job_spec
         else:
@@ -216,7 +215,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             ),
         )
 
-        job = reconcile_jobs(job_template, job)
+        job = self.reconcile_jobs(job_template, job)
 
         if not job.metadata.name:
             job.metadata.name = create_unique_id(
@@ -236,3 +235,52 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.log.info("Building job %s ", job.metadata.name)
 
         return job
+
+    @staticmethod
+    def reconcile_jobs(base_job: k8s.V1Job, client_job: k8s.V1Job | None) -> k8s.V1Job:
+        """
+        Merge Kubernetes Job objects.
+
+        :param base_job: has the base attributes which are overwritten if they exist
+            in the client job and remain if they do not exist in the client_job
+        :param client_job: the job that the client wants to create.
+        :return: the merged jobs
+
+        This can't be done recursively as certain fields are overwritten and some are concatenated.
+        """
+        if client_job is None:
+            return base_job
+
+        client_job_cp = copy.deepcopy(client_job)
+        client_job_cp.spec = KubernetesJobOperator.reconcile_job_specs(base_job.spec, client_job_cp.spec)
+        client_job_cp.metadata = PodGenerator.reconcile_metadata(base_job.metadata, client_job_cp.metadata)
+        client_job_cp = merge_objects(base_job, client_job_cp)
+
+        return client_job_cp
+
+    @staticmethod
+    def reconcile_job_specs(
+        base_spec: k8s.V1JobSpec | None, client_spec: k8s.V1JobSpec | None
+    ) -> k8s.V1JobSpec | None:
+        """
+        Merge Kubernetes JobSpec objects.
+
+        :param base_spec: has the base attributes which are overwritten if they exist
+            in the client_spec and remain if they do not exist in the client_spec
+        :param client_spec: the spec that the client wants to create.
+        :return: the merged specs
+        """
+        if base_spec and not client_spec:
+            return base_spec
+        if not base_spec and client_spec:
+            return client_spec
+        elif client_spec and base_spec:
+            client_spec.template.spec = PodGenerator.reconcile_specs(
+                base_spec.template.spec, client_spec.template.spec
+            )
+            client_spec.template.metadata = PodGenerator.reconcile_metadata(
+                base_spec.template.metadata, client_spec.template.metadata
+            )
+            return merge_objects(base_spec, client_spec)
+
+        return None

@@ -481,7 +481,11 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         job: V1Job,
         **kwargs,
     ) -> V1Job:
-        """Run Job"""
+        """
+        Run Job.
+
+        :param job: A kubernetes Job object
+        """
         sanitized_job = self.batch_v1_client.api_client.sanitize_for_serialization(job)
         json_job = json.dumps(sanitized_job, indent=2)
 
