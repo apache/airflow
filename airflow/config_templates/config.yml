@@ -1875,7 +1875,7 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    num_recent_confs_for_trigger:
+    num_recent_configurations_for_trigger:
       description: |
         Number of recent DAG run configurations in the selector on the trigger web form.
       version_added: 2.9.0
