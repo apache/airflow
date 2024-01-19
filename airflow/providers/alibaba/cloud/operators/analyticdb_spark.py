@@ -113,9 +113,6 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
     :param rg_name: The name of resource group in AnalyticDB MySQL 3.0 Data Lakehouse cluster.
     """
 
-    template_fields: Sequence[str] = ("spark_params",)
-    template_fields_renderers = {"spark_params": "json"}
-
     def __init__(
         self,
         *,
@@ -171,9 +168,6 @@ class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
     :param cluster_id: The cluster ID of AnalyticDB MySQL 3.0 Data Lakehouse.
     :param rg_name: The name of resource group in AnalyticDB MySQL 3.0 Data Lakehouse cluster.
     """
-
-    template_fields: Sequence[str] = ("spark_params",)
-    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
