@@ -128,7 +128,6 @@ from airflow.utils.sqlalchemy import (
     Interval,
     UtcDateTime,
     lock_rows,
-    skip_locked,
     tuple_in_condition,
     with_row_locks,
 )
@@ -3789,7 +3788,7 @@ class DagModel(Base):
         )
 
         return (
-            session.scalars(with_row_locks(query, of=cls, session=session, **skip_locked(session=session))),
+            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
             dataset_triggered_dag_info,
         )
 
