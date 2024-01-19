@@ -97,8 +97,8 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.8.1)       |
-|-------------|------------------------------|------------------------------|
+|             | Main version (dev)           | Stable version (2.8.1) |
+|-------------|------------------------------|------------------------|
 | Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11         |
 | Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
 | Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28, 1.29 |
