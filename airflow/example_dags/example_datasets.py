@@ -105,7 +105,7 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[
         dag1_dataset,
-        Dataset("s3://this-dataset-doesnt-get-triggered"),
+        Dataset("s3://unrelated/this-dataset-doesnt-get-triggered"),
     ],
     tags=["consumes", "dataset-scheduled"],
 ) as dag5:
