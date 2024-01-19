@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.http.triggers.http import HttpTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -78,6 +81,8 @@ class HttpSensor(BaseSensorOperator):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param deferrable: If waiting for completion, whether to defer the task until done,
+        default is ``False``
     """
 
     template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
@@ -97,6 +102,7 @@ class HttpSensor(BaseSensorOperator):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,6 +120,7 @@ class HttpSensor(BaseSensorOperator):
         self.tcp_keep_alive_idle = tcp_keep_alive_idle
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
@@ -135,9 +142,12 @@ class HttpSensor(BaseSensorOperator):
                 headers=self.headers,
                 extra_options=self.extra_options,
             )
+
             if self.response_check:
                 kwargs = determine_kwargs(self.response_check, [response], context)
+
                 return self.response_check(response, **kwargs)
+
         except AirflowException as exc:
             if str(exc).startswith(self.response_error_codes_allowlist):
                 return False
@@ -148,3 +158,25 @@ class HttpSensor(BaseSensorOperator):
             raise exc
 
         return True
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable or self.response_check:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=HttpTrigger(
+                    endpoint=self.endpoint,
+                    http_conn_id=self.http_conn_id,
+                    data=self.request_params,
+                    headers=self.headers,
+                    method=self.method,
+                    extra_options=self.extra_options,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: bool | None = None) -> None:
+        self.log.info("%s completed successfully.", self.task_id)
+        return None
