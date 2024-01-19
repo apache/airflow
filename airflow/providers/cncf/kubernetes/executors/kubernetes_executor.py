@@ -434,8 +434,8 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-                    # These codes indicate something is wrong with pod definition; otherwise we assume pod
-                    # definition is ok, and that retrying may work
+                    # In case of the below error codes, fail the task and honor the task retires.
+                    # Otherwise, go for continuous/infinite retries.
                     if e.status in (400, 403, 404, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
