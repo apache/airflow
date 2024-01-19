@@ -684,7 +684,7 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=remote_pod,
             )
         except Exception:
-            # If one task got marked as failed, it should not raise exception which might cause retry.
+            # If task got marked as failed, it should not raise exception (which might cause retry).
             if not self._killed:
                 raise
 
