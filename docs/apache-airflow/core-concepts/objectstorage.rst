@@ -33,7 +33,7 @@ of object-name => data. To enable remote access, operations on objects are usual
 
 Airflow provides a generic abstraction on top of object stores, like s3, gcs, and azure blob storage.
 This abstraction allows you to use a variety of object storage systems in your DAGs without having to
-change you code to deal with every different object storage system. In addition, it allows you to use
+change your code to deal with every different object storage system. In addition, it allows you to use
 most of the standard Python modules, like ``shutil``, that can work with file-like objects.
 
 Support for a particular object storage system depends on the providers you have installed. For
