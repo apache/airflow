@@ -893,7 +893,7 @@ class TestCredentialsToken:
         mock_credentials.refresh.assert_called_once()
 
     @pytest.mark.asyncio
-    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
     async def test_from_hook(self, get_creds_and_project, monkeypatch):
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
