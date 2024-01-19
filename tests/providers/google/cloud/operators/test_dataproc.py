@@ -579,7 +579,7 @@ class TestsClusterGenerator:
         assert CONFIG_WITH_FLEX_MIG == cluster
 
 
-class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
+class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
