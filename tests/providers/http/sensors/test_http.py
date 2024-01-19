@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSk
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
-from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.providers.http.triggers.http_sensor import HttpSensorTrigger
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -369,7 +369,7 @@ class TestHttpSensorAsync:
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
 
-        assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
+        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
@@ -390,4 +390,4 @@ class TestHttpSensorAsync:
         task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
-        assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
+        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"

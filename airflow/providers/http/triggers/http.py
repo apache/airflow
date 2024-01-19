@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import base64
 import pickle
 from typing import TYPE_CHECKING, Any, AsyncIterator
@@ -25,7 +24,6 @@ import requests
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
-from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -60,7 +58,6 @@ class HttpTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
-        poke_interval: float = 5.0,
     ):
         super().__init__()
         self.http_conn_id = http_conn_id
@@ -70,7 +67,6 @@ class HttpTrigger(BaseTrigger):
         self.headers = headers
         self.data = data
         self.extra_options = extra_options
-        self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes HttpTrigger arguments and classpath."""
@@ -84,7 +80,6 @@ class HttpTrigger(BaseTrigger):
                 "headers": self.headers,
                 "data": self.data,
                 "extra_options": self.extra_options,
-                "poke_interval": self.poke_interval,
             },
         )
 
@@ -95,26 +90,23 @@ class HttpTrigger(BaseTrigger):
             http_conn_id=self.http_conn_id,
             auth_type=self.auth_type,
         )
-        while True:
-            try:
-                client_response = await hook.run(
-                    endpoint=self.endpoint,
-                    data=self.data,
-                    headers=self.headers,
-                    extra_options=self.extra_options,
-                )
-                response = await self._convert_response(client_response)
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-                    }
-                )
-            except AirflowException as exc:
-                if str(exc).startswith("404"):
-                    await asyncio.sleep(self.poke_interval)
-            except Exception as e:
-                yield TriggerEvent({"status": "error", "message": str(e)})
+        try:
+            client_response = await hook.run(
+                endpoint=self.endpoint,
+                data=self.data,
+                headers=self.headers,
+                extra_options=self.extra_options,
+            )
+            response = await self._convert_response(client_response)
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                }
+            )
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+            # yield TriggerEvent({"status": "error", "message": str(traceback.format_exc())})
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
