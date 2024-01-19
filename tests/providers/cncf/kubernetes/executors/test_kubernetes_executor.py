@@ -265,10 +265,11 @@ class TestKubernetesExecutor:
     @pytest.mark.parametrize(
         "status, should_requeue",
         [
-            pytest.param(403, True, id="403 Forbidden"),
-            pytest.param(12345, True, id="12345 fake-unhandled-reason"),
-            pytest.param(422, False, id="422 Unprocessable Entity"),
             pytest.param(400, False, id="400 BadRequest"),
+            pytest.param(403, False, id="403 Forbidden"),
+            pytest.param(404, False, id="404 Not Found"),
+            pytest.param(422, False, id="422 Unprocessable Entity"),
+            pytest.param(12345, True, id="12345 fake-unhandled-reason"),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -277,17 +278,22 @@ class TestKubernetesExecutor:
         self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
     ):
         """
-        When pod scheduling fails with either reason 'Forbidden', or any reason not yet
+        When pod scheduling fails with any reason not yet
         handled in the relevant try-except block, the task should stay in the ``task_queue``
         and be attempted on a subsequent executor sync.  When reason is 'Unprocessable Entity'
         or 'BadRequest', the task should be failed without being re-queued.
 
         Note on error scenarios:
 
-        - 403 Forbidden will be returned when your request exceeds namespace quota.
-        - 422 Unprocessable Entity is returned when your parameters are valid but unsupported
-            e.g. limits lower than requests.
-        - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
+        - 400 BadRequest will returns in scenarios like
+            - your request parameters are invalid e.g. asking for cpu=100ABC123.
+        - 403 Forbidden will returns in scenarios like
+            - your request exceeds the namespace quota
+            - scheduler role doesn't have permission to launch the pod
+        - 404 Not Found will returns in scenarios like
+            - your requested namespace doesn't exists
+        - 422 Unprocessable Entity will returns in scenarios like
+            - your request parameters are valid but unsupported e.g. limits lower than requests.
 
         """
         path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
