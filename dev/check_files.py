@@ -131,7 +131,7 @@ def check_release(files: list[str], version: str):
 
     expected_files = expand_name_variations(
         [
-            f"apache-airflow-{version}.tar.gz",
+            f"apache_airflow-{version}.tar.gz",
             f"apache-airflow-{version}-source.tar.gz",
             f"apache_airflow-{version}-py3-none-any.whl",
         ]
@@ -247,31 +247,31 @@ if __name__ == "__main__":
 def test_check_release_pass():
     """Passes if all present"""
     files = [
-        "apache_airflow-2.2.1-py3-none-any.whl",
-        "apache_airflow-2.2.1-py3-none-any.whl.asc",
-        "apache_airflow-2.2.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.2.1-source.tar.gz",
-        "apache-airflow-2.2.1-source.tar.gz.asc",
-        "apache-airflow-2.2.1-source.tar.gz.sha512",
-        "apache-airflow-2.2.1.tar.gz",
-        "apache-airflow-2.2.1.tar.gz.asc",
-        "apache-airflow-2.2.1.tar.gz.sha512",
+        "apache_airflow-2.8.1-py3-none-any.whl",
+        "apache_airflow-2.8.1-py3-none-any.whl.asc",
+        "apache_airflow-2.8.1-py3-none-any.whl.sha512",
+        "apache-airflow-2.8.1-source.tar.gz",
+        "apache-airflow-2.8.1-source.tar.gz.asc",
+        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1.tar.gz",
+        "apache_airflow-2.8.1.tar.gz.asc",
+        "apache_airflow-2.8.1.tar.gz.sha512",
     ]
-    assert check_release(files, version="2.2.1rc2") == []
+    assert check_release(files, version="2.8.1rc2") == []
 
 
 def test_check_release_fail():
     """Fails if missing one"""
     files = [
-        "apache_airflow-2.2.1-py3-none-any.whl",
-        "apache_airflow-2.2.1-py3-none-any.whl.asc",
-        "apache_airflow-2.2.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.2.1-source.tar.gz",
-        "apache-airflow-2.2.1-source.tar.gz.asc",
-        "apache-airflow-2.2.1-source.tar.gz.sha512",
-        "apache-airflow-2.2.1.tar.gz.asc",
-        "apache-airflow-2.2.1.tar.gz.sha512",
+        "apache_airflow-2.8.1-py3-none-any.whl",
+        "apache_airflow-2.8.1-py3-none-any.whl.asc",
+        "apache_airflow-2.8.1-py3-none-any.whl.sha512",
+        "apache-airflow-2.8.1-source.tar.gz",
+        "apache-airflow-2.8.1-source.tar.gz.asc",
+        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1.tar.gz.asc",
+        "apache_airflow-2.8.1.tar.gz.sha512",
     ]
 
-    missing_files = check_release(files, version="2.2.1rc2")
-    assert missing_files == ["apache-airflow-2.2.1.tar.gz"]
+    missing_files = check_release(files, version="2.8.1rc2")
+    assert missing_files == ["apache_airflow-2.8.1.tar.gz"]
