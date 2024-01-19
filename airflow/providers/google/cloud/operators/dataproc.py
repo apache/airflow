@@ -721,6 +721,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> dict:
         self.log.info("Creating cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
         # Save data required to display extra link no matter what the cluster status will be
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -731,6 +732,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
                 region=self.region,
             )
+
         try:
             # First try to create a new cluster
             operation = self._create_cluster(hook)
@@ -741,17 +743,24 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 self.log.info("Cluster created.")
                 return Cluster.to_dict(cluster)
             else:
-                self.defer(
-                    trigger=DataprocClusterTrigger(
-                        cluster_name=self.cluster_name,
-                        project_id=self.project_id,
-                        region=self.region,
-                        gcp_conn_id=self.gcp_conn_id,
-                        impersonation_chain=self.impersonation_chain,
-                        polling_interval_seconds=self.polling_interval_seconds,
-                    ),
-                    method_name="execute_complete",
+                cluster = hook.get_cluster(
+                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
                 )
+                if cluster.status.state == cluster.status.State.RUNNING:
+                    self.log.info("Cluster created.")
+                    return Cluster.to_dict(cluster)
+                else:
+                    self.defer(
+                        trigger=DataprocClusterTrigger(
+                            cluster_name=self.cluster_name,
+                            project_id=self.project_id,
+                            region=self.region,
+                            gcp_conn_id=self.gcp_conn_id,
+                            impersonation_chain=self.impersonation_chain,
+                            polling_interval_seconds=self.polling_interval_seconds,
+                        ),
+                        method_name="execute_complete",
+                    )
         except AlreadyExists:
             if not self.use_if_exists:
                 raise
@@ -1016,6 +1025,16 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Cluster deleted.")
         else:
+            try:
+                hook.get_cluster(
+                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+                )
+            except NotFound:
+                self.log.info("Cluster deleted.")
+                return
+            except Exception as e:
+                raise AirflowException(str(e))
+
             end_time: float = time.time() + self.timeout
             self.defer(
                 trigger=DataprocDeleteClusterTrigger(
@@ -2480,17 +2499,23 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
         else:
-            self.defer(
-                trigger=DataprocClusterTrigger(
-                    cluster_name=self.cluster_name,
-                    project_id=self.project_id,
-                    region=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_interval_seconds=self.polling_interval_seconds,
-                ),
-                method_name="execute_complete",
+            cluster = hook.get_cluster(
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
+            if cluster.status.state == cluster.status.State.RUNNING:
+                self.log.info("Updated %s cluster.", self.cluster_name)
+            else:
+                self.defer(
+                    trigger=DataprocClusterTrigger(
+                        cluster_name=self.cluster_name,
+                        project_id=self.project_id,
+                        region=self.region,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        polling_interval_seconds=self.polling_interval_seconds,
+                    ),
+                    method_name="execute_complete",
+                )
         self.log.info("Updated %s cluster.", self.cluster_name)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
