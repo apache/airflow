@@ -1336,7 +1336,11 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
-def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+def parse_json_from_gcs(
+    gcp_conn_id: str,
+    file_uri: str,
+    impersonation_chain: str | Sequence[str] | None = None,
+) -> Any:
     """
     Downloads and parses json file from Google cloud Storage.
 
@@ -1344,7 +1348,10 @@ def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
     :param file_uri: full path to json file
         example: ``gs://test-bucket/dir1/dir2/file``
     """
-    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    gcs_hook = GCSHook(
+        gcp_conn_id=gcp_conn_id,
+        impersonation_chain=impersonation_chain,
+    )
     bucket, blob = _parse_gcs_url(file_uri)
     with NamedTemporaryFile(mode="w+b") as file:
         try:
