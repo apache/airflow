@@ -1069,6 +1069,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 project_id=self.job_project_id or hook.project_id,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
+                impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
         )
