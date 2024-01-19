@@ -77,7 +77,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         presto_conn_id: str = "presto_default",
         mysql_conn_id: str = "airflow_db",
         ds: str = "{{ ds }}",
-        dttm: str = "{{ execution_date.isoformat() }}",
+        dttm: str = "{{ logical_date.isoformat() }}",
         **kwargs: Any,
     ) -> None:
         if "col_blacklist" in kwargs:
