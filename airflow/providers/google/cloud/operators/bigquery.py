@@ -2877,6 +2877,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                         job_id=self.job_id,
                         project_id=self.project_id,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
