@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSk
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
-from airflow.providers.http.triggers.http_sensor import HttpSensorTrigger
+from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test

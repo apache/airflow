@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.providers.http.triggers.http_sensor import HttpSensorTrigger
+from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
