@@ -36,7 +36,6 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = "unit_test_dag"
-MODULE = "airflow.providers.http.sensor.http"
 
 
 class TestHttpSensor:
