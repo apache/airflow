@@ -104,7 +104,7 @@ jobs:
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
-      mypy-packages: ${{ steps.selective-checks.outputs.mypy-packages }}
+      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
       needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
@@ -378,9 +378,9 @@ jobs:
           FORCE_COLOR: 2
 
 
-  test-openapi-client-generation:
+  test-openapi-client:
     timeout-minutes: 10
-    name: "Test OpenAPI client generation"
+    name: "Test OpenAPI client"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
@@ -392,8 +392,67 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Generate client codegen diff"
-        run: ./scripts/ci/openapi/client_codegen_diff.sh
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          repository: "apache/airflow-client-python"
+          fetch-depth: 1
+          persist-credentials: false
+          path: ./airflow-client-python
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Generate client with breeze"
+        run: >
+          breeze release-management prepare-python-client --package-format both
+          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+      - name: "Show diff"
+        run: git diff --color HEAD
+        working-directory: ./airflow-client-python
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pipx
+          pipx install hatch
+      - name: Run tests
+        run: hatch run run-coverage
+        env:
+          HATCH_ENV: "test"
+        working-directory: ./clients/python
+      - name: "Install Airflow in editable mode with fab for webserver tests"
+        run: pip install -e ".[fab]"
+      - name: "Install Python client"
+        run: pip install ./dist/apache_airflow_client-*.whl
+      - name: "Initialize Airflow DB and start webserver"
+        run: |
+          airflow db init
+          # Let scheduler runs a few loops and get all DAG files from example DAGs serialized to DB
+          airflow scheduler --num-runs 100
+          airflow users create --username admin --password admin --firstname Admin --lastname Admin \
+             --role Admin --email admin@example.org
+          killall python || true  # just in case there is a webserver running in the background
+          nohup airflow webserver --port 8080 &
+          echo "Started webserver"
+        env:
+          AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+          AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+          AIRFLOW__CORE__LOAD_EXAMPLES: "True"
+      - name: "Waiting for the webserver to be available"
+        run: |
+          timeout 30 bash -c 'until nc -z $0 $1; do echo "sleeping"; sleep 1; done' localhost 8080
+          sleep 5
+      - name: "Run test python client"
+        run: python ./clients/python/test_python_client.py
+        env:
+          FORCE_COLOR: "standard"
+      - name: "Stop running webserver"
+        run: killall python || true  # just in case there is a webserver running in the background
+        if: always()
+      - name: "Upload python client packages"
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-client-packages
+          path: ./dist/apache_airflow_client-*
+          retention-days: 7
+          if-no-files-found: error
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -561,7 +620,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mypy-package: ${{fromJson(needs.build-info.outputs.mypy-packages)}}
+        mypy-folder: ${{fromJson(needs.build-info.outputs.mypy-folders)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
@@ -589,17 +648,17 @@ jobs:
           restore-keys: |
             pre-commit-${{steps.breeze.outputs.host-python-version}}-
         if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "MyPy checks for ${{ matrix.mypy-package }}"
+      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
         run: |
           pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual mypy --all-files
+          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
-          MYPY_PACKAGES: ${{ matrix.mypy-package }}
+
         if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
@@ -775,12 +834,10 @@ jobs:
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
           --non-interactive
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --version-suffix-for-pypi dev0 --package-format wheel
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
@@ -803,25 +860,11 @@ jobs:
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-        env:
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Install affected provider packages and airflow via wheel files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference default
-          --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
           AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
         run: >
-          breeze release-management prepare-provider-packages --skip-tag-check
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          breeze release-management prepare-provider-packages --skip-tag-check --package-format wheel
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -916,7 +959,7 @@ jobs:
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --package-format wheel
       - name: >
           Remove incompatible Airflow
           ${{matrix.airflow-version}}:Python ${{matrix.python-version}} provider packages
@@ -937,19 +980,6 @@ jobs:
           --use-airflow-version wheel
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: >
-          Install affected provider packages and airflow on
-          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
-          --providers-skip-constraints
-          --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -2227,7 +2257,7 @@ jobs:
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
   push-buildx-cache-to-github-registry:
-    timeout-minutes: 50
+    timeout-minutes: 120
     name: "Push Image Cache"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:

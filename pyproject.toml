@@ -92,7 +92,9 @@ dependencies = [
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=1.5.0",
-    "flask-session>=0.4.0",
+    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    "flask-session>=0.4.0,<0.6",
     "flask-wtf>=0.15",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
@@ -549,6 +551,7 @@ amazon = [
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "PyAthena>=3.0.10",
 ]
 apache-beam = [
   "apache-beam>=2.53.0",
@@ -614,7 +617,8 @@ asana = [
   "asana>=0.10,<4.0.0",
 ]
 atlassian-jira = [
-  "atlassian-python-api>=1.14.2",
+  "atlassian-python-api>=1.14.2,!=3.41.6",
+  "beautifulsoup4",
 ]
 celery = [
   "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
@@ -755,7 +759,7 @@ grpc = [
   "grpcio>=1.15.0",
 ]
 hashicorp = [
-  "hvac>=0.10",
+  "hvac>=1.1.0",
 ]
 http = [
   "aiohttp",
@@ -863,7 +867,7 @@ pgvector = [
   "pgvector>=0.2.3",
 ]
 pinecone = [
-  "pinecone-client>=2.2.4",
+  "pinecone-client>=2.2.4,<3.0",
 ]
 postgres = [
   "apache-airflow[common_sql]",

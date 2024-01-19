@@ -523,6 +523,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["on_success_callback"] = value
 
     @property
+    def on_skipped_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_skipped_callback")
+
+    @on_skipped_callback.setter
+    def on_skipped_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_skipped_callback"] = value
+
+    @property
     def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
 

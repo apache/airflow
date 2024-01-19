@@ -421,6 +421,7 @@ paths:
         - $ref: "#/components/parameters/FilterTags"
         - $ref: "#/components/parameters/OnlyActive"
         - $ref: "#/components/parameters/Paused"
+        - $ref: "#/components/parameters/ReturnFields"
         - name: dag_id_pattern
           in: query
           schema:
@@ -497,6 +498,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -733,6 +736,7 @@ paths:
         - $ref: "#/components/parameters/FilterUpdatedAtLTE"
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: List of DAG runs.
@@ -814,6 +818,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_run
       tags: [DAGRun]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -1755,6 +1761,8 @@ paths:
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
         "200":
           description: Success.
@@ -3571,15 +3579,19 @@ components:
           properties:
             timezone:
               $ref: "#/components/schemas/Timezone"
+              nullable: true
             catchup:
               type: boolean
               readOnly: true
+              nullable: true
             orientation:
               type: string
               readOnly: true
+              nullable: true
             concurrency:
               type: number
               readOnly: true
+              nullable: true
             start_date:
               type: string
               format: "date-time"
@@ -3591,6 +3603,7 @@ components:
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
+              nullable: true
             doc_md:
               type: string
               readOnly: true
@@ -5252,6 +5265,16 @@ components:
         A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
+
+    ReturnFields:
+      in: query
+      name: fields
+      schema:
+        type: array
+        items:
+          type: string
+      description: |
+        List of field for return.
 
   # Reusable request bodies
   requestBodies: {}

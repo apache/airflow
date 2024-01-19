@@ -1031,6 +1031,10 @@ class TestAwsBaseHook:
         assert mock_mask_secret.mock_calls == expected_calls
         assert credentials == expected_credentials
 
+    @mock_sts
+    def test_account_id(self):
+        assert AwsBaseHook(aws_conn_id=None).account_id == DEFAULT_ACCOUNT_ID
+
 
 class ThrowErrorUntilCount:
     """Holds counter state for invoking a method several times in a row."""

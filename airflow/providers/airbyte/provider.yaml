@@ -69,6 +69,11 @@ sensors:
     python-modules:
       - airflow.providers.airbyte.sensors.airbyte
 
+triggers:
+  - integration-name: Airbyte
+    python-modules:
+      - airflow.providers.airbyte.triggers.airbyte
+
 connection-types:
   - hook-class-name: airflow.providers.airbyte.hooks.airbyte.AirbyteHook
     connection-type: airbyte

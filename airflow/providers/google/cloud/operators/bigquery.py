@@ -1487,6 +1487,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "`exists_ok` parameter is deprecated, please use `if_exists`",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
@@ -1995,6 +1996,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "`exists_ok` parameter is deprecated, please use `if_exists`",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:

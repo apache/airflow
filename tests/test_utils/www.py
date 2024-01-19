@@ -39,6 +39,13 @@ def client_without_login(app):
     return client
 
 
+def client_without_login_as_admin(app):
+    # Anonymous users as Admin if set AUTH_ROLE_PUBLIC=Admin
+    app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+    client = app.test_client()
+    return client
+
+
 def check_content_in_response(text, resp, resp_code=200):
     resp_html = resp.data.decode("utf-8")
     assert resp_code == resp.status_code

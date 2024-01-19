@@ -128,7 +128,6 @@ from airflow.utils.sqlalchemy import (
     Interval,
     UtcDateTime,
     lock_rows,
-    skip_locked,
     tuple_in_condition,
     with_row_locks,
 )
@@ -1466,6 +1465,8 @@ class DAG(LoggingMixin):
             # context for the callback.
             if dag.partial:
                 tis = [ti for ti in tis if not ti.state == State.NONE]
+            # filter out removed tasks
+            tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -3787,7 +3788,7 @@ class DagModel(Base):
         )
 
         return (
-            session.scalars(with_row_locks(query, of=cls, session=session, **skip_locked(session=session))),
+            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
             dataset_triggered_dag_info,
         )
 

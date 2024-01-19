@@ -95,6 +95,16 @@ repos:
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
+        name: Add license for all toml files
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        files: \.toml$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - scripts/ci/license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
         name: Add license for all Python files
         exclude: ^\.github/.*$|^.*/.*_vendor/
         files: \.py$|\.pyi$
@@ -1093,20 +1103,47 @@ repos:
         files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-core
-        name: Run mypy for core
+      - id: mypy-dev
+        stages: [ 'manual' ]
+        name: Run mypy for dev (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py dev
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: [ 'rich>=12.4.4' ]
+      - id: mypy-airflow
+        name: Run mypy for airflow
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflow
+        stages: [ 'manual' ]
+        name: Run mypy for airflow (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py airflow
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: mypy-providers
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-providers
+        stages: ['manual']
+        name: Run mypy for providers (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py airflow/providers
+        pass_filenames: false
+        files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-docs
@@ -1117,11 +1154,11 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy
+      - id: mypy-docs
         stages: ['manual']
-        name: Run mypy for specified packages (manual)
+        name: Run mypy for /docs/ folder (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy_folder.py docs
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

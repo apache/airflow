@@ -895,10 +895,10 @@ describe your problem.
     run Breeze with no problems.
 
 
-ETIMEOUT Error
+ETIMEDOUT Error
 --------------
 
-When running ``breeze start-airflow``, the following output might be observed:
+When running ``breeze start-airflow``, either normally or in ``dev-mode``, the following output might be observed:
 
 .. code-block:: bash
 
@@ -942,7 +942,7 @@ could be 3-4.
   export ASSET_COMPILATION_WAIT_MULTIPLIER=3
 
 This error is actually caused by the following error during the asset compilation which resulted in
-ETIMEOUT when ``npm`` command is trying to install required packages:
+``ETIMEDOUT`` when ``npm`` command is trying to install required packages:
 
 .. code-block:: bash
 
@@ -962,6 +962,20 @@ In this case, disabling IPv6 in the host machine and using IPv4 instead resolved
 
 The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
 blocked by it, or your proxy setting has not been done properly.
+
+It could also be possible that you have a proxy which is not available from your network, leading to the timeout
+issue. You may try running the below commands in the same terminal and then try the ``breeze start-airflow`` command:
+
+.. code-block::
+
+    npm config delete http-proxy
+    npm config delete https-proxy
+
+    npm config rm proxy
+    npm config rm https-proxy
+
+    set HTTP_PROXY=null
+    set HTTPS_PROXY=null
 
 Advanced commands
 =================
@@ -2048,6 +2062,28 @@ When we prepare final release, we automate some of the steps we need to do.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_start-rc-process.svg
   :width: 100%
   :alt: Breeze release-management start-rc-process
+
+
+Preparing Python Clients
+""""""""""""""""""""""""
+
+The **Python client** source code can be generated and Python client packages could be built. For that you
+need to have python client's repository checked out
+
+
+.. code-block:: bash
+
+     breeze release-management prepare-python-client --python-client-repo ~/code/airflow-client-python
+
+You can also generate python client with custom security schemes.
+
+These are all of the available flags for the command:
+
+.. image:: ./images/breeze/output_release-management_prepare-python-client.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-python-client.svg
+  :width: 100%
+  :alt: Breeze release management prepare Python client
+
 
 Releasing Production images
 """""""""""""""""""""""""""
