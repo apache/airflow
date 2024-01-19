@@ -15,7 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base operator for all operators."""
+"""
+Base operator for all operators.
+
+:sphinx-autoapi-skip:
+"""
 from __future__ import annotations
 
 import abc
