@@ -225,6 +225,7 @@ class KubernetesPodOperator(BaseOperator):
         "volumes",
         "volume_mounts",
         "cluster_context",
+        "configmaps",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -306,8 +307,9 @@ class KubernetesPodOperator(BaseOperator):
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
         self.env_from = env_from or []
-        if configmaps:
-            self.env_from.extend([convert_configmap(c) for c in configmaps])
+        self.configmaps = configmaps
+        if self.configmaps:
+            self.env_from.extend([convert_configmap(c) for c in self.configmaps])
         self.ports = [convert_port(p) for p in ports] if ports else []
         self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
         self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
@@ -403,11 +405,13 @@ class KubernetesPodOperator(BaseOperator):
             elif isinstance(content, k8s.V1ResourceRequirements):
                 template_fields = ("limits", "requests")
             elif isinstance(content, k8s.V1Volume):
-                template_fields = ("name", "persistent_volume_claim")
+                template_fields = ("name", "persistent_volume_claim", "config_map")
             elif isinstance(content, k8s.V1VolumeMount):
                 template_fields = ("name", "sub_path")
             elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
+            elif isinstance(content, k8s.V1ConfigMapVolumeSource):
+                template_fields = ("name",)
             else:
                 template_fields = None
 
