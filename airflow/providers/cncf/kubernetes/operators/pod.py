@@ -575,15 +575,10 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod, istio_enabled, self.base_container_name
             )
         finally:
-            try:
-                self.cleanup(
-                    pod=self.pod or self.pod_request_obj,
-                    remote_pod=self.remote_pod,
-                )
-            except Exception:
-                # If task got marked as failed, it should not raise exception (which might cause retry).
-                if not self._killed:
-                    raise
+            self.cleanup(
+                pod=self.pod or self.pod_request_obj,
+                remote_pod=self.remote_pod,
+            )
 
         if self.do_xcom_push:
             return result
@@ -678,17 +673,17 @@ class KubernetesPodOperator(BaseOperator):
 
     def post_complete_action(self, *, pod, remote_pod, **kwargs):
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
-        try:
-            self.cleanup(
-                pod=pod,
-                remote_pod=remote_pod,
-            )
-        except Exception:
-            # If task got marked as failed, it should not raise exception (which might cause retry).
-            if not self._killed:
-                raise
+        self.cleanup(
+            pod=pod,
+            remote_pod=remote_pod,
+        )
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
+        # there. Cleaning it up again will raise an exception (which might cause retry).
+        if self._killed:
+            return
+
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
