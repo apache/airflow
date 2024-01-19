@@ -668,7 +668,8 @@ class TestGKEStartJobOperator:
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
-    def test_execute(self, fetch_cluster_info_mock, file_mock, exec_mock):
+    @mock.patch(GKE_HOOK_PATH)
+    def test_execute(self, mock_hook, fetch_cluster_info_mock, file_mock, exec_mock):
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
         self.gke_op.execute(context=mock.MagicMock())
         fetch_cluster_info_mock.assert_called_once()
@@ -694,8 +695,9 @@ class TestGKEStartJobOperator:
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
     def test_execute_with_impersonation_service_account(
-        self, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
+        self, mock_hook, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
     ):
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
         self.gke_op.impersonation_chain = "test_account@example.com"
@@ -710,8 +712,9 @@ class TestGKEStartJobOperator:
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
     def test_execute_with_impersonation_service_chain_one_element(
-        self, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
+        self, mock_hook, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
     ):
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
         self.gke_op.impersonation_chain = ["test_account@example.com"]

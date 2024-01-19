@@ -192,6 +192,7 @@ lot less resources wasted on idle Operators or Sensors:
     :start-after: [START howto_operator_gke_start_pod_xcom_async]
     :end-before: [END howto_operator_gke_start_pod_xcom_async]
 
+
 .. _howto/operator:GKEStartJobOperator:
 
 Run a Job on a GKE cluster

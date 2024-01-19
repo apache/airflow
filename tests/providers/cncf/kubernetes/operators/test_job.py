@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from unittest.mock import patch
 
 import pendulum
 import pytest
@@ -29,6 +30,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.job.KubernetesHook"
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -64,6 +66,15 @@ def create_context(task, persist_to_db=False, map_index=None):
 
 @pytest.mark.execution_timeout(300)
 class TestKubernetesJobOperator:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_mock = self._default_client_patch.start()
+
+        yield
+
+        patch.stopall()
+
     def test_templates(self, create_task_instance_of_operator):
         dag_id = "TestKubernetesJobOperator"
         ti = create_task_instance_of_operator(
