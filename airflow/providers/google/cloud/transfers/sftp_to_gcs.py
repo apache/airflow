@@ -71,10 +71,10 @@ class SFTPToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
     :param use_stream: Determines the method of file transfer between SFTP and GCS.
-    - If set to False (default), the file is downloaded to the worker's local storage and 
-      then uploaded to GCS. This may require significant disk space on the worker for large files.
-    - If set to True, the file is streamed directly from SFTP to GCS, which does not consume 
-      local disk space on the worker. 
+        - If set to False (default), the file is downloaded to the worker's local storage and 
+          then uploaded to GCS. This may require significant disk space on the worker for large files.
+        - If set to True, the file is streamed directly from SFTP to GCS, which does not consume 
+          local disk space on the worker. 
     :param stream_chunk_size: Size of each chunk read from the source file during streaming. 
         Defaults to 104857600 (100 MB). When set below this default, a custom streaming 
         method is used; otherwise, it defaults to the 'upload_from_file' method from 
