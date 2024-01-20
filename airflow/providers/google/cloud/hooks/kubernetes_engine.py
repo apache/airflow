@@ -352,10 +352,15 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
-        *args,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
 
@@ -440,10 +445,23 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
     sync_hook_class = GKEPodHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 
-    def __init__(self, cluster_url: str, ssl_ca_cert: str, **kwargs) -> None:
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
-        super().__init__(cluster_url=cluster_url, ssl_ca_cert=ssl_ca_cert, **kwargs)
+        super().__init__(
+            cluster_url=cluster_url,
+            ssl_ca_cert=ssl_ca_cert,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     @contextlib.asynccontextmanager
     async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
