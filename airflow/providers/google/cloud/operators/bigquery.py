@@ -2810,7 +2810,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
         except Conflict:
             # If the job already exists retrieve it
-            job: CopyJob | QueryJob | LoadJob | ExtractJob = hook.get_job(
+            job = hook.get_job(
                 project_id=self.project_id,
                 location=self.location,
                 job_id=self.job_id,
@@ -2884,7 +2884,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
             self._handle_job_error(job)
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """Callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
