@@ -384,9 +384,8 @@ class TestHttpSensorAsync:
         mock_execute.assert_called_once()
         mock_defer.assert_not_called()
 
-    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.poke")
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.poke", return_value=False)
     def test_sensor_defer(self, mock_poke):
-        mock_poke.return_value = False
         task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
