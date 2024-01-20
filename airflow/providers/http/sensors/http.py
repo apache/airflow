@@ -177,5 +177,5 @@ class HttpSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: bool | None = None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         self.log.info("%s completed successfully.", self.task_id)
