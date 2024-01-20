@@ -282,7 +282,7 @@ class TestKeda:
 
         docs = render_chart(
             values={
-                "data": {"metadataConnection": {"protocol": "mysql", "port":3306} },
+                "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
                 "workers": {"keda": {"enabled": True}},
                 "executor": "CeleryExecutor",
             },
@@ -302,9 +302,7 @@ class TestKeda:
         assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
         assert "KEDA_DB_CONN" in worker_container_env_vars
 
-        keda_autoscaler_metadata = jmespath.search(
-            "spec.triggers[0].metadata", keda_autoscaler
-        )
+        keda_autoscaler_metadata = jmespath.search("spec.triggers[0].metadata", keda_autoscaler)
         assert "queryValue" in keda_autoscaler_metadata
 
         secret_data = jmespath.search("data", metadata_connection_secret)
