@@ -293,6 +293,31 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local pre-commits are run
     hooks:
+      - id: validate-operators-init
+        name: Prevent templated field logic checks in operators' __init__
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_validate_operators_init.py
+        pass_filenames: true
+        files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
+        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
+        #       https://github.com/apache/airflow/issues/36484
+        exclude: |
+          (?x)^(
+              ^.*__init__\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
+              ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
+              ^airflow\/providers\/databricks\/operators\/databricks\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
+              ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/auto_ml\.py$|
+              ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
+              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
+              ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
+              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
+          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
