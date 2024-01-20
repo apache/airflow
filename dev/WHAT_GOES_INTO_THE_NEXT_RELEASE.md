@@ -28,12 +28,12 @@
 - [What's the role of individual maintainers?](#whats-the-role-of-individual-maintainers)
 - [When proposed PRs are rejected?](#when-proposed-prs-are-rejected)
 - [Why are provider changes not cherry-picked?](#why-are-provider-changes-not-cherry-picked)
-- [What's the purpose of patch-level releases?](#whats-the-purpose-of-patch-level-releases)
-- [Do we intentionally skip over some changes when releasing a patch level release?](#do-we-intentionally-skip-over-some-changes-when-releasing-a-patch-level-release)
+- [What's the purpose of patch releases?](#whats-the-purpose-of-patch-releases)
+- [Do we intentionally skip over some changes when releasing a patch release?](#do-we-intentionally-skip-over-some-changes-when-releasing-a-patch-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-This page describes the context and the process we follow when we create a patch level release.
+This page describes the context and the process we follow when we create a patch release.
 
 # Do we have a process defined here?
 
@@ -50,13 +50,13 @@ The succinct form of it is described in a prominent place in our most important
 # How does the selection process for cherry-picking work?
 
 In short (and this is the most important thing that every maintainer should be aware of):
-**maintainers who think that issue should be included should mark it with the next patch level milestone**
+**maintainers who think that issue should be included should mark it with the next patch milestone**
 
 It's up to individual maintainers who want to include certain changes to take care about it
 and mark the issues they think are bug fixes, to go into the next release
 
 This is the only thing that the maintainer has to do to get the PR proposed to be considered in
-the next patch level release. Sometimes - if controversial - maintainers discuss the proposals in
+the next patch release. Sometimes - if controversial - maintainers discuss the proposals in
 the #release-management channel in Slack, sometimes in #development or in the PR itself -
 especially if the release manager decides to not include it and changes the milestone (and explains why).
 
@@ -87,7 +87,7 @@ In our case it happens with setting the milestone on a PR.
 
 There are various reasons to reject those - if too complex to cherry-pick or when the release manager
 assesses it's a new feature, not a bugfix. Essentially (according to [SemVer](https://semver.org/) when
-it comes to the user-facing changes, the patch level release should contain only bug-fixes. and may
+it comes to the user-facing changes, the patch release should contain only bug-fixes. and may
 contain docs changes if they are fixing/improving docs (not about new features) and also environment/build
 script changes (so non-user-facing changes) as they are pretty much always needed to keep the things
 nicely building - those are usually skipped from the changelog as non-user facing).
@@ -99,31 +99,31 @@ make the builds work well (sometimes happen). Providers are ALWAYS released from
 not from the `v2-*-stable` branch. In fact all the tests and ci checks for providers are skipped in the
 non-main (v2* branches). So yes - not seeing provider changes cherry-picked is absolutely expected.
 
-# What's the purpose of patch-level releases?
+# What's the purpose of patch releases?
 
 The purpose of that release is as described in SemVer - to give the users bug-fix-only release that has no
 new features. Of course it's sometimes debatable whether changes are features/bug-fixes, but we usually use
 the #release-management on Airflow's slack to quickly chat about it, and eventually the release manager
 always makes a comment in the PR when the milestone is changed and explains the reasoning.
 
-Sometimes we also include technically breaking changes in patch level (for example when we fix a security
+Sometimes we also include technically breaking changes in patch release (for example when we fix a security
 issue it often is done in a "breaking" way).
 
 We have to remember that SemVer is a statement of intention and not a technical definition of breaking vs.
 not breaking. As [Hyrum's Law](https://www.hyrumslaw.com/) correctly states: "With a sufficient number
 of users of an API, it does not matter what you promise in the contract: all observable behaviors of
-your system will be depended on by somebody.". Our intention is to keep the patch level releases following
+your system will be depended on by somebody.". Our intention is to keep the patch releases following
 SemVer intentions as much as possible, but we also have to be pragmatic and sometimes we have to break the
 [Public Interface of Airflow](https://airflow.apache.org/docs/apache-airflow/stable/public-airflow-interface.html)
 to fix things. Those should be rare and deliberate decisions and we should always try to avoid them,
 but sometimes they are needed to either protect our users or to make the code maintainable and we asses
 the likelihood of breaking our user's workflow is low.
 
-# Do we intentionally skip over some changes when releasing a patch level release?
+# Do we intentionally skip over some changes when releasing a patch release?
 
 Skipping is not intentional because we never "skip" things when cherry-picking, It's **reverse** -
 those maintainer who think that certain bug fixes (or internal changes or sometimes even feature changes
-that we classify really as "bugfix" SHOULD intentionally mark those PRs they want with the next `patch-level`
+that we classify really as "bugfix" SHOULD intentionally mark those PRs they want with the next `patch`
 milestone to be included.  So there is no skipping, if maintainer did not deliberately mark PR as
 upcoming milestone, it will just not be included (not skipped). By default all the changes merged to main
 are included in the next `minor` release. See [README](../README.md#what-goes-into-the-next-release) for
