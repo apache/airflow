@@ -101,7 +101,6 @@ class TestGKEStartPodTrigger:
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": SHOULD_DELETE_POD,
-            "callbacks": None,
         }
 
     @pytest.mark.asyncio

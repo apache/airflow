@@ -23,7 +23,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.cloud.container_v1.types import Operation
-from kubernetes_asyncio.client import CoreV1Api
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -33,8 +32,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
-
-    from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -79,7 +76,6 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         *args,
         **kwargs,
     ):
@@ -100,7 +96,6 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
-        self.callbacks = callbacks
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -136,19 +131,15 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
-                "callbacks": self.callbacks,
             },
         )
 
     @cached_property
     def hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
-        _hook = GKEPodAsyncHook(
+        return GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
         )
-        if self.callbacks:
-            self.callbacks.on_async_client_creation(client=CoreV1Api(_hook.get_conn()))
-        return _hook
 
 
 class GKEOperationTrigger(BaseTrigger):

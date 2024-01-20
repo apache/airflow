@@ -207,13 +207,14 @@ parameter.
 The following callbacks are supported:
 
 * on_sync_client_creation: called after creating the sync client
-* on_async_client_creation: called after creating the async client
 * on_pod_creation: called after creating the pod
 * on_pod_starting: called after the pod starts
 * on_pod_completion: called when the pod completes
 * on_pod_cleanup: called after cleaning/deleting the pod
 * on_operator_resuming: when resuming the task from deferred state
 * progress_callback: called on each line of containers logs
+
+Currently, the callbacks methods are not called in the async mode, this support will be added in the future.
 
 Example:
 ~~~~~~~~
@@ -229,7 +230,6 @@ Example:
     class MyCallback(KubernetesPodOperatorCallback):
         @staticmethod
         def on_pod_creation(*, pod: k8s.V1Pod, client: k8s.CoreV1Api, mode: str, **kwargs) -> None:
-            # currently, the pod is always created when the task is running, so the mode is always "sync"
             client.create_namespaced_service(
                 namespace=pod.metadata.namespace,
                 body=k8s.V1Service(
@@ -259,24 +259,6 @@ Example:
                     ),
                 ),
             )
-
-        @staticmethod
-        def on_pod_starting(
-            *, pod: k8s.V1Pod, client: k8s.CoreV1Api | async_k8s.CoreV1Api, mode: str, **kwargs
-        ) -> None:
-            # this callback can be called in sync or async mode, so we need to handle both cases and avoid blocking the event loop
-            import asyncio
-
-            def _some_sync_function():
-                ...
-
-            async def _some_async_function():
-                ...
-
-            if mode == "sync":
-                _some_sync_function()
-            else:
-                asyncio.get_event_loop().run_until_complete(_some_async_function())
 
 
     k = KubernetesPodOperator(

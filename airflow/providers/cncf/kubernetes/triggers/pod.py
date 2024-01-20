@@ -26,7 +26,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -89,7 +88,6 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
-        callbacks: type[KubernetesPodOperatorCallback] | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -104,7 +102,6 @@ class KubernetesPodTrigger(BaseTrigger):
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
-        self.callbacks = callbacks
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -140,14 +137,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 "trigger_start_time": self.trigger_start_time,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
-                "callbacks": self.callbacks,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
-        _is_starting_callback_called = False
         try:
             while True:
                 pod = await self.hook.get_pod(
@@ -162,16 +157,6 @@ class KubernetesPodTrigger(BaseTrigger):
                 self.log.debug("Container %s status: %s", self.base_container_name, container_state)
 
                 if container_state == ContainerState.TERMINATED:
-                    if self.callbacks and not _is_starting_callback_called:
-                        self.callbacks.on_pod_starting(
-                            pod=pod,
-                            client=self._get_async_hook().core_v1_client,
-                            mode=ExecutionMode.ASYNC,
-                        )
-                    if self.callbacks:
-                        self.callbacks.on_pod_completion(
-                            pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
-                        )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -204,28 +189,9 @@ class KubernetesPodTrigger(BaseTrigger):
                             self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
                             await asyncio.sleep(self.startup_check_interval)
                     else:
-                        if self.callbacks and not _is_starting_callback_called:
-                            # if the trigger fails and re-run on a different triggerer, this callback could
-                            # be called again
-                            self.callbacks.on_pod_starting(
-                                pod=pod,
-                                client=self._get_async_hook().core_v1_client,
-                                mode=ExecutionMode.ASYNC,
-                            )
-                            _is_starting_callback_called = True
                         self.log.info("Sleeping for %s seconds.", self.poll_interval)
                         await asyncio.sleep(self.poll_interval)
                 else:
-                    if self.callbacks and not _is_starting_callback_called:
-                        self.callbacks.on_pod_starting(
-                            pod=pod,
-                            client=self._get_async_hook().core_v1_client,
-                            mode=ExecutionMode.ASYNC,
-                        )
-                    if self.callbacks:
-                        self.callbacks.on_pod_completion(
-                            pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
-                        )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -249,12 +215,6 @@ class KubernetesPodTrigger(BaseTrigger):
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
-            if self.callbacks:
-                self.callbacks.on_pod_cleanup(
-                    pod=await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace),
-                    client=self._get_async_hook().core_v1_client,
-                    mode=ExecutionMode.ASYNC,
-                )
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -277,15 +237,12 @@ class KubernetesPodTrigger(BaseTrigger):
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
         # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
-        _hook = AsyncKubernetesHook(
+        return AsyncKubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        if self.callbacks:
-            self.callbacks.on_async_client_creation(client=_hook.core_v1_client)
-        return _hook
 
     @cached_property
     def hook(self) -> AsyncKubernetesHook:

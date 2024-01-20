@@ -33,21 +33,17 @@ class ExecutionMode(str, Enum):
 
 
 class KubernetesPodOperatorCallback:
-    """`KubernetesPodOperator` callbacks methods."""
+    """`KubernetesPodOperator` callbacks methods.
+
+    Currently, the callbacks methods are not called in the async mode, this support will be added
+    in the future.
+    """
 
     @staticmethod
     def on_sync_client_creation(*, client: k8s.CoreV1Api, **kwargs) -> None:
         """Callback method called after creating the sync client.
 
         :param client: the created `kubernetes.client.CoreV1Api` client.
-        """
-        pass
-
-    @staticmethod
-    def on_async_client_creation(*, client: async_k8s.CoreV1Api, **kwargs) -> None:
-        """Callback method called after creating the async client.
-
-        :param client: the created `kubernetes_asyncio.client.CoreV1Api` client.
         """
         pass
 

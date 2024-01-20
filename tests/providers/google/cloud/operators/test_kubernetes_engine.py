@@ -25,7 +25,6 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
@@ -441,8 +440,6 @@ class TestGKEPodOperatorAsync:
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
     @mock.patch.dict(os.environ, {})
-    @mock.patch(KUB_OP_PATH.format("client"))
-    @mock.patch(KUB_OP_PATH.format("find_pod"))
     @mock.patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @mock.patch(KUB_OP_PATH.format("get_or_create_pod"))
     @mock.patch(
@@ -451,13 +448,7 @@ class TestGKEPodOperatorAsync:
     )
     @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self,
-        fetch_cluster_info_mock,
-        get_con_mock,
-        mocked_pod,
-        mocked_pod_obj,
-        mocked_found_pod,
-        mocked_client,
+        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj
     ):
         """
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired
@@ -466,7 +457,6 @@ class TestGKEPodOperatorAsync:
         with pytest.raises(TaskDeferred) as exc:
             self.gke_op._cluster_url = CLUSTER_URL
             self.gke_op._ssl_ca_cert = SSL_CA_CERT
-            self.gke_op.callbacks = KubernetesPodOperatorCallback
             self.gke_op.execute(context=mock.MagicMock())
             fetch_cluster_info_mock.assert_called_once()
         assert isinstance(exc.value.trigger, GKEStartPodTrigger)

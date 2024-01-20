@@ -47,10 +47,6 @@ BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
 
 
-async def async_mock():
-    return mock.MagicMock()
-
-
 @pytest.fixture
 def trigger():
     return KubernetesPodTrigger(
@@ -94,7 +90,6 @@ class TestKubernetesPodTrigger:
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
-            "callbacks": None,
         }
 
     @pytest.mark.asyncio
@@ -224,7 +219,7 @@ class TestKubernetesPodTrigger:
         Test that KubernetesPodTrigger fires the correct event in case if the task was cancelled.
         """
 
-        mock_hook.get_pod.side_effect = [CancelledError(), async_mock()]
+        mock_hook.get_pod.side_effect = CancelledError()
         mock_hook.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 
@@ -270,7 +265,7 @@ class TestKubernetesPodTrigger:
         Test that KubernetesPodTrigger fires the correct event if the task was cancelled.
         """
 
-        mock_hook.get_pod.side_effect = [CancelledError(), async_mock()]
+        mock_hook.get_pod.side_effect = CancelledError()
         mock_hook.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 
@@ -376,56 +371,3 @@ class TestKubernetesPodTrigger:
             )
             == actual
         )
-
-    @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
-    async def test_callbacks(self, mock_hook, mock_method):
-        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
-
-        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
-
-        MockWrapper.reset()
-        mock_callbacks = MockWrapper.mock_callbacks
-
-        pods_mock = [
-            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.PENDING))),
-            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.RUNNING))),
-            self._mock_pod_result(mock.MagicMock(status=mock.MagicMock(phase=PodPhase.SUCCEEDED))),
-        ]
-        mock_hook.return_value.get_pod.side_effect = pods_mock
-        mock_method.side_effect = [ContainerState.WAITING, ContainerState.RUNNING, ContainerState.TERMINATED]
-
-        k = KubernetesPodTrigger(
-            pod_name=POD_NAME,
-            pod_namespace=NAMESPACE,
-            base_container_name=BASE_CONTAINER_NAME,
-            kubernetes_conn_id=CONN_ID,
-            poll_interval=0,
-            cluster_context=CLUSTER_CONTEXT,
-            config_file=CONFIG_FILE,
-            in_cluster=IN_CLUSTER,
-            get_logs=GET_LOGS,
-            startup_timeout=STARTUP_TIMEOUT_SECS,
-            trigger_start_time=TRIGGER_START_TIME,
-            on_finish_action=ON_FINISH_ACTION,
-            callbacks=MockKubernetesPodOperatorCallback,
-            startup_check_interval=0,
-        )
-        await k.run().asend(None)
-
-        # check on_pod_starting callback
-        mock_callbacks.on_pod_starting.assert_called_once()
-        assert mock_callbacks.on_pod_starting.call_args.kwargs == {
-            "client": k._get_async_hook().core_v1_client,
-            "mode": ExecutionMode.ASYNC,
-            "pod": pods_mock[1].result(),
-        }
-
-        # check on_pod_completion callback
-        mock_callbacks.on_pod_completion.assert_called_once()
-        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
-            "client": k._get_async_hook().core_v1_client,
-            "mode": ExecutionMode.ASYNC,
-            "pod": pods_mock[2].result(),
-        }

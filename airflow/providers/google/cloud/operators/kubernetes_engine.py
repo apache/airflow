@@ -485,6 +485,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
@@ -576,7 +577,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 in_cluster=self.in_cluster,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action,
-                callbacks=self.callbacks,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
