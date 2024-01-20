@@ -710,6 +710,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if state == TaskInstanceState.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
+                session.commit()
                 continue
 
             msg = (
