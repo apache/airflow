@@ -70,7 +70,8 @@ classifiers = [
 dependencies = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
-    "alembic>=1.6.3, <2.0",
+    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
+    "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref",
     "attrs>=22.1.0",

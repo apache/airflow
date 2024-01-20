@@ -538,6 +538,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             gcp_conn_id=self.gcp_conn_id,
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            impersonation_chain=self.impersonation_chain,
         )
         return hook
 
@@ -577,6 +578,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 in_cluster=self.in_cluster,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},

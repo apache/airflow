@@ -312,6 +312,8 @@ class TestGKEPodAsyncHook:
         return GKEPodAsyncHook(
             cluster_url=CLUSTER_URL,
             ssl_ca_cert=SSL_CA_CERT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATE_CHAIN,
         )
 
     @pytest.mark.asyncio
@@ -405,7 +407,12 @@ class TestGKEPodHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEPodHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEPodHook(
+                gcp_conn_id="test",
+                impersonation_chain=IMPERSONATE_CHAIN,
+                ssl_ca_cert=None,
+                cluster_url=None,
+            )
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
