@@ -49,6 +49,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
@@ -198,7 +199,10 @@ class KubernetesPodOperator(BaseOperator):
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
         in V1PodSpec.
+    :param callbacks: KubernetesPodOperatorCallback instance contains the callbacks methods on different step
+        of KubernetesPodOperator.
     :param progress_callback: Callback function for receiving k8s container logs.
+        `progress_callback` is deprecated, please use :param `callbacks` instead.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -290,6 +294,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
@@ -381,6 +386,7 @@ class KubernetesPodOperator(BaseOperator):
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
+        self.callbacks = callbacks
         self._killed: bool = False
 
     @cached_property
@@ -459,7 +465,9 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client, progress_callback=self._progress_callback)
+        return PodManager(
+            kube_client=self.client, callbacks=self.callbacks, progress_callback=self._progress_callback
+        )
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -473,7 +481,10 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def client(self) -> CoreV1Api:
-        return self.hook.core_v1_client
+        client = self.hook.core_v1_client
+        if self.callbacks:
+            self.callbacks.on_sync_client_creation(client=client)
+        return client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
         """Return an already-running pod for this task instance if one exists."""
@@ -552,7 +563,17 @@ class KubernetesPodOperator(BaseOperator):
 
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
+            if self.callbacks:
+                self.callbacks.on_pod_creation(
+                    pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
+                )
             self.await_pod_start(pod=self.pod)
+            if self.callbacks:
+                self.callbacks.on_pod_starting(
+                    pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                )
 
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
@@ -566,6 +587,12 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.base_container_name
                 )
+            if self.callbacks:
+                self.callbacks.on_pod_completion(
+                    pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                )
 
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
@@ -575,10 +602,13 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod, istio_enabled, self.base_container_name
             )
         finally:
+            pod_to_clean = self.pod or self.pod_request_obj
             self.cleanup(
-                pod=self.pod or self.pod_request_obj,
+                pod=pod_to_clean,
                 remote_pod=self.remote_pod,
             )
+            if self.callbacks:
+                self.callbacks.on_pod_cleanup(pod=pod_to_clean, client=self.client, mode=ExecutionMode.SYNC)
 
         if self.do_xcom_push:
             return result
@@ -589,6 +619,12 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
+        if self.callbacks:
+            self.callbacks.on_pod_creation(
+                pod=self.find_pod(self.pod.metadata.namespace, context=context),
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+            )
         ti = context["ti"]
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
@@ -625,6 +661,10 @@ class KubernetesPodOperator(BaseOperator):
                 event["name"],
                 event["namespace"],
             )
+            if self.callbacks:
+                self.callbacks.on_operator_resuming(
+                    pod=pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                )
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
@@ -677,6 +717,8 @@ class KubernetesPodOperator(BaseOperator):
             pod=pod,
             remote_pod=remote_pod,
         )
+        if self.callbacks:
+            self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up

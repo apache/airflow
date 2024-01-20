@@ -1446,6 +1446,119 @@ class TestKubernetesPodOperator:
         # check that we wait for the xcom sidecar to start before extracting XCom
         mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("find_pod"))
+    def test_execute_sync_callbacks(self, find_pod_mock):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        found_pods = [MagicMock(), MagicMock(), MagicMock()]
+        find_pod_mock.side_effect = [None] + found_pods
+
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        self.run_pod(k)
+
+        # check on_sync_client_creation callback
+        mock_callbacks.on_sync_client_creation.assert_called_once()
+        assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client}
+
+        # check on_pod_creation callback
+        mock_callbacks.on_pod_creation.assert_called_once()
+        assert mock_callbacks.on_pod_creation.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[0],
+        }
+
+        # check on_pod_starting callback
+        mock_callbacks.on_pod_starting.assert_called_once()
+        assert mock_callbacks.on_pod_starting.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[1],
+        }
+
+        # check on_pod_completion callback
+        mock_callbacks.on_pod_completion.assert_called_once()
+        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+        }
+
+        # check on_pod_cleanup callback
+        mock_callbacks.on_pod_cleanup.assert_called_once()
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": k.pod,
+        }
+
+    @patch(HOOK_CLASS, new=MagicMock)
+    def test_execute_async_callbacks(self):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        k.execute_complete(
+            context=create_context(k),
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+
+        # check on_operator_resuming callback
+        mock_callbacks.on_pod_cleanup.assert_called_once()
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+        }
+
+        # check on_pod_cleanup callback
+        mock_callbacks.on_pod_cleanup.assert_called_once()
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+        }
+
 
 class TestSuppress:
     def test__suppress(self, caplog):
@@ -1554,9 +1667,13 @@ class TestKubernetesPodOperatorAsync:
         return remote_pod_mock
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("find_pod"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, do_xcom_push):
+    def test_async_create_pod_should_execute_successfully(
+        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push
+    ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
@@ -1584,7 +1701,7 @@ class TestKubernetesPodOperatorAsync:
         mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE
 
         context = create_context(k)
-        ti_mock = MagicMock()
+        ti_mock = MagicMock(**{"map_index": -1})
         context["ti"] = ti_mock
 
         with pytest.raises(TaskDeferred) as exc:
