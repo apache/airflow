@@ -29,6 +29,7 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
+import kubernetes
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
@@ -382,6 +383,7 @@ class KubernetesPodOperator(BaseOperator):
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
+        self._killed: bool = False
 
     @cached_property
     def _incluster_namespace(self):
@@ -581,6 +583,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=self.remote_pod,
             )
+
         if self.do_xcom_push:
             return result
 
@@ -680,6 +683,11 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
+        # there. Cleaning it up again will raise an exception (which might cause retry).
+        if self._killed:
+            return
+
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
@@ -822,6 +830,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
     def on_kill(self) -> None:
+        self._killed = True
         if self.pod:
             pod = self.pod
             kwargs = {
@@ -830,7 +839,11 @@ class KubernetesPodOperator(BaseOperator):
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
-            self.client.delete_namespaced_pod(**kwargs)
+
+            try:
+                self.client.delete_namespaced_pod(**kwargs)
+            except kubernetes.client.exceptions.ApiException:
+                self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
 
     def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
