@@ -1,0 +1,1 @@
+Support for configmaps in the template fields in the KubernetesPodOperator

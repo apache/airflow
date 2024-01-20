@@ -156,11 +156,8 @@ class TestKubernetesPodOperator:
                 k8s.V1Volume(
                     name="{{ dag.dag_id }}",
                     config_map=k8s.V1ConfigMapVolumeSource(
-                        name="{{ dag.dag_id }}",
-                        items=[
-                            k8s.V1KeyToPath(key="key", path='path')
-                        ]
-                    )
+                        name="{{ dag.dag_id }}", items=[k8s.V1KeyToPath(key="key", path="path")]
+                    ),
                 )
             ],
         )
