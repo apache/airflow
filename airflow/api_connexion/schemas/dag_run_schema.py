@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
-from marshmallow import fields, post_dump, pre_load, validate
+from marshmallow import ValidationError, fields, post_dump, pre_load, validate, validates_schema
 from marshmallow.schema import Schema
 from marshmallow.validate import Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -120,6 +120,18 @@ class DAGRunSchema(SQLAlchemySchema):
             ret_data = data
 
         return ret_data
+
+    @validates_schema
+    def validate_data_interval_dates(self, data, **kwargs):
+        data_interval_start_exists = data.get("data_interval_start") is not None
+        data_interval_end_exists = data.get("data_interval_end") is not None
+
+        if (data_interval_start_exists and not data_interval_end_exists) or (
+            data_interval_end_exists and not data_interval_start_exists
+        ):
+            raise ValidationError(
+                "Both 'data_interval_start' and 'data_interval_end' must be specified, you cannot specify only one"
+            )
 
 
 class SetDagRunStateFormSchema(Schema):
