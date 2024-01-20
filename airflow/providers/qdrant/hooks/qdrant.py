@@ -96,7 +96,6 @@ class QdrantHook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
         super().__init__(**kwargs)
         self.conn_id = conn_id
-        self.get_conn()
 
     def get_conn(self) -> QdrantClient:
         """Get a Qdrant client instance for interfacing with the database."""
