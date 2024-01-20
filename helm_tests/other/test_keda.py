@@ -278,8 +278,6 @@ class TestKeda:
 
     def test_mysql_keda_db_connection(self):
         """Verify keda db connection when pgbouncer is enabled."""
-        import base64
-
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
