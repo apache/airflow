@@ -1895,6 +1895,32 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
 
   /datasets:
+    post:
+      summary: Create a dataset
+      description: Create a dataset.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: post_dataset
+      tags: [Dataset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Dataset"
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
     get:
       summary: List datasets
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint

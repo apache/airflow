@@ -608,6 +608,8 @@ export interface paths {
   };
   "/datasets": {
     get: operations["get_datasets"];
+    /** Create a dataset. */
+    post: operations["post_dataset"];
   };
   "/datasets/{uri}": {
     /** Get a dataset by uri. */
@@ -4266,6 +4268,25 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
+  /** Create a dataset. */
+  post_dataset: {
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Dataset"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Dataset"];
+      };
+    };
+  };
   /** Get a dataset by uri. */
   get_dataset: {
     parameters: {
@@ -5171,6 +5192,9 @@ export type GetDagWarningsVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetsVariables = CamelCasedPropertiesDeep<
   operations["get_datasets"]["parameters"]["query"]
+>;
+export type PostDatasetVariables = CamelCasedPropertiesDeep<
+  operations["post_dataset"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDatasetVariables = CamelCasedPropertiesDeep<
   operations["get_dataset"]["parameters"]["path"]

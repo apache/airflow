@@ -44,6 +44,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -79,6 +80,40 @@ class TestDatasetEndpoint:
         session.add(dataset_model)
         session.commit()
         return dataset_model
+
+
+class TestCreateDatasetEndpoint(TestDatasetEndpoint):
+    def test_should_respond_200(self, session):
+        dataset_data = {"uri": "s3://new_bucket/new_key", "extra": {"foo": "new_bar"}}
+        response = self.client.post(
+            "/api/v1/datasets",
+            json=dataset_data,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert session.query(DatasetModel).count() == 1
+
+    def test_should_respond_400(self):
+        invalid_dataset_data = {"uri": "s3://new_bucket/new_key", "invalid": "invalid"}
+        response = self.client.post(
+            "/api/v1/datasets",
+            json=invalid_dataset_data,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+
+    def test_should_respond_403(self):
+        dataset_data = {"uri": "s3://new_bucket/new_key", "extra": {"foo": "new_bar"}}
+        response = self.client.post(
+            "/api/v1/datasets",
+            json=dataset_data,
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_raise_401_unauthenticated(self, session):
+        response = self.client.post("/api/v1/datasets", json={"uri": "s3://new_bucket/new_key"})
+        assert_401(response)
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
