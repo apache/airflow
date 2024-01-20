@@ -1240,7 +1240,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    map_index_template = Column(String(64))
+    rendered_map_index = Column(String(64))
 
     external_executor_id = Column(StringID())
 
@@ -1370,6 +1370,8 @@ class TaskInstance(Base, LoggingMixin):
                     raise DagRunNotFound(
                         f"DagRun for {self.dag_id!r} with date {execution_date} not found"
                     ) from None
+
+        self.rendered_map_index: str | None = None
 
         self.run_id = run_id
 
@@ -2358,10 +2360,6 @@ class TaskInstance(Base, LoggingMixin):
             self.task = self.task.prepare_for_execution()
             context = self.get_template_context(ignore_param_exceptions=False)
 
-            dag = self.task.get_dag()
-            jinja_env = dag.get_template_env(force_sandboxed=True)
-            jinja_env.from_string("map_index_template").render(**context)
-
             try:
                 if not mark_success:
                     self._execute_task_with_callbacks(context, test_mode, session=session)
@@ -2506,7 +2504,9 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context["params"]
 
             with set_current_context(context):
-                task_orig = self.render_templates(context=context)
+                dag = self.task.get_dag()
+                jinja_env = dag.get_template_env(force_sandboxed=True)
+                task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
@@ -2541,6 +2541,9 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
+                self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
+                    **context
+                )
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
@@ -2907,7 +2910,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Context | None = None) -> Operator:
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> Operator:
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
@@ -2922,7 +2927,7 @@ class TaskInstance(Base, LoggingMixin):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context)
+        original_task.render_template_fields(context, jinja_env)
 
         return original_task
 

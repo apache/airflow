@@ -930,6 +930,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.map_index_template: str | None = map_index_template
 
         self.doc_md = doc_md
         self.doc_json = doc_json

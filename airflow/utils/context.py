@@ -59,7 +59,6 @@ KNOWN_CONTEXT_KEYS = {
     "inlets",
     "logical_date",
     "macros",
-    "map_index_template",
     "next_ds",
     "next_ds_nodash",
     "next_execution_date",
