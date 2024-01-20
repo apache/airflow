@@ -904,7 +904,7 @@ singularity = [
 ]
 slack = [
   "apache-airflow[common_sql]",
-  "slack_sdk>=3.0.0",
+  "slack_sdk>=3.19.0",
 ]
 smtp = [
 ]
