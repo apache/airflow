@@ -160,10 +160,8 @@ class SFTPToGCSOperator(BaseOperator):
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
-                if self.use_stream:
-                    self._stream_single_object(sftp_hook, gcs_hook, file, destination_path)
-                else:
-                    self._copy_single_object(sftp_hook, gcs_hook, file, destination_path)
+                transfer_single_object = self._stream_single_object if self.use_stream else self.self._copy_single_object
+                transfer_single_object(sftp_hook, gcs_hook, file, destination_path)
 
         else:
             destination_object = (
