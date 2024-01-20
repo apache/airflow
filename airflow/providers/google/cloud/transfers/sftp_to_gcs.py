@@ -228,7 +228,7 @@ class SFTPToGCSOperator(BaseOperator):
             self.log.warning(f"Temporary file {temp_destination_object} found, deleting for fresh upload.")
             temp_dest_blob.delete()
 
-        with sftp_hook.get_conn().file(source_path, 'rb') as source_stream:
+        with sftp_hook.get_conn().file(source_path, "rb") as source_stream:
             if self.source_stream_wrapper:
                 source_stream = self.source_stream_wrapper(source_stream)
             total_bytes_uploaded = 0
