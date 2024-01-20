@@ -151,6 +151,15 @@ class TestKubernetesPodOperator:
             cmds="{{ dag.dag_id }}",
             image="{{ dag.dag_id }}",
             annotations={"dag-id": "{{ dag.dag_id }}"},
+            configmaps=["{{ dag.dag_id }}"],
+            volumes=[
+                k8s.V1Volume(
+                    name="{{ dag.dag_id }}",
+                    config_map=k8s.V1ConfigMapVolumeSource(
+                        name="{{ dag.dag_id }}", items=[k8s.V1KeyToPath(key="key", path="path")]
+                    ),
+                )
+            ],
         )
 
         rendered = ti.render_templates()
@@ -170,6 +179,9 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.arguments
         assert dag_id == ti.task.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
+        assert dag_id == ti.task.configmaps[0]
+        assert dag_id == rendered.volumes[0].name
+        assert dag_id == rendered.volumes[0].config_map.name
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id="dag") as dag:
