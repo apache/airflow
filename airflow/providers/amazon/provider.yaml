@@ -621,6 +621,7 @@ triggers:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
+      - airflow.providers.amazon.aws.triggers.redshift_data
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker

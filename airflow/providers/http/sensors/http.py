@@ -179,4 +179,3 @@ class HttpSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: bool | None = None) -> None:
         self.log.info("%s completed successfully.", self.task_id)
-        return None
