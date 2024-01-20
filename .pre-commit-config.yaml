@@ -318,7 +318,6 @@ repos:
               ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
               ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
