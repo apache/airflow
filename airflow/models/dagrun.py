@@ -564,7 +564,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def check_last_N_dagruns_failed(
+    def _check_last_N_dagruns_failed(
         dag_id: str ,
         number_of_dag_runs: int,
         session: Session = NEW_SESSION,
@@ -804,8 +804,15 @@ class DagRun(Base, LoggingMixin):
                     msg="task_failure",
                 )
 
-            # checking if the max_failure_runs has been provided and last consecutivate failures are more than this number
-            # if so we have to mark this dag as off
+            # checking if the max_failure_runs has been provided and last consecutivate failures are more
+            # than this number if so we have to mark this dag as off
+            self.log.info("Checking consecutive failed dags for %s, limit is %s", self.dag_id,
+                          dag.max_failure_runs)
+            toBePaused = DagRun._check_last_N_dagruns_failed(dag.dag_id, dag.max_failure_runs, session)
+            if toBePaused:
+                self.log.info("Marking Dag %s paused", self.dag_id)
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
+                dag_model.set_is_paused(True,session)
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
