@@ -24,7 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import AlreadyExists, NotFound
+from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
@@ -65,7 +65,7 @@ def delete_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
             detail=f"The Dataset with uri: `{uri}` was not found",
         )
     if dataset.consuming_dags or dataset.producing_tasks:
-        raise AlreadyExists(detail="Dataset is still referenced by other DAG")
+        raise Conflict(detail="Dataset is still referenced by other DAG")
 
     session.delete(dataset)
     return NoContent, HTTPStatus.NO_CONTENT

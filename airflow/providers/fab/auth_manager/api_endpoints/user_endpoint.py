@@ -25,7 +25,7 @@ from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 from werkzeug.security import generate_password_hash
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound, Unknown
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
@@ -100,10 +100,10 @@ def post_user() -> APIResponse:
 
     if security_manager.find_user(username=username):
         detail = f"Username `{username}` already exists. Use PATCH to update."
-        raise AlreadyExists(detail=detail)
+        raise Conflict(detail=detail)
     if security_manager.find_user(email=email):
         detail = f"The email `{email}` is already taken."
-        raise AlreadyExists(detail=detail)
+        raise Conflict(detail=detail)
 
     roles_to_add = []
     missing_role_names = []
@@ -147,13 +147,13 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     new_username = data.get("username")
     if new_username and new_username != username:
         if security_manager.find_user(username=new_username):
-            raise AlreadyExists(detail=f"The username `{new_username}` already exists")
+            raise Conflict(detail=f"The username `{new_username}` already exists")
 
     # Check unique email
     email = data.get("email")
     if email and email != user.email:
         if security_manager.find_user(email=email):
-            raise AlreadyExists(detail=f"The email `{email}` already exists")
+            raise Conflict(detail=f"The email `{email}` already exists")
 
     # Get fields to update.
     if update_mask is not None:

@@ -26,7 +26,7 @@ from sqlalchemy import select, update
 from sqlalchemy.sql.expression import or_
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
@@ -219,6 +219,6 @@ def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     except AirflowException:
-        raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
+        raise Conflict(detail=f"Task instances of dag with id: '{dag_id}' are still running")
 
     return NoContent, HTTPStatus.NO_CONTENT

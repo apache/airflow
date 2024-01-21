@@ -24,7 +24,7 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
@@ -168,4 +168,4 @@ def post_role() -> APIResponse:
         security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)
     detail = f"Role with name {role.name!r} already exists; please update with the PATCH endpoint"
-    raise AlreadyExists(detail=detail)
+    raise Conflict(detail=detail)

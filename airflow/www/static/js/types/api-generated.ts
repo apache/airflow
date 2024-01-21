@@ -2287,7 +2287,7 @@ export interface components {
       };
     };
     /** An existing resource conflicts with the request. */
-    AlreadyExists: {
+    Conflict: {
       content: {
         "application/json": components["schemas"]["Error"];
       };
@@ -2780,7 +2780,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
-      409: components["responses"]["AlreadyExists"];
+      409: components["responses"]["Conflict"];
     };
   };
   patch_dag: {
@@ -3044,7 +3044,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
-      409: components["responses"]["AlreadyExists"];
+      409: components["responses"]["Conflict"];
     };
     requestBody: {
       content: {
@@ -3448,7 +3448,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
-      409: components["responses"]["AlreadyExists"];
+      409: components["responses"]["Conflict"];
     };
     requestBody: {
       content: {
@@ -4652,7 +4652,7 @@ export interface operations {
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
-      409: components["responses"]["AlreadyExists"];
+      409: components["responses"]["Conflict"];
     };
     requestBody: {
       content: {

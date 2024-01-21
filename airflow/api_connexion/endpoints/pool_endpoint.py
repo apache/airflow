@@ -26,7 +26,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
@@ -154,4 +154,4 @@ def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
         session.commit()
         return pool_schema.dump(pool)
     except IntegrityError:
-        raise AlreadyExists(detail=f"Pool: {post_body['pool']} already exists")
+        raise Conflict(detail=f"Pool: {post_body['pool']} already exists")

@@ -32,13 +32,8 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import (
-    apply_sorting,
-    check_limit,
-    format_datetime,
-    format_parameters,
-)
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     DAGRunCollectionSchema,
@@ -356,14 +351,14 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             raise BadRequest(detail=str(ve))
 
     if dagrun_instance.execution_date == logical_date:
-        raise AlreadyExists(
+        raise Conflict(
             detail=(
                 f"DAGRun with DAG ID: '{dag_id}' and "
                 f"DAGRun logical date: '{logical_date.isoformat(sep=' ')}' already exists"
             ),
         )
 
-    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
+    raise Conflict(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)

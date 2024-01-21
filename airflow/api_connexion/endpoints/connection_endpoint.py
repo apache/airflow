@@ -27,7 +27,7 @@ from sqlalchemy import func, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
@@ -173,7 +173,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
         session.add(connection)
         session.commit()
         return connection_schema.dump(connection)
-    raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
+    raise Conflict(detail=f"Connection already exist. ID: {conn_id}")
 
 
 @security.requires_access_connection("POST")

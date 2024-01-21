@@ -247,7 +247,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '409':
-          $ref: '#/components/responses/AlreadyExists'
+          $ref: '#/components/responses/Conflict'
 
   /users/{username}:
     parameters:
@@ -669,7 +669,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     # 409
-    'AlreadyExists':
+    'Conflict':
       description: An existing resource conflicts with the request.
       content:
         application/json:

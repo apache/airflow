@@ -221,10 +221,10 @@ info:
     agent, according to the proactive negotiation header fields received in the request, and the
     server is unwilling to supply a default representation.
 
-    ## AlreadyExists
+    ## Conflict
 
     The request could not be completed due to a conflict with the current state of the target
-    resource, e.g. the resource it tries to create already exists.
+    resource, e.g. the resource it tries to create already exists, the resource it tries to delete has dependants, etc.
 
     ## Unknown
 
@@ -565,7 +565,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/AlreadyExists"
+          $ref: "#/components/responses/Conflict"
 
   /dags/{dag_id}/clearTaskInstances:
     parameters:
@@ -773,7 +773,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "409":
-          $ref: "#/components/responses/AlreadyExists"
+          $ref: "#/components/responses/Conflict"
         "403":
           $ref: "#/components/responses/PermissionDenied"
         "404":
@@ -1183,7 +1183,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/AlreadyExists"
+          $ref: "#/components/responses/Conflict"
 
     delete:
       summary: Delete a pool
@@ -2374,7 +2374,7 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
         "409":
-          $ref: "#/components/responses/AlreadyExists"
+          $ref: "#/components/responses/Conflict"
 
   /users/{username}:
     parameters:
@@ -5345,7 +5345,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     # 409
-    "AlreadyExists":
+    "Conflict":
       description: An existing resource conflicts with the request.
       content:
         application/json:

@@ -228,10 +228,10 @@ The target resource does not have a current representation that would be accepta
 agent, according to the proactive negotiation header fields received in the request, and the
 server is unwilling to supply a default representation.
 
-## AlreadyExists
+## Conflict
 
 The request could not be completed due to a conflict with the current state of the target
-resource, e.g. the resource it tries to create already exists.
+resource, e.g. the resource it tries to create already exists, the resource it tries to delete has dependants, etc.
 
 ## Unknown
 
