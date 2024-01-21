@@ -223,7 +223,7 @@ repos:
         exclude: ^.*/.*_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^images/breeze/output.*$
+        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         exclude: ^.*/.*_vendor/
@@ -992,12 +992,12 @@ repos:
         # This is fast, so not too much downside
         always_run: true
       - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
+        name: Update output of breeze commands in Breeze documentation
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: >
           (?x)
-          ^BREEZE\.rst$|^dev/breeze/.*$|
+          ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
           ^scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py$|
           ^generated/provider_dependencies.json$
