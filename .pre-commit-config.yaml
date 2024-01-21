@@ -310,7 +310,6 @@ repos:
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
               ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/auto_ml\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
