@@ -324,21 +324,33 @@ class TestGcpStorageTransferJobCreateOperator:
     # (could be anything else) just to test if the templating works for all
     # fields
     @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "body, excepted",
+        [
+            (
+                {"description": "{{ dag.dag_id }}"},
+                {
+                    "description": "TestGcpStorageTransferJobCreateOperator_test_templates",
+                },
+            ),
+            ("{{ dag.dag_id }}", "TestGcpStorageTransferJobCreateOperator_test_templates"),
+        ],
+    )
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
-    def test_templates(self, _, create_task_instance_of_operator):
+    def test_templates(self, _, create_task_instance_of_operator, body, excepted):
         dag_id = "TestGcpStorageTransferJobCreateOperator_test_templates"
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCreateJobOperator,
             dag_id=dag_id,
-            body={"description": "{{ dag.dag_id }}"},
+            body=body,
             gcp_conn_id="{{ dag.dag_id }}",
             aws_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
         ti.render_templates()
-        assert dag_id == getattr(ti.task, "body")[DESCRIPTION]
+        assert excepted == getattr(ti.task, "body")
         assert dag_id == getattr(ti.task, "gcp_conn_id")
         assert dag_id == getattr(ti.task, "aws_conn_id")
 
