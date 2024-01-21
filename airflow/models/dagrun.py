@@ -561,6 +561,23 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def check_last_N_dagruns_failed(
+        dag_id: str ,
+        number_of_dag_runs: int,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        """Check if last N dags failed."""
+        dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag_id) \
+            .order_by(DagRun.execution_date.desc()) \
+            .limit(number_of_dag_runs).all()
+
+        # Assuming 'failed' is the status of a failed DagRun
+        all_failed = all(dag_run.state == DagRunState.FAILED for dag_run in dag_runs)
+        return all_failed
+
     @provide_session
     def get_task_instances(
         self,
@@ -786,6 +803,9 @@ class DagRun(Base, LoggingMixin):
                     processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
+
+            # checking if the max_failure_runs has been provided and last consecutivate failures are more than this number
+            # if so we have to mark this dag as off
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
