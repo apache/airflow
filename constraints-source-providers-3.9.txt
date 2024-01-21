@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-20T07:29:33.307431
+# This constraints file was automatically generated on 2024-01-21T07:35:12.016038
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -164,7 +164,7 @@ deltalake==0.15.1
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
-dnspython==2.4.2
+dnspython==2.5.0
 docker==7.0.0
 docopt==0.6.2
 docutils==0.16
@@ -260,7 +260,7 @@ grpcio==1.60.0
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
-hatch==1.9.1
+hatch==1.9.2
 hatchling==1.21.0
 hdfs==2.7.3
 hmsclient==0.1.1
