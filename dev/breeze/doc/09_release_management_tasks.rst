@@ -592,7 +592,7 @@ In order to generate providers requirements, we need docker images with all airf
 such images are built with the ``build-all-airflow-images`` command.
 This command will build one docker image per python version, with all the airflow versions >=2.0.0 compatible.
 
-.. image:: ./images/output_sbom_build-all-airflow-images.svg.svg
+.. image:: ./images/output_sbom_build-all-airflow-images.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_build-all-airflow-images.svg
   :width: 100%
   :alt: Breeze build all airflow images
