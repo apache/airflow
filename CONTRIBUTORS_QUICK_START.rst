@@ -30,8 +30,8 @@ you follow the guide.
 There are three ways you can run the Airflow dev env:
 
 1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <BREEZE.rst>`_ tool written in Python that makes the environment management, yeah you
-   guessed it - a breeze.
+   with `Breeze <dev/breeze/doc/breeze.rst>`_ tool written in Python that makes the environment
+   management, yeah you guessed it - a breeze.
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)
 
@@ -477,24 +477,24 @@ For more information visit : |Breeze documentation|
 
 .. |Breeze documentation| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst" target="_blank">Breeze documentation</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/breeze.rst" target="_blank">Breeze documentation</a>
 
 Following are some of important topics of Breeze documentation:
 
 
-- |Choosing different Breeze environment configuration|
+- |Regular Developer tasks |
 
-.. |Choosing different Breeze environment configuration| raw:: html
+.. |Regular developer tasks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#choosing-different-breeze-environment-configuration
-   " target="_blank">Choosing different Breeze environment configuration</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst" target="_blank">
+   Regular developer tasks</a>
 
 
 - |Troubleshooting Breeze environment|
 
 .. |Troubleshooting Breeze environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#troubleshooting" target="_blank">Troubleshooting
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/04_troubleshooting.rst" target="_blank">Troubleshooting
    Breeze environment</a>
 
 
@@ -502,24 +502,24 @@ Following are some of important topics of Breeze documentation:
 
 .. |Installing Additional tools to the Docker Image| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#additional-tools" target="_blank">Installing
-   Additional tools to the Docker Image</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/02-customizing.rst#additional-tools-in-breeze-container"
+   target="_blank">Installing Additional tools to the Docker Image</a>
 
 
-- |Breeze Command-Line Interface Reference|
+- |Breeze Installation|
 
-.. |Breeze Command-Line Interface Reference| raw:: html
+.. |Breeze Installation| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#installation"
-   target="_blank">Breeze Command-Line Interface Reference</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/01_installation.rst"
+   target="_blank">Breeze Installation</a>
 
 
 - |Cleaning the environment|
 
 .. |Cleaning the environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#cleaning-the-environment" target="_blank">
-   Cleaning the environment</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks#breeze-cleanup" target="_blank">
+   Breeze cleanup</a>
 
 
 

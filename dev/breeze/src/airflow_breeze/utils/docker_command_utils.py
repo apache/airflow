@@ -78,7 +78,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
-    ("BREEZE.rst", "/opt/airflow/BREEZE.rst"),
     ("LICENSE", "/opt/airflow/LICENSE"),
     ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
