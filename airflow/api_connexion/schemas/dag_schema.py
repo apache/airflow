@@ -69,6 +69,7 @@ class DAGSchema(SQLAlchemySchema):
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)
     max_active_runs = auto_field(dump_only=True)
+    max_failure_runs = auto_field(dump_only=True)
     has_task_concurrency_limits = auto_field(dump_only=True)
     has_import_errors = auto_field(dump_only=True)
     next_dagrun = auto_field(dump_only=True)

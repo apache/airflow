@@ -309,6 +309,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
+        "max_failure_runs": dag.max_failure_runs,
         "has_task_concurrency_limits": any(
             t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
         ),
