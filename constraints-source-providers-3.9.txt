@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-21T07:35:12.016038
+# This constraints file was automatically generated on 2024-01-21T18:12:44.575481
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -348,14 +348,14 @@ mysqlclient==2.2.1
 nbclient==0.9.0
 nbformat==5.9.2
 neo4j==5.16.0
-nest-asyncio==1.5.9
+nest-asyncio==1.6.0
 networkx==3.2.1
 nh3==0.2.15
 nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.8.0
+openai==1.9.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.7.0
