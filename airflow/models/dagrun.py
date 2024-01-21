@@ -561,22 +561,36 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
-    @staticmethod
     @internal_api_call
-    @provide_session
     def _check_last_N_dagruns_failed(
-        dag_id: str ,
+        self,
+        dag_id: str,
         number_of_dag_runs: int,
-        session: Session = NEW_SESSION,
-    ) -> bool:
+        session: Session
+    ):
         """Check if last N dags failed."""
         dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag_id) \
             .order_by(DagRun.execution_date.desc()) \
             .limit(number_of_dag_runs).all()
 
-        # Assuming 'failed' is the status of a failed DagRun
-        all_failed = all(dag_run.state == DagRunState.FAILED for dag_run in dag_runs)
-        return all_failed
+        """ Marking dag as paused, if needed"""
+        toBePaused = all(dag_run.state == DagRunState.FAILED for dag_run in dag_runs)
+        if toBePaused:
+            from airflow.models.dag import DagModel
+            self.log.info("Marking Dag %s paused", self.dag_id)
+            filter_query = [
+                DagModel.dag_id == self.dag_id,
+                DagModel.root_dag_id == self.dag_id  # for sub-dags
+            ]
+            session.execute(
+                update(DagModel)
+                .where(or_(*filter_query))
+                .values(is_paused=True)
+                .execution_options(synchronize_session="fetch")
+            )
+        else:
+            self.log.info("Limit of consecutive dag failed is not reached, Dag %s is not being paused.",
+                          self.dag_id)
 
     @provide_session
     def get_task_instances(
@@ -806,13 +820,10 @@ class DagRun(Base, LoggingMixin):
 
             # checking if the max_failure_runs has been provided and last consecutivate failures are more
             # than this number if so we have to mark this dag as off
-            self.log.info("Checking consecutive failed dags for %s, limit is %s", self.dag_id,
-                          dag.max_failure_runs)
-            toBePaused = DagRun._check_last_N_dagruns_failed(dag.dag_id, dag.max_failure_runs, session)
-            if toBePaused:
-                self.log.info("Marking Dag %s paused", self.dag_id)
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
-                dag_model.set_is_paused(True,session)
+            if bool(dag.max_failure_runs):
+                self.log.info("Checking consecutive failed dags for %s, limit is %s", self.dag_id,
+                              dag.max_failure_runs)
+                self._check_last_N_dagruns_failed(dag.dag_id, dag.max_failure_runs, session)
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
