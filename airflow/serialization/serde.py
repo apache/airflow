@@ -22,6 +22,7 @@ import enum
 import functools
 import logging
 import sys
+from fnmatch import fnmatch
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
 
@@ -241,7 +242,6 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     # only return string representation
     if not full:
         return _stringify(classname, version, value)
-
     if not _match(classname) and classname not in _extra_allowed:
         raise ImportError(
             f"{classname} was not found in allow list for deserialization imports. "
@@ -288,7 +288,22 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    return any(p.match(classname) is not None for p in _get_patterns())
+    """Checks if the given classname matches a path pattern either using glob format or regexp format."""
+    return _match_glob(classname) or _match_regexp(classname)
+
+
+@functools.lru_cache(maxsize=None)
+def _match_glob(classname: str):
+    """Checks if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
+    patterns = _get_patterns()
+    return any(fnmatch(classname, p.pattern) for p in patterns)
+
+
+@functools.lru_cache(maxsize=None)
+def _match_regexp(classname: str):
+    """Checks if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    patterns = _get_regexp_patterns()
+    return any(p.match(classname) is not None for p in patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
@@ -359,8 +374,12 @@ def _register():
 
 @functools.lru_cache(maxsize=None)
 def _get_patterns() -> list[Pattern]:
-    patterns = conf.get("core", "allowed_deserialization_classes").split()
-    return [re2.compile(re2.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
+    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
+
+
+@functools.lru_cache(maxsize=None)
+def _get_regexp_patterns() -> list[Pattern]:
+    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
 
 
 _register()
