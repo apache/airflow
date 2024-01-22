@@ -642,6 +642,17 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="teradata_default",
+            conn_type="teradata",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="schema",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="trino_default",
             conn_type="trino",
             host="localhost",

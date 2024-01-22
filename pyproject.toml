@@ -533,6 +533,7 @@ alibaba = [
   "oss2>=2.14.0",
 ]
 amazon = [
+  "PyAthena>=3.0.10",
   "apache-airflow[common_sql]",
   "apache-airflow[http]",
   "asgiref",
@@ -552,7 +553,6 @@ amazon = [
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
-  "PyAthena>=3.0.10",
 ]
 apache-beam = [
   "apache-beam>=2.53.0",
@@ -930,6 +930,11 @@ tabular = [
 telegram = [
   "python-telegram-bot>=20.2",
 ]
+teradata = [
+  "apache-airflow[common_sql]",
+  "teradatasql>=17.20.0.28",
+  "teradatasqlalchemy>=17.20.0.0",
+]
 trino = [
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
@@ -1057,6 +1062,7 @@ all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
@@ -1156,6 +1162,7 @@ devel-all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
