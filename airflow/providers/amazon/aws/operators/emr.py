@@ -1434,18 +1434,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
     def persist_links(self, context: Context):
         """Populate the relevant extra links for the EMR Serverless jobs."""
         # Persist the EMR Serverless Dashboard link (Spark/Tez UI)
-        EmrServerlessDashboardLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            conn_id=self.hook.aws_conn_id,
-            application_id=self.application_id,
-            job_run_id=self.job_id,
-        )
+        if self.enable_application_ui_links:
+            EmrServerlessDashboardLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                conn_id=self.hook.aws_conn_id,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
 
         # If this is a Spark job, persist the EMR Serverless logs link (Driver stdout)
-        if "sparkSubmit" in self.job_driver:
+        if self.enable_application_ui_links and "sparkSubmit" in self.job_driver:
             EmrServerlessLogsLink.persist(
                 context=context,
                 operator=self,
