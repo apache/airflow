@@ -339,7 +339,7 @@ class TestHttpSensorAsync:
         "airflow.providers.http.sensors.http.HttpSensor.poke",
         return_value=True,
     )
-    def test_http_sensor_async_finish_before_deferred(
+    def test_execute_finished_before_deferred(
         self,
         mock_poke,
         mock_defer,
@@ -358,7 +358,7 @@ class TestHttpSensorAsync:
         "airflow.providers.http.sensors.http.HttpSensor.poke",
         return_value=False,
     )
-    def test_http_run_now_sensor_async(self, mock_poke):
+    def test_execute_is_deferred(self, mock_poke):
         """
         Asserts that a task is deferred and a HttpTrigger will be fired
         when the HttpSensor is executed in deferrable mode.
