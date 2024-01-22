@@ -750,7 +750,7 @@ If it does not complete soon, you might want to stop it and remove file lock:
             if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
-                echo "${COLOR_RED}refer to BREEZE.rst for resolution steps.${COLOR_RED}"
+                echo "${COLOR_RED}refer to dev/breeze/doc/04_troubleshooting.rst for resolution steps.${COLOR_RED}"
                 echo
                 exit 1
             fi
