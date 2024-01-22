@@ -283,12 +283,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             if not rows:
                 return []
             rows_fields = rows[0].__fields__
-            rows_object = namedtuple("Row", rows_fields)  # type: ignore[misc]
+            rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore[misc]
             return cast(List[tuple], [rows_object(*row) for row in rows])
         else:
             row: Row = result
             row_fields = row.__fields__
-            row_object = namedtuple("Row", row_fields)  # type: ignore[misc]
+            row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore[misc]
             return cast(tuple, row_object(*row))
 
     def bulk_dump(self, table, tmp_file):
