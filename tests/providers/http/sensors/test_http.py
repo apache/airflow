@@ -372,7 +372,7 @@ class TestHttpSensorAsync:
 
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
-    def test_sensor_not_defer(self, mock_execute, mock_defer):
+    def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",
