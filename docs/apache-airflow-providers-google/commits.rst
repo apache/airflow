@@ -50,6 +50,7 @@ Latest change: 2024-01-22
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`700e9e4890 <https://github.com/apache/airflow/commit/700e9e489014fe1982ff0074421eb8052469773e>`_  2024-01-22   ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
 `e07a42e69d <https://github.com/apache/airflow/commit/e07a42e69d1ab472c4da991fca5782990607ebe0>`_  2024-01-22   ``Check cluster state before defer Dataproc operators to trigger (#36892)``
 `9e4f5ba67a <https://github.com/apache/airflow/commit/9e4f5ba67a3b46ced541844a0dd9cfb9ed44e7cd>`_  2024-01-21   ``fix templating field to super constructor (#36934)``
 `f1758fdd7d <https://github.com/apache/airflow/commit/f1758fdd7da8e933a701ab1a8df96c43288e8d0d>`_  2024-01-20   ``fix: respect connection ID and impersonation in GKEStartPodOperator (#36861)``

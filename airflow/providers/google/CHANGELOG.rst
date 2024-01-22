@@ -71,6 +71,7 @@ Misc
 * ``Remove backward compatibility check for KubernetesPodTrigger module (#36721)``
 * ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
 * ``remove unnecessary templated field (#36491)``
+* ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
