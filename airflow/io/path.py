@@ -29,6 +29,7 @@ from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath, _CloudAccessor
 from upath.registry import get_upath_class
 
+from airflow.datasets import Dataset
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
 
@@ -95,7 +96,7 @@ class ObjectStoragePath(CloudPath):
 
     def __new__(
         cls: type[PT],
-        *args: str | os.PathLike,
+        *args: str | os.PathLike | Dataset,
         scheme: str | None = None,
         conn_id: str | None = None,
         **kwargs: typing.Any,
@@ -129,7 +130,11 @@ class ObjectStoragePath(CloudPath):
 
             return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **new_kwargs)
 
-        url = stringify_path(other)
+        if isinstance(other, Dataset):
+            url = other.uri
+        else:
+            url = stringify_path(other)
+
         parsed_url: SplitResult = urlsplit(url)
 
         if scheme:  # allow override of protocol
