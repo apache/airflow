@@ -16,8 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
-
 Local Virtual Environment (virtualenv)
 ======================================
 
@@ -28,28 +26,13 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-The simplest way to install Airflow in local virtualenv is to use ``pip``:
+.. contents:: :local:
 
-.. code:: bash
-
-    pip install -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,google,postgres]"
-
-This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
-code rather than moved to the installation directory. You need to run this command in the virtualenv you
-want to install Airflow in - and you need to have the virtualenv activated.
-
-While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
-as your development environment front-end, and we already use Hatch backend ``hatchling`` for Airflow.
-
-Hatchling is automatically installed when you build Airflow but since airflow build system uses
-``PEP`` compliant ``pyproject.toml`` file, you can use any front-end build system that supports
-``PEP 517`` and ``PEP 518``. You can also use ``pip`` to install Airflow in editable mode.
-
-Prerequisites
-=============
+Installation in local virtualenv
+--------------------------------
 
 Required Software Packages
---------------------------
+..........................
 
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
@@ -68,27 +51,28 @@ of required packages.
    - MacOs with ARM architectures require graphviz for venv setup, refer `here <https://graphviz.org/download/>`_ to install graphviz
    - The helm chart tests need helm to be installed as a pre requisite. Refer `here <https://helm.sh/docs/intro/install/>`_ to install and setup helm
 
-Extra Packages
---------------
+Installing Airflow
+..................
 
-.. note::
+The simplest way to install Airflow in local virtualenv is to use ``pip``:
 
-   Only ``pip`` installation is currently officially supported.
-   Make sure you have the latest pip installed, reference `version <https://pip.pypa.io/en/stable/#>`_
+.. code:: bash
 
-   While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
-   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
-   ``pip`` - especially when it comes to constraint vs. requirements management.
-   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+    pip install -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,google,postgres]"
 
-   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
-   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
-   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
-  newer versions of ``bazel`` will handle it.
+This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
+code rather than moved to the installation directory. You need to run this command in the virtualenv you
+want to install Airflow in - and you need to have the virtualenv activated.
 
-   If you wish to install airflow using those tools you should use the constraint files and convert
-   them to appropriate format and workflow that your tool requires.
+While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
+as your development environment front-end, and we already use Hatch backend ``hatchling`` for Airflow.
 
+Hatchling is automatically installed when you build Airflow but since airflow build system uses
+``PEP`` compliant ``pyproject.toml`` file, you can use any front-end build system that supports
+``PEP 517`` and ``PEP 518``. You can also use ``pip`` to install Airflow in editable mode.
+
+Extras (optional dependencies)
+..............................
 
 You can also install extra packages (like ``[ssh]``, etc) via
 ``pip install -e [devel,EXTRA1,EXTRA2 ...]``. However, some of them may
@@ -107,15 +91,33 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
+You are STRONGLY encouraged to also install and use `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`_
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
 The full list of extras is available in `<pyproject.toml>`_ and can be easily retrieved using hatch via
 
+.. note::
+
+   Only ``pip`` installation is currently officially supported.
+   Make sure you have the latest pip installed, reference `version <https://pip.pypa.io/en/stable/#>`_
+
+   While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+   ``pip`` - especially when it comes to constraint vs. requirements management.
+   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
+
+   If you wish to install airflow using those tools you should use the constraint files and convert
+   them to appropriate format and workflow that your tool requires.
+
 
 Using Hatch
-===========
+-----------
 
 Airflow uses `hatch <https://hatch.pypa.io/>`_ as a build and development tool of choice. It is one of popular
 build tools and environment managers for Python, maintained by the Python Packaging Authority.
@@ -127,7 +129,7 @@ easily used by hatch to create your local venvs. This is not necessary for you t
 Airflow, but it is a convenient way to manage your local Python versions and virtualenvs.
 
 Installing Hatch
-----------------
+................
 
 You can install hat using various other ways (including Gui installers).
 
@@ -160,7 +162,7 @@ or install all Python versions that are used in Airflow:
     hatch python install all
 
 Manage your virtualenvs with Hatch
-----------------------------------
+..................................
 
 Airflow has some pre-defined virtualenvs that you can use to develop and test airflow.
 You can see the list of available envs with:
@@ -271,6 +273,34 @@ You can also build only ``wheel`` or ``sdist`` packages:
     hatch build -t wheel
     hatch build -t sdist
 
+Local and Remote Debugging in IDE
+---------------------------------
+
+One of the great benefits of using the local virtualenv and Breeze is an option to run
+local debugging in your IDE graphical interface.
+
+When you run example DAGs, even if you run them using unit tests within IDE, they are run in a separate
+container. This makes it a little harder to use with IDE built-in debuggers.
+Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
+See additional details on
+`remote debugging <https://www.jetbrains.com/help/pycharm/remote-debugging-with-product.html>`_.
+
+You can set up your remote debugging session as follows:
+
+.. image:: images/setup_remote_debugging.png
+    :align: center
+    :alt: Setup remote debugging
+
+Note that on macOS, you have to use a real IP address of your host rather than the default
+localhost because on macOS the container runs in a virtual machine with a different IP address.
+
+Make sure to configure source code mapping in the remote debugging configuration to map
+your local sources to the ``/opt/airflow`` location of the sources within the container:
+
+.. image:: images/source_code_mapping_ide.png
+    :align: center
+    :alt: Source code mapping
+
 
 Developing Providers
 --------------------
@@ -323,7 +353,7 @@ install the dependencies automatically when you create or switch to a developmen
 
 
 Installing recommended version of dependencies
-==============================================
+----------------------------------------------
 
 Whatever virtualenv solution you use, when you want to make sure you are using the same
 version of dependencies as in main, you can install recommended version of the dependencies by using
@@ -358,18 +388,17 @@ These are examples of the development options available with the local virtualen
 
 This document describes minimum requirements and instructions for using a standalone version of the local virtualenv.
 
-
 Running Tests
 -------------
 
-Running tests is described in `TESTING.rst <TESTING.rst>`_.
+Running tests is described in `Testing documentation <09_testing.rst>`_.
 
 While most of the tests are typical unit tests that do not require external components, there are a number
 of Integration tests. You can technically use local virtualenv to run those tests, but it requires to
 set up all necessary dependencies for all the providers you are going to tests and also setup
 databases - and sometimes other external components (for integration test).
 
-So, generally it should be easier to use the `Breeze <dev/breeze/doc/breeze.rst>`__ development environment
+So, generally it should be easier to use the `Breeze <dev/breeze/doc/README.rst>`__ development environment
 (especially for Integration tests).
 
 
@@ -384,3 +413,9 @@ the built-in Airflow command (however you needs a CLI client tool for each datab
     airflow db shell
 
 The command will explain what CLI tool is needed for the database you have configured.
+
+
+-----------
+
+As the next step, it is important to learn about `Static code checks <08_static_code_checks.rst>`__.that are
+used to automate code quality checks. Your code must pass the static code checks to get merged.

@@ -536,10 +536,8 @@ labelPRBasedOnFilePath:
     - dev/**/*
     - .github/**/*
     - Dockerfile.ci
-    - CONTRIBUTING.*
-    - LOCAL_VIRTUALENV.rst
-    - STATIC_CODE_CHECKS.rst
-    - TESTING.rst
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
     - yamllint-config.yml
     - .asf.yaml
     - .bash_completion
@@ -670,12 +668,12 @@ labelerFlags:
 firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
-  Contribution Guide (https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst)
+  Contributors' Guide (https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
 
   Here are some useful points:
 
   - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
@@ -683,7 +681,7 @@ firstPRWelcomeComment: >
   [guide](https://github.com/apache/airflow/blob/main/docs/apache-airflow/howto/custom-operator.rst)
   Consider adding an example DAG that shows how users should use it.
 
-  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/breeze.rst)
+  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
   for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
@@ -693,7 +691,7 @@ firstPRWelcomeComment: >
   communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
 
   - Be sure to read the [Airflow Coding style](
-  https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#coding-style-and-best-practices).
+  https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#coding-style-and-best-practices).
 
   - Always keep your Pull Requests rebased, otherwise your build might fail due to changes not related
   to your commits.

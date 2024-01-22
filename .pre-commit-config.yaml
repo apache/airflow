@@ -33,7 +33,7 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md
+          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md|^tests/system/README.md$
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
@@ -439,7 +439,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
-        files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
+        files: ^setup\.py$|^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
@@ -612,7 +612,7 @@ repos:
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
-          ^CONTRIBUTORS_QUICK_START.rst$|
+          ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git
       - id: check-base-operator-partial-arguments
@@ -818,7 +818,7 @@ repos:
         name: Sync integrations list with docs
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
         language: python
-        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests.rst$
         additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false

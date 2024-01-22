@@ -163,10 +163,15 @@ release provided they have access to the appropriate platform and tools.
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
+
+## Voting Policy
+
+* Commits need a +1 vote from a committer who is not the author
+* When we do AIP voting, both PMC member's and committer's `+1s` are considered a binding vote.
 
 ## Who uses Apache Airflow?
 

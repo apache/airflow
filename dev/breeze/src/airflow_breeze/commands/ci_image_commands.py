@@ -709,7 +709,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                     get_console().print(
                         f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
                         "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n"
+                        "https://github.com/apache/airflow/blob/main/contributing-docs/11_working_with_git.rst\n"
                     )
                     get_console().print("[error]Exiting the process[/]\n")
                     sys.exit(1)
