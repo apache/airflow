@@ -118,19 +118,17 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        # Output warning if running AutoML Natural Language prediction job
-        automl_nl_model_keys = [
-            "text_classification_model_metadata",
-            "text_extraction_model_metadata",
-            "text_sentiment_dataset_metadata",
-        ]
-        if any(key in automl_nl_model_keys for key in self.model):
+        # Output warning if running not AutoML Translation prediction job
+        if "translation_model_metadata" not in self.model:
             warnings.warn(
-                "AutoMLTrainModelOperator for text prediction is deprecated. All the functionality of legacy "
-                "AutoML Natural Language and new features are available on the Vertex AI platform. "
-                "Please use `CreateAutoMLTextTrainingJobOperator`",
+                "AutoMLTrainModelOperator for text, image and video prediction is deprecated. "
+                "All the functionality of legacy "
+                "AutoML Natural Language, Vision and Video Intelligence and new features are available "
+                "on the Vertex AI platform. "
+                "Please use `CreateAutoMLTextTrainingJobOperator`, `CreateAutoMLImageTrainingJobOperator` or"
+                " `CreateAutoMLVideoTrainingJobOperator` from VertexAI.",
                 AirflowProviderDeprecationWarning,
-                stacklevel=2,
+                stacklevel=3,
             )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,

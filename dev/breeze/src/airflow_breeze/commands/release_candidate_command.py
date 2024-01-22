@@ -88,6 +88,8 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
         run_command(
             [
                 "git",
+                "-c",
+                "tar.umask=0077",
                 "archive",
                 "--format=tar.gz",
                 f"{version}",
@@ -283,31 +285,6 @@ def push_release_candidate_tag_to_github(version):
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
-def create_issue_for_testing(version, previous_version, github_token):
-    if confirm_action("Do you want to create issue for testing? Only applicable for patch release"):
-        console_print()
-        console_print("Create issue in github for testing the release using this subject:")
-        console_print()
-        console_print(f"Status of testing of Apache Airflow {version}")
-        console_print()
-        if CI:
-            run_command(["git", "fetch"], check=True)
-        if confirm_action("Print the issue body?"):
-            run_command(
-                [
-                    "./dev/prepare_release_issue.py",
-                    "generate-issue-content",
-                    "--previous-release",
-                    f"{previous_version}",
-                    "--current-release",
-                    f"{version}",
-                    "--github-token",
-                    f"{github_token}",
-                ],
-                check=True,
-            )
-
-
 def remove_old_releases(version, repo_root):
     if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
         return
@@ -420,7 +397,7 @@ def publish_release_candidate(version, previous_version, github_token):
     if confirm_action("Use docker to create artifacts?"):
         create_artifacts_with_docker()
     elif confirm_action("Use hatch to create artifacts?"):
-        create_artifacts_with_hatch()
+        create_artifacts_with_hatch(source_date_epoch)
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints
@@ -448,7 +425,6 @@ def publish_release_candidate(version, previous_version, github_token):
     push_release_candidate_tag_to_github(version)
     # Create issue for testing
     os.chdir(airflow_repo_root)
-    create_issue_for_testing(version, previous_version, github_token)
 
     console_print()
     console_print("Done!")

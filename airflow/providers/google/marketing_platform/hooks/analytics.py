@@ -36,7 +36,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
             f"The `{type(self).__name__}` class is deprecated, please use "
             f"`GoogleAnalyticsAdminHook` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         self.api_version = api_version

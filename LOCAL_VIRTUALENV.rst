@@ -369,8 +369,8 @@ of Integration tests. You can technically use local virtualenv to run those test
 set up all necessary dependencies for all the providers you are going to tests and also setup
 databases - and sometimes other external components (for integration test).
 
-So, generally it should be easier to use the `Breeze <BREEZE.rst>`__ development environment (especially
-for Integration tests).
+So, generally it should be easier to use the `Breeze <dev/breeze/doc/breeze.rst>`__ development environment
+(especially for Integration tests).
 
 
 Connecting to database

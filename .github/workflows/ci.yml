@@ -834,12 +834,10 @@ jobs:
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
           --non-interactive
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --version-suffix-for-pypi dev0 --package-format wheel
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
@@ -862,25 +860,11 @@ jobs:
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-        env:
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Install affected provider packages and airflow via wheel files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference default
-          --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
           AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
         run: >
-          breeze release-management prepare-provider-packages --skip-tag-check
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          breeze release-management prepare-provider-packages --skip-tag-check --package-format wheel
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -975,7 +959,7 @@ jobs:
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --package-format wheel
       - name: >
           Remove incompatible Airflow
           ${{matrix.airflow-version}}:Python ${{matrix.python-version}} provider packages
@@ -996,19 +980,6 @@ jobs:
           --use-airflow-version wheel
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: >
-          Install affected provider packages and airflow on
-          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
-          --providers-skip-constraints
-          --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
   test-airflow-release-commands:
     timeout-minutes: 80

@@ -1879,6 +1879,13 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    num_recent_configurations_for_trigger:
+      description: |
+        Number of recent DAG run configurations in the selector on the trigger web form.
+      version_added: 2.9.0
+      type: integer
+      example: "10"
+      default: "5"
     allow_raw_html_descriptions:
       description: |
         A DAG author is able to provide any raw HTML into ``doc_md`` or params description in

@@ -223,7 +223,7 @@ repos:
         exclude: ^.*/.*_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^images/breeze/output.*$
+        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         exclude: ^.*/.*_vendor/
@@ -293,6 +293,30 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local pre-commits are run
     hooks:
+      - id: validate-operators-init
+        name: Prevent templated field logic checks in operators' __init__
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_validate_operators_init.py
+        pass_filenames: true
+        files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
+        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
+        #       https://github.com/apache/airflow/issues/36484
+        exclude: |
+          (?x)^(
+              ^.*__init__\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
+              ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
+              ^airflow\/providers\/databricks\/operators\/databricks\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
+              ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
+              ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
+              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
+              ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
+              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
+          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -968,12 +992,12 @@ repos:
         # This is fast, so not too much downside
         always_run: true
       - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
+        name: Update output of breeze commands in Breeze documentation
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: >
           (?x)
-          ^BREEZE\.rst$|^dev/breeze/.*$|
+          ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
           ^scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py$|
           ^generated/provider_dependencies.json$
