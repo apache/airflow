@@ -63,6 +63,8 @@ sequenceDiagram
     and
         Note over Tests: Test git clone on Windows
     and
+        Note over Tests: Helm release tests
+    and
         opt
             Note over Tests: Run basic <br>static checks
         end
@@ -216,6 +218,8 @@ sequenceDiagram
         Note over Tests: Test examples<br>PROD image building
     and
         Note over Tests: Test git clone on Windows
+    and
+        Note over Tests: Helm release tests
     and
         opt
             Note over Tests: Run basic <br>static checks
