@@ -297,7 +297,6 @@ def test_no_query(databricks_hook, empty_statement):
         pytest.param(Row("class")("data"), ("_0",)),
         pytest.param(Row("1_wrong", "2_wrong")(1, 2), ("_0", "_1")),
     ],
-
 )
 def test_incorrect_column_names(row_objects, fields_names):
     """Ensure that column names can be used as namedtuple attribute.
