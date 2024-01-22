@@ -73,7 +73,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import backref, joinedload, relationship
+from sqlalchemy.orm import backref, joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -3062,27 +3062,13 @@ class DAG(LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
-        dag_id_to_last_automated_run: dict[str, DagRun] = {}
+        latest_runs: dict[str, DagRun] = {}
         num_active_runs: dict[str, int] = {}
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
-            last_automated_runs_subq = (
-                select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-                .where(
-                    DagRun.dag_id.in_(existing_dags),
-                    or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
-                )
-                .group_by(DagRun.dag_id)
-                .subquery()
-            )
-            last_automated_runs = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == last_automated_runs_subq.c.dag_id,
-                    DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
-                )
-            )
-            dag_id_to_last_automated_run = {run.dag_id: run for run in last_automated_runs}
+            query = cls._get_latest_runs_query(existing_dags, session)
+            latest_runs = {run.dag_id: run for run in session.scalars(query)}
 
             # Get number of active dagruns for all dags we are processing as a single query.
             num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
@@ -3116,7 +3102,7 @@ class DAG(LoggingMixin):
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
 
-            last_automated_run: DagRun | None = dag_id_to_last_automated_run.get(dag.dag_id)
+            last_automated_run: DagRun | None = latest_runs.get(dag.dag_id)
             if last_automated_run is None:
                 last_automated_data_interval = None
             else:
@@ -3252,6 +3238,51 @@ class DAG(LoggingMixin):
 
         for dag in dags:
             cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
+
+    @classmethod
+    def _get_latest_runs_query(cls, dags, session) -> Query:
+        """
+        Query the database to retrieve the last automated run for each dag.
+
+        :param dags: dags to query
+        :param session: sqlalchemy session object
+        """
+        if len(dags) == 1:
+            # Index optimized fast path to avoid more complicated & slower groupby queryplan
+            existing_dag_id = list(dags)[0].dag_id
+            last_automated_runs_subq = (
+                select(func.max(DagRun.execution_date).label("max_execution_date"))
+                .where(
+                    DagRun.dag_id == existing_dag_id,
+                    DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
+                )
+                .subquery()
+            )
+            query = select(DagRun).where(
+                DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_subq
+            )
+        else:
+            last_automated_runs_subq = (
+                select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                .where(
+                    DagRun.dag_id.in_(dags),
+                    DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
+                )
+                .group_by(DagRun.dag_id)
+                .subquery()
+            )
+            query = select(DagRun).where(
+                DagRun.dag_id == last_automated_runs_subq.c.dag_id,
+                DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
+            )
+        return query.options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.execution_date,
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+            )
+        )
 
     @provide_session
     def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
