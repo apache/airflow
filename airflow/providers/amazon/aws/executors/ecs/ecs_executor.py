@@ -408,8 +408,8 @@ class AwsEcsExecutor(BaseExecutor):
         The command and executor config will be placed in the container-override
         section of the JSON request before calling Boto3's "run_task" function.
         """
-        run_task_api = self._run_task_kwargs(task_id, cmd, queue, exec_config)
-        boto_run_task = self.ecs.run_task(**run_task_api)
+        run_task_kwargs = self._run_task_kwargs(task_id, cmd, queue, exec_config)
+        boto_run_task = self.ecs.run_task(**run_task_kwargs)
         run_task_response = BotoRunTaskSchema().load(boto_run_task)
         return run_task_response
 
@@ -421,17 +421,29 @@ class AwsEcsExecutor(BaseExecutor):
 
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
-        run_task_api = deepcopy(self.run_task_kwargs)
-        container_override = self.get_container(run_task_api["overrides"]["containerOverrides"])
+        run_task_kwargs = deepcopy(self.run_task_kwargs)
+        run_task_kwargs = self._deep_update(run_task_kwargs, exec_config)
+        container_override = self.get_container(run_task_kwargs["overrides"]["containerOverrides"])
         container_override["command"] = cmd
-        container_override.update(exec_config)
 
         # Inject the env variable to configure logging for containerized execution environment
         if "environment" not in container_override:
             container_override["environment"] = []
         container_override["environment"].append({"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"})
 
-        return run_task_api
+        return run_task_kwargs
+
+    def _deep_update(self, dest_dict, source_dict):
+        """Deep updates dest_dict with the values from source_dict."""
+        for key, value in source_dict.items():
+            if key in dest_dict and isinstance(dest_dict[key], dict) and isinstance(value, dict):
+                # Recursively update nested dictionaries
+                self._deep_update(dest_dict[key], value)
+            else:
+                # Update or add key-value pairs
+                dest_dict[key] = value
+
+        return dest_dict
 
     def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
@@ -484,6 +496,11 @@ class AwsEcsExecutor(BaseExecutor):
     def get_container(self, container_list):
         """Searches task list for core Airflow container."""
         for container in container_list:
-            if container["name"] == self.container_name:
-                return container
+            try:
+                if container["name"] == self.container_name:
+                    return container
+            except KeyError:
+                raise EcsExecutorException(
+                    'container "name" must be provided in "containerOverrides" configuration'
+                )
         raise KeyError(f"No such container found by container name: {self.container_name}")
