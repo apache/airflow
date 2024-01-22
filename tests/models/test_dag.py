@@ -4140,7 +4140,7 @@ class TestTaskClearingSetupTeardownBehavior:
 def test_get_latest_runs_query_one_dag(dag_maker, session):
     with dag_maker(dag_id="dag1") as dag1:
         ...
-    query = DAG._get_latest_runs_query(dags=[dag1], session=session)
+    query = DAG._get_latest_runs_query(dags=[dag1.dag_id])
     actual = [x.strip() for x in str(query.compile()).splitlines()]
     expected = [
         "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
@@ -4157,7 +4157,7 @@ def test_get_latest_runs_query_two_dags(dag_maker, session):
         ...
     with dag_maker(dag_id="dag2") as dag2:
         ...
-    query = DAG._get_latest_runs_query(dags=[dag1, dag2], session=session)
+    query = DAG._get_latest_runs_query(dags=[dag1.dag_id, dag2.dag_id])
     actual = [x.strip() for x in str(query.compile()).splitlines()]
     print("\n".join(actual))
     expected = [
