@@ -59,8 +59,8 @@ class JenkinsHook(BaseHook):
             },
         }
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         connection = self.get_connection(conn_id)
         self.connection = connection
         connection_prefix = "http"

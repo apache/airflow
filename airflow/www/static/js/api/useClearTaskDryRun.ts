@@ -39,6 +39,7 @@ const useClearTaskDryRun = ({
   recursive,
   failed,
   mapIndexes = [],
+  enabled = false,
 }: {
   dagId: string;
   runId: string;
@@ -52,6 +53,7 @@ const useClearTaskDryRun = ({
   recursive: boolean;
   failed: boolean;
   mapIndexes?: number[];
+  enabled?: boolean;
 }) =>
   useQuery(
     [
@@ -101,7 +103,8 @@ const useClearTaskDryRun = ({
           },
         }
       );
-    }
+    },
+    { enabled }
   );
 
 export default useClearTaskDryRun;

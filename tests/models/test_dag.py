@@ -37,6 +37,7 @@ import pendulum
 import pytest
 import time_machine
 from dateutil.relativedelta import relativedelta
+from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -676,8 +677,8 @@ class TestDag:
         """
         Make sure DST transitions are properly observed
         """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55), dst_rule=pendulum.PRE_TRANSITION)
+        local_tz = Timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55, fold=0))
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
@@ -706,7 +707,7 @@ class TestDag:
         Make sure DST transitions are properly observed
         """
         local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3), dst_rule=pendulum.PRE_TRANSITION)
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3, fold=0))
 
         utc = timezone.convert_to_utc(start)
 
@@ -735,7 +736,7 @@ class TestDag:
         Make sure DST transitions are properly observed
         """
         local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2), dst_rule=pendulum.PRE_TRANSITION)
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2, fold=0))
 
         utc = timezone.convert_to_utc(start)
 
@@ -950,6 +951,59 @@ class TestDag:
 
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
+
+    def test_bulk_write_to_db_single_dag(self):
+        """
+        Test bulk_write_to_db for a single dag using the index optimized query
+        """
+        clear_db_dags()
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(1)]
+
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
+            assert {
+                ("dag-bulk-sync-0", "test-dag"),
+            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
+        # Re-sync should do fewer queries
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+
+    def test_bulk_write_to_db_multiple_dags(self):
+        """
+        Test bulk_write_to_db for multiple dags which does not use the index optimized query
+        """
+        clear_db_dags()
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(4)]
+
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
+                row[0] for row in session.query(DagModel.dag_id).all()
+            }
+            assert {
+                ("dag-bulk-sync-0", "test-dag"),
+                ("dag-bulk-sync-1", "test-dag"),
+                ("dag-bulk-sync-2", "test-dag"),
+                ("dag-bulk-sync-3", "test-dag"),
+            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
+        # Re-sync should do fewer queries
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
     def test_bulk_write_to_db_interval_save_runtime(self, interval):
@@ -1507,6 +1561,34 @@ class TestDag:
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag_callback_crash"},
         )
+
+        dag.clear()
+        self._clean_up(dag_id)
+
+    def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
+        """
+        Tests avoid crashes when a removed task is the last one in the list of task instance
+        """
+        dag_id = "test_dag_callback_with_removed_task"
+        mock_callback = mock.MagicMock()
+        with DAG(
+            dag_id=dag_id,
+            on_success_callback=mock_callback,
+            on_failure_callback=mock_callback,
+        ) as dag:
+            EmptyOperator(task_id="faketastic")
+            task_removed = EmptyOperator(task_id="removed_task")
+
+        with create_session() as session:
+            dag_run = dag.create_dagrun(State.RUNNING, TEST_DATE, run_type=DagRunType.MANUAL, session=session)
+            dag._remove_task(task_removed.task_id)
+            tis = dag_run.get_task_instances(session=session)
+            tis[-1].state = TaskInstanceState.REMOVED
+            assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
+
+            # should not raise any exception
+            dag.handle_callback(dag_run, success=True)
+            dag.handle_callback(dag_run, success=False)
 
         dag.clear()
         self._clean_up(dag_id)
@@ -4053,3 +4135,36 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
+
+
+def test_get_latest_runs_query_one_dag(dag_maker, session):
+    with dag_maker(dag_id="dag1") as dag1:
+        ...
+    query = DAG._get_latest_runs_query(dags=[dag1], session=session)
+    actual = [x.strip() for x in str(query.compile()).splitlines()]
+    expected = [
+        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
+    ]
+    assert actual == expected
+
+
+def test_get_latest_runs_query_two_dags(dag_maker, session):
+    with dag_maker(dag_id="dag1") as dag1:
+        ...
+    with dag_maker(dag_id="dag2") as dag2:
+        ...
+    query = DAG._get_latest_runs_query(dags=[dag1, dag2], session=session)
+    actual = [x.strip() for x in str(query.compile()).splitlines()]
+    print("\n".join(actual))
+    expected = [
+        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+        "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
+        "FROM dag_run",
+        "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
+        "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
+    ]
+    assert actual == expected

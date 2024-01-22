@@ -233,6 +233,8 @@ class OdbcHook(DbApiHook):
         # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
         # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
         field_names: list[tuple[str, type]] | None = None
+        if not result:
+            return []
         if isinstance(result, Sequence):
             field_names = [col[:2] for col in result[0].cursor_description]
             row_object = NamedTuple("Row", field_names)  # type: ignore[misc]

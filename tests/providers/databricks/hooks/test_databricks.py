@@ -684,6 +684,79 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_negative_get_latest_repair_id(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "job_id": JOB_ID,
+            "run_id": RUN_ID,
+            "state": {"life_cycle_state": "RUNNING", "result_state": "RUNNING"},
+            "repair_history": [
+                {
+                    "type": "ORIGINAL",
+                    "start_time": 1704528798059,
+                    "end_time": 1704529026679,
+                    "state": {
+                        "life_cycle_state": "RUNNING",
+                        "result_state": "RUNNING",
+                        "state_message": "dummy",
+                        "user_cancelled_or_timedout": "false",
+                    },
+                    "task_run_ids": [396529700633015, 1111270934390307],
+                }
+            ],
+        }
+        latest_repair_id = self.hook.get_latest_repair_id(RUN_ID)
+
+        assert latest_repair_id is None
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_positive_get_latest_repair_id(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "job_id": JOB_ID,
+            "run_id": RUN_ID,
+            "state": {"life_cycle_state": "RUNNING", "result_state": "RUNNING"},
+            "repair_history": [
+                {
+                    "type": "ORIGINAL",
+                    "start_time": 1704528798059,
+                    "end_time": 1704529026679,
+                    "state": {
+                        "life_cycle_state": "TERMINATED",
+                        "result_state": "CANCELED",
+                        "state_message": "dummy_original",
+                        "user_cancelled_or_timedout": "false",
+                    },
+                    "task_run_ids": [396529700633015, 1111270934390307],
+                },
+                {
+                    "type": "REPAIR",
+                    "start_time": 1704530276423,
+                    "end_time": 1704530363736,
+                    "state": {
+                        "life_cycle_state": "TERMINATED",
+                        "result_state": "CANCELED",
+                        "state_message": "dummy_repair_1",
+                        "user_cancelled_or_timedout": "true",
+                    },
+                    "id": 108607572123234,
+                    "task_run_ids": [396529700633015, 1111270934390307],
+                },
+                {
+                    "type": "REPAIR",
+                    "start_time": 1704531464690,
+                    "end_time": 1704531481590,
+                    "state": {"life_cycle_state": "RUNNING", "result_state": "RUNNING"},
+                    "id": 52532060060836,
+                    "task_run_ids": [396529700633015, 1111270934390307],
+                },
+            ],
+        }
+        latest_repair_id = self.hook.get_latest_repair_id(RUN_ID)
+
+        assert latest_repair_id == 52532060060836
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_get_cluster_state(self, mock_requests):
         """
         Response example from https://docs.databricks.com/api/workspace/clusters/get

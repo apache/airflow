@@ -280,6 +280,59 @@ class TestGetDagRun(TestDagRunEndpoint):
 
         assert_401(response)
 
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            ["dag_run_id", "logical_date"],
+            ["dag_run_id", "state", "conf", "execution_date"],
+        ],
+    )
+    def test_should_return_specified_fields(self, session, fields):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state="running",
+        )
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        response = self.client.get(
+            f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        res_json = response.json
+        print("get dagRun", res_json)
+        assert len(res_json.keys()) == len(fields)
+        for field in fields:
+            assert field in res_json
+
+    def test_should_respond_400_with_not_exists_fields(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state="running",
+        )
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        fields = ["#caw&c"]
+        response = self.client.get(
+            f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
+
 
 class TestGetDagRuns(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
@@ -424,6 +477,36 @@ class TestGetDagRuns(TestDagRunEndpoint):
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")
 
         assert_401(response)
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            ["dag_run_id", "logical_date"],
+            ["dag_run_id", "state", "conf", "execution_date"],
+        ],
+    )
+    def test_should_return_specified_fields(self, session, fields):
+        self._create_test_dag_run()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get(
+            f"api/v1/dags/TEST_DAG_ID/dagRuns?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        for dag_run in response.json["dag_runs"]:
+            assert len(dag_run.keys()) == len(fields)
+            for field in fields:
+                assert field in dag_run
+
+    def test_should_respond_400_with_not_exists_fields(self):
+        self._create_test_dag_run()
+        fields = ["#caw&c"]
+        response = self.client.get(
+            f"api/v1/dags/TEST_DAG_ID/dagRuns?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):

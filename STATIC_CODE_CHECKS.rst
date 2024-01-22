@@ -26,8 +26,8 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some `static code check <BREEZE.rst#running-static-checks>`_ via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
-using available bash scripts.
+You can also run some `static code check <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_ via
+`Breeze <dev/breeze/doc/breeze.rst>`_ environment.
 
 Pre-commit hooks
 ----------------
@@ -77,7 +77,7 @@ The current list of prerequisites is limited to ``xmllint``:
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
 `Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
-locally before installing pre-commit checks as described in `BREEZE.rst <BREEZE.rst>`__.
+locally before installing pre-commit checks as described in `Breeze docs <dev/breeze/doc/breeze.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
 In such cases, the Docker-based pre-commit will inform you that you should rebuild the image.
@@ -136,21 +136,28 @@ require Breeze Docker image to be built locally.
 
 .. note:: Mypy checks
 
-  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-core``,
+  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
   ``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
   are run by passing those changed files to mypy. This is way faster than running checks for all files (even
   if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
   files). However, in some cases, it produces different results than when running checks for the whole set
   of files, because ``mypy`` does not even know that some types are defined in other files and it might not
   be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
-  directories (``airflow`` - excluding providers, ``airflow/providers``, ``dev`` and ``docs``) to make sure
+  directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure
   that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
   in CI. If you want to run mypy checks for all files locally, you can do it by running the following
   command (example for ``airflow`` files):
 
      .. code-block:: bash
 
-        MYPY_PACKAGES="airflow" pre-commit run --hook-stage manual mypy --all-files
+        pre-commit run --hook-stage manual mypy-<FOLDER> --all-files
+
+  For example:
+
+     .. code-block:: bash
+
+        pre-commit run --hook-stage manual mypy-airflow --all-files
+
 
 .. note:: Mypy volume cache
 
@@ -260,11 +267,11 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-pyproject-toml-order                                | Check order of dependencies in pyproject.toml                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-setup-order                                         | Check order of dependencies in setup.cfg and setup.py        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -313,6 +320,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files           |         |
 |                                                           | * Add license for all JINJA template files                   |         |
 |                                                           | * Add license for all Shell files                            |         |
+|                                                           | * Add license for all toml files                             |         |
 |                                                           | * Add license for all Python files                           |         |
 |                                                           | * Add license for all XML files                              |         |
 |                                                           | * Add license for all Helm template files                    |         |
@@ -342,15 +350,17 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy                                                      | Run mypy for specified packages (manual)                     | *       |
+| mypy-airflow                                              | * Run mypy for airflow                                       | *       |
+|                                                           | * Run mypy for airflow (manual)                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-core                                                 | Run mypy for core                                            | *       |
+| mypy-dev                                                  | * Run mypy for dev                                           | *       |
+|                                                           | * Run mypy for dev (manual)                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-dev                                                  | Run mypy for dev                                             | *       |
+| mypy-docs                                                 | * Run mypy for /docs/ folder                                 | *       |
+|                                                           | * Run mypy for /docs/ folder (manual)                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-docs                                                 | Run mypy for /docs/ folder                                   | *       |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-providers                                            | Run mypy for providers                                       | *       |
+| mypy-providers                                            | * Run mypy for providers                                     | *       |
+|                                                           | * Run mypy for providers (manual)                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -372,7 +382,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-breeze-cmd-output                                  | Update output of breeze commands in BREEZE.rst               |         |
+| update-breeze-cmd-output                                  | Update output of breeze commands in Breeze documentation     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -392,7 +402,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update cross-dependencies for providers packages             |         |
+| update-providers-dependencies                             | Update dependencies for provider packages                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -402,7 +414,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| validate-pyproject                                        | Validate pyproject.toml                                      |         |
+| validate-operators-init                                   | Prevent templated field logic checks in operators' __init__  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -533,7 +545,8 @@ Run all checks for all changes in my branch since branched from main:
 
      breeze static-checks --type mypy-core --only-my-changes
 
-More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
+More examples can be found in
+`Breeze documentation <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_
 
 
 Debugging pre-commit check scripts requiring image

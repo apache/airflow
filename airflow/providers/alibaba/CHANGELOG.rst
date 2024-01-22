@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+2.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'analyticdb_spark.py' (#36911)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 2.7.1
 .....
 

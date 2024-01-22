@@ -80,8 +80,10 @@ class TableauHook(BaseHook):
     conn_type = "tableau"
     hook_name = "Tableau"
 
-    def __init__(self, site_id: str | None = None, tableau_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(
+        self, site_id: str | None = None, tableau_conn_id: str = default_conn_name, **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get("site_id", "")
@@ -127,6 +129,7 @@ class TableauHook(BaseHook):
             "Authentication via personal access token is deprecated. "
             "Please, use the password authentication to avoid inconsistencies.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],

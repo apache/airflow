@@ -133,7 +133,6 @@ from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.auth import has_access_with_pk
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
@@ -1945,7 +1944,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, dag_id: str, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
-        run_id = request.values.get("run_id", "").replace(" ", "+")
+        run_id = request.values.get("run_id", "")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
@@ -2030,6 +2029,7 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
 
+        num_recent_confs = conf.getint("webserver", "num_recent_configurations_for_trigger")
         recent_runs = session.execute(
             select(DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date))
             .where(
@@ -2039,7 +2039,7 @@ class Airflow(AirflowBaseView):
             )
             .group_by(DagRun.conf)
             .order_by(func.max(DagRun.execution_date).desc())
-            .limit(5)
+            .limit(num_recent_confs)
         )
         recent_confs = {
             run_id: json.dumps(run_conf)
@@ -3994,7 +3994,7 @@ class AirflowModelView(ModelView):
         return attribute
 
     @expose("/show/<pk>", methods=["GET"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def show(self, pk):
         """
         Show view.
@@ -4016,7 +4016,7 @@ class AirflowModelView(ModelView):
         )
 
     @expose("/edit/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def edit(self, pk):
         """
         Edit view.
@@ -4040,7 +4040,7 @@ class AirflowModelView(ModelView):
             )
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """
         Delete view.
@@ -4738,7 +4738,7 @@ class PoolModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """Single delete."""
         if models.Pool.is_default_pool(pk):

@@ -22,8 +22,9 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1703288119
+source-date-epoch: 1705911963
 versions:
+  - 3.5.2
   - 3.5.1
   - 3.5.0
   - 3.4.1
@@ -56,6 +57,12 @@ dependencies:
   - celery>=5.3.0,<6,!=5.3.3,!=5.3.2
   - flower>=1.0.0
   - google-re2>=1.0
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.4.0
+
 
 integrations:
   - integration-name: Celery
@@ -324,8 +331,3 @@ config:
         sensitive: true
         example: '{"password": "password_for_redis_server"}'
         default: ~
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0

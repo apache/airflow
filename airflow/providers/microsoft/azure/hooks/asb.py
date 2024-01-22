@@ -75,8 +75,8 @@ class BaseAzureServiceBusHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_service_bus_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, azure_service_bus_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.conn_id = azure_service_bus_conn_id
 
     def get_conn(self):

@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.0
+.....
+
+Latest change: 2024-01-10
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+`d105c7115f <https://github.com/apache/airflow/commit/d105c7115f56f88d48a2888484a0ed7d1c01576f>`_  2024-01-09   ``Get rid of pyarrow-hotfix for CVE-2023-47248 (#36697)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ==================================================================================================
+
 5.5.0
 .....
 
-Latest change: 2023-12-19
+Latest change: 2023-12-23
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `881d88b4da <https://github.com/apache/airflow/commit/881d88b4da90fbc053f9d911b80d1aa015a12e02>`_  2023-12-19   ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
 `d793fda391 <https://github.com/apache/airflow/commit/d793fda39161be9281d3d4da54e2e2b4f6344b4d>`_  2023-12-18   ``Add ability to run streaming Job for BeamRunPythonPipelineOperator in non deferrable mode (#36108)``
 =================================================================================================  ===========  ======================================================================================================

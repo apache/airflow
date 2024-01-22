@@ -58,9 +58,12 @@ class PagerdutyEventsHook(BaseHook):
         }
 
     def __init__(
-        self, integration_key: str | None = None, pagerduty_events_conn_id: str | None = None
+        self,
+        integration_key: str | None = None,
+        pagerduty_events_conn_id: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.integration_key = None
         self._session = None
 
@@ -122,7 +125,7 @@ class PagerdutyEventsHook(BaseHook):
             "This method will be deprecated. Please use the "
             "`PagerdutyEventsHook.send_event` to interact with the Events API",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         data = PagerdutyEventsHook.prepare_event_data(

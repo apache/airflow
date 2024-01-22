@@ -1385,7 +1385,7 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
 
 
 class GCSAsyncHook(GoogleBaseAsyncHook):
-    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync."""
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseAsyncHook."""
 
     sync_hook_class = GCSHook
 

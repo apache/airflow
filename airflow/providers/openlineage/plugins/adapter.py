@@ -102,11 +102,11 @@ class OpenLineageAdapter(LoggingMixin):
         return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
 
     @staticmethod
-    def build_task_instance_run_id(task_id, execution_date, try_number):
+    def build_task_instance_run_id(dag_id, task_id, execution_date, try_number):
         return str(
             uuid.uuid3(
                 uuid.NAMESPACE_URL,
-                f"{_DAG_NAMESPACE}.{task_id}.{execution_date}.{try_number}",
+                f"{_DAG_NAMESPACE}.{dag_id}.{task_id}.{execution_date}.{try_number}",
             )
         )
 

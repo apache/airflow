@@ -19,8 +19,9 @@ from __future__ import annotations
 RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
     "name": "Airflow release commands",
     "commands": [
-        "prepare-airflow-package",
         "create-minor-branch",
+        "prepare-airflow-package",
+        "prepare-airflow-tarball",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -43,9 +44,11 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
     "commands": [
+        "add-back-references",
+        "prepare-python-client",
         "publish-docs",
         "generate-constraints",
-        "add-back-references",
+        "update-constraints",
     ],
 }
 
@@ -55,8 +58,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
-                "--use-container-for-assets-compilation",
                 "--version-suffix-for-pypi",
+                "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-airflow-tarball": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--version",
             ],
         }
     ],
@@ -154,6 +165,19 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--skip-git-fetch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-python-client": [
+        {
+            "name": "Python client preparation flags",
+            "options": [
+                "--package-format",
+                "--version-suffix-for-pypi",
+                "--use-local-hatch",
+                "--python-client-repo",
+                "--only-publish-build-scripts",
+                "--security-schemes",
             ],
         }
     ],

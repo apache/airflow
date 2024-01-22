@@ -197,6 +197,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # "_api/airflow/operators/index.rst",
+        # "_api/airflow/sensors/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
@@ -820,6 +822,25 @@ if PACKAGE_NAME == "apache-airflow":
     redoc = [
         {
             "name": "Airflow REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+elif PACKAGE_NAME == "apache-airflow-providers-fab":
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            "name": "Fab provider REST API",
             "page": "stable-rest-api-ref",
             "spec": OPENAPI_FILE,
             "opts": {
