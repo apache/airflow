@@ -42,7 +42,7 @@ Before deciding which method to choose, there are a couple of factors to conside
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
 * If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
   For a comprehensive venv tutorial - visit
-  `Virtual Env guide <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_
+  `Virtual Env guide <local_virtualenv.rst>`_
 * You need to have usually a paid account to access managed, remote virtual environment.
 
 Local machine development
@@ -631,27 +631,27 @@ on macOS, install via
   pre-commit uninstall
 
 
-- For more information on visit |STATIC_CODE_CHECKS.rst|
+- For more information on visit |static_code_checks.rst|
 
-.. |STATIC_CODE_CHECKS.rst| raw:: html
+.. |static_code_checks.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst" target="_blank">
-   STATIC_CODE_CHECKS.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/static_code_checks.rst" target="_blank">
+   static_code_checks.rst</a>
 
-- Following are some of the important links of STATIC_CODE_CHECKS.rst
+- Following are some of the important links of static_code_checks.rst
 
   - |Pre-commit Hooks|
 
   .. |Pre-commit Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/static_code_checks.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
 
   - |Running Static Code Checks via Breeze|
 
   .. |Running Static Code Checks via Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/static_code_checks.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
 
 
@@ -738,19 +738,19 @@ All Tests are inside ./tests directory.
    breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
-- For more information on Testing visit : |TESTING.rst|
+- For more information on Testing visit : |testing.rst|
 
-.. |TESTING.rst| raw:: html
+.. |testing.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst" target="_blank">TESTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst" target="_blank">testing.rst</a>
 
-- Following are the some of important topics of TESTING.rst
+- Following are the some of important topics of testing.rst
 
   - |Airflow Test Infrastructure|
 
   .. |Airflow Test Infrastructure| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-test-infrastructure" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#airflow-test-infrastructure" target="_blank">
    Airflow Test Infrastructure</a>
 
 
@@ -758,7 +758,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#airflow-unit-tests" target="_blank">Airflow Unit
    Tests</a>
 
 
@@ -766,7 +766,7 @@ All Tests are inside ./tests directory.
 
   .. |Helm Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#helm-unit-tests" target="_blank">Helm Unit Tests
    </a>
 
 
@@ -774,7 +774,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Integration Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#airflow-integration-tests" target="_blank">
    Airflow Integration Tests</a>
 
 
@@ -782,7 +782,7 @@ All Tests are inside ./tests directory.
 
   .. |Running Tests with Kubernetes| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#running-tests-with-kubernetes" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#running-tests-with-kubernetes" target="_blank">
    Running Tests with Kubernetes</a>
 
 
@@ -790,7 +790,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow System Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-system-tests" target="_blank">Airflow
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#airflow-system-tests" target="_blank">Airflow
    System Tests</a>
 
 
@@ -798,7 +798,7 @@ All Tests are inside ./tests directory.
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/testing.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
 
 Contribution guide
@@ -810,21 +810,20 @@ Contribution guide
 
    <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
 
-- Following are some of important links of CONTRIBUTING.rst
+- Following are some of important links of Contribution documentation
 
   - |Types of contributions|
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contributions" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/contribution-docs/creating_issues_and_pull_requests.rst#contributions" target="_blank">
    Types of contributions</a>
-
 
   - |Roles of contributor|
 
   .. |Roles of contributor| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#roles" target="_blank">Roles of
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/roles_in_airflow_project.rst" target="_blank">Roles of
    contributor</a>
 
 
@@ -832,7 +831,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contribution-workflow" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/contribution_workflow.rst" target="_blank">
    Workflow for a contribution</a>
 
 
@@ -881,7 +880,7 @@ describes how to do it.
 
 .. |Syncing fork| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/working-with-git.rst#how-to-sync-your-fork" target="_blank">
    Update new changes made to apache:airflow project to your fork</a>
 
 
@@ -889,7 +888,7 @@ describes how to do it.
 
 .. |Rebasing pull request| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contribution-docs/working-with-git.rst#how-to-rebase-pr" target="_blank">
    Rebasing pull request</a>
 
 Using your IDE
@@ -899,8 +898,8 @@ If you are familiar with Python development and use your favourite editors, Airf
 similarly to other projects of yours. However, if you need specific instructions for your IDE you
 will find more detailed instructions here:
 
-* `Pycharm/IntelliJ <CONTRIBUTORS_QUICK_START_PYCHARM.rst>`_
-* `Visual Studio Code <CONTRIBUTORS_QUICK_START_VSCODE.rst>`_
+* `Pycharm/IntelliJ <contributors_quick_start_pycharm.rst>`_
+* `Visual Studio Code <contributors_quick_start_vscode.rst>`_
 
 
 Using Remote development environments
@@ -909,5 +908,5 @@ Using Remote development environments
 In order to use remote development environment, you usually need a paid account, but you do not have to
 setup local machine for development.
 
-* `GitPod <CONTRIBUTORS_QUICK_START_GITPOD.rst>`_
-* `GitHub Codespaces <CONTRIBUTORS_QUICK_START_CODESPACES.rst>`_
+* `GitPod <contributors_quick_start_gitpod.rst>`_
+* `GitHub Codespaces <contributors_quick_start_codespaces.rst>`_

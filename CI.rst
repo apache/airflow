@@ -517,7 +517,7 @@ by running the sequence of corresponding ``breeze`` command. Make sure however t
 
 In the output of the CI jobs, you will find both  - the flags passed and environment variables set.
 
-You can read more about it in `Breeze <dev/breeze/doc/breeze.rst>`_ and `Testing <TESTING.rst>`_
+You can read more about it in `Breeze <dev/breeze/doc/breeze.rst>`_ and `Testing <contribution-docs/testing.rst>`_
 
 Since we store images from every CI run, you should be able easily reproduce any of the CI tests problems
 locally. You can do it by pulling and using the right image and running it with the right docker command,

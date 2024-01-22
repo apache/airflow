@@ -107,7 +107,7 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
+You are STRONGLY encouraged to also install and use `pre-commit hooks <static_code_checks.rst#pre-commit-hooks>`_
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
@@ -362,7 +362,7 @@ This document describes minimum requirements and instructions for using a standa
 Running Tests
 -------------
 
-Running tests is described in `TESTING.rst <TESTING.rst>`_.
+Running tests is described in `testing.rst <contribution-docs/testing.rst>`_.
 
 While most of the tests are typical unit tests that do not require external components, there are a number
 of Integration tests. You can technically use local virtualenv to run those tests, but it requires to

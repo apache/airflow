@@ -69,7 +69,7 @@ merges to `main` branch builds (also known as `canary` builds) have separate mai
 take care about refreshing the cache that is used to speed up our builds and to speed up
 rebuilding of [Breeze](./breeze/doc/breeze.rst) images for development purpose. This is all happening automatically, usually:
 
-* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
+* The latest [constraints](../contribution-docs/airflow_dependencies_and_extras.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.
 
 * The [images](../IMAGES.rst) in `ghcr.io` registry are refreshed early at the beginning of the `canary` build. This

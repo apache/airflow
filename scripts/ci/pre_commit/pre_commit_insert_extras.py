@@ -84,7 +84,10 @@ def get_extras_from_pyproject_toml() -> dict[str, list[str]]:
     return pyproject_toml_content["project"]["optional-dependencies"]
 
 
-FILES_TO_UPDATE = [(AIRFLOW_ROOT_PATH / "INSTALL", "txt"), (AIRFLOW_ROOT_PATH / "CONTRIBUTING.rst", "rst")]
+FILES_TO_UPDATE = [
+    (AIRFLOW_ROOT_PATH / "INSTALL", "txt"),
+    (AIRFLOW_ROOT_PATH / "contribution-docs" / "airflow_dependencies_and_extras.rst", "rst"),
+]
 
 
 def process_documentation_files():

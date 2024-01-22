@@ -25,24 +25,23 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/pycharm_clone.png"
-             alt="Cloning github fork to Pycharm">
+        <img src="images/quick_start/vscode_clone.png"
+             alt="Cloning github fork to Visual Studio Code">
       </div>
 
 
-2. Paste the repository link in the URL field and submit.
+2. Paste the copied clone link in the URL field and submit.
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/click_on_clone.png"
-             alt="Cloning github fork to Pycharm">
+        <img src="images/quick_start/vscode_click_on_clone.png"
+             alt="Cloning github fork to Visual Studio Code">
       </div>
+
 
 Setting up debugging
 ####################
-
-It requires "airflow-env" virtual environment configured locally.
 
 1. Configuring Airflow database connection
 
@@ -59,20 +58,9 @@ It requires "airflow-env" virtual environment configured locally.
 - Now set ``sql_alchemy_conn = mysql+pymysql://root:@127.0.0.1:23306/airflow?charset=utf8mb4`` in file
   ``~/airflow/airflow.cfg`` on local machine.
 
-2. Debugging an example DAG
+1. Debugging an example DAG
 
-- Add Interpreter to PyCharm pointing interpreter path to ``~/.pyenv/versions/airflow-env/bin/python``, which is virtual
-  environment ``airflow-env`` created with pyenv earlier. For adding an Interpreter go to ``File -> Setting -> Project:
-  airflow -> Python Interpreter``.
-
-  .. raw:: html
-
-    <div align="center" style="padding-bottom:10px">
-      <img src="images/quick_start/add Interpreter.png"
-           alt="Adding existing interpreter">
-    </div>
-
-- In PyCharm IDE open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
+- In Visual Studio Code open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
   machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
@@ -82,31 +70,49 @@ It requires "airflow-env" virtual environment configured locally.
 
   .. code-block:: python
 
+
     if __name__ == "__main__":
         dag.clear()
         dag.run()
 
-- Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
+- Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
 
-  - Click on Add configuration
-
-    .. raw:: html
-
-        <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_configuration.png"
-               alt="Add Configuration pycharm">
-        </div>
-
-  - Add Script Path and Environment Variable to new Python configuration
+  - Using the ``Run`` view click on ``Create a launch.json file``
 
     .. raw:: html
 
         <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_env_variable.png"
-               alt="Add environment variable pycharm">
+          <img src="images/quick_start/vscode_add_configuration_1.png"
+               alt="Add Debug Configuration to Visual Studio Code">
+          <img src="images/quick_start/vscode_add_configuration_2.png"
+               alt="Add Debug Configuration to Visual Studio Code">
+          <img src="images/quick_start/vscode_add_configuration_3.png"
+               alt="Add Debug Configuration to Visual Studio Code">
         </div>
 
-- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in MySQL Workbench.
+  - Change ``"program"`` to point to an example dag and add ``"env"`` and ``"python"`` fields to the new Python configuration
+
+    .. code-block:: json
+
+     {
+         "configurations": [
+             "program": "${workspaceFolder}/files/dags/example_bash_operator.py",
+             "env": {
+                 "PYTHONUNBUFFERED": "1",
+                 "AIRFLOW__CORE__EXECUTOR": "DebugExecutor"
+              },
+              "python": "${env:HOME}/.pyenv/versions/airflow/bin/python"
+         ]
+     }
+
+    .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/quick_start/vscode_add_env_variable.png"
+               alt="Add environment variable to Visual Studio Code Debug configuration">
+        </div>
+
+- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in mysql workbench.
 
 Creating a branch
 #################
@@ -116,7 +122,7 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_1.png"
+        <img src="images/quick_start/vscode_creating_branch_1.png"
              alt="Creating a new branch">
       </div>
 
@@ -125,8 +131,8 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_2.png"
+        <img src="images/quick_start/vscode_creating_branch_2.png"
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <CONTRIBUTORS_QUICK_START.rst>`_ for typical development tasks.
+Follow the `Quick start <contributors_quick_start.rst>`_ for typical development tasks.

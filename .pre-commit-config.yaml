@@ -612,7 +612,7 @@ repos:
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
-          ^CONTRIBUTORS_QUICK_START.rst$|
+          ^contribution-docs/contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git
       - id: check-base-operator-partial-arguments
@@ -818,7 +818,7 @@ repos:
         name: Sync integrations list with docs
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
         language: python
-        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contribution-docs/testing.rst$
         additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false

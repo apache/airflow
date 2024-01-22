@@ -34,7 +34,7 @@ Airflow Test Infrastructure
   versions from 1.10.* series.
 
 This document is about running Python tests. Before the tests are run, use
-`static code checks <STATIC_CODE_CHECKS.rst>`__ that enable catching typical errors in the code.
+`static code checks <static_code_checks.rst>`__ that enable catching typical errors in the code.
 
 Airflow Unit Tests
 ==================
@@ -741,7 +741,7 @@ Running Unit tests
 Running Unit Tests from PyCharm IDE
 -----------------------------------
 
-To run unit tests from the PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+To run unit tests from the PyCharm IDE, create the `local virtualenv <local_virtualenv.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/pycharm/configure_test_runner.png
@@ -1485,7 +1485,7 @@ Managing Kubernetes Cluster
 For your testing, you manage Kind cluster with ``k8s`` breeze command group. Those commands allow to
 created:
 
-.. image:: ./images/breeze/output_k8s.svg
+.. image:: ../dev/breeze/doc/images/output_k8s.svg
   :width: 100%
   :alt: Breeze k8s
 

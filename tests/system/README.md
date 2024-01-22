@@ -38,7 +38,7 @@ The purpose of these tests is to:
 - serve both as examples and test files.
 
 > This is the new design of system tests which temporarily exists along with the old one documented at
-> [TESTING.rst](../../TESTING.rst) and soon will completely replace it. The new design is based on the
+> [testing.rst](../../contribution-docs/testing.rst) and soon will completely replace it. The new design is based on the
 > [AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests).
 > Please use it and write any new system tests according to this documentation.
 
@@ -94,9 +94,9 @@ airflow dags test -S tests/system bigquery_dataset 2022-01-01
 ## How to write system tests <a name="how_to_write"></a>
 
 If you are going to implement new system tests, it is recommended to familiarize with the content of the
-[AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests). There are
-many changes in comparison to the old design documented at [TESTING.rst](../../TESTING.rst), so you need to be
-aware of them and be compliant with the new design.
+[AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests). There are many changes in comparison to the old design documented at
+[testing.rst](../../contribution-docs/testing.rst), so you need to be aware of them and be compliant with
+the new design.
 
 To make it easier to migrate old system tests or write new ones, we
 documented the whole **process of migration in details** (which can be found
