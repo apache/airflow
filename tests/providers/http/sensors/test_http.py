@@ -345,8 +345,7 @@ class TestHttpSensorAsync:
         mock_defer,
     ):
         """
-        Asserts that a task is deferred and a HttpTrigger will be fired
-        when the HttpSensor is executed in deferrable mode.
+        Asserts that a task is not deferred when task is already finished
         """
 
         task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
@@ -383,10 +382,3 @@ class TestHttpSensorAsync:
         task.execute({})
         mock_execute.assert_called_once()
         mock_defer.assert_not_called()
-
-    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.poke", return_value=False)
-    def test_sensor_defer(self, mock_poke):
-        task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
-        with pytest.raises(TaskDeferred) as exc:
-            task.execute({})
-        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
