@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``init templated field explicitly in constructor (#36908)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Add flake8-implicit-str-concat check to Ruff (#36597)``
+
 1.3.0
 .....
 

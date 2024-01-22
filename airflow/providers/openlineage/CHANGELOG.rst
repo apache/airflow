@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
+
 1.4.0
 .....
 
