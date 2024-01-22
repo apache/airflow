@@ -900,7 +900,8 @@ microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, od
 openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
 pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, saml,
 segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
-tableau, tabular, telegram, teradata, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+tableau, tabular, telegram, teradata, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex,
+zendesk
   .. END REGULAR EXTRAS HERE
 
 Provider packages
