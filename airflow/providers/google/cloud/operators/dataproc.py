@@ -2502,9 +2502,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
             cluster = hook.get_cluster(
                 project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
-            if cluster.status.state == cluster.status.State.RUNNING:
-                self.log.info("Updated %s cluster.", self.cluster_name)
-            else:
+            if cluster.status.state != cluster.status.State.RUNNING:
                 self.defer(
                     trigger=DataprocClusterTrigger(
                         cluster_name=self.cluster_name,
