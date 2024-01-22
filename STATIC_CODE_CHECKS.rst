@@ -26,8 +26,8 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some `static code check <BREEZE.rst#running-static-checks>`_ via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
-using available bash scripts.
+You can also run some `static code check <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_ via
+`Breeze <dev/breeze/doc/breeze.rst>`_ environment.
 
 Pre-commit hooks
 ----------------
@@ -77,7 +77,7 @@ The current list of prerequisites is limited to ``xmllint``:
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
 `Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
-locally before installing pre-commit checks as described in `BREEZE.rst <BREEZE.rst>`__.
+locally before installing pre-commit checks as described in `Breeze docs <dev/breeze/doc/breeze.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
 In such cases, the Docker-based pre-commit will inform you that you should rebuild the image.
@@ -382,7 +382,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-breeze-cmd-output                                  | Update output of breeze commands in BREEZE.rst               |         |
+| update-breeze-cmd-output                                  | Update output of breeze commands in Breeze documentation     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -413,6 +413,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| validate-operators-init                                   | Prevent templated field logic checks in operators' __init__  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -543,7 +545,8 @@ Run all checks for all changes in my branch since branched from main:
 
      breeze static-checks --type mypy-core --only-my-changes
 
-More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
+More examples can be found in
+`Breeze documentation <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_
 
 
 Debugging pre-commit check scripts requiring image

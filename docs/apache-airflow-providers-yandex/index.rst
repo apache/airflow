@@ -78,7 +78,7 @@ Package apache-airflow-providers-yandex
 Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 3.7.1
+Release: 3.8.0
 
 Provider package
 ----------------

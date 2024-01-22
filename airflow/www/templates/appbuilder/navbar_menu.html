@@ -21,8 +21,8 @@
   <a href="{{item.get_url()}}">{{_(item.label)}}</a>
 {% endmacro %}
 
-{% for item1 in menu.get_list() %}
-  {% if item1 | is_menu_visible %}
+{% for item1 in auth_manager.get_permitted_menu_items(menu.get_list()) %}
+  {% if item1 %}
     {% if item1.childs %}
       <li class="dropdown">
         <a class="dropdown-toggle" href="javascript:void(0)">
@@ -34,7 +34,7 @@
                 {% if not loop.last %}
                   <li class="divider"></li>
                 {% endif %}
-              {% elif item2 | is_menu_visible %}
+              {% elif item2 %}
                 <li>{{ menu_item(item2) }}</li>
               {% endif %}
             {% endif %}

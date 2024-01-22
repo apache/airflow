@@ -67,7 +67,7 @@ cases where we need to update them manually. This document describes how to do i
 Our [CI system](../CI.rst) is build in the way that it self-maintains. Regular scheduled builds and
 merges to `main` branch builds (also known as `canary` builds) have separate maintenance step that
 take care about refreshing the cache that is used to speed up our builds and to speed up
-rebuilding of [Breeze](../BREEZE.rst) images for development purpose. This is all happening automatically, usually:
+rebuilding of [Breeze](./breeze/doc/breeze.rst) images for development purpose. This is all happening automatically, usually:
 
 * The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.

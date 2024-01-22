@@ -43,7 +43,9 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
             warnings.warn(
                 f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras for conn "
                 f"{conn_id}. Using value for `{field_name}`.  Please ensure this is the correct "
-                f"value and remove the backcompat key `{backcompat_key}`."
+                f"value and remove the backcompat key `{backcompat_key}`.",
+                UserWarning,
+                stacklevel=2,
             )
         ret = extras[field_name]
     elif backcompat_key in extras:

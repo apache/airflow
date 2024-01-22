@@ -40,6 +40,7 @@ from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
+
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
 """
@@ -287,18 +289,22 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Create the launcher.
 
         :param kube_client: kubernetes client
+        :param callbacks:
         :param progress_callback: Callback function invoked when fetching container log.
+            This parameter is deprecated, please use ````
         """
         super().__init__()
         self._client = kube_client
         self._progress_callback = progress_callback
         self._watch = watch.Watch()
+        self._callbacks = callbacks
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -441,9 +447,13 @@ class PodManager(LoggingMixin):
                                 message_timestamp = line_timestamp
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                if self._progress_callback:
-                                    for line in progress_callback_lines:
+                                for line in progress_callback_lines:
+                                    if self._progress_callback:
                                         self._progress_callback(line)
+                                    if self._callbacks:
+                                        self._callbacks.progress_callback(
+                                            line=line, client=self._client, mode=ExecutionMode.SYNC
+                                        )
                                 self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
@@ -454,9 +464,13 @@ class PodManager(LoggingMixin):
                             progress_callback_lines.append(line)
                 finally:
                     # log the last line and update the last_captured_timestamp
-                    if self._progress_callback:
-                        for line in progress_callback_lines:
+                    for line in progress_callback_lines:
+                        if self._progress_callback:
                             self._progress_callback(line)
+                        if self._callbacks:
+                            self._callbacks.progress_callback(
+                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                            )
                     self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
