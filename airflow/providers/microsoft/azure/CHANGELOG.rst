@@ -34,8 +34,8 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 .. warning::
-   In this version of the provider, we have removed include and delimiter params from
-   WasbPrefixSensorTrigger. These params will now need to passed through check_options param
+   In this version of the provider, ``include`` and ``delimiter`` params have been removed from
+   ``WasbPrefixSensorTrigger``. These params will now need to passed through ``check_options`` param
 
 * ``Fix WasbPrefixSensor arg inconsistency between sync and async mode (#36806)``
 
