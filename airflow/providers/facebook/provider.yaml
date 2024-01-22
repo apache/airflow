@@ -22,8 +22,9 @@ description: |
     `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 state: ready
-source-date-epoch: 1703288134
+source-date-epoch: 1705912091
 versions:
+  - 3.5.0
   - 3.4.0
   - 3.3.0
   - 3.2.2

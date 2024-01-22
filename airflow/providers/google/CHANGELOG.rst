@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+10.14.0
+.......
+
 .. note::
   The default value of ``parquet_row_group_size`` in ``BaseSQLToGCSOperator`` has changed from 1 to
   100000, in order to have a default that provides better compression efficiency and performance of
@@ -36,6 +39,44 @@ Changelog
   parameter in the operator. All operators that are derived from ``BaseSQLToGCSOperator`` are affected
   when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
   ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``. Due to the above we treat this change as bug fix.
+
+
+Features
+~~~~~~~~
+
+* ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
+* ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
+* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+* ``Implement Google Analytics Admin (GA4) operators (#36276)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix templating field to super constructor (#36934)``
+* ``fix: respect connection ID and impersonation in GKEStartPodOperator (#36861)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Fix deprecations into the GCP Dataproc links (#36834)``
+* ``fix assignment of templated field in constructor (#36603)``
+* ``Check cluster state before defer Dataproc operators to trigger (#36892)``
+* ``prevent templated field logic checks in operators __init__ (#36489)``
+* ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
+* ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+
+Misc
+~~~~
+
+* ``style(providers/google): improve BigQueryInsertJobOperator type hinting (#36894)``
+* ``Deprecate AutoMLTrainModelOperator for Vision and Video (#36473)``
+* ``Remove backward compatibility check for KubernetesPodOperator module (#36724)``
+* ``Remove backward compatibility check for KubernetesPodTrigger module (#36721)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``remove unnecessary templated field (#36491)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 
 10.13.1
 .......
