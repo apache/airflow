@@ -110,6 +110,17 @@ task_http_sensor_check = HttpSensor(
     dag=dag,
 )
 # [END howto_operator_http_http_sensor_check]
+# [START howto_operator_http_http_sensor_check_async]
+task_http_sensor_check_async = HttpSensor(
+    task_id="http_sensor_check_async",
+    http_conn_id="http_default",
+    endpoint="",
+    deferrable=True,
+    request_params={},
+    poke_interval=5,
+    dag=dag,
+)
+# [END howto_operator_http_http_sensor_check_async]
 # [START howto_operator_http_pagination_function]
 
 
@@ -134,7 +145,13 @@ task_get_paginated = HttpOperator(
     dag=dag,
 )
 # [END howto_operator_http_pagination_function]
-task_http_sensor_check >> task_post_op >> task_get_op >> task_get_op_response_filter
+(
+    task_http_sensor_check
+    >> task_http_sensor_check_async
+    >> task_post_op
+    >> task_get_op
+    >> task_get_op_response_filter
+)
 task_get_op_response_filter >> task_put_op >> task_del_op >> task_post_op_formenc
 task_post_op_formenc >> task_get_paginated
 

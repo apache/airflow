@@ -36,7 +36,11 @@ Here we are poking until httpbin gives us a response text containing ``httpbin``
     :language: python
     :start-after: [START howto_operator_http_http_sensor_check]
     :end-before: [END howto_operator_http_http_sensor_check]
-
+this sensor can also be used in deferrable mode
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+    :language: python
+    :start-after: [START howto_operator_http_http_sensor_check_async]
+    :end-before: [END howto_operator_http_http_sensor_check_async]
 .. _howto/operator:HttpOperator:
 
 HttpOperator
