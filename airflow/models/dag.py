@@ -3049,8 +3049,8 @@ class DAG(LoggingMixin):
         )
         query = with_row_locks(query, of=DagModel, session=session)
         orm_dags: list[DagModel] = session.scalars(query).unique().all()
-        existing_dags = {orm_dag.dag_id: orm_dag for orm_dag in orm_dags}
-        missing_dag_ids = dag_ids.difference(existing_dags)
+        existing_dags: dict[str, DagModel] = {x.dag_id: x for x in orm_dags}
+        missing_dag_ids = dag_ids.difference(existing_dags.keys())
 
         for missing_dag_id in missing_dag_ids:
             orm_dag = DagModel(dag_id=missing_dag_id)
@@ -3067,7 +3067,7 @@ class DAG(LoggingMixin):
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
-            query = cls._get_latest_runs_query(existing_dags, session)
+            query = cls._get_latest_runs_query(dags=list(existing_dags.keys()))
             latest_runs = {run.dag_id: run for run in session.scalars(query)}
 
             # Get number of active dagruns for all dags we are processing as a single query.
@@ -3240,16 +3240,15 @@ class DAG(LoggingMixin):
             cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @classmethod
-    def _get_latest_runs_query(cls, dags, session) -> Query:
+    def _get_latest_runs_query(cls, dags: list[str]) -> Query:
         """
         Query the database to retrieve the last automated run for each dag.
 
         :param dags: dags to query
-        :param session: sqlalchemy session object
         """
         if len(dags) == 1:
             # Index optimized fast path to avoid more complicated & slower groupby queryplan
-            existing_dag_id = list(dags)[0].dag_id
+            existing_dag_id = dags[0]
             last_automated_runs_subq = (
                 select(func.max(DagRun.execution_date).label("max_execution_date"))
                 .where(
