@@ -628,7 +628,7 @@ class GoogleBaseHook(BaseHook):
         return status, message
 
 
-class CredentialsToken(Token):
+class _CredentialsToken(Token):
     """A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
 
     This class allows us to create token instances from credentials objects and thus supports a variety of use cases for Google
@@ -653,7 +653,7 @@ class CredentialsToken(Token):
         hook: GoogleBaseHook,
         *,
         session: ClientSession | None = None,
-    ) -> CredentialsToken:
+    ) -> _CredentialsToken:
         credentials, project = hook.get_credentials_and_project_id()
         return cls(
             credentials=credentials,
@@ -689,7 +689,7 @@ class GoogleBaseAsyncHook(BaseHook):
             self._sync_hook = await sync_to_async(self.sync_hook_class)(**self._hook_kwargs)
         return self._sync_hook
 
-    async def get_token(self, *, session: ClientSession | None = None) -> CredentialsToken:
+    async def get_token(self, *, session: ClientSession | None = None) -> _CredentialsToken:
         """Returns a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
         sync_hook = await self.get_sync_hook()
-        return await CredentialsToken.from_hook(sync_hook, session=session)
+        return await _CredentialsToken.from_hook(sync_hook, session=session)
