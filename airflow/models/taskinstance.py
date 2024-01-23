@@ -1418,7 +1418,6 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
-            "map_index_template": task.map_index_template,
         }
 
     @reconstructor
@@ -2505,7 +2504,7 @@ class TaskInstance(Base, LoggingMixin):
 
             with set_current_context(context):
                 dag = self.task.get_dag()
-                jinja_env = dag.get_template_env(force_sandboxed=True)
+                jinja_env = dag.get_template_env()
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
@@ -2541,9 +2540,7 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
-                self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
-                    **context
-                )
+                self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(context)
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
