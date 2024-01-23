@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import importlib
+import types
 from unittest import mock
 
 import pytest
@@ -26,9 +27,11 @@ import time_machine
 from sentry_sdk import configure_scope
 from sentry_sdk.transport import Transport
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.module_loading import import_string
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
 
@@ -188,3 +191,46 @@ class TestSentryHook:
         """
         assert sentry_minimum
         sentry_sdk.assert_called_once()
+
+    @pytest.mark.db_test
+    @mock.patch("sentry_sdk.push_scope")
+    def test__run_raw_task_decorated_with_sentry_enrich_errors(
+        self, mock_push_scope, create_task_instance, sentry
+    ):
+        """
+        Test TaskInstance._run_raw_task is decorated with encountering error.
+        """
+
+        with conf_vars({("sentry", "sentry_on"): "True"}):
+            ti = create_task_instance()
+            # rewarpe the method with ConfiguredSentry.enrich_errors instead of DummySentry.enrich_errors
+            ti._run_raw_task = types.MethodType(
+                sentry.enrich_errors(provide_session(ti._run_raw_task.__wrapped__)), ti
+            )
+
+            ti._run_raw_task()
+            assert mock_push_scope.called
+
+    @pytest.mark.db_test
+    @mock.patch("sentry_sdk.push_scope")
+    def test__schedule_downstream_tasks_decorated_with_sentry_enrich_errors(
+        self, mock_push_scope, create_task_instance, session, sentry
+    ):
+        """
+        Test TaskInstance._schedule_downstream_tasks is decorated with encountering error.
+        """
+        with conf_vars({("sentry", "sentry_on"): "True"}):
+            from airflow.models import TaskInstance
+
+            # rewarpe the method with ConfiguredSentry.enrich_errors instead of DummySentry.enrich_errors
+            TaskInstance._schedule_downstream_tasks = classmethod(
+                internal_api_call(
+                    sentry.enrich_errors(
+                        provide_session(TaskInstance._schedule_downstream_tasks.__wrapped__.__wrapped__)
+                    )
+                )
+            )
+
+            ti = create_task_instance()
+            TaskInstance._schedule_downstream_tasks(ti=ti, session=session)
+            assert mock_push_scope.called

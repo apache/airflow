@@ -3192,37 +3192,6 @@ class TestTaskInstance:
         assert State.SKIPPED == ti.state
         assert callback_function.called
 
-    @mock.patch("sentry_sdk.push_scope")
-    def test__run_raw_task_decorated_with_sentry_enrich_errors(self, mock_push_scope, create_task_instance):
-        """
-        Test TaskInstance._run_raw_task is decorated with encountering error.
-        """
-
-        with conf_vars(
-            {
-                ("sentry", "sentry_on"): "True"
-            }
-        ):
-            ti = create_task_instance()
-            ti._run_raw_task()
-            assert mock_push_scope.called
-
-    @mock.patch("sentry_sdk.push_scope")
-    def test__schedule_downstream_tasks_decorated_with_sentry_enrich_errors(
-        self, mock_push_scope, create_task_instance, session
-    ):
-        """
-        Test TaskInstance._schedule_downstream_tasks is decorated with encountering error.
-        """
-        with conf_vars(
-            {
-                ("sentry", "sentry_on"): "True"
-            }
-        ):
-            ti = create_task_instance()
-            TaskInstance._schedule_downstream_tasks(ti=ti, session=session)
-            assert mock_push_scope.called
-
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):
