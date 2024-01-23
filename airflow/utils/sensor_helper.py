@@ -109,7 +109,7 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     task_group = refreshed_dag_info.task_group_dict.get(external_task_group_id)
 
     if task_group:
-        group_tasks = session.scalar(
+        group_tasks = session.scalars(
             select(TaskInstance).filter(
                 TaskInstance.dag_id == external_dag_id,
                 TaskInstance.task_id.in_(task.task_id for task in task_group),
