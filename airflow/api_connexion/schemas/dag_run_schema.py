@@ -126,11 +126,9 @@ class DAGRunSchema(SQLAlchemySchema):
         data_interval_start_exists = data.get("data_interval_start") is not None
         data_interval_end_exists = data.get("data_interval_end") is not None
 
-        if (data_interval_start_exists and not data_interval_end_exists) or (
-            data_interval_end_exists and not data_interval_start_exists
-        ):
+        if data_interval_start_exists != data_interval_end_exists:
             raise ValidationError(
-                "Both 'data_interval_start' and 'data_interval_end' must be specified, you cannot specify only one"
+                "Both 'data_interval_start' and 'data_interval_end' must be specified together"
             )
 
 

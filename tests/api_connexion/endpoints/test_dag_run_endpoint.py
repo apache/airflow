@@ -1373,12 +1373,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             (
                 "2020-11-10T08:25:56.939143+00:00",
                 None,
-                "{'_schema': [\"Both 'data_interval_start' and 'data_interval_end' must be specified, you cannot specify only one\"]}",
+                "{'_schema': [\"Both 'data_interval_start' and 'data_interval_end' must be specified together\"]}",
             ),
             (
                 None,
                 "2020-11-10T08:25:56.939143+00:00",
-                "{'_schema': [\"Both 'data_interval_start' and 'data_interval_end' must be specified, you cannot specify only one\"]}",
+                "{'_schema': [\"Both 'data_interval_start' and 'data_interval_end' must be specified together\"]}",
             ),
         ],
     )

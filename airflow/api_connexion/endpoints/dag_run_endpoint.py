@@ -338,20 +338,21 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         try:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
-            interval = None
-            if post_body.get("data_interval_start") and post_body.get("data_interval_end"):
-                interval = DataInterval(
-                    start=pendulum.instance(post_body["data_interval_start"]),
-                    end=pendulum.instance(post_body["data_interval_end"]),
+            data_interval_start = post_body.get("data_interval_start")
+            data_interval_end = post_body.get("data_interval_end")
+            if data_interval_start and data_interval_end:
+                data_interval = DataInterval(
+                    start=pendulum.instance(data_interval_start),
+                    end=pendulum.instance(data_interval_end),
                 )
             else:
-                interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
 
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
                 execution_date=logical_date,
-                data_interval=interval,
+                data_interval=data_interval,
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
