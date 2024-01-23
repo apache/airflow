@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from airflow.datasets import Dataset
@@ -46,3 +48,9 @@ def test_uri_with_scheme():
 def test_uri_without_scheme():
     dataset = Dataset(uri="example_dataset")
     EmptyOperator(task_id="task1", outlets=[dataset])
+
+
+def test_fspath():
+    uri = "s3://example_dataset"
+    dataset = Dataset(uri=uri)
+    assert os.fspath(dataset) == uri
