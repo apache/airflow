@@ -289,7 +289,7 @@ In general, your contribution includes the following stages:
    the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
 
 2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
-   initialize the `Breeze environment <BREEZE.rst>`__, and
+   initialize the `Breeze environment <dev/breeze/doc/breeze.rst>`__, and
    install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
    If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
@@ -324,7 +324,8 @@ The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst <ht
 The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
 can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
-The Breeze instructions can be found in full in the `BREEZE.rst <https://github.com/apache/airflow/blob/main/BREEZE.rst>`_ file.
+The Breeze instructions can be found in full in the
+`Breeze <https://github.com/apache/airflow/blob/main/dev/breeze/doc/breeze.rst>`_ file.
 
 You can configure the Docker-based Breeze development environment as follows:
 
@@ -700,7 +701,7 @@ develop Apache Airflow:
 -   `Local virtualenv development environment <LOCAL_VIRTUALENV.rst>`_
     that supports running unit tests and can be used in your IDE.
 
--   `Breeze Docker-based development environment <BREEZE.rst>`_ that provides
+-   `Breeze Docker-based development environment <dev/breeze/doc/breeze.rst>`_ that provides
     an end-to-end CI solution with all software dependencies covered.
 
 The table below summarizes differences between the environments:
@@ -758,7 +759,7 @@ Limitations:
     real unit tests. Technically, to run integration tests, you can configure
     and install the dependencies on your own, but it is usually complex.
     Instead, you are recommended to use
-    `Breeze development environment <BREEZE.rst>`__ with all required packages
+    `Breeze development environment <dev/breeze/doc/breeze.rst>`__ with all required packages
     pre-installed.
 
 -   You need to make sure that your local environment is consistent with other
@@ -774,7 +775,7 @@ Breeze Development Environment
 ------------------------------
 
 All details about using and running Airflow Breeze can be found in
-`BREEZE.rst <BREEZE.rst>`__.
+`Breeze <dev/breeze/doc/breeze.rst>`__.
 
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
@@ -1404,7 +1405,7 @@ Test Infrastructure
 We support the following types of tests:
 
 * **Unit tests** are Python tests launched with ``pytest``.
-  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
+  Unit tests are available both in the `Breeze environment <dev/breeze/doc/breeze.rst>`_
   and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
 * **Integration tests** are available in the Breeze development environment

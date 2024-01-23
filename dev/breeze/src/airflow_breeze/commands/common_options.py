@@ -246,6 +246,7 @@ option_mysql_version = click.option(
     help="Version of MySQL used.",
     type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
+    envvar="MYSQL_VERSION",
     show_default=True,
 )
 option_installation_package_format = click.option(
@@ -269,6 +270,7 @@ option_postgres_version = click.option(
     "--postgres-version",
     type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
     default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
 )

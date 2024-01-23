@@ -145,6 +145,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method will be deprecated. Please use `BigQueryHook.get_client` method",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         http_authorized = self._authorize()
         return build("bigquery", "v2", http=http_authorized, cache_discovery=False)
@@ -624,6 +625,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with "
             "passing the `table_resource` object. This gives more flexibility than this method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         location = location or self.location
         src_fmt_configs = src_fmt_configs or {}
@@ -808,6 +810,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated, please use ``BigQueryHook.update_table`` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         table_resource: dict[str, Any] = {}
 
@@ -958,7 +961,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: The Google Cloud Project ID
         """
         warnings.warn(
-            "This method is deprecated. Please use ``update_dataset``.", AirflowProviderDeprecationWarning
+            "This method is deprecated. Please use ``update_dataset``.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
@@ -1007,7 +1012,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: List of tables associated with the dataset
         """
         warnings.warn(
-            "This method is deprecated. Please use ``get_dataset_tables``.", AirflowProviderDeprecationWarning
+            "This method is deprecated. Please use ``get_dataset_tables``.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         project_id = project_id or self.project_id
         tables = self.get_client().list_tables(
@@ -1197,7 +1204,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         warnings.warn(
-            "This method is deprecated. Please use `delete_table`.", AirflowProviderDeprecationWarning
+            "This method is deprecated. Please use `delete_table`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.delete_table(table_id=deletion_dataset_table, not_found_ok=ignore_if_missing)
 
@@ -1250,7 +1259,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param start_index: zero based index of the starting row to read.
         :return: list of rows
         """
-        warnings.warn("This method is deprecated. Please use `list_rows`.", AirflowProviderDeprecationWarning)
+        warnings.warn(
+            "This method is deprecated. Please use `list_rows`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         rows = self.list_rows(
             dataset_id=dataset_id,
             table_id=table_id,
@@ -1458,6 +1471,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.cancel_job`.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         if self.running_job_id:
             self.cancel_job(job_id=self.running_job_id)
@@ -1617,6 +1631,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job`",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
@@ -1714,6 +1729,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
 
         if not self.project_id:
@@ -1901,6 +1917,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
@@ -1982,6 +1999,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
@@ -2109,6 +2127,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
