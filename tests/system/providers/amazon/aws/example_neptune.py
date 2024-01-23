@@ -27,10 +27,10 @@ from airflow.providers.amazon.aws.operators.neptune import (
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_neptune"
-CLUSTER_ID = "test-cluster"
+# This test requires an existing Neptune cluster.
+CLUSTER_ID = "CLUSTER_ID"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(CLUSTER_ID).build()
-
 
 with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2024, 1, 1, tz="UTC"), catchup=False) as dag:
     test_context = sys_test_context_task()
@@ -38,11 +38,15 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2024, 1, 1, tz="
     cluster_id = test_context["CLUSTER_ID"]
 
     # [START howto_operator_start_neptune_cluster]
-    start_cluster = NeptuneStartDbClusterOperator(db_cluster_id=cluster_id, deferrable=True)
+    start_cluster = NeptuneStartDbClusterOperator(
+        task_id="start_task", db_cluster_id=cluster_id, deferrable=True
+    )
     # [END howto_operator_start_neptune_cluster]
 
     # [START howto_operator_stop_neptune_cluster]
-    stop_cluster = NeptuneStopDbClusterOperator(db_cluster_id=cluster_id, deferrable=True)
+    stop_cluster = NeptuneStopDbClusterOperator(
+        task_id="stop_task", db_cluster_id=cluster_id, deferrable=True
+    )
     # [END howto_operator_stop_neptune_cluster]
 
     chain(
