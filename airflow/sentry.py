@@ -181,7 +181,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                     try:
                         ti_from_kwargs = kwargs.get("ti", None)
                         if ti_from_kwargs:
-                            # Get taskinstnace from TaskInstnace._schedule_downstream_tasks
+                            # Get taskinstance from TaskInstance._schedule_downstream_tasks
                             task_instance = ti_from_kwargs
                         elif hasattr(_self, "task_instance"):
                             # Is a LocalTaskJob get the task instance
