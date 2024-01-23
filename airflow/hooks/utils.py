@@ -19,7 +19,7 @@ from __future__ import annotations
 import typing
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -55,9 +55,11 @@ def _get_count(
 
     if external_task_ids:
         count = (
-            _count_query(TI, states, dttm_filter, external_dag_id, session)
-            .filter(TI.task_id.in_(external_task_ids))
-            .scalar()
+            session.scalar(
+                _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
+                    TI.task_id.in_(external_task_ids)
+                )
+            )
         ) / len(external_task_ids)
     elif external_task_group_id:
         external_task_group_task_ids = _get_external_task_group_task_ids(
@@ -67,12 +69,14 @@ def _get_count(
             count = 0
         else:
             count = (
-                _count_query(TI, states, dttm_filter, external_dag_id, session)
-                .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
-                .scalar()
+                session.scalar(
+                    _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
+                        tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids)
+                    )
+                )
             ) / len(external_task_group_task_ids)
     else:
-        count = _count_query(DR, states, dttm_filter, external_dag_id, session).scalar()
+        count = session.scalar(_count_query(DR, states, dttm_filter, external_dag_id, session))
     return typing.cast(int, count)
 
 
@@ -86,10 +90,11 @@ def _count_query(model, states, dttm_filter, external_dag_id, session: Session) 
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
     """
-    query = session.query(func.count()).filter(
-        model.dag_id == external_dag_id,
-        model.state.in_(states),
-        model.execution_date.in_(dttm_filter),
+    query = (
+        select(func.count())
+        .filter(model.dag_id == external_dag_id)
+        .filter(model.state.in_(states))
+        .filter(model.execution_date.in_(dttm_filter))
     )
     return query
 
