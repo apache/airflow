@@ -50,6 +50,7 @@ except GoogleAuthError:
 MODULE_NAME = "airflow.providers.google.common.hooks.base_google"
 PROJECT_ID = "PROJECT_ID"
 ENV_VALUE = "/tmp/a"
+SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 
 class NoForbiddenAfterCount:
@@ -881,14 +882,14 @@ class TestCredentialsToken:
     @pytest.mark.asyncio
     async def test_get_project(self):
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
-        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID)
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
         assert await token.get_project() == PROJECT_ID
 
     @pytest.mark.asyncio
     async def test_get(self):
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
-        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID)
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
         assert await token.get() == "ACCESS_TOKEN"
         mock_credentials.refresh.assert_called_once()
 
