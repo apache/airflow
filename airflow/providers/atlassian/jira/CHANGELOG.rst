@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
+Misc
+~~~~
+
+* ``Use lax 'atlassian-python-api' limitation (#36841)``
+* ``Limit 'atlassian-python-api' to <3.41.6 (#36815)``
+
 2.5.0
 .....
 

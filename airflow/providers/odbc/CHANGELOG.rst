@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ODBC Hook sql select return empty table (#36709)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 4.4.0
 .....
 
