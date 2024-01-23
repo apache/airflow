@@ -644,7 +644,7 @@ class _CredentialsToken(Token):
         session: ClientSession | None = None,
         scopes: Sequence[str] | None = None,
     ) -> None:
-        _scopes: list[str] | None = list(scopes) or None
+        _scopes: list[str] | None = list(scopes) if scopes else None
         super().__init__(session=cast(Session, session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
