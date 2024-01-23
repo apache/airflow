@@ -178,8 +178,11 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
 
                 with sentry_sdk.push_scope():
                     try:
-                        # Is a LocalTaskJob get the task instance
-                        if hasattr(_self, "task_instance"):
+                        ti_from_kwargs = kwargs.get("ti", None)
+                        if ti_from_kwargs:
+                            task_instance = ti_from_kwargs
+                        elif hasattr(_self, "task_instance"):
+                            # Is a LocalTaskJob get the task instance
                             task_instance = _self.task_instance
                         else:
                             task_instance = _self
