@@ -693,3 +693,8 @@ class GoogleBaseAsyncHook(BaseHook):
         """Returns a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
         sync_hook = await self.get_sync_hook()
         return await _CredentialsToken.from_hook(sync_hook, session=session)
+
+    async def service_file_as_context(self) -> Any:
+        """This is the async equivalent of the non-async GoogleBaseHook's `provide_gcp_credential_file_as_context` method."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.provide_gcp_credential_file_as_context)()
