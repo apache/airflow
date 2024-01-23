@@ -3231,6 +3231,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def _schedule_downstream_tasks(
         cls,
+        *,
         ti: TaskInstance | TaskInstancePydantic,
         session: Session = NEW_SESSION,
         max_tis_per_query: int | None = None,
