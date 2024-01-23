@@ -41,8 +41,8 @@ This sensor can also be used in deferrable mode
 
 .. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
-    :start-after: [START howto_operator_http_http_sensor_check_async]
-    :end-before: [END howto_operator_http_http_sensor_check_async]
+    :start-after: [START howto_operator_http_http_sensor_check_deferrable]
+    :end-before: [END howto_operator_http_http_sensor_check_deferrable]
 
 .. _howto/operator:HttpOperator:
 

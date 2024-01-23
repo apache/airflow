@@ -110,7 +110,7 @@ task_http_sensor_check = HttpSensor(
     dag=dag,
 )
 # [END howto_operator_http_http_sensor_check]
-# [START howto_operator_http_http_sensor_check_async]
+# [START howto_operator_http_http_sensor_check_deferrable]
 task_http_sensor_check_async = HttpSensor(
     task_id="http_sensor_check_async",
     http_conn_id="http_default",
@@ -120,7 +120,7 @@ task_http_sensor_check_async = HttpSensor(
     poke_interval=5,
     dag=dag,
 )
-# [END howto_operator_http_http_sensor_check_async]
+# [END howto_operator_http_http_sensor_check_deferrable]
 # [START howto_operator_http_pagination_function]
 
 
