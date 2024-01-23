@@ -308,6 +308,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git checkout main
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
+    # Create issue for testing the RC
+    ./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
     ```
 
 ## Prepare production Docker Image RC
@@ -392,6 +394,8 @@ simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without 
 the artifact checksums when we actually release.
 
 Release Notes: https://github.com/apache/airflow/blob/${VERSION}/RELEASE_NOTES.rst
+
+For information on what goes into a release please see: https://github.com/apache/airflow/blob/main/dev/WHAT_GOES_INTO_THE_NEXT_RELEASE.md
 
 Changes since PREVIOUS_VERSION_OR_RC:
 *Bugs*:

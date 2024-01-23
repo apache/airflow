@@ -25,6 +25,11 @@ Newer Airflow versions can contain database migrations so you must run ``airflow
 to migrate your database with the schema changes in the Airflow version you are upgrading to.
 Don't worry, it's safe to run even if there are no migrations to perform.
 
+What are the changes between Airflow version x and y?
+=====================================================
+
+The :doc:`release notes <../release_notes>` lists the changes that were included in any given Airflow release.
+
 Upgrade preparation - make a backup of DB
 =========================================
 

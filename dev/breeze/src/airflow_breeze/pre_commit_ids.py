@@ -133,5 +133,6 @@ PRE_COMMIT_LIST = [
     "update-supported-versions",
     "update-vendored-in-k8s-json-schema",
     "update-version",
+    "validate-operators-init",
     "yamllint",
 ]

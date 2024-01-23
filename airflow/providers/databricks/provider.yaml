@@ -22,8 +22,9 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1703288125
+source-date-epoch: 1705912006
 versions:
+  - 6.1.0
   - 6.0.0
   - 5.0.1
   - 5.0.0

@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+8.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``add deferrable mode to RedshiftDataOperator (#36586)``
+* ``Adds support for capacity providers to ECS Executor (#36722)``
+* ``Add use_regex argument for allowing 'S3KeySensor' to check s3 keys with regular expression (#36578)``
+* ``Add deferrable mode to RedshiftClusterSensor (#36550)``
+* ``AthenaSqlHook implementation (#36171)``
+* ``Create CLI commands for AWS auth manager to create Amazon Verified Permissions related resources (#36799)``
+* ``Implement 'is_authorized_dag' in AWS auth manager (#36619)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
+* ``Fallback to default value if '[aws] cloudwatch_task_handler_json_serializer' not set (#36851)``
+* ``AWS auth manager: raise AirflowOptionalProviderfeature exception for AVP command (#36824)``
+* ``check transform job status before deferring SageMakerTransformOperator (#36680)``
+* ``check sagemaker processing job status before deferring (#36658)``
+* ``check job_status before BatchOperator execute in deferrable mode (#36523)``
+* ``Update the redshift hostname check to avoid possible bugs (#36703)``
+* ``Refresh credentials in 'AwsEcsExecutor' (#36179)``
+
+Misc
+~~~~
+
+* ``Fix docstring for apply_wildcard parameter in 'S3ListOperator'. Changed the order of docstring for fix (#36679)``
+* ``Use base aws classes in AWS DMS Operators/Sensors (#36772)``
+* ``Use base aws classes in AWS Redshift Data API Operators (#36764)``
+* ``Use base aws classes in Amazon EventBridge Operators (#36765)``
+* ``Use base aws classes in Amazon QuickSight Operators/Sensors (#36776)``
+* ``Use base aws classes in AWS Datasync Operators (#36766)``
+* ``Use base aws classes in Amazon DynamoDB Sensors (#36770)``
+* ``Use base aws classes in AWS CloudFormation Operators/Sensors (#36771)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``Bump min version of amazon-provider related dependencies (#36660)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+
 8.16.0
 ......
 

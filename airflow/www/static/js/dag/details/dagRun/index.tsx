@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Flex,
   Box,
@@ -65,7 +65,12 @@ const DagRun = ({ runId }: Props) => {
   const offsetTop = useOffsetTop(detailsRef);
 
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(formatConf(run?.conf));
+  const { onCopy, setValue, hasCopied } = useClipboard(formatConf(run?.conf));
+
+  useEffect(() => {
+    setValue(formatConf(run?.conf));
+  }, [run, setValue]);
+
   if (!run) return null;
   const {
     state,

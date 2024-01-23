@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -60,7 +59,10 @@ class TestSlackAPIOperator:
     def test_hook(self, mock_slack_hook_cls, slack_op_kwargs, hook_extra_kwargs):
         mock_slack_hook = mock_slack_hook_cls.return_value
         op = SlackAPIOperator(
-            task_id="test-mask-token", slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **slack_op_kwargs
+            task_id="test-mask-token",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            method="foo.Bar",
+            **slack_op_kwargs,
         )
         hook = op.hook
         assert hook == mock_slack_hook
@@ -68,6 +70,20 @@ class TestSlackAPIOperator:
         mock_slack_hook_cls.assert_called_once_with(
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **hook_extra_kwargs
         )
+
+    @pytest.mark.parametrize("slack_method", [pytest.param("", id="empty"), pytest.param(None, id="none")])
+    def test_empty_method(self, slack_method):
+        warning_message = "Define `method` parameter as empty string or None is deprecated"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            # Should only raise a warning on task initialisation
+            op = SlackAPIOperator(
+                task_id="test-mask-token",
+                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+                method=slack_method,
+            )
+
+        with pytest.raises(ValueError, match="Expected non empty `method` attribute"):
+            op.execute({})
 
 
 class TestSlackAPIPostOperator:
@@ -158,7 +174,7 @@ class TestSlackAPIPostOperator:
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
         )
 
-        slack_api_post_operator.execute(context=MagicMock())
+        slack_api_post_operator.execute({})
 
         expected_api_params = {
             "channel": "#general",
@@ -211,47 +227,63 @@ class TestSlackAPIFileOperator:
         assert slack_api_post_operator.content == self.test_content
         assert not hasattr(slack_api_post_operator, "token")
 
-    @mock.patch("airflow.providers.slack.operators.slack.SlackHook.send_file")
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
     @pytest.mark.parametrize("title", [None, "Spam Egg"])
-    def test_api_call_params_with_content_args(self, mock_send_file, initial_comment, title):
-        SlackAPIFileOperator(
+    @pytest.mark.parametrize(
+        "method_version, method_name",
+        [
+            pytest.param("v1", "send_file", id="v1"),
+            pytest.param("v2", "send_file_v1_to_v2", id="v2"),
+        ],
+    )
+    def test_api_call_params_with_content_args(self, initial_comment, title, method_version, method_name):
+        op = SlackAPIFileOperator(
             task_id="slack",
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
             content="test-content",
             channels="#test-channel",
             initial_comment=initial_comment,
             title=title,
-        ).execute(context=MagicMock())
-
-        mock_send_file.assert_called_once_with(
-            channels="#test-channel",
-            content="test-content",
-            file=None,
-            initial_comment=initial_comment,
-            title=title,
+            method_version=method_version,
         )
+        with mock.patch(f"airflow.providers.slack.operators.slack.SlackHook.{method_name}") as mock_send_file:
+            op.execute({})
+            mock_send_file.assert_called_once_with(
+                channels="#test-channel",
+                content="test-content",
+                file=None,
+                initial_comment=initial_comment,
+                title=title,
+            )
 
-    @mock.patch("airflow.providers.slack.operators.slack.SlackHook.send_file")
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
     @pytest.mark.parametrize("title", [None, "Spam Egg"])
-    def test_api_call_params_with_file_args(self, mock_send_file, initial_comment, title):
-        SlackAPIFileOperator(
+    @pytest.mark.parametrize(
+        "method_version, method_name",
+        [
+            pytest.param("v1", "send_file", id="v1"),
+            pytest.param("v2", "send_file_v1_to_v2", id="v2"),
+        ],
+    )
+    def test_api_call_params_with_file_args(self, initial_comment, title, method_version, method_name):
+        op = SlackAPIFileOperator(
             task_id="slack",
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
             channels="C1234567890",
             filename="/dev/null",
             initial_comment=initial_comment,
             title=title,
-        ).execute(context=MagicMock())
-
-        mock_send_file.assert_called_once_with(
-            channels="C1234567890",
-            content=None,
-            file="/dev/null",
-            initial_comment=initial_comment,
-            title=title,
+            method_version=method_version,
         )
+        with mock.patch(f"airflow.providers.slack.operators.slack.SlackHook.{method_name}") as mock_send_file:
+            op.execute({})
+            mock_send_file.assert_called_once_with(
+                channels="C1234567890",
+                content=None,
+                file="/dev/null",
+                initial_comment=initial_comment,
+                title=title,
+            )
 
     def test_channel_deprecated(self):
         warning_message = (

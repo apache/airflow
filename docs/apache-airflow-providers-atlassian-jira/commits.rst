@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.6.0
+.....
+
+Latest change: 2024-01-17
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`c76d6e58f0 <https://github.com/apache/airflow/commit/c76d6e58f00317b2e0bdcc43eb9c0a91d32b602d>`_  2024-01-17   ``Use lax 'atlassian-python-api' limitation (#36841)``
+`4d59fbc453 <https://github.com/apache/airflow/commit/4d59fbc453751925082c47c97f2d3496184bd7a5>`_  2024-01-16   ``Limit 'atlassian-python-api' to <3.41.6 (#36815)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+=================================================================================================  ===========  ==================================================================================================
+
 2.5.0
 .....
 
-Latest change: 2023-12-30
+Latest change: 2024-01-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 `31b06d5b12 <https://github.com/apache/airflow/commit/31b06d5b12547ae688ed945d580e5b5e29bb2433>`_  2023-12-30   ``Add jira connection docs and UI form (#36458)``
 `9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``

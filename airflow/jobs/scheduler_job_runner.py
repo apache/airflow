@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -68,7 +68,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
     prohibit_commit,
-    skip_locked,
     tuple_in_condition,
     with_row_locks,
 )
@@ -399,12 +398,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                query = with_row_locks(
-                    query,
-                    of=TI,
-                    session=session,
-                    **skip_locked(session=session),
-                )
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                 task_instances_to_examine: list[TI] = session.scalars(query).all()
 
                 timer.stop(send=True)
@@ -706,12 +700,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis_query: Query = with_row_locks(
-            query,
-            of=TI,
-            session=session,
-            **skip_locked(session=session),
-        )
+        tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
         tis: Iterator[TI] = session.scalars(tis_query)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
@@ -1434,7 +1423,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
         )
         dag_model = session.scalars(
-            with_row_locks(query, of=DagModel, session=session, **skip_locked(session=session))
+            with_row_locks(query, of=DagModel, session=session, skip_locked=True)
         ).one_or_none()
 
         if not dag:
@@ -1644,13 +1633,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
+                        .options(lazyload("dag_run"))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
-                        # outerjoin is because we didn't use to have queued_by_job
-                        # set, so we need to pick up anything pre upgrade. This (and the
-                        # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
-                        # released.
-                        .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != JobState.RUNNING))
+                        .join(TI.queued_by_job)
+                        .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1660,9 +1646,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_adopt_or_reset = with_row_locks(
-                        query, of=TI, session=session, **skip_locked(session=session)
-                    )
+                    tis_to_adopt_or_reset = with_row_locks(query, of=TI, session=session, skip_locked=True)
                     tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
                     to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
 

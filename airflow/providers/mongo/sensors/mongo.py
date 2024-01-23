@@ -62,5 +62,5 @@ class MongoSensor(BaseSensorOperator):
         self.log.info(
             "Sensor check existence of the document that matches the following query: %s", self.query
         )
-        hook = MongoHook(self.mongo_conn_id)
+        hook = MongoHook(mongo_conn_id=self.mongo_conn_id)
         return hook.find(self.collection, self.query, mongo_db=self.mongo_db, find_one=True) is not None
