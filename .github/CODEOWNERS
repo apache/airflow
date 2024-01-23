@@ -75,7 +75,6 @@ airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 /tests/system/providers/amazon/ @eladkal @o-nikolas
 /tests/providers/common/sql/ @eladkal
 /tests/providers/slack/ @eladkal
-/tests/providers/teradata/ @SatishChGit
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
