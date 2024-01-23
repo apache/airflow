@@ -35,6 +35,16 @@ if TYPE_CHECKING:
     from botocore.paginate import PageIterator
 
 
+def query_params_to_string(params: dict[str, str]) -> str:
+    line_prefix = "\n\t\t"
+    result = ""
+    for key, value in params.items():
+        if key == "QueryString":
+            value = line_prefix + value.replace("\n", line_prefix).rstrip()
+        result += f"\t{key}: {value}\n"
+    return result.rstrip()
+
+
 class AthenaHook(AwsBaseHook):
     """Interact with Amazon Athena.
 
@@ -115,7 +125,7 @@ class AthenaHook(AwsBaseHook):
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:
-            self.log.info("Running Query with params: %s", params)
+            self.log.info("Running Query with params:\n%s", query_params_to_string(params))
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)
