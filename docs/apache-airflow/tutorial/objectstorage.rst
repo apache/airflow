@@ -25,17 +25,23 @@ This tutorial shows how to use the Object Storage API to manage objects that
 reside on object storage, like S3, gcs and azure blob storage. The API is introduced
 as part of Airflow 2.8.
 
-The tutorial covers a simple pattern that is often used in data engineering and
-data science workflows: accessing a web api, saving and analyzing the result. For the
-tutorial to work you will need to have Duck DB installed, which is a in-process
-analytical database. You can do this by running ``pip install duckdb``. The tutorial
-makes use of S3 Object Storage. This requires that the amazon provider is installed
-including ``s3fs`` by running ``pip install apache-airflow-providers-amazon[s3fs]``.
-If you would like to use a different storage provider, you can do so by changing the
-URL in the ``create_object_storage_path`` function to the appropriate URL for your
-provider, for example by replacing ``s3://`` with ``gs://`` for Google Cloud Storage.
-You will also need the right provider to be installed then. Finally, you will need
-``pandas``, which can be installed by running ``pip install pandas``.
+The tutorial covers a simple pattern that is often used in data engineering and data 
+science workflows: accessing a web api, saving and analyzing the result.
+
+Prerequisites
+-------------
+To complete this tutorial, you need a few things:
+
+- DuckDB, an in-process analytical database, 
+  which can be installed by running ``pip install duckdb``.
+- An S3 bucket, along with the Amazon provider including ``s3fs``. You can install 
+  the provider package by running 
+  ``pip install apache-airflow-providers-amazon[s3fs]``. 
+  Alternatively, you can use a different storage provider by changing the URL in 
+  the ``create_object_storage_path`` function to the appropriate URL for your 
+  provider, for example by replacing ``s3://`` with ``gs://`` for Google Cloud 
+  Storage, and installing a different provider.
+- ``pandas``, which you can install by running ``pip install pandas``.
 
 
 Creating an ObjectStoragePath
