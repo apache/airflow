@@ -161,14 +161,15 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             """
             Decorate errors.
 
-            Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-            to support task specific tags and breadcrumbs.
+            Wrap TaskInstance._run_raw_task, TaskInstnace._schedule_downstream_tasks and
+            LocalTaskJob._run_mini_scheduler_on_child_tasks to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 
             @wraps(func)
             def wrapper(_self, *args, **kwargs):
-                # Wrapping the _run_raw_task function with push_scope to contain
+                # Wrapping the TaskInstance._run_raw_task, TaskInstnace._schedule_downstream_tasks and
+                # LocalTaskJob._run_mini_scheduler_on_child_tasks with push_scope to contain
                 # tags and breadcrumbs to a specific Task Instance
 
                 try:
@@ -180,6 +181,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                     try:
                         ti_from_kwargs = kwargs.get("ti", None)
                         if ti_from_kwargs:
+                            # Get taskinstnace from TaskInstnace._schedule_downstream_tasks
                             task_instance = ti_from_kwargs
                         elif hasattr(_self, "task_instance"):
                             # Is a LocalTaskJob get the task instance
