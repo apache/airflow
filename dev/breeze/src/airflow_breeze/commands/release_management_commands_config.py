@@ -28,6 +28,14 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 
+RELEASE_HELM_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Helm release commands",
+    "commands": [
+        "prepare-helm-chart-tarball",
+        "prepare-helm-chart-package",
+    ],
+}
+
 RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
@@ -40,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "clean-old-provider-artifacts",
     ],
 }
+
 
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
@@ -68,6 +77,27 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--version",
+            ],
+        }
+    ],
+    "breeze release-management prepare-helm-chart-tarball": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--version",
+                "--version-suffix",
+                "--ignore-version-check",
+                "--override-tag",
+                "--skip-tagging",
+                "--skip-tag-signing",
+            ],
+        }
+    ],
+    "breeze release-management prepare-helm-chart-package": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--sign-email",
             ],
         }
     ],

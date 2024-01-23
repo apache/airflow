@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|^airflow/reproducible_build.yaml$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -254,7 +254,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/reproducible_build.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -833,7 +833,7 @@ repos:
         name: Update Source Date Epoch for reproducible builds
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_source_date_epoch.py
-        files: ^RELEASE_NOTES.rst$
+        files: ^RELEASE_NOTES.rst$|^chart/RELEASE_NOTES.rst$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml']
         pass_filenames: false
         require_serial: true
