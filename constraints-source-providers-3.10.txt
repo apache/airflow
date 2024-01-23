@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-21T23:46:57.658188
+# This constraints file was automatically generated on 2024-01-23T06:42:20.377585
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -29,7 +29,7 @@ JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
 Js2Py==0.74
-Mako==1.3.0
+Mako==1.3.1
 Markdown==3.5.2
 MarkupSafe==2.1.4
 PyAthena==3.1.0
@@ -177,7 +177,7 @@ email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
-eventlet==0.34.3
+eventlet==0.35.0
 exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
@@ -208,14 +208,14 @@ google-cloud-aiplatform==1.39.0
 google-cloud-appengine-logging==1.4.0
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.12.0
-google-cloud-batch==0.17.7
+google-cloud-batch==0.17.8
 google-cloud-bigquery-datatransfer==3.13.0
 google-cloud-bigquery-storage==2.24.0
 google-cloud-bigquery==3.16.0
 google-cloud-bigtable==2.22.0
 google-cloud-build==3.22.0
 google-cloud-compute==1.15.0
-google-cloud-container==2.37.0
+google-cloud-container==2.38.0
 google-cloud-core==2.4.1
 google-cloud-datacatalog==3.17.2
 google-cloud-dataflow-client==0.8.6
@@ -338,7 +338,7 @@ msrestazure==0.6.4
 multi_key_dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.6
+mypy-boto3-rds==1.34.24
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
@@ -358,9 +358,9 @@ objsize==0.6.1
 openai==1.9.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.7.0
-openlineage-python==1.7.0
-openlineage_sql==1.7.0
+openlineage-integration-common==1.8.0
+openlineage-python==1.8.0
+openlineage_sql==1.8.0
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.22.0
@@ -602,7 +602,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.33.0
-yandexcloud==0.253.0
+yandexcloud==0.254.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.46
