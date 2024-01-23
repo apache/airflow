@@ -21,6 +21,8 @@
 
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
+const sanitizeHtml = require("sanitize-html");
+
 export enum LogLevel {
   DEBUG = "DEBUG",
   INFO = "INFO",
@@ -36,10 +38,6 @@ export const logLevelColorMapping = {
   [LogLevel.ERROR]: "red.200",
   [LogLevel.CRITICAL]: "red.400",
 };
-
-function escapeHTMLTags(html: string): string {
-  return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 export const parseLogs = (
   data: string | undefined,
@@ -101,18 +99,30 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      const tagRegex = /<[a-z][\s\S]*>/i;
-      if (!tagRegex.test(parsedLine)) {
-        // If there are any links without HTML injection aka tags, make it a hyperlink
-        parsedLine = parsedLine.replace(
-          /((https?:\/\/|http:\/\/)[^\s]+)/g,
-          '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
-        );
-      } else {
-        parsedLine = escapeHTMLTags(parsedLine);
-      }
+      // sanitize the lines to remove any tags that may cause HTML injection
+      const sanitizedLine = sanitizeHtml(parsedLine, {
+        allowedTags: ["a"],
+        allowedAttributes: {
+          a: ["href", "target", "style"],
+        },
+        transformTags: {
+          a: (tagName: any, attribs: { style: string }) => {
+            attribs.style = "color: blue; text-decoration: underline;";
+            return {
+              tagName: "a",
+              attribs,
+            };
+          },
+        },
+      });
 
-      parsedLines.push(parsedLine);
+      // for lines with links, transform to hyperlinks
+      const lineWithHyperlinks = sanitizedLine.replace(
+        /((https?:\/\/|http:\/\/)[^\s]+)/g,
+        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+      );
+
+      parsedLines.push(lineWithHyperlinks);
     }
   });
 
