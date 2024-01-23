@@ -2393,6 +2393,12 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
+            except SystemExit as code:
+                self.handle_failure(
+                    f"Task failed due to SystemExit({code})", test_mode, context, session=session
+                )
+                session.commit()
+                raise
             finally:
                 Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
                 # Same metric with tagging
