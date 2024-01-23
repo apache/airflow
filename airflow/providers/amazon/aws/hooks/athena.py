@@ -25,7 +25,7 @@ This module contains AWS Athena hook.
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Collection
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -35,12 +35,12 @@ if TYPE_CHECKING:
     from botocore.paginate import PageIterator
 
 
-def query_params_to_string(params: dict[str, str]) -> str:
+def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
     line_prefix = "\n\t\t"
     result = ""
     for key, value in params.items():
         if key == "QueryString":
-            value = line_prefix + value.replace("\n", line_prefix).rstrip()
+            value = line_prefix + str(value).replace("\n", line_prefix).rstrip()
         result += f"\t{key}: {value}\n"
     return result.rstrip()
 
