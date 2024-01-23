@@ -1069,6 +1069,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 project_id=self.job_project_id or hook.project_id,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
+                impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
         )
@@ -2852,6 +2853,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                                 persist_kwargs["dataset_id"] = table["datasetId"]
                                 persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
+
         self.job_id = job.job_id
 
         if self.project_id:
@@ -2861,6 +2863,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
         # Wait for the job to complete
         if not self.deferrable:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
@@ -2876,13 +2879,14 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                         job_id=self.job_id,
                         project_id=self.project_id,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
             self._handle_job_error(job)
 
-    def execute_complete(self, context: Context, event: dict[str, Any]):
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """Callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,

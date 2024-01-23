@@ -21,7 +21,7 @@ Airflow Test Infrastructure
 ===========================
 
 * **Unit tests** are Python tests that do not require any additional integrations.
-  Unit tests are available both in the `Breeze environment <BREEZE.rst>`__
+  Unit tests are available both in the `Breeze environment <dev/breeze/doc/breeze.rst>`__
   and local virtualenv.
 
 * **Integration tests** are available in the Breeze development environment

@@ -269,6 +269,88 @@ Currently available lexers:
 
 If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
+Limitations
+^^^^^^^^^^^
+To prevent misuse, the following limitations must be observed when defining and assigning templated fields in the
+operator's constructor (when such exists, otherwise - see below):
+
+1. Templated fields' corresponding parameters passed into the constructor must be named exactly
+as the fields. The following example is invalid, as the parameter passed into the constructor is not the same as the
+templated field:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = "field_a"
+
+            def __init__(field_a_id) -> None:  # <- should be def __init__(field_a)-> None
+                self.field_a = field_a_id  # <- should be self.field_a = field_a
+
+2. Templated fields' instance members must be assigned with their corresponding parameter from the constructor,
+either by a direct assignment or by calling the parent's constructor (in which these fields are
+defined as ``template_fields``) with explicit an assignment of the parameter.
+The following example is invalid, as the instance member ``self.field_a`` is not assigned at all, despite being a
+templated field:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("field_a", "field_b")
+
+            def __init__(field_a, field_b) -> None:
+                self.field_b = field_b
+
+
+The following example is also invalid, as the instance member ``self.field_a`` of ``MyHelloOperator`` is initialized
+implicitly as part of the ``kwargs`` passed to its parent constructor:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = "field_a"
+
+            def __init__(field_a) -> None:
+                self.field_a = field_a
+
+
+        class MyHelloOperator(HelloOperator):
+            template_fields = ("field_a", "field_b")
+
+            def __init__(field_b, **kwargs) -> None:  # <- should be def __init__(field_a, field_b, **kwargs)
+                super().__init__(**kwargs)  # <- should be super().__init__(field_a=field_a, **kwargs)
+                self.field_b = field_b
+
+3. Applying actions on the parameter during the assignment in the constructor is not allowed.
+Any action on the value should be applied in the ``execute()`` method.
+Therefore, the following example is invalid:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = "field_a"
+
+            def __init__(field_a) -> None:
+                self.field_a = field_a.lower()  # <- assignment should be only self.field_a = field_a
+
+When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
+do not apply. However, the templated fields must be set properly in the parent according to those limitations.
+
+Thus, the following example is valid:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = "field_a"
+
+            def __init__(field_a) -> None:
+                self.field_a = field_a
+
+
+        class MyHelloOperator(HelloOperator):
+            template_fields = "field_a"
+
+The limitations above are enforced by a pre-commit named 'validate-operators-init'.
+
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A common use case for creating a custom operator is for simply augmenting existing ``template_fields``.

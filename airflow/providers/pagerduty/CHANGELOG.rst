@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+ * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
 3.6.0
 .....
 

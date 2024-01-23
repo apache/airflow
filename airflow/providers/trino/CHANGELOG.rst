@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 5.6.0
 .....
 

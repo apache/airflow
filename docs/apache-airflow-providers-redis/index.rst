@@ -77,7 +77,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.6.0
+Release: 3.7.0
 
 Provider package
 ----------------
