@@ -26,7 +26,6 @@ import attr
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
-from airflow.hooks.utils import _get_count, _get_external_task_group_task_ids
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -36,6 +35,7 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
+from airflow.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 

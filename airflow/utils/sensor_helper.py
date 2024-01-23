@@ -90,11 +90,8 @@ def _count_query(model, states, dttm_filter, external_dag_id, session: Session) 
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
     """
-    query = (
-        select(func.count())
-        .filter(model.dag_id == external_dag_id)
-        .filter(model.state.in_(states))
-        .filter(model.execution_date.in_(dttm_filter))
+    query = select(func.count()).filter(
+        model.dag_id == external_dag_id, model.state.in_(states), model.execution_date.in_(dttm_filter)
     )
     return query
 
@@ -112,10 +109,12 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     task_group = refreshed_dag_info.task_group_dict.get(external_task_group_id)
 
     if task_group:
-        group_tasks = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == external_dag_id,
-            TaskInstance.task_id.in_(task.task_id for task in task_group),
-            TaskInstance.execution_date.in_(dttm_filter),
+        group_tasks = session.scalar(
+            select(TaskInstance).filter(
+                TaskInstance.dag_id == external_dag_id,
+                TaskInstance.task_id.in_(task.task_id for task in task_group),
+                TaskInstance.execution_date.in_(dttm_filter),
+            )
         )
 
         return [(t.task_id, t.map_index) for t in group_tasks]

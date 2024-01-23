@@ -23,9 +23,9 @@ from typing import Any
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
-from airflow.hooks.utils import _get_count
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
@@ -76,9 +76,6 @@ class WorkflowTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         super().__init__(**kwargs)
-
-    def _set_context(self, context):
-        pass
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger param and module path."""
