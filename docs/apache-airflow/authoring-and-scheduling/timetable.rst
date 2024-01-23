@@ -177,6 +177,45 @@ first) event for the data interval, otherwise manual runs will run with a ``data
     def example_dag():
         pass
 
+.. _dataset-timetable-section:
+
+DatasetTimetable
+^^^^^^^^^^^^^^^^
+
+The ``DatasetTimetable`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
+
+This feature is particularly useful in scenarios requiring a DAG to rerun upon dataset updates, while also necessitating periodic execution at set intervals. It ensures that the workflow remains responsive to data changes and consistently maintains regular checks or updates.
+
+Here's an example of a DAG using ``DatasetTimetable``:
+
+.. code-block:: python
+
+    from airflow.timetables.dataset import DatasetTimetable
+    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.datasets import Dataset
+    from airflow.models import DAG
+    from airflow.operators.bash import BashOperator
+    import pendulum
+
+    with DAG(
+        dag_id="dataset_and_time_based_timetable",
+        catchup=False,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule=DatasetTimetable(time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), event=[dag1_dataset]),
+        tags=["dataset-time-based-timetable"],
+    ) as dag7:
+        BashOperator(
+            outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
+            task_id="consuming_dataset_time_based",
+            bash_command="sleep 5",
+        )
+
+In this example, the DAG is scheduled to run every Wednesday at 01:00 UTC based on the ``CronTriggerTimetable``, and it is also triggered by updates to ``dag1_dataset``.
+
+Future Enhancements
+~~~~~~~~~~~~~~~~~~~
+Future iterations may introduce more complex combinations for scheduling (e.g., dataset1 OR dataset2 OR timetable), further enhancing the flexibility for scheduling DAGs in various scenarios.
+
 
 Timetables comparisons
 ----------------------
