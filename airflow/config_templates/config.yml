@@ -241,11 +241,20 @@ core:
     allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as regexp. Python built-in classes (like dict)
-        are always allowed. Bare "." will be replaced so you can set airflow.* .
+        The individual items will be parsed as a pattern to a glob function.
+        Python built-in classes (like dict) are always allowed.
       version_added: 2.5.0
       type: string
-      default: 'airflow\..*'
+      default: 'airflow.*'
+      example: ~
+    allowed_deserialization_classes_regexp:
+      description: |
+        What classes can be imported during deserialization. This is a multi line value.
+        The individual items will be parsed as regexp patterns.
+        This is a secondary option to ``allowed_deserialization_classes``.
+      version_added: 2.8.1
+      type: string
+      default: ''
       example: ~
     killed_task_cleanup_time:
       description: |
@@ -1875,6 +1884,13 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    num_recent_configurations_for_trigger:
+      description: |
+        Number of recent DAG run configurations in the selector on the trigger web form.
+      version_added: 2.9.0
+      type: integer
+      example: "10"
+      default: "5"
     allow_raw_html_descriptions:
       description: |
         A DAG author is able to provide any raw HTML into ``doc_md`` or params description in

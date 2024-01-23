@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.1
+.....
+
+Latest change: 2024-01-20
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`3784cdf5ed <https://github.com/apache/airflow/commit/3784cdf5ed954bd356a3727988dd707cc5568a9c>`_  2024-01-20   ``init templated field explicitly in constructor (#36908)``
+`6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
+`ecb2c9f24d <https://github.com/apache/airflow/commit/ecb2c9f24d1364642604c14f0deb681ab4894135>`_  2024-01-09   ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`1cc9fe1df1 <https://github.com/apache/airflow/commit/1cc9fe1df111950327e9922b00222846196b029d>`_  2024-01-05   ``Add flake8-implicit-str-concat check to Ruff (#36597)``
+=================================================================================================  ===========  =============================================================================
+
 1.3.0
 .....
 
-Latest change: 2023-12-30
+Latest change: 2023-12-31
 
 =================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================
+`24a532fb4c <https://github.com/apache/airflow/commit/24a532fb4c400b862f63b4327995dea8512abde9>`_  2023-12-31   ``Prepare documentation for weaviate ad-hoc rc2 release (#36508)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 `0a741b2fe6 <https://github.com/apache/airflow/commit/0a741b2fe674e62f693e73937aec5fb97c204b6a>`_  2023-12-28   ``Handle  list like input objects in weavaite's 'create_or_replace_document_objects' hook method (#36475)``
 `9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``

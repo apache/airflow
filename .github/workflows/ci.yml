@@ -411,7 +411,8 @@ jobs:
       - name: Install hatch
         run: |
           python -m pip install --upgrade pipx
-          pipx install hatch
+          pipx ensurepath
+          pipx install hatch --force
       - name: Run tests
         run: hatch run run-coverage
         env:
@@ -1046,6 +1047,58 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
+
+  tests-helm-release:
+    timeout-minutes: 80
+    name: "Release Helm"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.needs-helm-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Setup git for tagging
+        run: |
+          git config --global user.email "name@example.com"
+          git config --global user.name "Your Name"
+      - name: "Remove old artifacts"
+        run: rm -rf dist/*
+      - name: "Setup k8s/helm environment"
+        run: breeze k8s setup-env
+      - name: "Install helm gpg plugin"
+        run: >
+          breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
+          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b"
+      - name: "Helm release tarball"
+        run: >
+          breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
+          --skip-tag-signing --version 0.0.0 --version-suffix dev0
+      - name: Generate GPG key for signing
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+      - name: "Helm release package"
+        run: >
+          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Sign artifacts for ASF distribution"
+        run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
+        env:
+          SIGN_WITH: dev@airflow.apache.org
+      - name: "Upload Helm artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Helm artifacts
+          path: ./dist/airflow-*
+          retention-days: 7
+          if-no-files-found: error
 
   tests-postgres:
     timeout-minutes: 130

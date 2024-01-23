@@ -148,7 +148,6 @@ def is_core_commit(files: list[str]) -> bool:
         "INTHEWILD.md",
         "INSTALL",
         "README.md",
-        "BREEZE.rst",
         "CI.rst",
         "CI_DIAGRAMS.md",
         "STATIC_CODE_CHECKS.rst",
