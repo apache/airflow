@@ -583,9 +583,9 @@ database:
       description: |
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
-        in connection string. This can be set by passing a dictionary containing the create engine parameters. 
-        For more details about passing  create engine parameters(keepalives variables, timeout etc)
-        in postgres db connection see 
+        in connection string. This can be set by passing a dictionary containing the create engine parameters.
+        For more details about passing create engine parameters(keepalives variables, timeout etc)
+        in postgres db connection see
         https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database
         Example: connect_args={"timeout":30} can be defined in airflow_local_settings.py and
         can be imported as shown below
