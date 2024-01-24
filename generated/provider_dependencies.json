@@ -938,6 +938,7 @@
   },
   "qdrant": {
     "deps": [
+      "apache-airflow>=2.6.0",
       "qdrant_client>=1.7.0"
     ],
     "devel-deps": [],

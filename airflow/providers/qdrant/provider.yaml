@@ -38,6 +38,7 @@ integrations:
 
 dependencies:
   - qdrant_client>=1.7.0
+  - apache-airflow>=2.6.0
 
 hooks:
   - integration-name: Qdrant
