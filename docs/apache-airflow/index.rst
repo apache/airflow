@@ -164,6 +164,7 @@ so coding will always be required.
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
+    Dataset URIs <datasets-ref>
     Stable REST API <stable-rest-api-ref>
     deprecated-rest-api-ref
     Configurations <configurations-ref>

@@ -18,8 +18,6 @@
 Data-aware scheduling
 =====================
 
-.. _data-aware-scheduling:
-
 .. versionadded:: 2.4
 
 Quickstart

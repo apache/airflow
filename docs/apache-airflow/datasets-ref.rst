@@ -20,4 +20,18 @@
 Dataset URI reference
 =====================
 
-This page lists pre-defined dataset URI schemes supported by Airflow core and providers. To understand how to use these URIs, and datasets they support, see :ref:`data-aware-scheduling`.
+This page lists pre-defined dataset URI schemes supported by Airflow core and providers. To understand how to use these URIs, and datasets they support, see :ref:`datasets`.
+
+TODO: Click on each row for more detailed documentation on the individual URI format.
+
+========= ============= ========================================================
+Provider  Name          Format
+========= ============= ========================================================
+--        Local file    ``file://{host}/{path}``
+amazon    S3            ``s3://{bucket_name}/{path}``
+google    BigQuery      ``bigquery://{project_id}/{dataset}/{table}``
+          Cloud Storage ``gcs://{bucket_name}{path}``
+mysql     MySQL         ``mysql://{host}:{port}/{database}/{table}``
+postgres  PostgreSQL    ``postgres://{host}:{port}/{database}/{schema}/{table}``
+trino     Trino         ``trino://{host}:{port}/{catalog}/{schema}/{table}``
+========= ============ =========================================================
