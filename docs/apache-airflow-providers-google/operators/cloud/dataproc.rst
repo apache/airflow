@@ -176,6 +176,30 @@ You can use deferrable mode for this action in order to run the operator asynchr
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator_async]
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator_async]
 
+Starting a cluster
+---------------------------
+
+To start a cluster you can use the
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStartClusterOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_start_cluster_operator]
+    :end-before: [END how_to_cloud_dataproc_start_cluster_operator]
+
+Stopping a cluster
+---------------------------
+
+To stop a cluster you can use the
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStartClusterOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_stop_cluster_operator]
+    :end-before: [END how_to_cloud_dataproc_stop_cluster_operator]
+
 Deleting a cluster
 ------------------
 

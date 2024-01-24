@@ -53,6 +53,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocLink,
     DataprocListBatchesOperator,
     DataprocScaleClusterOperator,
+    DataprocStartClusterOperator,
+    DataprocStopClusterOperator,
     DataprocSubmitHadoopJobOperator,
     DataprocSubmitHiveJobOperator,
     DataprocSubmitJobOperator,
@@ -1679,6 +1681,90 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
 
     # Assert operator links after execution
     assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+
+
+class TestDataprocStartClusterOperator(DataprocClusterTestBase):
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute(self, mock_hook, mock_to_dict):
+        cluster = MagicMock()
+        cluster.status.State.RUNNING = 3
+        cluster.status.state = 0
+        mock_hook.return_value.get_cluster.return_value = cluster
+
+        op = DataprocStartClusterOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.get_cluster.assert_called_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.start_cluster.assert_called_once_with(
+            cluster_name=CLUSTER_NAME,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_uuid=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestDataprocStopClusterOperator(DataprocClusterTestBase):
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute(self, mock_hook, mock_to_dict):
+        cluster = MagicMock()
+        cluster.status.State.STOPPED = 4
+        cluster.status.state = 0
+        mock_hook.return_value.get_cluster.return_value = cluster
+
+        op = DataprocStopClusterOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.get_cluster.assert_called_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.stop_cluster.assert_called_once_with(
+            cluster_name=CLUSTER_NAME,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_uuid=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
 
 class TestDataprocInstantiateWorkflowTemplateOperator:

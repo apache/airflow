@@ -280,6 +280,48 @@ class TestDataprocHook:
                 update_mask="update-mask",
             )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
+    def test_start_cluster(self, mock_client):
+        self.hook.start_cluster(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+        )
+        mock_client.assert_called_once_with(region=GCP_LOCATION)
+        mock_client.return_value.start_cluster.assert_called_once_with(
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                cluster_uuid=None,
+                request_id=None,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
+    def test_stop_cluster(self, mock_client):
+        self.hook.stop_cluster(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+        )
+        mock_client.assert_called_once_with(region=GCP_LOCATION)
+        mock_client.return_value.stop_cluster.assert_called_once_with(
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                cluster_uuid=None,
+                request_id=None,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
