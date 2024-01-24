@@ -63,13 +63,13 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
 Airflow makes no assumptions about the content or location of the data represented by the URI. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
-A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``https`` (by the HTTP provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed. See :ref:`datasets-ref` for a complete list of officially supported schemes.
+A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``https`` (by the HTTP provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
 
 .. note::
 
-    Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``.
+    Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
 
-    The URI is also case sensitive throughout, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different, as is ``s3://example/dataset`` and ``S3://example/dataset``. Note that this differs from RFC 3986, where various parts of the URI are case insensitive.
+    The URI is also case sensitive, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
 
     Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part to correctly distinguish between resources.
 
