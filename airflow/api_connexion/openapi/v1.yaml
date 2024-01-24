@@ -3405,6 +3405,8 @@ components:
         queued_when:
           type: string
           nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
         pid:
           type: integer
           nullable: true
