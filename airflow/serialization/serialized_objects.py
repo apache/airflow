@@ -42,6 +42,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetAll, DatasetAny
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
@@ -404,6 +405,8 @@ class BaseSerialization:
                 serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
                 serialized_object[key] = encode_timetable(value)
+            elif key == "dataset_triggers":
+                serialized_object[key] = cls.serialize(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -497,6 +500,10 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode({"uri": var.uri, "extra": var.extra}, type_=DAT.DATASET)
+        elif isinstance(var, DatasetAll):
+            return cls._encode([cls.serialize(x) for x in var.objects], type_=DAT.DATASET_ALL)
+        elif isinstance(var, DatasetAny):
+            return cls._encode([cls.serialize(x) for x in var.objects], type_=DAT.DATASET_ANY)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
@@ -587,6 +594,10 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.DATASET_ANY:
+            return DatasetAny(*(cls.deserialize(x) for x in var))
+        elif type_ == DAT.DATASET_ALL:
+            return DatasetAll(*(cls.deserialize(x) for x in var))
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
@@ -763,12 +774,14 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        for x in dag.dataset_triggers:
+        if not dag.dataset_triggers:
+            return
+        for uri in dag.dataset_triggers.all_datasets().keys():
             yield DagDependency(
                 source="dataset",
                 target=dag.dag_id,
                 dependency_type="dataset",
-                dependency_id=x.uri,
+                dependency_id=uri,
             )
 
 
