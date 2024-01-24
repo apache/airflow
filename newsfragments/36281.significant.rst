@@ -1,4 +1,0 @@
-Target version for core dependency ``pendulum`` package set to 3
-
-Support for pendulum 2.1.2 will be saved for a while, presumably until the next feature version of Airflow.
-It is advised to upgrade user code to use pendulum 3 as soon as possible.

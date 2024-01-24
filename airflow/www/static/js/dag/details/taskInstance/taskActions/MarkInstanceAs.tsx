@@ -107,6 +107,7 @@ const MarkAsModal = ({
       upstream,
       downstream,
       mapIndexes,
+      enabled: isOpen,
     }
   );
 

@@ -55,9 +55,25 @@ SlackAPIFileOperator
 
 Use the :class:`~airflow.providers.slack.operators.slack.SlackAPIFileOperator` to send files to a Slack channel(s).
 
-
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
+
+.. note::
+    Operator supports two methods for upload files, which controlled by ``method_version``,
+    by default it use Slack SDK method ``upload_files`` however this might impact a performance and cause random API errors.
+    It is recommended to switch to Slack SDK method ``upload_files_v2`` by set ``v2`` to ``method_version``,
+    however this action required to add additional scope to your application:
+
+    * **files:write** - for write files.
+    * **files:read** - for read files (not required if you use Slack SDK >= 3.23.0).
+    * **channels:read** - get list of public channels, for convert Channel Name to Channel ID.
+    * **groups:read** - get list of private channels, for convert Channel Name to Channel ID
+    * **mpim:read** - additional permission for API method **conversations.list**
+    * **im:read** - additional permission for API method **conversations.list**
+
+    .. seealso::
+        - `Slack SDK 3.19.0 Release Notes <https://github.com/slackapi/python-slack-sdk/releases/tag/v3.19.0>`_
+        - `conversations.list API <https://api.slack.com/methods/conversations.list>`_
 
 You could send file attachment by specifying file path
 

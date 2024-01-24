@@ -22,8 +22,9 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1704610260
+source-date-epoch: 1705911803
 versions:
+  - 8.17.0
   - 8.16.0
   - 8.15.0
   - 8.14.0
@@ -92,6 +93,7 @@ dependencies:
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
   - asgiref
+  - PyAthena>=3.0.10
 
 additional-extras:
   - name: pandas
@@ -128,7 +130,8 @@ integrations:
     external-doc-url: https://aws.amazon.com/athena/
     logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/athena.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
     tags: [aws]
   - integration-name: Amazon Chime
     external-doc-url: https://aws.amazon.com/chime/
@@ -488,6 +491,7 @@ hooks:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
+      - airflow.providers.amazon.aws.hooks.athena_sql
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
@@ -618,6 +622,7 @@ triggers:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
+      - airflow.providers.amazon.aws.triggers.redshift_data
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
@@ -755,6 +760,8 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+  - hook-class-name: airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook
+    connection-type: athena
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
