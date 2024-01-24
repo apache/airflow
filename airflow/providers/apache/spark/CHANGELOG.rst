@@ -29,6 +29,23 @@
 Changelog
 ---------
 
+4.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
+Misc
+~~~~
+
+* ``Bump min version for grpcio-status in spark provider (#36662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+
 4.7.0
 .....
 

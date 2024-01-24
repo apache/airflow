@@ -18,6 +18,7 @@
 """This module contains a Google Cloud API base hook."""
 from __future__ import annotations
 
+import datetime
 import functools
 import json
 import logging
@@ -35,6 +36,7 @@ import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from gcloud.aio.auth.token import Token
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
@@ -43,6 +45,7 @@ from google.auth.transport import _http_client
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
+from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -56,7 +59,9 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
     from google.api_core.gapic_v1.client_info import ClientInfo
+    from google.auth.credentials import Credentials
 
 log = logging.getLogger(__name__)
 
@@ -234,8 +239,9 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -622,12 +628,61 @@ class GoogleBaseHook(BaseHook):
         return status, message
 
 
+class _CredentialsToken(Token):
+    """A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
+
+    This class allows us to create token instances from credentials objects and thus supports a variety of use cases for Google
+    credentials in Airflow (i.e. impersonation chain). By relying on a existing credentials object we leverage functionality provided by the GoogleBaseHook
+    for generating credentials objects.
+    """
+
+    def __init__(
+        self,
+        credentials: Credentials,
+        *,
+        project: str | None = None,
+        session: ClientSession | None = None,
+        scopes: Sequence[str] | None = None,
+    ) -> None:
+        _scopes: list[str] | None = list(scopes) if scopes else None
+        super().__init__(session=cast(Session, session), scopes=_scopes)
+        self.credentials = credentials
+        self.project = project
+
+    @classmethod
+    async def from_hook(
+        cls,
+        hook: GoogleBaseHook,
+        *,
+        session: ClientSession | None = None,
+    ) -> _CredentialsToken:
+        credentials, project = hook.get_credentials_and_project_id()
+        return cls(
+            credentials=credentials,
+            project=project,
+            session=session,
+            scopes=hook.scopes,
+        )
+
+    async def get_project(self) -> str | None:
+        return self.project
+
+    async def acquire_access_token(self, timeout: int = 10) -> None:
+        await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
+
+        self.access_token = cast(str, self.credentials.token)
+        self.access_token_duration = 3600
+        self.access_token_acquired_at = datetime.datetime.utcnow()
+        self.acquiring = None
+
+
 class GoogleBaseAsyncHook(BaseHook):
     """GoogleBaseAsyncHook inherits from BaseHook class, run on the trigger worker."""
 
     sync_hook_class: Any = None
 
     def __init__(self, **kwargs: Any):
+        super().__init__(logger_name=kwargs.pop("logger_name", None))
         self._hook_kwargs = kwargs
         self._sync_hook = None
 
@@ -637,6 +692,12 @@ class GoogleBaseAsyncHook(BaseHook):
             self._sync_hook = await sync_to_async(self.sync_hook_class)(**self._hook_kwargs)
         return self._sync_hook
 
+    async def get_token(self, *, session: ClientSession | None = None) -> _CredentialsToken:
+        """Returns a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
+        sync_hook = await self.get_sync_hook()
+        return await _CredentialsToken.from_hook(sync_hook, session=session)
+
     async def service_file_as_context(self) -> Any:
+        """This is the async equivalent of the non-async GoogleBaseHook's `provide_gcp_credential_file_as_context` method."""
         sync_hook = await self.get_sync_hook()
         return await sync_to_async(sync_hook.provide_gcp_credential_file_as_context)()

@@ -104,7 +104,12 @@ class YandexCloudBaseHook(BaseHook):
                 )
             ).strip()
         except KeyError:
-            warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
+            warnings.warn(
+                f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager",
+                UserWarning,
+                stacklevel=2,
+            )
+
             return None
 
     @classmethod
@@ -123,8 +128,9 @@ class YandexCloudBaseHook(BaseHook):
         default_folder_id: str | None = None,
         default_public_ssh_key: str | None = None,
         default_service_account_id: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         if connection_id:
             warnings.warn(
                 "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",

@@ -42,6 +42,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.14.0
+.......
+
+Latest change: 2024-01-22
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`700e9e4890 <https://github.com/apache/airflow/commit/700e9e489014fe1982ff0074421eb8052469773e>`_  2024-01-22   ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
+`e07a42e69d <https://github.com/apache/airflow/commit/e07a42e69d1ab472c4da991fca5782990607ebe0>`_  2024-01-22   ``Check cluster state before defer Dataproc operators to trigger (#36892)``
+`9e4f5ba67a <https://github.com/apache/airflow/commit/9e4f5ba67a3b46ced541844a0dd9cfb9ed44e7cd>`_  2024-01-21   ``fix templating field to super constructor (#36934)``
+`f1758fdd7d <https://github.com/apache/airflow/commit/f1758fdd7da8e933a701ab1a8df96c43288e8d0d>`_  2024-01-20   ``fix: respect connection ID and impersonation in GKEStartPodOperator (#36861)``
+`09bb1a87a5 <https://github.com/apache/airflow/commit/09bb1a87a58dfad7c1de537edb8fc3ae1a944ffa>`_  2024-01-20   ``style(providers/google): improve BigQueryInsertJobOperator type hinting (#36894)``
+`681859c7bf <https://github.com/apache/airflow/commit/681859c7bffabce0c294060d811db2fb16851816>`_  2024-01-18   ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+`6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
+`1ea623a834 <https://github.com/apache/airflow/commit/1ea623a834a003df50af208d583b98452a28d430>`_  2024-01-17   ``Fix deprecations into the GCP Dataproc links (#36834)``
+`437d4e4467 <https://github.com/apache/airflow/commit/437d4e44676fe65ce9e9f7b99fb85740332071a7>`_  2024-01-17   ``Deprecate AutoMLTrainModelOperator for Vision and Video (#36473)``
+`8e6bfc2956 <https://github.com/apache/airflow/commit/8e6bfc2956254127479e751f94a4adcb3d7552c4>`_  2024-01-13   ``fix assignment of templated field in constructor (#36603)``
+`4a5da8e05e <https://github.com/apache/airflow/commit/4a5da8e05e7ce29dff0ac780a9be9bfb55f216da>`_  2024-01-10   ``Remove backward compatibility check for KubernetesPodOperator module (#36724)``
+`c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+`ead75286dc <https://github.com/apache/airflow/commit/ead75286dcbaec7728e64c5277788ad401b7b79d>`_  2024-01-10   ``Remove backward compatibility check for KubernetesPodTrigger module (#36721)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+`ecb2c9f24d <https://github.com/apache/airflow/commit/ecb2c9f24d1364642604c14f0deb681ab4894135>`_  2024-01-09   ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+`584087f087 <https://github.com/apache/airflow/commit/584087f0874453d8e44ae4cd6ec282340dbf6c84>`_  2024-01-09   ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
+`f7b663d9af <https://github.com/apache/airflow/commit/f7b663d9aff472d0a419e16c262fbae2a8a69ce1>`_  2024-01-07   ``Run mypy checks for full packages in CI (#36638)``
+`f28643b7bd <https://github.com/apache/airflow/commit/f28643b7bdc90a61ec5bd12f8505772cd8c3bf7f>`_  2024-01-03   ``Implement Google Analytics Admin (GA4) operators (#36276)``
+`75aa4a3385 <https://github.com/apache/airflow/commit/75aa4a33856adefcfe87f76879ed99958e7ed4e0>`_  2024-01-03   ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+`db0679de12 <https://github.com/apache/airflow/commit/db0679de128667ac07402202d5ee92e60a3f1f6b>`_  2023-12-30   ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
+`f070efa95c <https://github.com/apache/airflow/commit/f070efa95c9c1aafffec76a2a24f2b58961ff39c>`_  2023-12-30   ``remove unecessary templated field (#36491)``
+`918552acad <https://github.com/apache/airflow/commit/918552acad136128ea603d765d8be23d3f9bfcbd>`_  2023-12-29   ``prevent templated field logic checks in operators __init__ (#36489)``
+=================================================================================================  ===========  ========================================================================================================
+
 10.13.1
 .......
 
@@ -50,6 +83,7 @@ Latest change: 2023-12-28
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
 `49ce3ed006 <https://github.com/apache/airflow/commit/49ce3ed00677d899e3f7d62ce82577882feeb42e>`_  2023-12-28   ``Remove backcompat code for stackdriver (#36442)``
 `cba3ca7067 <https://github.com/apache/airflow/commit/cba3ca70671a1a6dfc2311c7b00659ab0413f746>`_  2023-12-28   ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
 `127c0725b9 <https://github.com/apache/airflow/commit/127c0725b9eb7c8be015ac10d74f963e3d6383ae>`_  2023-12-27   ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``

@@ -117,6 +117,45 @@ class TestDynamoDBMultipleValuesSensor:
             sort_key_value=self.sk_value,
         )
 
+    def test_init(self):
+        sensor = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor_init",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
+            sort_key_name=self.sk_name,
+            sort_key_value=self.sk_value,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="cn-north-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert sensor.hook.client_type is None
+        assert sensor.hook.resource_type == "dynamodb"
+        assert sensor.hook.aws_conn_id == "fake-conn-id"
+        assert sensor.hook._region_name == "cn-north-1"
+        assert sensor.hook._verify is False
+        assert sensor.hook._config is not None
+        assert sensor.hook._config.read_timeout == 42
+
+        sensor = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor_init",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
+            sort_key_name=self.sk_name,
+            sort_key_value=self.sk_value,
+        )
+        assert sensor.hook.aws_conn_id == "aws_default"
+        assert sensor.hook._region_name is None
+        assert sensor.hook._verify is None
+        assert sensor.hook._config is None
+
     @mock_dynamodb
     def test_sensor_with_pk(self):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name])

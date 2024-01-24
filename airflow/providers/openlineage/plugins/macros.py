@@ -39,7 +39,10 @@ def lineage_run_id(task_instance: TaskInstance):
         :ref:`howto/macros:openlineage`
     """
     return OpenLineageAdapter.build_task_instance_run_id(
-        task_instance.task.task_id, task_instance.execution_date, task_instance.try_number
+        dag_id=task_instance.dag_id,
+        task_id=task_instance.task.task_id,
+        execution_date=task_instance.execution_date,
+        try_number=task_instance.try_number,
     )
 
 
@@ -55,6 +58,9 @@ def lineage_parent_id(run_id: str, task_instance: TaskInstance):
         :ref:`howto/macros:openlineage`
     """
     job_name = OpenLineageAdapter.build_task_instance_run_id(
-        task_instance.task.task_id, task_instance.execution_date, task_instance.try_number
+        dag_id=task_instance.dag_id,
+        task_id=task_instance.task.task_id,
+        execution_date=task_instance.execution_date,
+        try_number=task_instance.try_number,
     )
     return f"{_JOB_NAMESPACE}/{job_name}/{run_id}"

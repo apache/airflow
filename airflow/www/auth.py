@@ -107,20 +107,16 @@ def has_access_with_pk(f):
             _permission_name = self.method_permission_name.get(f.__name__)
             if _permission_name:
                 permission_str = f"{PERMISSION_PREFIX}{_permission_name}"
-        if (
-            get_auth_manager().is_logged_in()
-            and permission_str in self.base_permissions
-            and self.appbuilder.sm.has_access(
-                action_name=permission_str,
-                resource_name=self.class_permission_name,
-                resource_pk=kwargs.get("pk"),
-            )
+        if permission_str in self.base_permissions and self.appbuilder.sm.has_access(
+            action_name=permission_str,
+            resource_name=self.class_permission_name,
+            resource_pk=kwargs.get("pk"),
         ):
             return f(self, *args, **kwargs)
         else:
             log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -177,7 +173,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             403,
         )
     elif not get_auth_manager().is_logged_in():
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")

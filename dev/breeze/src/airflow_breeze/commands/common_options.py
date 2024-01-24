@@ -150,6 +150,12 @@ option_downgrade_sqlalchemy = click.option(
     is_flag=True,
     envvar="DOWNGRADE_SQLALCHEMY",
 )
+option_downgrade_pendulum = click.option(
+    "--downgrade-pendulum",
+    help="Downgrade Pendulum to minimum supported version.",
+    is_flag=True,
+    envvar="DOWNGRADE_PENDULUM",
+)
 option_dry_run = click.option(
     "-D",
     "--dry-run",
@@ -240,6 +246,7 @@ option_mysql_version = click.option(
     help="Version of MySQL used.",
     type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
+    envvar="MYSQL_VERSION",
     show_default=True,
 )
 option_installation_package_format = click.option(
@@ -263,6 +270,7 @@ option_postgres_version = click.option(
     "--postgres-version",
     type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
     default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
 )
