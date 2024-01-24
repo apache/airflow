@@ -426,7 +426,7 @@ These are all available flags of ``generate-constraints`` command:
 In case someone modifies ``pyproject.toml``, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
 the procedure described in the
-`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
+`Manually generating image cache and constraints <../../MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of ``pyproject.toml``. The generated constraint
@@ -447,7 +447,7 @@ These are all available flags of ``update-constraints`` command:
   :alt: Breeze update-constraints
 
 You can read more details about what happens when you update constraints in the
-`Manually generating image cache and constraints <../MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
+`Manually generating image cache and constraints <../../MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
 Other release commands
 ......................
