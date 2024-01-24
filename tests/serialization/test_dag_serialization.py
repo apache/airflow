@@ -212,7 +212,6 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
-        "dataset_triggers": [],
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
