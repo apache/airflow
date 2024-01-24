@@ -47,3 +47,4 @@ spec:
       port: {{ .Values.ports.workerLogs }}
       targetPort: {{ .Values.ports.workerLogs }}
 {{- end }}
+{{- end }}

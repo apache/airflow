@@ -334,3 +334,4 @@ spec:
           requests:
             storage: {{ .Values.workers.persistence.size }}
   {{- end }}
+  {{- end }}
