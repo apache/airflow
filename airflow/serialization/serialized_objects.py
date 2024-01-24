@@ -407,6 +407,8 @@ class BaseSerialization:
                 serialized_object[key] = encode_timetable(value)
             elif key == "dataset_triggers":
                 serialized_object[key] = cls.serialize(value)
+            elif key == "dataset_triggers":
+                serialized_object[key] = cls.serialize(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
