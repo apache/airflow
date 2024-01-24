@@ -20,7 +20,8 @@
 ################################
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
-
+# Are we using a scheduler in k8s?
+{{- if .Values.scheduler.enabled }}
 # Are we using a local executor?
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?

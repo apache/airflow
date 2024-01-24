@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver PodDisruptionBudget
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if .Values.webserver.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget

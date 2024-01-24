@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver Deployment
 #################################
+{{- if .Values.webserver.enabled }}
 {{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}

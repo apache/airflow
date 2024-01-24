@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver Service
 #################################
+{{- if .Values.webserver.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

@@ -20,6 +20,7 @@
 ################################
 ## Airflow Scheduler PodDisruptionBudget
 #################################
+{{- if .Values.scheduler.enabled }}
 {{- if .Values.scheduler.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
