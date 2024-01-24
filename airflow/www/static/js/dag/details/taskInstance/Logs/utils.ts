@@ -21,7 +21,7 @@
 
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
-const sanitizeHtml = require("sanitize-html");
+import sanitizeHtml from "sanitize-html";
 
 export enum LogLevel {
   DEBUG = "DEBUG",
@@ -106,7 +106,7 @@ export const parseLogs = (
           a: ["href", "target", "style"],
         },
         transformTags: {
-          a: (tagName: any, attribs: { style: string }) => {
+          a: (tagName, attribs) => {
             attribs.style = "color: blue; text-decoration: underline;";
             return {
               tagName: "a",

@@ -3473,6 +3473,13 @@
     "@types/scheduler" "*"
     csstype "^3.0.2"
 
+"@types/sanitize-html@^2.9.5":
+  version "2.9.5"
+  resolved "https://registry.yarnpkg.com/@types/sanitize-html/-/sanitize-html-2.9.5.tgz#e8b2214c8afc7bb88d62f9c3bbbc5b4ecc80a25d"
+  integrity sha512-2Sr1vd8Dw+ypsg/oDDfZ57OMSG2Befs+l2CMyCC5bVSK3CpE7lTB2aNlbbWzazgVA+Qqfuholwom6x/mWd1qmw==
+  dependencies:
+    htmlparser2 "^8.0.0"
+
 "@types/scheduler@*":
   version "0.16.2"
   resolved "https://registry.yarnpkg.com/@types/scheduler/-/scheduler-0.16.2.tgz#1a62f89525723dde24ba1b01b092bf5df8ad4d39"
