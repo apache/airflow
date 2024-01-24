@@ -370,8 +370,8 @@ command.
 
 These are all available flags of ``clean-old-provider-artifacts`` command:
 
-.. image:: ./images/images/breeze/output_release-management_clean-old-provider-artifacts.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/images/breeze/output_release-management_clean-old-provider-artifacts.svg
+.. image:: ./images/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_clean-old-provider-artifacts.svg
   :width: 100%
   :alt: Breeze Clean Old Provider Artifacts
 
@@ -447,7 +447,7 @@ These are all available flags of ``update-constraints`` command:
   :alt: Breeze update-constraints
 
 You can read more details about what happens when you update constraints in the
-`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
+`Manually generating image cache and constraints <../MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
 Other release commands
 ......................
@@ -542,7 +542,7 @@ providers - you can mix apache-airflow, helm-chart and provider packages this wa
 
 These are all available flags of ``release-management add-back-references`` command:
 
-.. image:: .images/breeze/output_release-management_add-back-references.svg
+.. image:: ./images/output_release-management_add-back-references.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_add-back-references.svg
   :width: 100%
   :alt: Breeze Add Back References
