@@ -83,8 +83,13 @@ class AwsBatchExecutor(BaseExecutor):
         if not all_job_ids:
             self.log.debug("No active tasks, skipping sync")
             return
+        try:
+            describe_job_response = self._describe_tasks(all_job_ids)
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process
+            self.log.exception("Failed to sync %s", self.__class__.__name__)
 
-        describe_job_response = self._describe_tasks(all_job_ids)
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
@@ -116,7 +121,13 @@ class AwsBatchExecutor(BaseExecutor):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
-        job_id = self._submit_job(key, command, queue, executor_config or {})
+        try:
+            job_id = self._submit_job(key, command, queue, executor_config or {})
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process.
+            self.log.exception("Failed to submit Batch job %s", self.__class__.__name__)
+
         self.active_workers.add_job(job_id, key)
 
     def _submit_job(
@@ -158,17 +169,27 @@ class AwsBatchExecutor(BaseExecutor):
 
     def end(self, heartbeat_interval=10):
         """Waits for all currently running tasks to end, and doesn't launch any tasks."""
-        while True:
-            self.sync()
-            if not self.active_workers:
-                break
-            time.sleep(heartbeat_interval)
+        try:
+            while True:
+                self.sync()
+                if not self.active_workers:
+                    break
+                time.sleep(heartbeat_interval)
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process.
+            self.log.exception("Failed to end %s", self.__class__.__name__)
 
     def terminate(self):
         """Kill all Batch Jobs by calling Boto3's TerminateJob API."""
-        for job_id in self.active_workers.get_all_jobs():
-            self.batch.terminate_job(jobId=job_id, reason="Airflow Executor received a SIGTERM")
-        self.end()
+        try:
+            for job_id in self.active_workers.get_all_jobs():
+                self.batch.terminate_job(jobId=job_id, reason="Airflow Executor received a SIGTERM")
+            self.end()
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process.
+            self.log.exception("Failed to terminate %s", self.__class__.__name__)
 
     @staticmethod
     def _load_submit_kwargs() -> dict:
