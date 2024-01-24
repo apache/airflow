@@ -33,6 +33,8 @@ import {
   ModalHeader,
   IconButton,
   useToast,
+  ModalFooter,
+  Button,
 } from "@chakra-ui/react";
 
 import { Table } from "src/components/Table";
@@ -183,6 +185,8 @@ export const DatasetActionCell = ({ cell: { row } }: CellProps) => {
   } = useDeleteDataset(row.original.uri);
 
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const containerRef = useContainerRef();
 
   return (
     <Flex alignItems="center" justifyContent="center">
@@ -194,17 +198,51 @@ export const DatasetActionCell = ({ cell: { row } }: CellProps) => {
         colorScheme="red"
         isLoading={deleteDatasetIsLoading}
         onClick={(e) => {
-          toast.promise(apiCallToDeleteDataset(), {
-            success: { title: "Dataset deleted" },
-            error: {
-              duration: 0,
-              render: () => null, // will use errorToast util in mutation
-            },
-            loading: { title: "Deleting..." },
-          });
+          onOpen();
           e.stopPropagation();
         }}
       />
+      <Modal
+        size="3xl"
+        isOpen={isOpen}
+        onClose={onClose}
+        scrollBehavior="inside"
+        blockScrollOnMount={false}
+        portalProps={{ containerRef }}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Delete Dataset</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            Are you sure you want to delete dataset <b>{row.original.uri}?</b>
+          </ModalBody>
+
+          <ModalFooter justifyContent="space-between">
+            <Button colorScheme="gray" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              aria-label="Confirm Delete"
+              title="Confirm Delete"
+              colorScheme="red"
+              onClick={() => {
+                toast.promise(apiCallToDeleteDataset(), {
+                  success: { title: "Dataset deleted" },
+                  error: {
+                    duration: 0,
+                    render: () => null, // will use errorToast util in mutation
+                  },
+                  loading: { title: "Deleting..." },
+                });
+                onClose();
+              }}
+            >
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Flex>
   );
 };
