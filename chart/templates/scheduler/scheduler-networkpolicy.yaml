@@ -56,4 +56,4 @@ spec:
       port: {{ .Values.ports.workerLogs }}
   {{- end }}
 {{- end }}
-{{- end }}
+{{- end -}}

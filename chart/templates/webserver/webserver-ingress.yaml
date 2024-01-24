@@ -110,4 +110,4 @@ spec:
   ingressClassName: {{ .Values.ingress.web.ingressClassName }}
   {{- end }}
 {{- end }}
-{{- end }}
+{{- end -}}
