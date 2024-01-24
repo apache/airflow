@@ -211,13 +211,17 @@ What's the deal with ``start_date``?
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
 relevant in many ways. When creating a new DAG, you probably want to set
 a global ``start_date`` for your tasks. This can be done by declaring your
-``start_date`` directly in the ``DAG()`` object. The first
-DagRun to be created will be based on the ``min(start_date)`` for all your
-tasks. From that point on, the scheduler creates new DagRuns based on
-your ``schedule`` and the corresponding task instances run as your
-dependencies are met. When introducing new tasks to your DAG, you need to
-pay special attention to ``start_date``, and may want to reactivate
-inactive DagRuns to get the new task onboarded properly.
+``start_date`` directly in the ``DAG()`` object. A DAG's first
+DagRun will be created based on the first complete ``data_interval``
+after ``start_date``. For example, for a DAG with
+``start_date=``datetime(2024, 1, 1)`` and ``schedule="0 0 3 * *"``, the
+first DAG run will be triggered at midnight on 2024-02-03 with
+``data_interval_start=datetime(2024, 1, 3)`` and
+``data_interval_end=datetime(2024, 2, 3)``. From that point on, the scheduler
+creates new DagRuns based on your ``schedule`` and the corresponding task
+instances run as your dependencies are met. When introducing new tasks to
+your DAG, you need to pay special attention to ``start_date``, and may want
+to reactivate inactive DagRuns to get the new task onboarded properly.
 
 We recommend against using dynamic values as ``start_date``, especially
 ``datetime.now()`` as it can be quite confusing. The task is triggered
