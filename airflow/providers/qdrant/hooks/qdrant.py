@@ -52,19 +52,18 @@ class QdrantHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 description="Optional. Qualified URL of the Qdrant instance."
                 "Example: https://xyz-example.eu-central.aws.cloud.qdrant.io:6333",
-                default=None,
             ),
             "grpc_port": IntegerField(
                 lazy_gettext("GPRC Port"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Port of the gRPC interface.",
-                default=None,
+                default=6334,
             ),
             "prefer_gprc": BooleanField(
                 lazy_gettext("Prefer GRPC"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Whether to use gPRC interface whenever possible in custom methods.",
-                default=True,
+                default=False,
             ),
             "https": BooleanField(
                 lazy_gettext("HTTPS"),
@@ -76,12 +75,6 @@ class QdrantHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 description="Optional. Prefix to the REST URL path."
                 "Example: `service/v1` will result in http://localhost:6333/service/v1/{qdrant-endpoint} for REST API.",
-            ),
-            "timeout": IntegerField(
-                lazy_gettext("Timeout"),
-                widget=BS3TextFieldWidget(),
-                description="Optional. Timeout for REST and gRPC API requests.",
-                default=None,
             ),
         }
 
@@ -109,7 +102,6 @@ class QdrantHook(BaseHook):
         prefer_gprc = extra.get("prefer_gprc", False)
         https = extra.get("https", False)
         prefix = extra.get("prefix", None)
-        timeout = extra.get("timeout", None)
 
         return QdrantClient(
             host=host,
@@ -120,7 +112,6 @@ class QdrantHook(BaseHook):
             prefer_grpc=prefer_gprc,
             https=https,
             prefix=prefix,
-            timeout=timeout,
         )
 
     @cached_property
