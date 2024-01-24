@@ -43,4 +43,4 @@ spec:
       release: {{ .Release.Name }}
   {{- toYaml .Values.webserver.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
-{{- end -}}
+{{- end }}
