@@ -109,11 +109,11 @@ with DAG(
 
     transfer_data = TeradataToTeradataOperator(
         task_id="transfer_data",
-        teradata_destination_conn_id="teradata_default",
+        dest_teradata_conn_id="teradata_default",
         destination_table="my_users_dest",
-        teradata_source_conn_id="teradata_default",
-        source_sql="select * from my_users_src",
-        source_sql_params={},
+        source_teradata_conn_id="teradata_default",
+        sql="select * from my_users_src",
+        sql_params={},
         rows_chunk=2,
     )
 

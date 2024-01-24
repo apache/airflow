@@ -85,7 +85,6 @@ class TeradataToTeradataOperator(BaseOperator):
             self.log.info("Finished data transfer.")
             cursor.close()
 
-
     def execute(self, context: Context) -> None:
         src_hook = TeradataHook(teradata_conn_id=self.source_teradata_conn_id)
         dest_hook = TeradataHook(teradata_conn_id=self.dest_teradata_conn_id)

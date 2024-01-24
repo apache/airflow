@@ -26,11 +26,11 @@ from airflow.providers.teradata.transfers.teradata_to_teradata import TeradataTo
 
 class TestTeradataToTeradataTransfer:
     def test_execute(self):
-        teradata_destination_conn_id = "teradata_destination_conn_id"
+        dest_teradata_conn_id = "dest_teradata_conn_id"
         destination_table = "destination_table"
-        teradata_source_conn_id = "teradata_source_conn_id"
-        source_sql = (r"""select DATE where DATE > {{ source_sql_params.ref_date }};""",)
-        source_sql_params = {"ref_date": "2018-01-01"}
+        source_teradata_conn_id = "source_teradata_conn_id"
+        sql = (r"""select DATE where DATE > {{ source_sql_params.ref_date }};""",)
+        sql_params = {"ref_date": "2018-01-01"}
         rows_chunk = 5000
         cursor_description = [
             ["user_id", Decimal, None, 8, 10, 0, False],
@@ -48,11 +48,11 @@ class TestTeradataToTeradataTransfer:
 
         td_transfer_op = TeradataToTeradataOperator(
             task_id="transfer_data",
-            teradata_destination_conn_id=teradata_destination_conn_id,
+            dest_teradata_conn_id=dest_teradata_conn_id,
             destination_table=destination_table,
-            teradata_source_conn_id=teradata_source_conn_id,
-            source_sql=source_sql,
-            source_sql_params=source_sql_params,
+            source_teradata_conn_id=source_teradata_conn_id,
+            sql=sql,
+            sql_params=sql_params,
             rows_chunk=rows_chunk,
         )
 
@@ -60,7 +60,7 @@ class TestTeradataToTeradataTransfer:
 
         assert mock_src_hook.get_conn.called
         assert mock_src_conn.cursor.called
-        mock_cursor.execute.assert_called_once_with(source_sql, source_sql_params)
+        mock_cursor.execute.assert_called_once_with(sql, sql_params)
 
         calls = [
             mock.call(rows_chunk),
