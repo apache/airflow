@@ -48,6 +48,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -352,6 +353,7 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
+        disable_tcp_keepalive: bool | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -363,6 +365,7 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         )
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
+        self.disable_tcp_keepalive = disable_tcp_keepalive
 
     @cached_property
     def api_client(self) -> client.ApiClient:
@@ -397,6 +400,10 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
+
+        if self.disable_tcp_keepalive is not True:
+            _enable_tcp_keepalive()
+
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
