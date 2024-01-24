@@ -642,8 +642,10 @@ class _CredentialsToken(Token):
         *,
         project: str | None = None,
         session: ClientSession | None = None,
+        scopes: Sequence[str] | None = None,
     ) -> None:
-        super().__init__(session=cast(Session, session))
+        _scopes: list[str] | None = list(scopes) if scopes else None
+        super().__init__(session=cast(Session, session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
 
@@ -659,6 +661,7 @@ class _CredentialsToken(Token):
             credentials=credentials,
             project=project,
             session=session,
+            scopes=hook.scopes,
         )
 
     async def get_project(self) -> str | None:
