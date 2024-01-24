@@ -1,0 +1,1 @@
+``AlreadyExists`` exception for API is now generalized as ``Conflict`` exception.
