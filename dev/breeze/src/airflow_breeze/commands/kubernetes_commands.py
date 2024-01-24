@@ -1318,7 +1318,7 @@ def shell(
     make_sure_kubernetes_tools_are_installed()
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     get_console().print("\n[info]Entering interactive k8s shell.\n")
-    shell_binary = env["SHELL"]
+    shell_binary = env.get("SHELL", "bash")
     extra_args: list[str] = []
     if shell_binary.endswith("zsh"):
         extra_args.append("--no-rcs")
