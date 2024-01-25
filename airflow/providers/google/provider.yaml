@@ -755,7 +755,7 @@ dataset-uris:
   - schemes: [gcp]
     handler: null
   - schemes: [bigquery]
-    handler: null
+    handler: airflow.providers.google.datasets.bigquery.sanitize_uri
 
 hooks:
   - integration-name: Google Ads

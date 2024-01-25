@@ -107,5 +107,5 @@ connection-types:
     connection-type: mysql
 
 dataset-uris:
-  - schemes: [mysql]
-    handler: null
+  - schemes: [mysql, mariadb]
+    handler: airflow.providers.mysql.datasets.mysql.sanitize_uri

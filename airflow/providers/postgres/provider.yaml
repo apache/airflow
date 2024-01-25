@@ -90,5 +90,5 @@ connection-types:
     connection-type: postgres
 
 dataset-uris:
-  - schemes: [postgres]
-    handler: null
+  - schemes: [postgres, postgresql]
+    handler: airflow.providers.postgres.datasets.postgres.sanitize_uri
