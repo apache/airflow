@@ -245,9 +245,9 @@ class KubernetesPodOperator(BaseOperator):
         cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
-        volume_mounts_param: list[k8s.V1VolumeMount] | None = None,
-        volumes_param: list[k8s.V1Volume] | None = None,
-        env_vars_param: list[k8s.V1EnvVar] | dict[str, str] | None = None,
+        volume_mounts: list[k8s.V1VolumeMount] | None = None,
+        volumes: list[k8s.V1Volume] | None = None,
+        env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,
@@ -309,7 +309,7 @@ class KubernetesPodOperator(BaseOperator):
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.startup_check_interval_seconds = startup_check_interval_seconds
-        env_vars = convert_env_vars(env_vars_param) if env_vars_param else []
+        env_vars = convert_env_vars(env_vars) if env_vars else []
         self.env_vars = env_vars
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
@@ -318,9 +318,9 @@ class KubernetesPodOperator(BaseOperator):
         if self.configmaps:
             self.env_from.extend([convert_configmap(c) for c in self.configmaps])
         self.ports = [convert_port(p) for p in ports] if ports else []
-        volume_mounts = [convert_volume_mount(v) for v in volume_mounts_param] if volume_mounts_param else []
+        volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
         self.volume_mounts = volume_mounts
-        volumes = [convert_volume(volume) for volume in volumes_param] if volumes_param else []
+        volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.volumes = volumes
         self.secrets = secrets or []
         self.in_cluster = in_cluster
