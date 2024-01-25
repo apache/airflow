@@ -88,7 +88,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     def hook(self) -> NeptuneHook:
         return NeptuneHook(aws_conn_id=self.aws_conn_id) """
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> dict[str, str]:
         self.log.info("Starting Neptune cluster: %s", self.cluster_id)
 
         # Check to make sure the cluster is not already available.
