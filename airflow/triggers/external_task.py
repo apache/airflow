@@ -98,37 +98,37 @@ class WorkflowTrigger(BaseTrigger):
         """Check periodically tasks, task group or dag status."""
         while True:
             if self.failed_states:
-                count_failed = _get_count(
+                failed_count = _get_count(
                     self.execution_dates,
                     self.external_task_ids,
                     self.external_task_group_id,
                     self.external_dag_id,
                     self.failed_states,
                 )
-                if count_failed > 0:
-                    yield TriggerEvent({"status": "success"})
+                if failed_count > 0:
+                    yield TriggerEvent({"status": "failed"})
                     return
                 else:
                     yield TriggerEvent({"status": "success"})
                     return
             if self.skipped_states:
-                count_skipped = _get_count(
+                skipped_count = _get_count(
                     self.execution_dates,
                     self.external_task_ids,
                     self.external_task_group_id,
                     self.external_dag_id,
                     self.skipped_states,
                 )
-                if count_skipped > 0:
-                    yield TriggerEvent({"status": "success"})
-            count_allowed = _get_count(
+                if skipped_count > 0:
+                    yield TriggerEvent({"status": "skipped"})
+            allowed_count = _get_count(
                 self.execution_dates,
                 self.external_task_ids,
                 self.external_task_group_id,
                 self.external_dag_id,
                 self.allowed_states,
             )
-            if count_allowed == len(self.execution_dates):
+            if allowed_count == len(self.execution_dates):
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)

@@ -16,8 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import typing
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
@@ -77,7 +76,7 @@ def _get_count(
             ) / len(external_task_group_task_ids)
     else:
         count = session.scalar(_count_query(DR, states, dttm_filter, external_dag_id, session))
-    return typing.cast(int, count)
+    return cast(int, count)
 
 
 def _count_query(model, states, dttm_filter, external_dag_id, session: Session) -> Query:
