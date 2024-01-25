@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
@@ -84,10 +84,6 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         self.delay = waiter_delay
         self.max_attempts = waiter_max_attempts
 
-    """  @cached_property
-    def hook(self) -> NeptuneHook:
-        return NeptuneHook(aws_conn_id=self.aws_conn_id) """
-
     def execute(self, context: Context) -> dict[str, str]:
         self.log.info("Starting Neptune cluster: %s", self.cluster_id)
 
@@ -120,8 +116,12 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         return {"db_cluster_id": self.cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        status = event.get("status", "")
-        cluster_id = event.get("cluster_id", "")
+        status = ""
+        cluster_id = ""
+
+        if event:
+            status = event.get("status", "")
+            cluster_id = event.get("cluster_id", "")
 
         self.log.info("Neptune cluster %s available with status: %s", cluster_id, status)
 
@@ -178,14 +178,10 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         self.delay = waiter_delay
         self.max_attempts = waiter_max_attempts
 
-    """ @cached_property
-    def hook(self) -> NeptuneHook:
-        return NeptuneHook(aws_conn_id=self.aws_conn_id) """
-
     def execute(self, context: Context) -> dict[str, str]:
         self.log.info("Stopping Neptune cluster: %s", self.cluster_id)
 
-        # Check to make sure the cluster is not already available.
+        # Check to make sure the cluster is not already stopped.
         status = self.hook.get_cluster_status(self.cluster_id)
         if status.lower() in STOPPED_STATES:
             self.log.info("Neptune cluster %s is already stopped.", self.cluster_id)
@@ -214,8 +210,12 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         return {"db_cluster_id": self.cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        status = event.get("status", "")
-        cluster_id = event.get("cluster_id", "")
+        status = ""
+        cluster_id = ""
+
+        if event:
+            status = event.get("status", "")
+            cluster_id = event.get("cluster_id", "")
 
         self.log.info("Neptune cluster %s stopped with status: %s", cluster_id, status)
 
