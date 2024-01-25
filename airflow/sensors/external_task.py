@@ -364,7 +364,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
-        if event["status"] == "skipped":
+        elif event["status"] == "skipped":
             raise AirflowSkipException("External job has skipped skipping.")
         else:
             if self.soft_fail:
