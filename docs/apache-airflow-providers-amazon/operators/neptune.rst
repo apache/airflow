@@ -19,7 +19,6 @@
 Amazon Neptune
 ==============
 
-With `AWS Lambda <https://aws.amazon.com/lambda/>`__,
 `Amazon Neptune Database <https://aws.amazon.com/neptune/>`__ is a serverless graph database designed
 for superior scalability and availability. Neptune Database provides built-in security,
 continuous backups, and integrations with other AWS services.

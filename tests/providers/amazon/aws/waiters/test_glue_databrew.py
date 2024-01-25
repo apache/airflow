@@ -66,4 +66,3 @@ class TestCustomDataBrewWaiters:
         ]
         waiter = GlueDataBrewHook(aws_conn_id=None).get_waiter("job_complete")
         waiter.wait(name=self.JOB_NAME, runId=self.RUN_ID, WaiterConfig={"Delay": 0.2, "MaxAttempts": 2})
-        waiter.wait.assert_called()

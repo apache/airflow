@@ -80,33 +80,3 @@ class TestNeptuneClusterStoppedTrigger:
 
         assert resp == TriggerEvent({"status": "success", "db_cluster_id": CLUSTER_ID})
         assert mock_get_waiter().wait.call_count == 1
-
-    # @pytest.mark.asyncio
-    # @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
-    # @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
-    # async def test_run_failure(self, mock_async_conn, mock_get_waiter):
-    #     # TODO: need to test what happens when waiter fails
-    #     # mock_async_conn.__aenter__.return_value = 'Deleting'
-    #     # mock_get_waiter().wait = AsyncMock()
-    #     # trigger = NeptuneClusterAvailableTrigger(db_cluster_id=CLUSTER_ID)
-    #     # generator = trigger.run()
-    #     # resp = await generator.asend(None)
-    #     a_mock = mock.MagicMock()
-    #     mock_get_waiter.__aenter__.return_value = a_mock
-    #     wait_mock = AsyncMock()
-    #     wait_mock.side_effect = [
-    #         WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]}),
-    #         WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]}),
-    #         WaiterError("terminal failure", "reason", {}),
-    #     ]
-    #     a_mock.get_waiter().wait = wait_mock
-
-    #     trigger = NeptuneClusterAvailableTrigger(
-    #         db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=1
-    #     )
-
-    #     with pytest.raises(WaiterError):
-    #         generator = trigger.run()
-    #         await generator.asend(None)
-
-    # assert resp == TriggerEvent({'status': 'failure', 'db_cluster_id': CLUSTER_ID})
