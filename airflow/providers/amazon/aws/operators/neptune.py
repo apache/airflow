@@ -213,7 +213,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
 
         return {"db_cluster_id": self.cluster_id}
 
-    def execute_complete(self, context: Context, event=None) -> dict[str, str]:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
         status = event.get("status", "")
         cluster_id = event.get("cluster_id", "")
 
