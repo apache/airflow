@@ -181,7 +181,7 @@ CELERY_COMMANDS = (
     ActionCommand(
         name="worker",
         help="Start a Celery worker node",
-        func=lazy_load_command("airflow.cli.commands.celery_command.worker"),
+        func=lazy_load_command("airflow.providers.celery.cli.celery_command.worker"),
         args=(
             ARG_QUEUES,
             ARG_CONCURRENCY,
@@ -202,7 +202,7 @@ CELERY_COMMANDS = (
     ActionCommand(
         name="flower",
         help="Start a Celery Flower",
-        func=lazy_load_command("airflow.cli.commands.celery_command.flower"),
+        func=lazy_load_command("airflow.providers.celery.cli.celery_command.flower"),
         args=(
             ARG_FLOWER_HOSTNAME,
             ARG_FLOWER_PORT,
@@ -221,7 +221,7 @@ CELERY_COMMANDS = (
     ActionCommand(
         name="stop",
         help="Stop the Celery worker gracefully",
-        func=lazy_load_command("airflow.cli.commands.celery_command.stop_worker"),
+        func=lazy_load_command("airflow.providers.celery.cli.celery_command.stop_worker"),
         args=(ARG_PID, ARG_VERBOSE),
     ),
 )
