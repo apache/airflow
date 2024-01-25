@@ -94,12 +94,12 @@ class AzureSynapseHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = "", **kwargs):
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
         self.job_id: int | None = None
         self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
-        super().__init__(**kwargs)
+        super().__init__()
 
     def _get_field(self, extras, name):
         return get_field(
@@ -273,15 +273,12 @@ class AzureSynapsePipelineHook(BaseHook):
         }
 
     def __init__(
-        self,
-        azure_synapse_workspace_dev_endpoint: str,
-        azure_synapse_conn_id: str = default_conn_name,
-        **kwargs,
+        self, azure_synapse_workspace_dev_endpoint: str, azure_synapse_conn_id: str = default_conn_name
     ):
         self._conn = None
         self.conn_id = azure_synapse_conn_id
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint
-        super().__init__(**kwargs)
+        super().__init__()
 
     def _get_field(self, extras, name):
         return get_field(

@@ -111,7 +111,7 @@ class SlackWebhookHook(BaseHook):
         retry_handlers: list[RetryHandler] | None = None,
         **extra_client_args: Any,
     ):
-        super().__init__(logger_name=extra_client_args.pop("logger_name", None))
+        super().__init__()
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.timeout = timeout
         self.proxy = proxy

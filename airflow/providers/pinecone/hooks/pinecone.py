@@ -66,8 +66,7 @@ class PineconeHook(BaseHook):
             "relabeling": {"login": "Pinecone Environment", "password": "Pinecone API key"},
         }
 
-    def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, conn_id: str = default_conn_name) -> None:
         self.conn_id = conn_id
         self.get_conn()
 
