@@ -53,6 +53,3 @@ HTTPS (optional)
 
 Prefix (optional)
     Prefix to add to the REST URL endpoints. Defaults to ``None``.
-
-Timeout (optional)
-    Timeout for REST and gRPC API requests.. Defaults to ``5`` seconds for REST. Unlimited for GRPC.
