@@ -239,9 +239,8 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -682,7 +681,6 @@ class GoogleBaseAsyncHook(BaseHook):
     sync_hook_class: Any = None
 
     def __init__(self, **kwargs: Any):
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

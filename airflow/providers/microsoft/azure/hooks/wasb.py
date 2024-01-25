@@ -128,9 +128,8 @@ class WasbHook(BaseHook):
         self,
         wasb_conn_id: str = default_conn_name,
         public_read: bool = False,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
 

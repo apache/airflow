@@ -71,9 +71,8 @@ class GrpcHook(BaseHook):
         grpc_conn_id: str = default_conn_name,
         interceptors: list[Callable] | None = None,
         custom_connection_func: Callable | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
