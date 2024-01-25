@@ -100,6 +100,9 @@ class TestPodManager:
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
         ]
         with pytest.raises(BaseHTTPError):
             self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")

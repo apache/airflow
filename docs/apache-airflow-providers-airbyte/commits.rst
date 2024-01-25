@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.0
+.....
+
+Latest change: 2024-01-18
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`3806a63bfe <https://github.com/apache/airflow/commit/3806a63bfe0c07d120a7181d751033c850f54997>`_  2024-01-18   ``Add deferrable functionality to the AirbyteJobSensor and AirbyteTriggerSyncOperator (#36780)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ================================================================================================
+
 3.5.1
 .....
 
-Latest change: 2023-12-16
+Latest change: 2023-12-23
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `ceab840f31 <https://github.com/apache/airflow/commit/ceab840f31e2dcf591390bbace0ff9d74c6fc8fd>`_  2023-12-16   ``Cancel airbyte job when timeout exceeded to prevent inconsistency among airflow and airbyte (#36241)``
 =================================================================================================  ===========  ========================================================================================================
 

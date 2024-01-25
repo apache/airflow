@@ -9,6 +9,7 @@ manifests export-ignore
 newsfragments export-ignore
 scripts export-ignore
 tests export-ignore
+chart/charts/** export-ignore
 
 Dockerfile.ci export-ignore
 

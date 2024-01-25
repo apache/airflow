@@ -48,6 +48,7 @@ else:
     )
     from airflow_breeze.commands.release_management_commands_config import (
         RELEASE_AIRFLOW_COMMANDS,
+        RELEASE_HELM_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
         RELEASE_OTHER_COMMANDS,
         RELEASE_PROVIDERS_COMMANDS,
@@ -107,6 +108,7 @@ else:
         "breeze setup": [SETUP_COMMANDS],
         "breeze release-management": [
             RELEASE_AIRFLOW_COMMANDS,
+            RELEASE_HELM_COMMANDS,
             RELEASE_PROVIDERS_COMMANDS,
             RELEASE_OTHER_COMMANDS,
         ],

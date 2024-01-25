@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Bump min version of mysql-connector-python (#36668)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+
 5.5.1
 .....
 

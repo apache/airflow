@@ -22,8 +22,9 @@ description: |
   `Apache Druid <https://druid.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1703288106
+source-date-epoch: 1705911859
 versions:
+  - 3.8.0
   - 3.7.0
   - 3.6.0
   - 3.5.0
