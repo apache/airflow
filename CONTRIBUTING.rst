@@ -57,6 +57,10 @@ Report bugs through `GitHub <https://github.com/apache/airflow/issues>`__.
 Please report relevant information and preferably code that exhibits the
 problem.
 
+.. note::
+   If you want to report a security finding, please consider
+   https://github.com/apache/airflow/security/policy
+
 Fix Bugs
 --------
 
