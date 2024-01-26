@@ -2924,6 +2924,37 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    @pytest.mark.parametrize(
+        "code, expected_state",
+        [
+            (1, State.FAILED),
+            (-1, State.FAILED),
+            ("error", State.FAILED),
+            (0, State.SUCCESS),
+            (None, State.SUCCESS),
+        ],
+    )
+    def test_handle_system_exit(self, dag_maker, code, expected_state):
+        with dag_maker():
+
+            def f(*args, **kwargs):
+                exit(code)
+
+            task = PythonOperator(task_id="mytask", python_callable=f)
+
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        try:
+            ti._run_raw_task()
+        except Exception:
+            ...
+        ti.refresh_from_db()
+        assert ti.state == expected_state
+
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
             from airflow.operators.python import get_current_context
