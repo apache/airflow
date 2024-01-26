@@ -552,6 +552,7 @@ To use your host IDE with Breeze:
 Note that you can also use the local virtualenv for Airflow development without Breeze.
 This is a lightweight solution that has its own limitations.
 
-More details on using the local virtualenv are available in the `Local Virtualenv <../../../LOCAL_VIRTUALENV.rst>`_.
+More details on using the local virtualenv are available in the
+`Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
 
 Next step: Follow the `Troubleshooting <04_troubleshooting.rst>`_ guide to troubleshoot your Breeze environment.

@@ -68,7 +68,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest  and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
+in the `testing doc <../../../contributing-docs/testing.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -288,7 +288,7 @@ You can:
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
   via ``breeze k8s dump-logs`` command
 
-This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
+This is described in detail in `Testing Kubernetes <../../../contributing-docs/testing/k8s_tests.rst>`_.
 
 You can read more about KinD that we use in `The documentation <https://kind.sigs.k8s.io/>`_
 

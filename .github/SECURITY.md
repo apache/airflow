@@ -17,6 +17,14 @@
  under the License.
 -->
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Reporting Vulnerabilities](#reporting-vulnerabilities)
+- [How are security issues handled in Airflow](#how-are-security-issues-handled-in-airflow)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 This document contains information on how to report security vulnerabilities in Apache Airflow and
 how security issues reported to the Apache Airflow security team are handled. If you would like
 to learn more, head to the
@@ -72,7 +80,28 @@ If you wish to know more about the ASF security process, the
 how vulnerability reports are handled in general by all ASF projects, and includes PGP keys if
 you wish to use them when you report the issues.
 
-## Security vulnerabilities in Airflow and Airflow community managed providers
+
+### What happens after you report the issue ?
+
+The Airflow Security Team will get back to you after assessing the report. You will usually get
+confirmation that the issue is being worked (or that we quickly assessed it as invalid) within several
+business days. Note that this is an Open-Source projects and members of the security team are volunteers
+so please make sure to be patient. If you do not get a response within a week or so, please send a
+kind reminder to the security team. We will usually let you know the CVE number that will be assigned
+to the issue and the severity of the issue as well as release the issue is scheduled to be fixed
+after we assess the issue (which might take longer or shorter time depending on the issue complexity and
+potential impact, severity, whether we want to address a whole class issues in a single fix and a number
+of other factors). You should subscribe  and monitor the `users@airflow.apache.org` mailing
+list or `announce@apache.org` to see the announcement of the security issue - including the CVE number
+and the severity of the issue once the issue is fixed and release is public. Note that the
+`announce@apache.org` mailing list is moderated, and it might take a few hours for the announcement to
+appear there, so `users@airflow.apache.org` is the best place to monitor for the announcement.
+
+Security issues in Airflow are handled by the Airflow Security Team. Details about the Airflow Security
+Team and how members of it are chosen can be found in the
+[Contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/01_roles_in_airflow_project.rst#security-team).
+
+### Does CVE in Airflow Providers impact Airflow core package ?
 
 Airflow core package is released separately from provider packages. While Airflow comes with ``constraints``
 which describe which version of providers have been tested when the version of Airflow was released, the

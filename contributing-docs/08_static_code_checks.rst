@@ -15,8 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
-
 Static code checks
 ==================
 
@@ -26,8 +24,9 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some `static code check <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_ via
-`Breeze <dev/breeze/doc/breeze.rst>`_ environment.
+You can also run the checks via `Breeze <dev/breeze/doc/README.rst>`_ environment.
+
+.. contents:: :local:
 
 Pre-commit hooks
 ----------------
@@ -44,7 +43,7 @@ We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framewo
 in our development workflow. To install and use it, you need at least Python 3.8 locally.
 
 Installing pre-commit hooks
-...........................
+---------------------------
 
 It is the best to use pre-commit hooks when you have your local virtualenv for
 Airflow activated since then pre-commit hooks and other dependencies are
@@ -62,12 +61,10 @@ temporarily when you commit your code with ``--no-verify`` switch or skip certai
 to much disturbing your local workflow. See `Available pre-commit checks <#available-pre-commit-checks>`_
 and `Using pre-commit <#using-pre-commit>`_
 
-.. note:: Additional prerequisites might be needed
-
-    The pre-commit hooks use several external linters that need to be installed before pre-commit is run.
-    Each of the checks installs its own environment, so you do not need to install those, but there are some
-    checks that require locally installed binaries. On Linux, you typically install
-    them with ``sudo apt install``, on macOS - with ``brew install``.
+The pre-commit hooks use several external linters that need to be installed before pre-commit is run.
+Each of the checks installs its own environment, so you do not need to install those, but there are some
+checks that require locally installed binaries. On Linux, you typically install
+them with ``sudo apt install``, on macOS - with ``brew install``.
 
 The current list of prerequisites is limited to ``xmllint``:
 
@@ -77,7 +74,7 @@ The current list of prerequisites is limited to ``xmllint``:
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
 `Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
-locally before installing pre-commit checks as described in `Breeze docs <dev/breeze/doc/breeze.rst>`__.
+locally before installing pre-commit checks as described in `Breeze docs <dev/breeze/doc/README.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
 In such cases, the Docker-based pre-commit will inform you that you should rebuild the image.
@@ -86,7 +83,7 @@ In case you do not have your local images built, the pre-commit hooks fail and p
 instructions on what needs to be done.
 
 Enabling pre-commit hooks
-.........................
+-------------------------
 
 To turn on pre-commit checks for ``commit`` operations in git, enter:
 
@@ -109,64 +106,10 @@ For details on advanced usage of the install method, use:
    pre-commit install --help
 
 Available pre-commit checks
-...........................
+---------------------------
 
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
 require Breeze Docker image to be built locally.
-
-.. note:: Manual pre-commits
-
-  Most of the checks we run are configured to run automatically when you commit the code. However,
-  there are some checks that are not run automatically and you need to run them manually. Those
-  checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
-  them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
-
-.. note:: Disabling particular checks
-
-  In case you have a problem with running particular ``pre-commit`` check you can still continue using the
-  benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
-  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
-  when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-  ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
-  do not want to set it manually every time you enter the terminal.
-
-  In case you do not have breeze image configured locally, you can also disable all checks that require breeze
-  the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
-  when run locally (note that those checks will anyway run in CI).
-
-.. note:: Mypy checks
-
-  When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
-  ``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
-  are run by passing those changed files to mypy. This is way faster than running checks for all files (even
-  if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
-  files). However, in some cases, it produces different results than when running checks for the whole set
-  of files, because ``mypy`` does not even know that some types are defined in other files and it might not
-  be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
-  directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure
-  that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
-  in CI. If you want to run mypy checks for all files locally, you can do it by running the following
-  command (example for ``airflow`` files):
-
-     .. code-block:: bash
-
-        pre-commit run --hook-stage manual mypy-<FOLDER> --all-files
-
-  For example:
-
-     .. code-block:: bash
-
-        pre-commit run --hook-stage manual mypy-airflow --all-files
-
-
-.. note:: Mypy volume cache
-
-  MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
-  execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
-  will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
-  is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
-  cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
-
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
@@ -422,7 +365,7 @@ require Breeze Docker image to be built locally.
   .. END AUTO-GENERATED STATIC CHECK LIST
 
 Using pre-commit
-................
+----------------
 
 After installation, pre-commit hooks are run automatically when you commit the
 code. But you can run pre-commit hooks manually as needed.
@@ -478,6 +421,59 @@ You can always skip running the tests by providing ``--no-verify`` flag to the
 ``git commit`` command.
 
 To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
+
+Disabling particular checks
+---------------------------
+
+In case you have a problem with running particular ``pre-commit`` check you can still continue using the
+benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
+checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
+when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
+``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+do not want to set it manually every time you enter the terminal.
+
+In case you do not have breeze image configured locally, you can also disable all checks that require breeze
+the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+when run locally (note that those checks will anyway run in CI).
+
+Manual pre-commits
+------------------
+
+Most of the checks we run are configured to run automatically when you commit the code. However,
+there are some checks that are not run automatically and you need to run them manually. Those
+checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
+them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+
+Mypy checks
+-----------
+
+When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
+``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
+are run by passing those changed files to mypy. This is way faster than running checks for all files (even
+if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
+files). However, in some cases, it produces different results than when running checks for the whole set
+of files, because ``mypy`` does not even know that some types are defined in other files and it might not
+be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
+directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure
+that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
+in CI. If you want to run mypy checks for all files locally, you can do it by running the following
+command (example for ``airflow`` files):
+
+.. code-block:: bash
+
+  pre-commit run --hook-stage manual mypy-<FOLDER> --all-files
+
+For example:
+
+.. code-block:: bash
+
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
+MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
+execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
+will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
+is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
+cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
 
 Running static code checks via Breeze
 -------------------------------------
@@ -571,3 +567,8 @@ Just performing dry run:
 .. code-block:: bash
 
      DRY_RUN="true" pre-commit run --verbose ruff
+
+-----------
+
+Once your code passes all the static code checks, you should take a look at `Testing documentation <09_testing.rst>`__
+to learn about various ways to test the code.

@@ -15,4 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Content of this guide has been moved to `Breeze docs internal folder <dev/breeze/doc/breeze.rst>`_
+Content of this guide has been moved to `Breeze docs internal folder <dev/breeze/doc/README.rst>`_

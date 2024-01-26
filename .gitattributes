@@ -14,13 +14,10 @@ chart/charts/** export-ignore
 Dockerfile.ci export-ignore
 
 ISSUE_TRIAGE_PROCESS.rst export-ignore
-STATIC_CODE_CHECKS.rst export-ignore
-TESTING.rst export-ignore
-LOCAL_VIRTUALENV.rst export-ignore
 CONTRIBUTING.rst export-ignore
 CI.rst export-ignore
 CI_DIAGRAMS.md export-ignore
-CONTRIBUTORS_QUICK_START.rst export-ignore
+contributing_docs/ export-ignore
 
 .devcontainer export-ignore
 .github export-ignore

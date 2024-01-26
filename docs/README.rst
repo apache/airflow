@@ -28,7 +28,7 @@ Documentation from the development version is built and automatically published:
 Building documentation
 ======================
 
-To generate a local version you can use `<../dev/breeze/doc/breeze.rst>`_.
+To generate a local version you can use `<../dev/breeze/doc/README.rst>`_.
 
 The documentation build consists of verifying consistency of documentation and two steps:
 

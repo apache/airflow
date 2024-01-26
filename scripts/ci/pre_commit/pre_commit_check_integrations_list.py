@@ -40,7 +40,7 @@ from common_precommit_utils import (
 )
 from tabulate import tabulate
 
-DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "TESTING.rst"
+DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst"
 INTEGRATION_TESTS_PATH = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose"
 INTEGRATION_TEST_PREFIX = "integration-*.yml"
 DOCS_MARKER_START = ".. BEGIN AUTO-GENERATED INTEGRATION LIST"
@@ -129,7 +129,7 @@ def update_integration_tests_array(contents: dict[str, list[str]]):
         rows.append((integration, formatted_hook_description))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "TESTING.rst",
+        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst",
         content=formatted_table.splitlines(keepends=True),
         header=DOCS_MARKER_START,
         footer=DOCS_MARKER_END,

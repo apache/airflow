@@ -385,7 +385,7 @@ Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate cons
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
-`<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
+`<../../../contributing-docs/12_airflow_dependencies_and_extras.rst#pinned-constraint-files>`_ contributing documentation.
 
 
 You can use ``breeze release-management generate-constraints`` command to manually generate constraints for

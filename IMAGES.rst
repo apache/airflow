@@ -51,7 +51,7 @@ You can read more details about building, extending and customizing the PROD ima
 CI image
 --------
 
-The CI image is used by `Breeze <dev/breeze/doc/breeze.rst>`_ as the shell image but it is also used during CI tests.
+The CI image is used by `Breeze <dev/breeze/doc/README.rst>`_ as the shell image but it is also used during CI tests.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed. It installs PIP dependencies from the current branch first -
 so that any changes in ``pyproject.toml`` do not trigger reinstalling of all dependencies.
@@ -61,7 +61,7 @@ from the latest sources so that we are sure that latest dependencies are install
 Building docker images from current sources
 ===========================================
 
-The easy way to build the CI/PROD images is to use `<dev/breeze/doc/breeze.rst>`_. It uses a number of
+The easy way to build the CI/PROD images is to use `<dev/breeze/doc/README.rst>`_. It uses a number of
 optimization and caches to build it efficiently and fast when you are developing Airflow and need to update to
 latest version.
 
@@ -181,11 +181,11 @@ Default mechanism used in Breeze for building CI images uses images pulled from
 GitHub Container Registry. This is done to speed up local builds and building images for CI runs - instead of
 > 12 minutes for rebuild of CI images, it takes usually about 1 minute when cache is used.
 For CI images this is usually the best strategy - to use default "pull" cache. This is default strategy when
-`<dev/breeze/doc/breeze.rst>`_ builds are performed.
+`<dev/breeze/doc/README.rst>`_ builds are performed.
 
 For Production Image - which is far smaller and faster to build, it's better to use local build cache (the
 standard mechanism that docker uses. This is the default strategy for production images when
-`<dev/breeze/doc/breeze.rst>`_ builds are performed. The first time you run it, it will take considerably longer time than
+`<dev/breeze/doc/README.rst>`_ builds are performed. The first time you run it, it will take considerably longer time than
 if you use the pull mechanism, but then when you do small, incremental changes to local sources,
 Dockerfile image and scripts, further rebuilds with local build cache will be considerably faster.
 
@@ -275,7 +275,7 @@ GitHub Container Registry
   docker login ghcr.io
 
 Since there are different naming conventions used for Airflow images and there are multiple images used,
-`Breeze <dev/breeze/doc/breeze.rst>`_ provides easy to use management interface for the images. The
+`Breeze <dev/breeze/doc/README.rst>`_ provides easy to use management interface for the images. The
 `CI system of ours <CI.rst>`_ is designed in the way that it should automatically refresh caches, rebuild
 the images periodically and update them whenever new version of base Python is released.
 However, occasionally, you might need to rebuild images locally and push them directly to the registries
@@ -295,7 +295,7 @@ For example this command will run the same Python 3.8 image as was used in build
 
   breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.8 --integration rabbitmq
 
-You can see more details and examples in `Breeze <dev/breeze/doc/breeze.rst>`_
+You can see more details and examples in `Breeze <dev/breeze/doc/README.rst>`_
 
 Customizing the CI image
 ========================

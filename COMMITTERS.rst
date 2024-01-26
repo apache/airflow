@@ -15,14 +15,37 @@
     specific language governing permissions and limitations
     under the License.
 
+Committers and PMC members
+==========================
+
+Before reading this document, you should be familiar with `Contributors' guide <contributing-docs/README.rst>`__.
+This document assumes that you are a bit familiar how Airflow's community work, but you would like to learn more
+about the rules by which we add new members.
+
 .. contents:: :local:
 
-Committers and PMC's
-====================
+Committers vs. Maintainers
+--------------------------
 
-This document assumes that you know how Airflow's community work, but you would like to learn more about the rules by which we add new members.
+Often you can hear two different terms about people who have write access to the Airflow repository -
+"committers" and "maintainers". This is because those two terms are used in different contexts.
 
-Before reading this document, you should be familiar with `Contributor's guide <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`__.
+* "Maintainers" is term used in GitHub documentation and configuration and is a generic term referring to
+  people who have write access to the repository. They can merge PRs, push to the repository, etc.
+* "Committers" is a term used in Apache Software Foundation (ASF) and is a term referring to people who have
+  write access to the code repository and has a signed
+  [Contributor License Agreement (CLA)](https://www.apache.org/licenses/#clas) on file.  They have an
+  apache.org mail address. This is an official [role](https://www.apache.org/foundation/how-it-works/#roles)
+  defined and governed by the Apache Software Foundation.
+
+For all practical purposes, both terms are interchangeable because the Apache Software Foundation rule is
+the only Committers can have write access to the repositories managed by the PMC (Project Management Committee)
+and that all Committers get write access to the repository.
+
+You will see both terms used in different documentation, therefore our goal is not to use one of the terms
+only - it is unavoidable to see both terms anyway. As a rule, we are using "committer" term in the context
+of the official rules concerning Apache Software Foundation and "maintainer" term in the context where
+technical GitHub access and permissions to the project are important.
 
 Guidelines to become an Airflow Committer
 ------------------------------------------
@@ -48,8 +71,7 @@ General prerequisites that we look for in all candidates:
 1.  Consistent contribution over last few months
 2.  Visibility on discussions on the dev mailing list, Slack channels or GitHub issues/discussions
 3.  Contributions to community health and project's sustainability for the long-term
-4.  Understands contributor/committer guidelines:
-    `Contributors' Guide <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`__
+4.  Understands contributor/committer guidelines: `Contributors' Guide <contributing-docs/README.rst>`__
 
 
 Code contribution
@@ -194,7 +216,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 3.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 4.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
 5.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
-    by the CI maintainers. Wait for confirmation that this is done and some helpful tips from the CI maintainer
+    by the CI team. Wait for confirmation that this is done and some helpful tips from the CI team
 6.  After confirming that step 5 is done, open a PR to include your GitHub ID in:
 
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)

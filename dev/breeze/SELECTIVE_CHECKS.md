@@ -67,7 +67,7 @@ We have the following Groups of files for CI that determine which tests are run:
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
 content of the incoming PR. Usually they are limited to a sub-folder of the "tests" folder but there
-are some exceptions. You can read more about those in `TESTING.rst <TESTING.rst>`. Those types
+are some exceptions. You can read more about those in `testing.rst <contribiting-docs/09_testing.rst>`. Those types
 are determined by selective checks and are used to run `DB` and `Non-DB` tests.
 
 The `DB` tests inside each `TEST_TYPE` are run sequentially (because they use DB as state) while `TEST_TYPES`

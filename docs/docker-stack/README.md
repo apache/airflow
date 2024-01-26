@@ -63,7 +63,7 @@ packages or even custom providers. You can learn how to do it in [Building the i
 
 The production images are build in DockerHub from released version and release candidates. There
 are also images published from branches but they are used mainly for development and testing purpose.
-See [Airflow Git Branching](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#airflow-git-branches)
+See [Airflow Git Branching](https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git#airflow-git-branches)
 for details.
 
 ## Usage
