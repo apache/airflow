@@ -19,6 +19,7 @@ CI tasks
 ========
 
 Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
+Detailed description of the CI design can be found in `CI design <ci/README.md>`_.
 
 .. contents:: :local:
 
@@ -129,6 +130,8 @@ These are all available flags of ``find-backtracking-candidates`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_find-backtracking-candidates.svg
   :width: 100%
   :alt: Breeze ci find-backtracking-candidates
+
+-----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how
 release managers are using Breeze to release various Airflow artifacts.

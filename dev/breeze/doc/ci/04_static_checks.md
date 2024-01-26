@@ -22,6 +22,13 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Selective CI Checks](#selective-ci-checks)
+  - [Groups of files that selective check make decisions on](#groups-of-files-that-selective-check-make-decisions-on)
+  - [Selective check decision rules](#selective-check-decision-rules)
+  - [Skipping pre-commits (Static checks)](#skipping-pre-commits-static-checks)
+  - [Suspended providers](#suspended-providers)
+  - [Selective check outputs](#selective-check-outputs)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Selective CI Checks
 
@@ -38,7 +45,7 @@ We have the following Groups of files for CI that determine which tests are run:
   there might simply change the whole environment of what is going on in CI (Container image, dependencies)
 * `Python production files` and `Javascript production files` - this area is useful in CodeQL Security scanning
   - if any of the python or javascript files for airflow "production" changed, this means that the security
-  scans should run
+    scans should run
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
@@ -49,7 +56,7 @@ We have the following Groups of files for CI that determine which tests are run:
   the `update-providers-dependencies` pre-commit. The provider.yaml is a single source of truth for each
   provider.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
-   and airflow documentation)
+  and airflow documentation)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
@@ -140,6 +147,8 @@ when some files are not changed. Those are the rules implemented:
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 
+
+
 ## Suspended providers
 
 The selective checks will fail in PR if it contains changes to a suspended provider unless you set the
@@ -217,3 +226,7 @@ or when new Hook class is added), we do not need to run full tests.
 
 That's why we do not base our `full tests needed` decision on changes in dependency files that are generated
 from the `provider.yaml` files.
+
+-----
+
+Read next about [Workflows](05_workflows.md)
