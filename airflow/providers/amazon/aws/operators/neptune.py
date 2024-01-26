@@ -150,7 +150,6 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune cluster id
