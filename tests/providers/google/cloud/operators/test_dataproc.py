@@ -673,8 +673,6 @@ class TestsClusterGenerator:
             auto_delete_time=datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
-            driver_pool_id="cluster_driver_pool",
-            driver_pool_size=2,
         )
         cluster = generator.make()
         assert CONFIG_WITH_GPU_ACCELERATOR == cluster
