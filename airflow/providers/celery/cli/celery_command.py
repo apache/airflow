@@ -153,9 +153,6 @@ def worker(args):
     if not celery_log_level:
         celery_log_level = conf.get("logging", "LOGGING_LEVEL")
 
-    # Setup pid file location
-    worker_pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME, pid=args.pid)
-
     # Setup Celery worker
     options = [
         "worker",
@@ -168,9 +165,7 @@ def worker(args):
         "--hostname",
         args.celery_hostname,
         "--loglevel",
-        celery_log_level,
-        "--pidfile",
-        worker_pid_file_path + ".celery.pid",
+        celery_log_level
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])
@@ -204,6 +199,9 @@ def worker(args):
         umask = args.umask
     else:
         umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
+
+    # Setup pid file location
+    worker_pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME, pid=args.pid)
 
     run_command_with_daemon_option(
         args=args,
