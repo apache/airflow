@@ -271,6 +271,50 @@ CONFIG_WITH_FLEX_MIG = {
     "endpoint_config": {},
 }
 
+CONFIG_WITH_GPU_ACCELERATOR = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+        "accelerators": {"accelerator_type": "master_accelerator_type", "accelerator_count": 1},
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+        "min_num_instances": 1,
+        "accelerators": {"accelerator_type": "worker_accelerator_type", "accelerator_count": 1},
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+        "preemptibility": "preemptible",
+        "accelerators": {"accelerator_type": "secondary_worker_accelerator_type", "accelerator_count": 1},
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
+    ],
+}
+
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
 
 LABELS.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
@@ -579,6 +623,53 @@ class TestsClusterGenerator:
         )
         cluster = generator.make()
         assert CONFIG_WITH_FLEX_MIG == cluster
+
+    def test_build_with_gpu_accelerator(self):
+        generator = ClusterGenerator(
+            project_id="project_id",
+            num_workers=2,
+            min_num_workers=1,
+            zone="zone",
+            network_uri="network_uri",
+            subnetwork_uri="subnetwork_uri",
+            internal_ip_only=True,
+            tags=["tags"],
+            storage_bucket="storage_bucket",
+            init_actions_uris=["init_actions_uris"],
+            init_action_timeout="10m",
+            metadata={"metadata": "data"},
+            custom_image="custom_image",
+            custom_image_project_id="custom_image_project_id",
+            autoscaling_policy="autoscaling_policy",
+            properties={"properties": "data"},
+            optional_components=["optional_components"],
+            num_masters=2,
+            master_machine_type="master_machine_type",
+            master_disk_type="master_disk_type",
+            master_disk_size=128,
+            master_accelerator_type="master_accelerator_type",
+            master_accelerator_count=1,
+            worker_machine_type="worker_machine_type",
+            worker_disk_type="worker_disk_type",
+            worker_disk_size=256,
+            worker_accelerator_type="worker_accelerator_type",
+            worker_accelerator_count=1,
+            num_preemptible_workers=4,
+            secondary_worker_accelerator_type="worker_accelerator_type",
+            secondary_worker_accelerator_count=1,
+            preemptibility="preemptible",
+            region="region",
+            service_account="service_account",
+            service_account_scopes=["service_account_scopes"],
+            idle_delete_ttl=60,
+            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_ttl=250,
+            customer_managed_key="customer_managed_key",
+            driver_pool_id="cluster_driver_pool",
+            driver_pool_size=2,
+        )
+        cluster = generator.make()
+        assert CONFIG_WITH_GPU_ACCELERATOR == cluster
 
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):

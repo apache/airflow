@@ -158,12 +158,19 @@ class ClusterGenerator:
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param master_disk_size: Disk size for the primary node
+    :param master_accelerator_type: Type of the accelerator card (GPU) to attach to the primary node 
+        (eg. nvidia-tesla-t4), 
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param master_accelerator_count: Number of accelerator cards (GPUs) to attach to the primary node
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
     :param worker_disk_type: Type of the boot disk for the worker node
         (default is ``pd-standard``).
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
+    :param worker_accelerator_type: Type of the accelerator card (GPU) to attach to the worker nodes, 
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the worker nodes
     :param num_preemptible_workers: The # of VM instances in the instance group as secondary workers
         inside the cluster with Preemptibility enabled by default.
         Note, that it is not possible to mix non-preemptible and preemptible secondary workers in
@@ -200,6 +207,9 @@ class ClusterGenerator:
         identify the driver group in future operations, such as resizing the node group.
     :param secondary_worker_instance_flexibility_policy: Instance flexibility Policy allowing a mixture of VM
         shapes and provisioning models.
+    :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers, 
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     """
 
     def __init__(
@@ -227,9 +237,13 @@ class ClusterGenerator:
         master_machine_type: str = "n1-standard-4",
         master_disk_type: str = "pd-standard",
         master_disk_size: int = 1024,
+        master_accelerator_type: str | None = None,
+        master_accelerator_count: int | None = None,
         worker_machine_type: str = "n1-standard-4",
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
+        worker_accelerator_type: str | None = None,
+        worker_accelerator_count: int | None = None,
         num_preemptible_workers: int = 0,
         preemptibility: str = PreemptibilityType.PREEMPTIBLE.value,
         service_account: str | None = None,
@@ -242,6 +256,8 @@ class ClusterGenerator:
         driver_pool_size: int = 0,
         driver_pool_id: str | None = None,
         secondary_worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
+        secondary_worker_accelerator_type: str | None = None,
+        secondary_worker_accelerator_count: int | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -263,10 +279,14 @@ class ClusterGenerator:
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
+        self.master_accelerator_type = master_accelerator_type
+        self.master_accelerator_count = master_accelerator_count
         self.autoscaling_policy = autoscaling_policy
         self.worker_machine_type = worker_machine_type
         self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
+        self.worker_accelerator_type = worker_accelerator_type
+        self.worker_accelerator_count = worker_accelerator_count
         self.zone = zone
         self.network_uri = network_uri
         self.subnetwork_uri = subnetwork_uri
@@ -283,6 +303,8 @@ class ClusterGenerator:
         self.driver_pool_size = driver_pool_size
         self.driver_pool_id = driver_pool_id
         self.secondary_worker_instance_flexibility_policy = secondary_worker_instance_flexibility_policy
+        self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
+        self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -423,6 +445,18 @@ class ClusterGenerator:
         if self.min_num_workers:
             cluster_data["worker_config"]["min_num_instances"] = self.min_num_workers
 
+        if self.master_accelerator_type:
+            cluster_data["master_config"]["accelerators"] = {
+                "accelerator_type_uri": self.master_accelerator_type,
+                "accelerator_count": self.master_accelerator_count,
+            }
+
+        if self.worker_accelerator_type:
+            cluster_data["worker_config"]["accelerators"] = {
+                "accelerator_type_uri": self.worker_accelerator_type,
+                "accelerator_count": self.worker_accelerator_count,
+            }
+
         if self.num_preemptible_workers > 0:
             cluster_data["secondary_worker_config"] = {
                 "num_instances": self.num_preemptible_workers,
@@ -434,6 +468,11 @@ class ClusterGenerator:
                 "is_preemptible": True,
                 "preemptibility": self.preemptibility.value,
             }
+            if self.worker_accelerator_type:
+                cluster_data["secondary_worker_config"]["accelerators"] = {
+                    "accelerator_type_uri": self.secondary_worker_accelerator_type,
+                    "accelerator_count": self.secondary_worker_accelerator_count,
+                }
             if self.secondary_worker_instance_flexibility_policy:
                 cluster_data["secondary_worker_config"]["instance_flexibility_policy"] = {
                     "instance_selection_list": [
