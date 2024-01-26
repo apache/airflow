@@ -337,6 +337,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /integration-logos/aws/Amazon-Verified-Permissions.png
     tags: [aws]
+  - integration-name: Amazon Neptune
+    external-doc-url: https://aws.amazon.com/neptune/
+    logo: /integration-logos/aws/Amazon-Neptune_64.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/neptune.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -416,6 +422,9 @@ operators:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.operators.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.operators.neptune
 
 sensors:
   - integration-name: Amazon Athena
@@ -602,6 +611,9 @@ hooks:
   - integration-name: Amazon Verified Permissions
     python-modules:
       - airflow.providers.amazon.aws.hooks.verified_permissions
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.neptune
 
 triggers:
   - integration-name: Amazon Web Services
@@ -654,6 +666,9 @@ triggers:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.neptune
 
 transfers:
   - source-integration-name: Amazon DynamoDB
