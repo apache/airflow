@@ -288,7 +288,7 @@ CONFIG_WITH_GPU_ACCELERATOR = {
         "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
-        "accelerators": {"accelerator_type": "master_accelerator_type", "accelerator_count": 1},
+        "accelerators": {"accelerator_type_uri": "master_accelerator_type", "accelerator_count": 1},
     },
     "worker_config": {
         "num_instances": 2,
@@ -297,22 +297,28 @@ CONFIG_WITH_GPU_ACCELERATOR = {
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
         "min_num_instances": 1,
-        "accelerators": {"accelerator_type": "worker_accelerator_type", "accelerator_count": 1},
+        "accelerators": {"accelerator_type_uri": "worker_accelerator_type", "accelerator_count": 1},
     },
     "secondary_worker_config": {
         "num_instances": 4,
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
-        "preemptibility": "preemptible",
-        "accelerators": {"accelerator_type": "secondary_worker_accelerator_type", "accelerator_count": 1},
+        "preemptibility": "PREEMPTIBLE",
+        "accelerators": {"accelerator_type_uri": "secondary_worker_accelerator_type", "accelerator_count": 1},
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {
+        "idle_delete_ttl": {"seconds": 60},
+        "auto_delete_time": "2019-09-12T00:00:00.000000Z",
+    },
     "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
+    "endpoint_config": {},
 }
 
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
@@ -655,7 +661,7 @@ class TestsClusterGenerator:
             worker_accelerator_type="worker_accelerator_type",
             worker_accelerator_count=1,
             num_preemptible_workers=4,
-            secondary_worker_accelerator_type="worker_accelerator_type",
+            secondary_worker_accelerator_type="secondary_worker_accelerator_type",
             secondary_worker_accelerator_count=1,
             preemptibility="preemptible",
             region="region",
