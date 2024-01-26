@@ -31,9 +31,6 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-AVAILABLE_STATES = ["available"]
-STOPPED_STATES = ["stopped"]
-
 
 class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     """Starts an Amazon Neptune DB cluster.
@@ -89,7 +86,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
 
         # Check to make sure the cluster is not already available.
         status = self.hook.get_cluster_status(self.cluster_id)
-        if status.lower() in AVAILABLE_STATES:
+        if status.lower() in NeptuneHook.AVAILABLE_STATES:
             self.log.info("Neptune cluster %s is already available.", self.cluster_id)
             return {"db_cluster_id": self.cluster_id}
 
@@ -183,7 +180,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
 
         # Check to make sure the cluster is not already stopped.
         status = self.hook.get_cluster_status(self.cluster_id)
-        if status.lower() in STOPPED_STATES:
+        if status.lower() in NeptuneHook.STOPPED_STATES:
             self.log.info("Neptune cluster %s is already stopped.", self.cluster_id)
             return {"db_cluster_id": self.cluster_id}
 

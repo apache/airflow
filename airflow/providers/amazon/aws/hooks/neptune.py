@@ -32,6 +32,9 @@ class NeptuneHook(AwsBaseHook):
         - :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    AVAILABLE_STATES = ["available"]
+    STOPPED_STATES = ["stopped"]
+
     def __init__(self, *args, **kwargs):
         kwargs["client_type"] = "neptune"
         super().__init__(*args, **kwargs)
