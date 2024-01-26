@@ -117,7 +117,10 @@ def main(argv: list[str]) -> int:
             print(f"{path}:{error.lineno}")
             print(f"\tdef {error.name}(...", end="\n\n")
         print("Only function decorated with @provide_session should use 'session: Session = NEW_SESSION'.")
-        print("See: https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#database-session-handling")
+        print(
+            "See: https://github.com/apache/airflow/blob/main/"
+            "contributing-docs/creating_issues_and_pull_requests#database-session-handling"
+        )
     return len(errors)
 
 

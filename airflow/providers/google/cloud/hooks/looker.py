@@ -41,9 +41,8 @@ class LookerHook(BaseHook):
     def __init__(
         self,
         looker_conn_id: str,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.looker_conn_id = looker_conn_id
         # source is used to track origin of the requests
         self.source = f"airflow:{version}"

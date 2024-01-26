@@ -23,7 +23,8 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1 import Batch, JobStatus
+from google.cloud import dataproc
+from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 
 from airflow.exceptions import (
     AirflowException,
@@ -46,6 +47,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateWorkflowTemplateOperator,
     DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
+    DataprocDiagnoseClusterOperator,
     DataprocGetBatchOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
@@ -67,8 +69,8 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
     DataprocDeleteClusterTrigger,
+    DataprocOperationTrigger,
     DataprocSubmitTrigger,
-    DataprocWorkflowTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -579,7 +581,7 @@ class TestsClusterGenerator:
         assert CONFIG_WITH_FLEX_MIG == cluster
 
 
-class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
+class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
@@ -791,6 +793,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
             region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
+        mock_hook.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
@@ -882,6 +885,54 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         mock_hook.return_value.wait_for_operation.assert_not_called()
         assert isinstance(exc.value.trigger, DataprocClusterTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+        cluster = Cluster(
+            cluster_name="test_cluster",
+            status=dataproc.ClusterStatus(state=dataproc.ClusterStatus.State.RUNNING),
+        )
+        mock_hook.return_value.create_cluster.return_value = cluster
+        mock_hook.return_value.get_cluster.return_value = cluster
+        operator = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            delete_on_error=True,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            deferrable=True,
+        )
+
+        operator.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.create_cluster.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            request_id=None,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            virtual_cluster_config=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.assert_not_called()
 
 
 @pytest.mark.db_test
@@ -1100,6 +1151,47 @@ class TestDataprocClusterDeleteOperator:
         assert isinstance(exc.value.trigger, DataprocDeleteClusterTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+    @mock.patch(DATAPROC_PATH.format("DataprocDeleteClusterOperator.defer"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+        mock_hook.return_value.create_cluster.return_value = None
+        mock_hook.return_value.get_cluster.side_effect = NotFound("test")
+        operator = DataprocDeleteClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert not mock_defer.called
+
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1240,8 +1332,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator.defer")
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocHook.submit_job")
+    @mock.patch(DATAPROC_PATH.format("DataprocSubmitJobOperator.defer"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook.submit_job"))
     def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
         mock_submit_job.return_value.reference.job_id = TEST_JOB_ID
         job_status = mock_hook.return_value.get_job.return_value.status
@@ -1498,6 +1590,54 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         assert isinstance(exc.value.trigger, DataprocClusterTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+        cluster = Cluster(
+            cluster_name="test_cluster",
+            status=dataproc.ClusterStatus(state=dataproc.ClusterStatus.State.RUNNING),
+        )
+        mock_hook.return_value.update_cluster.return_value = cluster
+        mock_hook.return_value.get_cluster.return_value = cluster
+        operator = DataprocUpdateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster=CLUSTER,
+            update_mask=UPDATE_MASK,
+            request_id=REQUEST_ID,
+            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
+            project_id=GCP_PROJECT,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.update_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster=CLUSTER,
+            update_mask=UPDATE_MASK,
+            request_id=REQUEST_ID,
+            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert not mock_defer.called
+
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
@@ -1604,7 +1744,7 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
         mock_hook.return_value.instantiate_workflow_template.assert_called_once()
 
         mock_hook.return_value.wait_for_operation.assert_not_called()
-        assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
+        assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1734,7 +1874,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once()
 
-        assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
+        assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -2546,4 +2686,76 @@ class TestDataprocListBatchesOperator:
         mock_hook.return_value.wait_for_job.assert_not_called()
 
         assert isinstance(exc.value.trigger, DataprocBatchTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+
+class TestDataprocDiagnoseClusterOperator:
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute(self, mock_hook):
+        op = DataprocDiagnoseClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            tarball_gcs_dir=None,
+            diagnosis_interval=None,
+            jobs=None,
+            yarn_application_ids=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        operator = DataprocDiagnoseClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            tarball_gcs_dir=None,
+            diagnosis_interval=None,
+            jobs=None,
+            yarn_application_ids=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME

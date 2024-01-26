@@ -48,6 +48,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -102,6 +103,7 @@ class GKEHook(GoogleBaseHook):
         warnings.warn(
             "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.get_cluster_manager_client()
 
@@ -111,6 +113,7 @@ class GKEHook(GoogleBaseHook):
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.get_conn()
 
@@ -350,12 +353,19 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
-        *args,
+        disable_tcp_keepalive: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
+        self.disable_tcp_keepalive = disable_tcp_keepalive
 
     @cached_property
     def api_client(self) -> client.ApiClient:
@@ -390,6 +400,10 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
+
+        if self.disable_tcp_keepalive is not True:
+            _enable_tcp_keepalive()
+
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
@@ -438,10 +452,23 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
     sync_hook_class = GKEPodHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 
-    def __init__(self, cluster_url: str, ssl_ca_cert: str, **kwargs) -> None:
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
-        super().__init__(cluster_url=cluster_url, ssl_ca_cert=ssl_ca_cert, **kwargs)
+        super().__init__(
+            cluster_url=cluster_url,
+            ssl_ca_cert=ssl_ca_cert,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     @contextlib.asynccontextmanager
     async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]

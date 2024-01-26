@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Use lax 'atlassian-python-api' limitation (#36841)``
+* ``Limit 'atlassian-python-api' to <3.41.6 (#36815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 2.5.0
 .....
 

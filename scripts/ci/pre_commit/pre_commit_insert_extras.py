@@ -51,7 +51,10 @@ def get_header_and_footer(extra_type: ExtraType, file_format: str) -> tuple[str,
 
 
 def get_wrapped_list(extras_set: set[str]) -> list[str]:
-    return [line + "\n" for line in textwrap.wrap(", ".join(sorted(extras_set)), 100)]
+    array = [line + "\n" for line in textwrap.wrap(", ".join(sorted(extras_set)), 100)]
+    array.insert(0, "\n")
+    array.append("\n")
+    return array
 
 
 def get_extra_types_dict(extras: dict[str, list[str]]) -> dict[ExtraType, tuple[set[str], list[str]]]:
@@ -84,7 +87,10 @@ def get_extras_from_pyproject_toml() -> dict[str, list[str]]:
     return pyproject_toml_content["project"]["optional-dependencies"]
 
 
-FILES_TO_UPDATE = [(AIRFLOW_ROOT_PATH / "INSTALL", "txt"), (AIRFLOW_ROOT_PATH / "CONTRIBUTING.rst", "rst")]
+FILES_TO_UPDATE = [
+    (AIRFLOW_ROOT_PATH / "INSTALL", "txt"),
+    (AIRFLOW_ROOT_PATH / "contributing-docs" / "12_airflow_dependencies_and_extras.rst", "rst"),
+]
 
 
 def process_documentation_files():

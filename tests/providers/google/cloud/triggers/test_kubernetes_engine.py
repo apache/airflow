@@ -73,6 +73,8 @@ def trigger():
         cluster_url=CLUSTER_URL,
         ssl_ca_cert=SSL_CA_CERT,
         base_container_name=BASE_CONTAINER_NAME,
+        gcp_conn_id=GCP_CONN_ID,
+        impersonation_chain=IMPERSONATION_CHAIN,
     )
 
 
@@ -101,6 +103,8 @@ class TestGKEStartPodTrigger:
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": SHOULD_DELETE_POD,
+            "gcp_conn_id": GCP_CONN_ID,
+            "impersonation_chain": IMPERSONATION_CHAIN,
         }
 
     @pytest.mark.asyncio

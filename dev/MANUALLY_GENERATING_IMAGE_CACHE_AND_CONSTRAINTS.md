@@ -67,9 +67,9 @@ cases where we need to update them manually. This document describes how to do i
 Our [CI system](../CI.rst) is build in the way that it self-maintains. Regular scheduled builds and
 merges to `main` branch builds (also known as `canary` builds) have separate maintenance step that
 take care about refreshing the cache that is used to speed up our builds and to speed up
-rebuilding of [Breeze](../BREEZE.rst) images for development purpose. This is all happening automatically, usually:
+rebuilding of [Breeze](./breeze/doc/README.rst) images for development purpose. This is all happening automatically, usually:
 
-* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
+* The latest [constraints](../contributing-docs/12_airflow_dependencies_and_extras.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.
 
 * The [images](../IMAGES.rst) in `ghcr.io` registry are refreshed early at the beginning of the `canary` build. This
@@ -474,7 +474,7 @@ This is a step-by-step instruction on how to use it:
 
 4. Verify manually if the change is visible as expected by inspecting the constraints at:
 
-https://github.com/apache/airflow/tree/constraints-<airfow-version>
+https://github.com/apache/airflow/tree/constraints-<airflow-version>
 
 ## Is it safe to update constraints manually?
 

@@ -50,9 +50,6 @@ services:
         source: ../../../.rat-excludes
         target: /opt/airflow/.rat-excludes
       - type: bind
-        source: ../../../BREEZE.rst
-        target: /opt/airflow/BREEZE.rst
-      - type: bind
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
       - type: bind
@@ -85,9 +82,6 @@ services:
       - type: bind
         source: ../../../hooks
         target: /opt/airflow/hooks
-      - type: bind
-        source: ../../../images
-        target: /opt/airflow/images
       - type: bind
         source: ../../../logs
         target: /root/airflow/logs

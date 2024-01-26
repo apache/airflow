@@ -387,6 +387,7 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataprocDiagnoseClusterOperator
 DataScan
 dataScans
 Dataset
@@ -1572,6 +1573,7 @@ TaskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
+taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta

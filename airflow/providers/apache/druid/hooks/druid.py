@@ -60,9 +60,8 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
@@ -107,9 +106,10 @@ class DruidHook(BaseHook):
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
 
         code = req_index.status_code
-        if code != 200:
+        not_accepted = not (200 <= code < 300)
+        if not_accepted:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
+            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed

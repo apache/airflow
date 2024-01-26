@@ -120,8 +120,8 @@ class AzureDataExplorerHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = azure_data_explorer_conn_id
 
     @cached_property
@@ -142,7 +142,9 @@ class AzureDataExplorerHook(BaseHook):
                 warnings.warn(
                     f"Conflicting params `{key}` and `{backcompat_key}` found in extras for conn "
                     f"{self.conn_id}. Using value for `{key}`.  Please ensure this is the correct value "
-                    f"and remove the backcompat key `{backcompat_key}`."
+                    f"and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
         def get_required_param(name: str) -> str:

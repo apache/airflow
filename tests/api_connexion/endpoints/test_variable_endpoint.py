@@ -335,13 +335,21 @@ class TestPatchVariable(TestVariableEndpoint):
 
 
 class TestPostVariables(TestVariableEndpoint):
-    def test_should_create_variable(self, session):
+    @pytest.mark.parametrize(
+        "description",
+        [
+            pytest.param(None, id="not-set"),
+            pytest.param("", id="empty"),
+            pytest.param("Spam Egg", id="desc-set"),
+        ],
+    )
+    def test_should_create_variable(self, description, session):
+        payload = {"key": "var_create", "value": "{}"}
+        if description is not None:
+            payload["description"] = description
         response = self.client.post(
             "/api/v1/variables",
-            json={
-                "key": "var_create",
-                "value": "{}",
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -350,7 +358,7 @@ class TestPostVariables(TestVariableEndpoint):
         assert response.json == {
             "key": "var_create",
             "value": "{}",
-            "description": None,
+            "description": description,
         }
 
     def test_should_reject_invalid_request(self, session):
