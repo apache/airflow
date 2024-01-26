@@ -158,8 +158,7 @@ class ClusterGenerator:
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param master_disk_size: Disk size for the primary node
-    :param master_accelerator_type: Type of the accelerator card (GPU) to attach to the primary node 
-        (eg. nvidia-tesla-t4), 
+    :param master_accelerator_type: Type of the accelerator card (GPU) to attach to the primary node,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param master_accelerator_count: Number of accelerator cards (GPUs) to attach to the primary node
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
@@ -168,7 +167,7 @@ class ClusterGenerator:
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
-    :param worker_accelerator_type: Type of the accelerator card (GPU) to attach to the worker nodes, 
+    :param worker_accelerator_type: Type of the accelerator card (GPU) to attach to the worker nodes,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the worker nodes
     :param num_preemptible_workers: The # of VM instances in the instance group as secondary workers
@@ -207,7 +206,7 @@ class ClusterGenerator:
         identify the driver group in future operations, such as resizing the node group.
     :param secondary_worker_instance_flexibility_policy: Instance flexibility Policy allowing a mixture of VM
         shapes and provisioning models.
-    :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers, 
+    :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     """
