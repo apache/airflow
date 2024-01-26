@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.9.0
 .....
 
-Latest change: 2024-01-18
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`9596bbdafa <https://github.com/apache/airflow/commit/9596bbdafa0cbe7e3c7d7181c98fa241041db3af>`_  2024-01-23   ``Add deferrable implementation in HTTPSensor (#36904)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
 `c2d02b450a <https://github.com/apache/airflow/commit/c2d02b450a1836ba777dc5557ac1773161cbc5ea>`_  2024-01-13   ``Allow default requests parameters like proxy to be defined in extra options field of a Airflow HTTP Connection (#36733)``
 `6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``

@@ -24,7 +24,6 @@ source-date-epoch: 1705911926
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 versions:
-  - 1.4.0
   - 1.3.1
   - 1.3.0
   - 1.2.0
