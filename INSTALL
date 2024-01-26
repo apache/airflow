@@ -242,6 +242,7 @@ The list of available extras is below.
 Regular extras that are available for users in the Airflow package.
 
 # START REGULAR EXTRAS HERE
+
 aiobotocore, airbyte, alibaba, all, all-core, all-dbs, amazon, apache-atlas, apache-beam, apache-
 cassandra, apache-drill, apache-druid, apache-flink, apache-hdfs, apache-hive, apache-impala,
 apache-kafka, apache-kylin, apache-livy, apache-pig, apache-pinot, apache-spark, apache-webhdfs,
@@ -255,20 +256,25 @@ openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, pa
 pgvector, pinecone, pinot, postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, saml,
 segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
 tableau, tabular, telegram, trino, vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
+
 # END REGULAR EXTRAS HERE
 
 Devel extras - used to install development-related tools. Only available during editable install.
 
 # START DEVEL EXTRAS HERE
+
 devel, devel-all, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-
 hadoop, devel-mypy, devel-sentry, devel-static-checks, devel-tests
+
 # END DEVEL EXTRAS HERE
 
 Doc extras - used to install dependencies that are needed to build documentation. Only available during
 editable install.
 
 # START DOC EXTRAS HERE
+
 doc, doc-gen
+
 # END DOC EXTRAS HERE
 
 ## Compiling front end assets

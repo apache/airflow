@@ -499,7 +499,7 @@ infrastructure, as a developer you should be able to reproduce and re-run any of
 locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
 and locally, but another part is the CI environment which is replicated locally with Breeze.
 
-You can read more about Breeze in `breeze.rst <dev/breeze/doc/breeze.rst>`_ but in essence it is a script that allows
+You can read more about Breeze in `README.rst <dev/breeze/doc/README.rst>`_ but in essence it is a script that allows
 you to re-create CI environment in your local development instance and interact with it. In its basic
 form, when you do development you can run all the same tests that will be run in CI - but locally,
 before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
@@ -519,7 +519,7 @@ by running the sequence of corresponding ``breeze`` command. Make sure however t
 
 In the output of the CI jobs, you will find both  - the flags passed and environment variables set.
 
-You can read more about it in `Breeze <dev/breeze/doc/breeze.rst>`_ and `Testing <TESTING.rst>`_
+You can read more about it in `Breeze <dev/breeze/doc/README.rst>`_ and `Testing <contributing-docs/09_testing.rst>`_
 
 Since we store images from every CI run, you should be able easily reproduce any of the CI tests problems
 locally. You can do it by pulling and using the right image and running it with the right docker command,
@@ -533,7 +533,7 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
-enable some integrations. Therefore it is easiest to use `Breeze <dev/breeze/doc/breeze.rst>`_ for that.
+enable some integrations. Therefore it is easiest to use `Breeze <dev/breeze/doc/README.rst>`_ for that.
 For example if you need to reproduce a MySQL environment in python 3.8 environment you can run:
 
 .. code-block:: bash
@@ -546,7 +546,7 @@ this case, you do not need to checkout the sources that were used for that run -
 the image - but remember that any changes you make in those sources are lost when you leave the image as
 the sources are not mapped from your host machine.
 
-Depending whether the scripts are run locally via `Breeze <dev/breeze/doc/breeze.rst>`_ or whether they
+Depending whether the scripts are run locally via `Breeze <dev/breeze/doc/README.rst>`_ or whether they
 are run in ``Build Images`` or ``Tests`` workflows they can take different values.
 
 You can use those variables when you try to reproduce the build locally (alternatively you can pass

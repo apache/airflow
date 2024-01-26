@@ -44,7 +44,7 @@ function assert_in_container() {
         echo
         echo "You should only run this script in the Airflow docker container as it may override your files."
         echo "Learn more about how we develop and test airflow in:"
-        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
+        echo "https://github.com/apache/airflow/blob/main/contribuging-docs/README.rst"
         echo
         exit 1
     fi
