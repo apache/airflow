@@ -3248,7 +3248,6 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     @internal_api_call
-    @Sentry.enrich_errors
     @provide_session
     def _schedule_downstream_tasks(
         cls,
