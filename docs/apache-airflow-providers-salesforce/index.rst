@@ -77,7 +77,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.7.0
+Release: 5.6.2
 
 Provider package
 ----------------

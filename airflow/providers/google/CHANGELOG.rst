@@ -46,8 +46,10 @@ Features
 
 * ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
 * ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 * ``Implement Google Analytics Admin (GA4) operators (#36276)``
+* ``Add operator to diagnose cluster (#36899)``
+* ``Add scopes into a GCP token (#36974)``
+* ``feat: full support for google credentials in gcloud-aio clients (#36849)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -61,6 +63,7 @@ Bug Fixes
 * ``prevent templated field logic checks in operators __init__ (#36489)``
 * ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
 * ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+* ``Fix google operators handling of impersonation chain (#36903)``
 
 Misc
 ~~~~
@@ -78,6 +81,9 @@ Misc
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
    * ``Run mypy checks for full packages in CI (#36638)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 10.13.1
 .......

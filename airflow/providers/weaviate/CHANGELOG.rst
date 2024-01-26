@@ -34,6 +34,7 @@ Bug Fixes
    * ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Add flake8-implicit-str-concat check to Ruff (#36597)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 1.3.0
 .....

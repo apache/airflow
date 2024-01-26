@@ -45,11 +45,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.14.0
 .......
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`10ad8d9e38 <https://github.com/apache/airflow/commit/10ad8d9e38351427acfa30c58a7702f0f4d66f05>`_  2024-01-25   ``Add operator to diagnose cluster (#36899)``
+`241b50a46e <https://github.com/apache/airflow/commit/241b50a46ecdc27331c7fc7aeda2405ee3e9f323>`_  2024-01-24   ``Add scopes into a GCP token (#36974)``
+`fbd21eda1e <https://github.com/apache/airflow/commit/fbd21eda1ec23a8e5c6d1d9dceb6c45a1ab57aca>`_  2024-01-23   ``feat: full support for google credentials in gcloud-aio clients (#36849)``
+`1c14767638 <https://github.com/apache/airflow/commit/1c14767638c26dbfaa2b984f9f5bbeb483bd88cf>`_  2024-01-23   ``Fix google operators handling of impersonation chain (#36903)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `700e9e4890 <https://github.com/apache/airflow/commit/700e9e489014fe1982ff0074421eb8052469773e>`_  2024-01-22   ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
 `e07a42e69d <https://github.com/apache/airflow/commit/e07a42e69d1ab472c4da991fca5782990607ebe0>`_  2024-01-22   ``Check cluster state before defer Dataproc operators to trigger (#36892)``
 `9e4f5ba67a <https://github.com/apache/airflow/commit/9e4f5ba67a3b46ced541844a0dd9cfb9ed44e7cd>`_  2024-01-21   ``fix templating field to super constructor (#36934)``
@@ -73,7 +79,7 @@ Commit                                                                          
 `db0679de12 <https://github.com/apache/airflow/commit/db0679de128667ac07402202d5ee92e60a3f1f6b>`_  2023-12-30   ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
 `f070efa95c <https://github.com/apache/airflow/commit/f070efa95c9c1aafffec76a2a24f2b58961ff39c>`_  2023-12-30   ``remove unecessary templated field (#36491)``
 `918552acad <https://github.com/apache/airflow/commit/918552acad136128ea603d765d8be23d3f9bfcbd>`_  2023-12-29   ``prevent templated field logic checks in operators __init__ (#36489)``
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 
 10.13.1
 .......
