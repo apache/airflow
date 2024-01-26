@@ -1077,9 +1077,15 @@ export interface components {
       start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The beginning of the interval the DAG run covers.
+       */
       data_interval_start?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The end of the interval the DAG run covers.
+       */
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
