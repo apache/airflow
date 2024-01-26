@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-25T11:44:03.294341
+# This constraints file was automatically generated on 2024-01-25T23:41:23.261249
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -50,7 +50,7 @@ JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
 Js2Py==0.74
-Mako==1.3.1
+Mako==1.3.0
 Markdown==3.5.2
 MarkupSafe==2.1.4
 PyAthena==3.1.0
@@ -312,14 +312,14 @@ google-api-python-client==2.115.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.27.0
-google-cloud-aiplatform==1.39.0
+google-cloud-aiplatform==1.40.0
 google-cloud-appengine-logging==1.4.0
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.12.0
 google-cloud-batch==0.17.9
 google-cloud-bigquery-datatransfer==3.13.0
 google-cloud-bigquery-storage==2.24.0
-google-cloud-bigquery==3.17.0
+google-cloud-bigquery==3.17.1
 google-cloud-bigtable==2.22.0
 google-cloud-build==3.22.0
 google-cloud-compute==1.15.0
@@ -463,7 +463,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.9.0
+openai==1.10.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.8.0
@@ -569,7 +569,7 @@ python-jenkins==1.8.2
 python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
-python-slugify==8.0.1
+python-slugify==8.0.2
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2023.3.post1
