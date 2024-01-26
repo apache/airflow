@@ -25,7 +25,7 @@ implementing them.
 .. contents:: :local:
 
 Pull Request guidelines
-=======================
+-----------------------
 
 Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
@@ -101,7 +101,7 @@ these guidelines:
     This makes the lives of those who come after you (and your future self) a lot easier.
 
 Experimental Requirement to resolve all conversations
-=====================================================
+-----------------------------------------------------
 
 In December 2023 we enabled - experimentally - the requirement to resolve all the open conversations in a
 PR in order to make it merge-able. You will see in the status of the PR that it needs to have all the
@@ -121,14 +121,14 @@ already solved (assuming that maintainers will start treating the conversations 
 .. _coding_style:
 
 Coding style and best practices
-===============================
+-------------------------------
 
 Most of our coding style rules are enforced programmatically by ruff and mypy, which are run automatically
 with static checks and on every Pull Request (PR), but there are some rules that are not yet automated and
 are more Airflow specific or semantic than style.
 
 Don't Use Asserts Outside Tests
--------------------------------
+...............................
 
 Our community agreed that to various reasons we do not use ``assert`` in production code of Apache Airflow.
 For details check the relevant `mailing list thread <https://lists.apache.org/thread.html/bcf2d23fcd79e21b3aac9f32914e1bf656e05ffbcb8aa282af497a2d%40%3Cdev.airflow.apache.org%3E>`_.
@@ -155,7 +155,7 @@ The one exception to this is if you need to make an assert for type checking (wh
 
 
 Database Session Handling
--------------------------
+.........................
 
 **Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
 transaction itself. Session management is up to the caller.
@@ -202,7 +202,7 @@ compatibility considerations. In most cases, ``session`` argument should be last
 
 
 Don't use time() for duration calculations
------------------------------------------
+..........................................
 
 If you wish to compute the time difference between two events with in the same process, use
 ``time.monotonic()``, not ``time.time()`` nor ``timezone.utcnow()``.
@@ -241,6 +241,42 @@ For full docs on ``timer()`` check out `airflow/stats.py`_.
 If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
 datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
 diffing datetime operations are (comparatively) slow.
+
+Templated fields in Operator's __init__ method
+..............................................
+
+Airflow Operators might have some fields added to the list of ``template_fields``. Such fields should be
+set in the constructor (``__init__`` method) of the operator and usually their values should
+come from the ``__init__`` method arguments. The reason for that is that the templated fields
+are evaluated at the time of the operator execution and when you pass arguments to the operator
+in the DAG, the fields that are set on the class just before the ``execute`` method is called
+are processed through templating engine and the fields values are set to the result of applying the
+templating engine to the fields (in case the field is a structure such as dict or list, the templating
+engine is applied to all the values of the structure).
+
+That's why we expect two things in case of ``template fields``:
+
+* with a few exceptions, only self.field = field should be happening in the operator's constructor
+* validation of the fields should be done in the ``execute`` method, not in the constructor because in
+  the constructor, the field value might be a templated value, not the final value.
+
+The exceptions are cases where we want to assign empty default value to a mutable field (list or dict)
+or when we have a more complex structure which we want to convert into a different format (say dict or list)
+but where we want to keep the original strings in the converted structure.
+
+In such cases we can usually do something like this
+
+.. code-block:: python
+
+    def __init__(self, *, my_field: list[str] = None, **kwargs):
+        super().__init__(**kwargs)
+        my_field = my_field or []
+        self.my_field = my_field
+
+The reason for doing it is that we are working on a cleaning up our code to have
+`pre-commit hook <../scripts/ci/pre_commit/pre_commit_validate_operators_init.py>`__
+that will make sure all the cases where logic (such as validation and complex conversion)
+is not done in the constructor are detected in PRs.
 
 -----------
 
