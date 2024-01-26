@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-25T23:35:51.984704
+# This constraints file was automatically generated on 2024-01-26T07:53:16.911785
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -48,7 +48,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2023.12.0
-aiobotocore==2.11.0
+aiobotocore==2.11.1
 aiofiles==23.2.1
 aiohttp==3.9.1
 aioitertools==0.11.0
@@ -99,7 +99,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.4.0
-azure-mgmt-datafactory==4.0.0
+azure-mgmt-datafactory==5.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -119,7 +119,7 @@ bcrypt==4.1.2
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
-black==24.1a1
+black==24.1.0
 blinker==1.7.0
 boto3==1.33.13
 botocore==1.33.13
@@ -514,7 +514,7 @@ smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.6.0
+snowflake-connector-python==3.7.0
 snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -573,7 +573,7 @@ types-PyYAML==6.0.12.12
 types-aiofiles==23.2.0.20240106
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
-types-docutils==0.20.0.20240125
+types-docutils==0.20.0.20240126
 types-paramiko==3.4.0.20240120
 types-protobuf==4.24.0.20240106
 types-pyOpenSSL==23.3.0.20240106
