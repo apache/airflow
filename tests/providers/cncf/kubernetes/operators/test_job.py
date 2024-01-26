@@ -75,6 +75,7 @@ class TestKubernetesJobOperator:
 
         patch.stopall()
 
+    @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
         dag_id = "TestKubernetesJobOperator"
         ti = create_task_instance_of_operator(
