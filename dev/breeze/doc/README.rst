@@ -32,7 +32,8 @@ The environment is available for local use and is also used in Airflow's CI test
 We call it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
-are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
+are described in
+`Integration test development environments <../../../contributing-docs/06_development_environments.rst>`_.
 
 You can use the Breeze environment to run Airflow's tests locally and reproduce CI failures.
 

@@ -97,7 +97,7 @@ do not apply to Airflow, or have a different severity than some generic scoring 
 
 ### What happens after you report the issue ?
 
-The [Airflow Security Team](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#security-team) will get back to you after assessing the report. You will usually get
+The Airflow Security Team will get back to you after assessing the report. You will usually get
 confirmation that the issue is being worked (or that we quickly assessed it as invalid) within several
 business days. Note that this is an Open-Source projects and members of the security team are volunteers
 so please make sure to be patient. If you do not get a response within a week or so, please send a
@@ -112,7 +112,8 @@ and the severity of the issue once the issue is fixed and release is public. Not
 appear there, so `users@airflow.apache.org` is the best place to monitor for the announcement.
 
 Security issues in Airflow are handled by the Airflow Security Team. Details about the Airflow Security
-Team and how members of it are chosen can be found in the [Contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#security-team).
+Team and how members of it are chosen can be found in the
+[Contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/01_roles_in_airflow_project.rst#security-team).
 
 ### Does CVE in Airflow Providers impact Airflow core package ?
 

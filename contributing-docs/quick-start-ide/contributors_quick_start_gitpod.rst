@@ -93,4 +93,4 @@ the first time you run tests.
   root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
     --email admin@example.com --firstname foo --lastname bar
 
-Follow the `Quick start <CONTRIBUTORS_QUICK_START.rst>`_ for typical development tasks.
+Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.

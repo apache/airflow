@@ -38,11 +38,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.1.0
 .....
 
-Latest change: 2024-01-17
+Latest change: 2024-01-26
 
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ======================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ======================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`c0f7601391 <https://github.com/apache/airflow/commit/c0f76013917ee57b3cc2cebcf08e4421143eefc7>`_  2024-01-23   ``Rename columns to valid namedtuple attributes + ensure Row.fields are retrieved as tuple (#36949)``
+`347373986c <https://github.com/apache/airflow/commit/347373986c378a3c7fd4cf85336d0c419a51991e>`_  2024-01-23   ``check status before DatabricksSubmitRunOperator & DatabricksSubmitRunOperator executes in deferrable mode (#36862)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `13b0930bf4 <https://github.com/apache/airflow/commit/13b0930bf45faece076ef1b0c4e6fd14f2b17e16>`_  2024-01-17   ``Fix databricks_sql hook query failing on empty result for return_tuple (#36827)``
 `574102fd29 <https://github.com/apache/airflow/commit/574102fd291930ed45262a40fb7033a122152541>`_  2024-01-11   ``[FEAT] adds repair run functionality for databricks (#36601)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
@@ -50,7 +54,7 @@ Commit                                                                          
 `f7b663d9af <https://github.com/apache/airflow/commit/f7b663d9aff472d0a419e16c262fbae2a8a69ce1>`_  2024-01-07   ``Run mypy checks for full packages in CI (#36638)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ======================================================================================================================
 
 6.0.0
 .....

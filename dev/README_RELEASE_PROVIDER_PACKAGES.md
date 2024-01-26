@@ -936,7 +936,7 @@ the release candidate version.
 
 Breeze allows you to easily install and run pre-release candidates by following simple instructions
 described in
-[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/contributing-docs/testing/testing_packages.rst)
 
 But you can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).

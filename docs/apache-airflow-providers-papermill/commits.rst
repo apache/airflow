@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.6.1
 .....
 
-Latest change: 2024-01-10
+Latest change: 2024-01-22
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `7a2a4a98e0 <https://github.com/apache/airflow/commit/7a2a4a98e0d735a461d4bb7694b2899c3d04a6e0>`_  2024-01-10   ``Fix assignment of template field in '__init__' in 'papermill.py' (#36530)``
 `b5c6aead44 <https://github.com/apache/airflow/commit/b5c6aead4415b53a294e1671990cbba924ed9445>`_  2024-01-08   ``Bump min provider version for papermill (#36669)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``

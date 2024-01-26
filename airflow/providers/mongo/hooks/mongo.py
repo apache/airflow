@@ -60,7 +60,7 @@ class MongoHook(BaseHook):
     hook_name = "MongoDB"
 
     def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
+        super().__init__()
         if conn_id := kwargs.pop("conn_id", None):
             warnings.warn(
                 "Parameter `conn_id` is deprecated and will be removed in a future releases. "

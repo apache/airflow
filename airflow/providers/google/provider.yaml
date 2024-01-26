@@ -976,6 +976,9 @@ triggers:
   - integration-name: Google Cloud
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_batch
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.triggers.vertex_ai
 
 transfers:
   - source-integration-name: Presto

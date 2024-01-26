@@ -118,9 +118,8 @@ class SSHHook(BaseHook):
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
         ciphers: list[str] | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username

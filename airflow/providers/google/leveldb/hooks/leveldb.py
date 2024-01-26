@@ -45,8 +45,8 @@ class LevelDBHook(BaseHook):
     conn_type = "leveldb"
     hook_name = "LevelDB"
 
-    def __init__(self, leveldb_conn_id: str = default_conn_name, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, leveldb_conn_id: str = default_conn_name):
+        super().__init__()
         self.leveldb_conn_id = leveldb_conn_id
         self.connection = self.get_connection(leveldb_conn_id)
         self.db: plyvel.DB | None = None

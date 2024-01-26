@@ -387,6 +387,7 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataprocDiagnoseClusterOperator
 DataScan
 dataScans
 Dataset
