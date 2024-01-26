@@ -184,11 +184,12 @@ def worker(args):
         # executed.
         maybe_patch_concurrency(["-P", pool])
 
-    _, stdout, stderr, log_file = setup_locations(
+    worker_pid_file_path, stdout, stderr, log_file = setup_locations(
         process=WORKER_PROCESS_NAME,
         stdout=args.stdout,
         stderr=args.stderr,
         log=args.log_file,
+        pid=args.pid,
     )
 
     def run_celery_worker():
@@ -199,9 +200,6 @@ def worker(args):
         umask = args.umask
     else:
         umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
-
-    # Setup pid file location
-    worker_pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME, pid=args.pid)
 
     run_command_with_daemon_option(
         args=args,

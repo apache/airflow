@@ -157,9 +157,6 @@ def worker(args):
     if not celery_log_level:
         celery_log_level = conf.get("logging", "LOGGING_LEVEL")
 
-    # Setup pid file location
-    worker_pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME, pid=args.pid)
-
     # Setup Celery worker
     options = [
         "worker",
@@ -173,8 +170,6 @@ def worker(args):
         args.celery_hostname,
         "--loglevel",
         celery_log_level,
-        "--pidfile",
-        worker_pid_file_path + ".celery.pid",
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])
@@ -193,11 +188,12 @@ def worker(args):
         # executed.
         maybe_patch_concurrency(["-P", pool])
 
-    _, stdout, stderr, log_file = setup_locations(
+    worker_pid_file_path, stdout, stderr, log_file = setup_locations(
         process=WORKER_PROCESS_NAME,
         stdout=args.stdout,
         stderr=args.stderr,
         log=args.log_file,
+        pid=args.pid,
     )
 
     def run_celery_worker():
