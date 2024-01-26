@@ -403,6 +403,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
+        "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
     }
