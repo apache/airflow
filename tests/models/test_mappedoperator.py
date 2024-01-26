@@ -609,6 +609,42 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     assert indices == expected
 
 
+def test_expand_mapped_task_instance_with_named_index(dag_maker, session):
+    """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+    # with set_current_task_instance_session(session=session):
+
+    class SetNamedIndex(BaseOperator):
+        """Create mapped with templated indexes"""
+
+        def __init__(self, index_template, **kwargs):
+            super().__init__(**kwargs)
+            self.index_template = index_template
+
+        def execute(self, context):
+            context.update({"map_index_template": self.index_template})
+
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+        task1 = SetNamedIndex.partial(task_id="task1").expand(index_template=["a", "b"])
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    for ti in tis:
+        ti.run()
+    session.flush()
+
+    indices = (
+        session.query(TaskInstance.rendered_map_index)
+        .filter(
+            TaskInstance.dag_id == task1.dag_id,
+            TaskInstance.task_id == task1.task_id,
+            TaskInstance.run_id == dr.run_id,
+        )
+        .all()
+    )
+
+    assert indices == [("a",), ("b",)]
+
+
 @pytest.mark.parametrize(
     "map_index, expected",
     [

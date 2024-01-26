@@ -71,6 +71,7 @@ class Context(TypedDict, total=False):
     inlets: list
     logical_date: DateTime
     macros: Any
+    map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
     next_execution_date: DateTime | None

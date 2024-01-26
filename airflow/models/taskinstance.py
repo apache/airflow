@@ -586,8 +586,6 @@ def _get_template_context(
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
-    # TODO
-
     validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
     logical_date: DateTime = timezone.coerce_datetime(task_instance.execution_date)
@@ -1370,8 +1368,6 @@ class TaskInstance(Base, LoggingMixin):
                     raise DagRunNotFound(
                         f"DagRun for {self.dag_id!r} with date {execution_date} not found"
                     ) from None
-
-        self.rendered_map_index: str | None = None
 
         self.run_id = run_id
 
@@ -2504,7 +2500,7 @@ class TaskInstance(Base, LoggingMixin):
 
             with set_current_context(context):
                 dag = self.task.get_dag()
-                jinja_env = dag.get_template_env()
+                jinja_env: jinja2.Environment = dag.get_template_env()
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
@@ -2540,7 +2536,14 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
-                self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(context)
+
+                # DAG authors define map_index_template at the task level
+                if "map_index_template" in context and context["map_index_template"] is not None:
+                    self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
+                        context
+                    )
+                    self.log.info("Map index rendered as %s", self.rendered_map_index)
+
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]

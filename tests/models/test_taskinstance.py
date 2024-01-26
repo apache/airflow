@@ -3128,6 +3128,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "task_instance.rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
             "executor_config": {"Some": {"extra": "information"}},

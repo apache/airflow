@@ -94,6 +94,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     pid: Optional[int]
     executor_config: Any
     updated_at: Optional[datetime]
+    rendered_map_index: Optional[str]
     external_executor_id: Optional[str]
     trigger_id: Optional[int]
     trigger_timeout: Optional[datetime]
