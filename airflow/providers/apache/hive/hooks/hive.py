@@ -91,7 +91,6 @@ class HiveCliHook(BaseHook):
     def __init__(
         self,
         hive_cli_conn_id: str = default_conn_name,
-        run_as: str | None = None,
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
@@ -105,7 +104,6 @@ class HiveCliHook(BaseHook):
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
         self.conn = conn
-        self.run_as = run_as
         self.sub_process: Any = None
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
@@ -124,15 +122,9 @@ class HiveCliHook(BaseHook):
         conn = self.conn
 
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
-        if proxy_user_value == "login" and conn.login:
-            return f"hive.server2.proxy.user={conn.login}"
-        if proxy_user_value == "owner" and self.run_as:
-            return f"hive.server2.proxy.user={self.run_as}"
-        if proxy_user_value == "as_param" and self.proxy_user:
-            return f"hive.server2.proxy.user={self.proxy_user}"
-        if proxy_user_value != "":  # There is a custom proxy user
+        if proxy_user_value != "":
             return f"hive.server2.proxy.user={proxy_user_value}"
-        return proxy_user_value  # The default proxy user (undefined)
+        return f"hive.server2.proxy.user={self.proxy_user}"
 
     def _prepare_cli_cmd(self) -> list[Any]:
         """Create the command list from available information."""
