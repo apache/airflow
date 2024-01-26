@@ -30,7 +30,7 @@ rules of that community.
 New Contributor
 ---------------
 
-If you are a new contributor, please follow the `Contributors Quick Start <./contributing-docs/03_contributors_quick_start.rst>`__
+If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
 guide to get a gentle step-by-step introduction to setting up the development environment and making your
 first contribution.
 
