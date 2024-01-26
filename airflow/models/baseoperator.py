@@ -1361,6 +1361,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja's environment to use for rendering.
         """
+        for name in self.template_fields:
+            attribute = getattr(self, name)
+            if callable(attribute):
+                setattr(self, name, attribute())
+
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
