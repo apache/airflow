@@ -2500,7 +2500,10 @@ class TaskInstance(Base, LoggingMixin):
 
             with set_current_context(context):
                 dag = self.task.get_dag()
-                jinja_env: jinja2.Environment = dag.get_template_env()
+                if dag is not None:
+                    jinja_env = dag.get_template_env()
+                else:
+                    jinja_env = None
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
@@ -2539,10 +2542,11 @@ class TaskInstance(Base, LoggingMixin):
 
                 # DAG authors define map_index_template at the task level
                 if "map_index_template" in context and context["map_index_template"] is not None:
-                    self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
-                        context
-                    )
-                    self.log.info("Map index rendered as %s", self.rendered_map_index)
+                    if jinja_env is not None:
+                        self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
+                            context
+                        )
+                        self.log.info("Map index rendered as %s", self.rendered_map_index)
 
             # Run post_execute callback
             # Is never MappedOperator at this point
