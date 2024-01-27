@@ -1078,7 +1078,7 @@ jobs:
       - name: "Install helm gpg plugin"
         run: >
           breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
-          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b"
+          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b" || true
       - name: "Helm release tarball"
         run: >
           breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
