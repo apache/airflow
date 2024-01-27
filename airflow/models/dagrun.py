@@ -818,12 +818,12 @@ class DagRun(Base, LoggingMixin):
                     msg="task_failure",
                 )
 
-            # checking if the max_failure_runs has been provided and last consecutivate failures are more
+            # checking if the max_consecutive_failed_dag_runs has been provided and last consecutivate failures are more
             # than this number if so we have to mark this dag as off
-            if bool(dag.max_failure_runs):
+            if bool(dag.max_consecutive_failed_dag_runs):
                 self.log.info("Checking consecutive failed dags for %s, limit is %s", self.dag_id,
-                              dag.max_failure_runs)
-                self._check_last_N_dagruns_failed(dag.dag_id, dag.max_failure_runs, session)
+                              dag.max_consecutive_failed_dag_runs)
+                self._check_last_N_dagruns_failed(dag.dag_id, dag.max_consecutive_failed_dag_runs, session)
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
