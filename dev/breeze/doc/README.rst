@@ -18,7 +18,7 @@
 .. raw:: html
 
     <div align="center">
-      <img src="../../../images/AirflowBreeze_logo.png"
+      <img src="images/AirflowBreeze_logo.png"
            alt="Airflow Breeze - Development and Test Environment for Apache Airflow">
     </div>
 

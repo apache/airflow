@@ -603,5 +603,7 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s logs
 
+-----
+
 Next step: Follow the `Managing Breeze images <06_managing_docker_images.rst>`_ guide to learn how to manage
 CI and PROD images of Breeze.

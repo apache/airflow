@@ -28,7 +28,8 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI. See `CI <CI.rst>`_ for details about Airflow CI.
+environment with enabled integrations and in the CI. See `CI <../../dev/breeze/doc/ci/README.md>`_ for
+details about Airflow CI.
 
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``

@@ -15,8 +15,6 @@ Dockerfile.ci export-ignore
 
 ISSUE_TRIAGE_PROCESS.rst export-ignore
 CONTRIBUTING.rst export-ignore
-CI.rst export-ignore
-CI_DIAGRAMS.md export-ignore
 contributing_docs/ export-ignore
 
 .devcontainer export-ignore

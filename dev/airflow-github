@@ -142,12 +142,9 @@ def is_core_commit(files: list[str]) -> bool:
         # non-released docs
         "COMMITTERS.rst",
         "contributing_docs/",
-        "IMAGES.rst",
         "INTHEWILD.md",
         "INSTALL",
         "README.md",
-        "CI.rst",
-        "CI_DIAGRAMS.md",
         "images/",
         "codecov.yml",
         "kubernetes_tests/",
