@@ -125,5 +125,6 @@ For automation scripts, you can export the ``ANSWER`` variable (and set it to
 
   export ANSWER="yes"
 
+------
 
 Next step: Follow the `Developer tasks <03_developer_tasks.rst>`_ guide to learn how to use Breeze for regular development tasks.

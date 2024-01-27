@@ -597,5 +597,7 @@ This command will build one docker image per python version, with all the airflo
   :width: 100%
   :alt: Breeze build all airflow images
 
+-----
+
 Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
 learn more about Breeze internals.
