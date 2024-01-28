@@ -524,7 +524,7 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: 6e486f782b4745afd1f0f19dabe1253c
+# Hash of dependencies: 1f624a4559a3392bd34c54f200eda6b4
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -898,7 +898,7 @@ sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
 ]
 sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
-  "paramiko>=2.8.0",
+  "paramiko>=3.3.0",
 ]
 singularity = [ # source: airflow/providers/singularity/provider.yaml
   "spython>=0.0.56",
