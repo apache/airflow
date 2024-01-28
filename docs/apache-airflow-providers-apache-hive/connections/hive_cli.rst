@@ -64,7 +64,7 @@ Schema (optional)
     Specify your JDBC Hive database that you want to connect to with Beeline
     or specify a schema for an HQL statement to run with the Hive CLI.
 
-User Beelin (optional)
+User Beeline (optional)
     Specify as ``True`` if using the Beeline CLI. Default is ``False``.
 
 Proxy User (optional)
