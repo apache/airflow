@@ -391,6 +391,16 @@ core:
       type: integer
       example: "1000000"
       default: "-1"
+    xcom_objectstorage_compression:
+      description: |
+         Compression algorithm to use when storing XComs in object storage. Supported algorithms
+         are: snappy, zip, gzip, bz2, lzma, and xz. If not specified, no compression will be used.
+         Note that the compression algorithm must be available in the Python installation (e.g.
+         python-snappy for snappy).
+      version_added: 2.9.0
+      type: string
+      example: "snappy"
+      default: ""
     lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
