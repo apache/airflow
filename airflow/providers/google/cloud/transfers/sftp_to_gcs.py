@@ -219,7 +219,7 @@ class SFTPToGCSOperator(BaseOperator):
 
         # Check and delete any existing temp file from previous failed attempts
         if temp_dest_blob.exists():
-            self.log.warning(f"Temporary file {temp_destination_object} found, deleting for fresh upload.")
+            self.log.warning("Temporary file %s found, deleting for fresh upload.", temp_destination_object)
             temp_dest_blob.delete()
 
         if self.stream_method == "getfo":
