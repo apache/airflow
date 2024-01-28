@@ -93,6 +93,33 @@ and ``tests_sftp_hook_dir/subdir/parent-2.bin`` is copied to ``specific_files/pa
     :start-after: [START howto_operator_sftp_to_gcs_move_specific_files]
     :end-before: [END howto_operator_sftp_to_gcs_move_specific_files]
 
+Stream-Based File Transfer
+--------------------------------------
+
+The ``SFTPToGCSOperator`` now supports more advanced options for file transfer, 
+particularly useful for handling large files or optimizing network usage. 
+These include stream-based file transfers and additional parameters for finer control.
+
+1. Stream-Based File Transfer: When ``use_stream`` is set to ``True``, 
+files are streamed directly from SFTP to GCS, without being stored temporarily on the worker's local disk. 
+This method is more efficient for large files or in environments with limited disk space.
+
+2. Enhanced Parameters for Streaming:
+    - ``sftp_prefetch``: Optimizes file transfer speed when using the ``"getfo"`` stream method.
+    - ``stream_method``: Choose between ``"upload_from_file"`` for reliability or ``"getfo"`` for speed and efficiency.
+    - ``max_concurrent_prefetch_requests``: Control the concurrency level for prefetching in the ``"getfo"`` method.
+    - ``callback``: Provide a custom callback function for progress tracking during file transfer.
+
+Example usage
+```
+    transfer_operator = SFTPToGCSOperator(
+        ...
+        use_stream=True,
+        stream_method="getfo",
+        ...
+    )
+```
+
 Reference
 ^^^^^^^^^
 
