@@ -533,6 +533,7 @@ alibaba = [
   "oss2>=2.14.0",
 ]
 amazon = [
+  "PyAthena>=3.0.10",
   "apache-airflow[common_sql]",
   "apache-airflow[http]",
   "asgiref",
@@ -546,13 +547,12 @@ amazon = [
   # Devel dependencies for the amazon provider
   "aiobotocore>=2.7.0",
   "aws_xray_sdk>=2.12.0",
-  "moto[cloudformation,glue]>=4.2.12",
+  "moto[cloudformation,glue]>=4.2.12,<5.0.0",
   "mypy-boto3-appflow>=1.33.0",
   "mypy-boto3-rds>=1.33.0",
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
-  "PyAthena>=3.0.10",
 ]
 apache-beam = [
   "apache-beam>=2.53.0",
