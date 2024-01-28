@@ -375,6 +375,21 @@ core:
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
+    xcom_objectstorage_path:
+      description: |
+        Path to a location on object storage where XComs can be stored in url format.
+      version_added: 2.9.0
+      type: string
+      example: "s3://conn_id@bucket/path"
+      default: ""
+    xcom_objectstorage_threshold:
+      description: |
+          Threshold in bytes for storing XComs in object storage.
+          If the size of the XCom exceeds this threshold, it will be stored in object storage.
+      version_added: 2.9.0
+      type: integer
+      example: "1000000"
+      default: "-1"
     lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,

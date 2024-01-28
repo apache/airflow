@@ -56,6 +56,24 @@ XComs are a relative of :doc:`variables`, with the main difference being that XC
 
   If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
 
+
+Object Storage XCom Backend
+---------------------------
+
+The default XCom backend is the :class:`~airflow.models.xcom.BaseXCom` class, which stores XComs in the Airflow database. This is fine for small values, but can be problematic for large values, or for large numbers of XComs.
+
+To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.io.xcom.XComObjectStoreBackend``. You will also need to set ``xcom_objectstorage_path`` to the desired location. The connection
+id is obtained from the user part of the url the you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
+to be something larger than -1. Any object smaller than the threshold in bytes will be stored in the database and anything larger will be be
+put in object storage. This will allow a hybrid setup. If an xcom is stored on object storage a reference will be
+saved in the database.
+
+So for example the following configuration will store anything above 1MB in S3::
+
+      xcom_backend = airflow.io.xcom.XComObjectStoreBackend
+      xcom_objectstorage_path = s3://conn_id@mybucket/key
+      xcom_objectstorage_threshold = 1048576
+
 Custom XCom Backends
 --------------------
 
