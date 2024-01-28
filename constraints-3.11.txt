@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-28T10:49:36.967381
+# This constraints file was automatically generated on 2024-01-28T21:07:29.488358
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -548,7 +548,7 @@ pyparsing==3.1.1
 pypsrp==0.8.1
 pyspark==3.5.0
 pyspnego==0.10.2
-pytest-asyncio==0.23.3
+pytest-asyncio==0.23.4
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
 pytest-icdiff==0.9
@@ -577,7 +577,7 @@ reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
 redshift-connector==2.0.918
-referencing==0.32.1
+referencing==0.33.0
 regex==2023.12.25
 requests-file==1.5.1
 requests-kerberos==0.14.0
