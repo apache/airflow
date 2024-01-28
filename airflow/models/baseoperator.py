@@ -245,6 +245,7 @@ def partial(
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
+    map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,

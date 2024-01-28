@@ -312,6 +312,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
+        "map_index_template",
         "next_ds",
         "next_ds_nodash",
         "outlets",
