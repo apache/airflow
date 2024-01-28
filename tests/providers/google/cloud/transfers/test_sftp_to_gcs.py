@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperat
 from io import BytesIO
 from unittest.mock import MagicMock, mock_open, call, patch
 
-_DEFAULT_CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
 TASK_ID = "test-gcs-to-sftp-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
 SFTP_CONN_ID = "SFTP_CONN_ID"
@@ -281,8 +280,6 @@ class TestSFTPToGCSOperatorStream:
             destination_bucket=TEST_BUCKET,
             destination_path=DESTINATION_PATH_FILE,
             use_stream=True,
-            stream_chunk_size=_DEFAULT_CHUNKSIZE,
-            log_interval=None,
             sftp_conn_id=SFTP_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
         )
@@ -291,38 +288,18 @@ class TestSFTPToGCSOperatorStream:
         self.mock_sftp_hook.stop()
         self.mock_gcs_hook.stop()
     
-    def test_small_chunk_size_with_progress_logging(self):
-        # Test logging at specified intervals during streaming and output expected content
-        self.task.stream_chunk_size = 15
-        self.task.log_interval = 20
-
-        written_data = BytesIO()
-        mock_dest_blob, mock_temp_dest_blob = MagicMock(), MagicMock()
-        mock_temp_dest_blob.open.return_value.__enter__.return_value = written_data
-        self.mock_gcs_hook.return_value.get_conn.return_value.bucket.return_value.blob.side_effect = [mock_dest_blob, mock_temp_dest_blob]
-
-        with patch.object(self.task.log, "info") as mock_log_info:
-            self.task.execute(None)
-            assert mock_log_info.call_count > 12
-            expected_call = call("Uploaded 30 bytes so far.")
-            assert expected_call in mock_log_info.call_args_list
-
-        written_data.seek(0)
-        assert written_data.read() == SOURCE_FILE_CONTENT.encode()
-
     def test_stream_single_object_default_method(self):
-        # Use default chunk size to trigger 'upload_from_file' method
+        # Use 'upload_from_file' method by default
         mock_dest_blob, mock_temp_dest_blob = MagicMock(), MagicMock()
         self.mock_gcs_hook.return_value.get_conn.return_value.bucket.return_value.blob.side_effect = [mock_dest_blob, mock_temp_dest_blob]
         self.task.execute(None)
         mock_temp_dest_blob.upload_from_file.assert_called()
 
-    def test_custom_source_stream_wrapper(self):
-        # Verify custom wrapper is applied to the source stream
-        custom_wrapper = mock.Mock()
-        self.task.source_stream_wrapper = custom_wrapper
+    def test_stream_single_object_getfo_method(self):
+        mock_dest_blob, mock_temp_dest_blob = MagicMock(), MagicMock()
+        self.task.stream_method = 'getfo'
         self.task.execute(None)
-        custom_wrapper.assert_called()
+        self.mock_sftp_hook.return_value.get_conn.assert_called()
 
     def test_temp_file_handling(self):
         # Test handling of existing temporary files from previous attempts
