@@ -101,6 +101,7 @@ class TestXcomObjectStoreBackend:
         if p.exists():
             p.rmdir(recursive=True)
 
+    @pytest.mark.db_test
     def test_value_db(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
@@ -130,13 +131,14 @@ class TestXcomObjectStoreBackend:
         )
         assert qry.first().value == {"key": "value"}
 
+    @pytest.mark.db_test
     def test_value_storage(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
         XCom.set(
             key=XCOM_RETURN_KEY,
-            value={"key": "bigvaluebigvaluebigvalue" * 10},
+            value={"key": "bigvaluebigvaluebigvalue" * 100},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
@@ -164,7 +166,7 @@ class TestXcomObjectStoreBackend:
             ti_key=task_instance.key,
             session=session,
         )
-        assert value == {"key": "bigvaluebigvaluebigvalue" * 10}
+        assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
         qry = XCom.get_many(
             key=XCOM_RETURN_KEY,
@@ -175,13 +177,14 @@ class TestXcomObjectStoreBackend:
         )
         assert self.path in qry.first().value
 
+    @pytest.mark.db_test
     def test_clear(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
         XCom.set(
             key=XCOM_RETURN_KEY,
-            value={"key": "superlargevalue" * 10},
+            value={"key": "superlargevalue" * 100},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,

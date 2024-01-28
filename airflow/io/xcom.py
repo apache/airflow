@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import uuid
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
@@ -71,10 +70,14 @@ class XComObjectStoreBackend(BaseXCom):
         compression = conf.get("core", "xcom_objectstore_compression", fallback=None)
         threshold = conf.getint("core", "xcom_objectstore_threshold", fallback=-1)
 
-        if path and -1 < threshold < sys.getsizeof(value):
-            p = ObjectStoragePath(path) / f"{run_id}/{task_id}/{str(uuid.uuid4())}"
+        if path and -1 < threshold < len(s_val):
+            # safeguard against collisions
+            while True:
+                p = ObjectStoragePath(path) / f"{run_id}/{task_id}/{str(uuid.uuid4())}"
+                if not p.exists():
+                    break
 
-            if not p.exists():
+            if not p.parent.exists():
                 p.parent.mkdir(parents=True, exist_ok=True)
 
             with p.open("wb", compression=compression) as f:
@@ -104,7 +107,7 @@ class XComObjectStoreBackend(BaseXCom):
         if isinstance(xcom.value, str):
             try:
                 p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(xcom.value)
-                p.unlink()
+                p.unlink(missing_ok=True)
             except TypeError:
                 pass
             except ValueError:
