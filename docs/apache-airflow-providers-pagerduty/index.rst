@@ -69,7 +69,7 @@ Package apache-airflow-providers-pagerduty
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 3.6.0
+Release: 3.6.1
 
 Provider package
 ----------------

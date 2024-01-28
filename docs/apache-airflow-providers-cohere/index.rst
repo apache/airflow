@@ -104,7 +104,7 @@ Package apache-airflow-providers-cohere
 `Cohere <https://docs.cohere.com/docs>`__
 
 
-Release: 1.1.1
+Release: 1.1.2
 
 Provider package
 ----------------
@@ -128,5 +128,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
-``cohere``          ``>=4.27``
+``cohere``          ``>=4.37``
 ==================  ==================

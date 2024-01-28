@@ -218,7 +218,8 @@ class SkipDBTestsSession:
         raise RuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
-            "See https://github.com/apache/airflow/blob/main/TESTING.rst#best-practices-for-db-tests on how "
+            "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
+            "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
         )
 

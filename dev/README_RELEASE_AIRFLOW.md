@@ -693,7 +693,7 @@ that the Airflow works as you expected.
 
 Breeze also allows you to easily build and install pre-release candidates including providers by following
 simple instructions described in
-[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/contributing-docs/testing/testing-packages.rst)
 
 # Publish the final Apache Airflow release
 

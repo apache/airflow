@@ -25,8 +25,8 @@ from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
-from airflow_breeze.utils.reproducible import archive_deterministically, get_source_date_epoch
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, OUT_DIR
+from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 
 CI = os.environ.get("CI")
@@ -71,53 +71,41 @@ def git_clean():
         console_print("[success]Git repo cleaned")
 
 
-DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
-OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
-REPRODUCIBLE_DIR = OUT_DIR / "reproducible"
-
-
 def tarball_release(version: str, version_without_rc: str, source_date_epoch: int):
-    if confirm_action("Create tarball?"):
-        console_print(f"[info]Creating tarball for Airflow {version}")
-        shutil.rmtree(OUT_DIR, ignore_errors=True)
-        DIST_DIR.mkdir(exist_ok=True)
-        OUT_DIR.mkdir(exist_ok=True)
-        REPRODUCIBLE_DIR.mkdir(exist_ok=True)
-        archive_name = f"apache-airflow-{version_without_rc}-source.tar.gz"
-        temporary_archive = OUT_DIR / archive_name
-        run_command(
-            [
-                "git",
-                "-c",
-                "tar.umask=0077",
-                "archive",
-                "--format=tar.gz",
-                f"{version}",
-                f"--prefix=apache-airflow-{version_without_rc}/",
-                "-o",
-                temporary_archive.as_posix(),
-            ],
-            check=True,
-        )
-        run_command(
-            [
-                "tar",
-                "-xf",
-                temporary_archive.as_posix(),
-                "-C",
-                REPRODUCIBLE_DIR.as_posix(),
-                "--strip",
-                "1",
-            ]
-        )
-        final_archive = DIST_DIR / archive_name
-        archive_deterministically(
-            dir_to_archive=REPRODUCIBLE_DIR.as_posix(),
-            dest_archive=final_archive.as_posix(),
-            prepend_path=None,
-            timestamp=source_date_epoch,
-        )
-        console_print(f"[success]Tarball created in {final_archive}")
+    console_print(f"[info]Creating tarball for Airflow {version}")
+    shutil.rmtree(OUT_DIR, ignore_errors=True)
+    DIST_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(exist_ok=True)
+    archive_name = f"apache-airflow-{version_without_rc}-source.tar.gz"
+    temporary_archive = OUT_DIR / archive_name
+    result = run_command(
+        [
+            "git",
+            "-c",
+            "tar.umask=0077",
+            "archive",
+            "--format=tar.gz",
+            f"{version}",
+            f"--prefix=apache-airflow-{version_without_rc}/",
+            "-o",
+            temporary_archive.as_posix(),
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        exit(result.returncode)
+    final_archive = DIST_DIR / archive_name
+    result = repack_deterministically(
+        source_archive=temporary_archive,
+        dest_archive=final_archive,
+        prepend_path=None,
+        timestamp=source_date_epoch,
+    )
+    if result.returncode != 0:
+        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        exit(result.returncode)
+    console_print(f"[success]Tarball created in {final_archive}")
 
 
 def create_artifacts_with_hatch(source_date_epoch: int):
@@ -327,7 +315,7 @@ def prepare_airflow_tarball(version: str):
     airflow_version = Version(version)
     if not airflow_version.is_prerelease:
         exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch()
+    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(
@@ -387,12 +375,13 @@ def publish_release_candidate(version, previous_version, github_token):
     # # Tag & clean the repo
     git_tag(version)
     git_clean()
-    source_date_epoch = get_source_date_epoch()
+    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
     shutil.rmtree(DIST_DIR, ignore_errors=True)
-    # Create the tarball
-    tarball_release(
-        version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
-    )
+    if confirm_action("Create tarball?"):
+        # Create the tarball
+        tarball_release(
+            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+        )
     # Create the artifacts
     if confirm_action("Use docker to create artifacts?"):
         create_artifacts_with_docker()

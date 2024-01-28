@@ -69,6 +69,7 @@ export interface FilterHookReturn extends UtilFunctions {
 
 // Params names
 export const BASE_DATE_PARAM = "base_date";
+export const EXECUTION_DATE_PARAM = "execution_date";
 export const NUM_RUNS_PARAM = "num_runs";
 export const RUN_TYPE_PARAM = "run_type";
 export const RUN_STATE_PARAM = "run_state";
@@ -93,7 +94,10 @@ const useFilters = (): FilterHookReturn => {
     ? searchParams.get(FILTER_DOWNSTREAM_PARAM) === "true"
     : undefined;
 
-  const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
+  const baseDate =
+    searchParams.get(BASE_DATE_PARAM) ||
+    searchParams.get(EXECUTION_DATE_PARAM) ||
+    now;
   const numRuns =
     searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
 

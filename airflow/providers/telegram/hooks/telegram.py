@@ -63,9 +63,8 @@ class TelegramHook(BaseHook):
         telegram_conn_id: str | None = None,
         token: str | None = None,
         chat_id: str | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.token = self.__get_token(token, telegram_conn_id)
         self.chat_id = self.__get_chat_id(chat_id, telegram_conn_id)
         self.connection = self.get_conn()

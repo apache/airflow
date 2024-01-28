@@ -133,7 +133,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
         rows.append((hook_id, formatted_hook_description, " * " if hook_id in image_hooks else "  "))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", "Image")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "STATIC_CODE_CHECKS.rst",
+        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "08_static_code_checks.rst",
         content=formatted_table.splitlines(keepends=True),
         header="  .. BEGIN AUTO-GENERATED STATIC CHECK LIST",
         footer="  .. END AUTO-GENERATED STATIC CHECK LIST",

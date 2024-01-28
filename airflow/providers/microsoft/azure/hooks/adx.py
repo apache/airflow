@@ -120,8 +120,8 @@ class AzureDataExplorerHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = azure_data_explorer_conn_id
 
     @cached_property
