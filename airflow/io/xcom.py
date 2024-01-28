@@ -35,12 +35,21 @@ T = TypeVar("T")
 
 
 class XComObjectStoreBackend(BaseXCom):
-    """XCom backend that stores data in an object store."""
+    """XCom backend that stores data in an object store or database depending on the size of the data.
 
-    path = conf.get("core", "xcom_objectstore_path", fallback="")
+    If the value is larger than the configured threshold, it will be stored in an object store.
+    Otherwise, it will be stored in the database. If it is stored in an object store, the path
+    to the object in the store will be returned and saved in the database (by BaseXCom). Otherwise, the value
+    itself will be returned and thus saved in the database.
+    """
 
     @staticmethod
     def _get_key(data: str) -> str:
+        """This gets the key from the url and normalizes it to be relative to the configured path.
+
+        :raises ValueError: if the key is not relative to the configured path
+        :raises TypeError: if the url is not a valid url or cannot be split
+        """
         path = conf.get("core", "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
 
