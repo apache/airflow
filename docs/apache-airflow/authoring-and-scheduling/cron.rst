@@ -28,23 +28,11 @@ or one of the :ref:`cron-presets`.
 
     import datetime
 
-    dag = DAG(
-        "regular_interval_cron_example",
-        schedule="0 0 * * *",
-        ...
-    )
+    dag = DAG("regular_interval_cron_example", schedule="0 0 * * *", ...)
 
-    dag = DAG(
-        "regular_interval_cron_preset_example",
-        schedule="@daily",
-        ...
-    )
+    dag = DAG("regular_interval_cron_preset_example", schedule="@daily", ...)
 
-    dag = DAG(
-        "regular_interval_timedelta_example",
-        schedule=datetime.timedelta(days=1),
-        ...
-    )
+    dag = DAG("regular_interval_timedelta_example", schedule=datetime.timedelta(days=1), ...)
 .. _cron-presets:
 
 Cron Presets
@@ -80,4 +68,3 @@ For example, you can create a DAG schedule to run at 12AM on the first Monday of
 
 Your DAG will be instantiated for each schedule along with a corresponding
 DAG Run entry in the database backend.
-
