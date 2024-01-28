@@ -394,7 +394,7 @@ core:
     xcom_objectstorage_compression:
       description: |
          Compression algorithm to use when storing XComs in object storage. Supported algorithms
-         are: snappy, zip, gzip, bz2, lzma, and xz. If not specified, no compression will be used.
+         are a.o.: snappy, zip, gzip, bz2, and lzma. If not specified, no compression will be used.
          Note that the compression algorithm must be available in the Python installation (e.g.
          python-snappy for snappy).
       version_added: 2.9.0
