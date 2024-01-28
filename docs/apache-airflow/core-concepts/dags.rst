@@ -203,7 +203,7 @@ There are various valid values for the ``schedule`` argument::
 
 .. tip::
 
-    For more information different types of scheduling, see :doc:`authoring-and-scheduling/index`.
+    For more information different types of scheduling, see :doc:`/authoring-and-scheduling/index`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run <dag-run>`. DAG Runs can run in parallel for the
