@@ -335,8 +335,7 @@ ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "cons
 )
 @click.option(
     "--default-constraints-branch",
-    default="constraints-main",
-    show_default=True,
+    required=True,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     help="Default constraints branch to use",
 )
