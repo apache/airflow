@@ -1719,3 +1719,52 @@ def test_mypy_matches(
         pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs, github_actor, pr_labels",
+    [
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "false",
+                "runs-on": '["ubuntu-22.04"]',
+            },
+            "",
+            (),
+            id="Regular pr",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "true",
+                "runs-on": '["self-hosted", "Linux", "X64"]',
+            },
+            "potiuk",
+            (),
+            id="Committer regular PR",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "false",
+                "runs-on": '["self-hosted", "Linux", "X64"]',
+            },
+            "potiuk",
+            ("non committer build",),
+            id="Committer regular PR - forcing non-committer build",
+        ),
+    ],
+)
+def test_pr_labels(
+    files: tuple[str, ...], expected_outputs: dict[str, str], github_actor: str, pr_labels: tuple[str, ...]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        default_branch="main",
+        github_actor=github_actor,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))

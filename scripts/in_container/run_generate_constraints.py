@@ -30,10 +30,11 @@ import requests
 from click import Choice
 from in_container_utils import click, console, run_command
 
-AIRFLOW_SOURCES = Path(__file__).resolve().parents[2]
+AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
+
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.8")
-GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_SOURCES / "generated" / "provider_dependencies.json"
+GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
 
@@ -145,7 +146,7 @@ def install_local_airflow_with_eager_upgrade(
             "eager",
         ],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         check=True,
     )
 
@@ -240,7 +241,7 @@ def uninstall_all_packages(config_params: ConfigParams):
     result = run_command(
         ["pip", "freeze"],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         text=True,
         check=True,
         capture_output=True,
@@ -253,7 +254,7 @@ def uninstall_all_packages(config_params: ConfigParams):
     run_command(
         ["pip", "uninstall", "--root-user-action", "ignore", "-y", *all_installed_packages],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         text=True,
         check=True,
     )
@@ -396,8 +397,7 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 )
 @click.option(
     "--default-constraints-branch",
-    default="constraints-main",
-    show_default=True,
+    required=True,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     help="Branch to get constraints from",
 )
