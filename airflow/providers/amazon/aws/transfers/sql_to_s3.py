@@ -81,6 +81,9 @@ class SqlToS3Operator(BaseOperator):
                 You can specify this argument if you want to use a different
                 CA cert bundle than the one used by botocore.
     :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
+    :param max_rows_per_file: (optional) argument to set destination file number of rows limit, if source data
+        is larger than that, it will be dispatched into multiple files.
+        Will be ignored if groupby_kwargs argument is specified.
     :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
     :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
@@ -110,6 +113,7 @@ class SqlToS3Operator(BaseOperator):
         aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
         file_format: Literal["csv", "json", "parquet"] = "csv",
+        max_rows_per_file: int = 0,
         pd_kwargs: dict | None = None,
         groupby_kwargs: dict | None = None,
         **kwargs,
@@ -124,6 +128,7 @@ class SqlToS3Operator(BaseOperator):
         self.replace = replace
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
+        self.max_rows_per_file = max_rows_per_file
         self.groupby_kwargs = groupby_kwargs or {}
         self.sql_hook_params = sql_hook_params
 
@@ -177,10 +182,8 @@ class SqlToS3Operator(BaseOperator):
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
         self.log.info("Data from SQL obtained")
-
         self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
-
         for group_name, df in self._partition_dataframe(df=data_df):
             with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
                 self.log.info("Writing data to temp file")
@@ -194,13 +197,32 @@ class SqlToS3Operator(BaseOperator):
 
     def _partition_dataframe(self, df: pd.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
         """Partition dataframe using pandas groupby() method."""
+        try:
+            import secrets
+            import string
+
+            import numpy as np
+        except ImportError:
+            pass
+        # if max_rows_per_file argument is specified, a temporary column with a random unusual name will be
+        # added to the dataframe. This column is used to dispatch the dataframe into smaller ones using groupby()
+        random_column_name = ""
+        if self.max_rows_per_file and not self.groupby_kwargs:
+            random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
+            df[random_column_name] = np.arange(len(df)) // self.max_rows_per_file
+            self.groupby_kwargs = {"by": random_column_name}
         if not self.groupby_kwargs:
             yield "", df
             return
         for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
             yield (
                 cast(str, group_label),
-                cast("pd.DataFrame", grouped_df.get_group(group_label).reset_index(drop=True)),
+                cast(
+                    "pd.DataFrame",
+                    grouped_df.get_group(group_label)
+                    .drop(random_column_name, axis=1, errors="ignore")
+                    .reset_index(drop=True),
+                ),
             )
 
     def _get_hook(self) -> DbApiHook:
