@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-27T10:39:53.178942
+# This constraints file was automatically generated on 2024-01-28T10:44:12.371479
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -74,7 +74,7 @@ anyascii==0.3.2
 anyio==4.2.0
 apache-beam==2.53.0
 apispec==6.4.0
-apprise==1.7.1
+apprise==1.7.2
 argcomplete==3.2.2
 asana==3.2.2
 asgiref==3.7.2
@@ -119,7 +119,7 @@ bcrypt==4.1.2
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
-black==24.1.0
+black==24.1.1
 blinker==1.7.0
 boto3==1.33.13
 botocore==1.33.13
@@ -332,7 +332,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
-moto==4.2.13
+moto==4.2.14
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.26.0
