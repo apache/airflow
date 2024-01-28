@@ -21,13 +21,13 @@ from unittest import mock
 
 import boto3
 import pytest
-from moto import mock_datasync
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 
 
-@mock_datasync
+@mock_aws
 class TestDataSyncHook:
     def test_get_conn(self):
         hook = DataSyncHook(aws_conn_id="aws_default")
@@ -47,7 +47,7 @@ class TestDataSyncHook:
 # separate class above
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncHookMocked:
     source_server_hostname = "host"

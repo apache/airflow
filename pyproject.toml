@@ -548,7 +548,7 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   # Devel dependencies for the amazon provider
   "aiobotocore>=2.7.0",
   "aws_xray_sdk>=2.12.0",
-  "moto[cloudformation,glue]>=4.2.12,<5.0.0",
+  "moto[cloudformation,glue]>=5.0.0",
   "mypy-boto3-appflow>=1.33.0",
   "mypy-boto3-rds>=1.33.0",
   "mypy-boto3-redshift-data>=1.33.0",
