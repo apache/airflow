@@ -68,7 +68,7 @@ User Beeline (optional)
     Specify as ``True`` if using the Beeline CLI. Default is ``False``.
 
 Proxy User (optional)
-    Specify a proxy user to run HQL code as this user
+    Specify a proxy user to run HQL code as this user.
 
 Principal (optional)
     Specify the JDBC Hive principal to be used with Hive Beeline.
