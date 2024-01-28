@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
@@ -237,7 +238,10 @@ def generate_dependencies(
     for dependency, dependency_info in dependencies.items():
         if dependency_info["state"] in ["suspended", "removed"]:
             continue
-        result_content.append(f"{normalize_extra(dependency)} = [")
+        result_content.append(
+            f"{normalize_extra(dependency)} = "
+            f"[ # source: airflow/providers/{dependency.replace('.', '/')}/provider.yaml"
+        )
         deps = dependency_info["deps"]
         if not isinstance(deps, list):
             raise TypeError(f"Wrong type of 'deps' {deps} for {dependency} in {DEPENDENCIES_JSON_FILE_PATH}")
@@ -280,7 +284,7 @@ def get_dependency_type(dependency_type: str) -> ParsedDependencyTypes | None:
     return None
 
 
-def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]):
+def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]], dependencies_hash: str):
     file_content = PYPROJECT_TOML_FILE_PATH.read_text()
     result_content: list[str] = []
     copying = True
@@ -291,6 +295,7 @@ def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]):
             result_content.append(line)
         if line.strip().startswith(GENERATED_DEPENDENCIES_START):
             copying = False
+            result_content.append(f"# Hash of dependencies: {dependencies_hash}")
             generate_dependencies(result_content, dependencies)
         elif line.strip().startswith(GENERATED_DEPENDENCIES_END):
             copying = True
@@ -324,6 +329,16 @@ def calculate_my_hash():
     hash_md5.update(my_file.read_bytes())
     return hash_md5.hexdigest()
 
+
+def calculate_dependencies_hash(dependencies: str):
+    my_file = MY_FILE.resolve()
+    hash_md5 = hashlib.md5()
+    hash_md5.update(my_file.read_bytes())
+    hash_md5.update(dependencies.encode(encoding="utf-8"))
+    return hash_md5.hexdigest()
+
+
+HASH_REGEXP = re.compile(r"# Hash of dependencies: (?P<hash>[a-f0-9]+)")
 
 if __name__ == "__main__":
     find_all_providers_and_provider_files()
@@ -367,7 +382,14 @@ if __name__ == "__main__":
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
     old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
     new_md5sum = calculate_my_hash()
-    if new_dependencies != old_dependencies or new_md5sum != old_md5sum:
+    find_hash = HASH_REGEXP.findall(PYPROJECT_TOML_FILE_PATH.read_text())
+    dependencies_hash_from_pyproject_toml = find_hash[0] if find_hash else ""
+    dependencies_hash = calculate_dependencies_hash(new_dependencies)
+    if (
+        new_dependencies != old_dependencies
+        or new_md5sum != old_md5sum
+        or dependencies_hash_from_pyproject_toml != dependencies_hash
+    ):
         DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
         if os.environ.get("CI"):
             console.print()
@@ -386,7 +408,7 @@ if __name__ == "__main__":
             )
             console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
-            update_pyproject_toml(unique_sorted_dependencies)
+            update_pyproject_toml(unique_sorted_dependencies, dependencies_hash)
             console.print(f"Written {PYPROJECT_TOML_FILE_PATH}")
             console.print()
             MY_MD5SUM_FILE.write_text(new_md5sum + "\n")
