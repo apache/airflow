@@ -106,7 +106,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         failed: set[TaskInstanceKey] = attr.ib(factory=set)
         not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
         deadlocked: set[TaskInstance] = attr.ib(factory=set)
-        active_runs: list[DagRun] = attr.ib(factory=list)
+        active_runs: set[DagRun] = attr.ib(factory=set)
         executed_dag_run_dates: set[pendulum.DateTime] = attr.ib(factory=set)
         finished_runs: int = 0
         total_runs: int = 0
@@ -266,33 +266,25 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         executor = self.job.executor
         # list of tuples (dag_id, task_id, execution_date, map_index) of running tasks in executor
         buffered_events = list(executor.get_event_buffer().items())
-        if session.get_bind().dialect.name == "mssql":
-            # SQL Server doesn't support multiple column subqueries
-            # TODO: Remove this once we drop support for SQL Server (#35868)
-            need_refresh = True
-            running_dict = {(ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in running.values()}
-        else:
-            running_tis_ids = [
-                (key.dag_id, key.task_id, key.run_id, key.map_index)
-                for key, _ in buffered_events
-                if key in running
-            ]
-            # list of TaskInstance of running tasks in executor (refreshed from db in batch)
-            refreshed_running_tis = session.scalars(
-                select(TaskInstance).where(
-                    tuple_(
-                        TaskInstance.dag_id,
-                        TaskInstance.task_id,
-                        TaskInstance.run_id,
-                        TaskInstance.map_index,
-                    ).in_(running_tis_ids)
-                )
-            ).all()
-            # dict of refreshed TaskInstance by key to easily find them
-            running_dict = {
-                (ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in refreshed_running_tis
-            }
-            need_refresh = False
+        running_tis_ids = [
+            (key.dag_id, key.task_id, key.run_id, key.map_index)
+            for key, _ in buffered_events
+            if key in running
+        ]
+        # list of TaskInstance of running tasks in executor (refreshed from db in batch)
+        refreshed_running_tis = session.scalars(
+            select(TaskInstance).where(
+                tuple_(
+                    TaskInstance.dag_id,
+                    TaskInstance.task_id,
+                    TaskInstance.run_id,
+                    TaskInstance.map_index,
+                ).in_(running_tis_ids)
+            )
+        ).all()
+        # dict of refreshed TaskInstance by key to easily find them
+        running_dict = {(ti.dag_id, ti.task_id, ti.run_id, ti.map_index): ti for ti in refreshed_running_tis}
+        need_refresh = False
 
         for key, value in buffered_events:
             state, info = value
@@ -526,6 +518,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
                         ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+                        if ti.dag_run not in ti_status.active_runs:
+                            ti_status.active_runs.add(ti.dag_run)
                 else:
                     # Default behaviour which works for subdag.
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
@@ -746,7 +740,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             session.commit()
 
             # update dag run state
-            _dag_runs = ti_status.active_runs[:]
+            _dag_runs = ti_status.active_runs.copy()
             for run in _dag_runs:
                 run.update_state(session=session)
                 if run.state in State.finished_dr_states:
@@ -848,7 +842,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 if dag_run is not None:
                     tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
-                    ti_status.active_runs.append(dag_run)
+                    ti_status.active_runs.add(dag_run)
                     ti_status.to_run.update(tis_map or {})
 
         processed_dag_run_dates = self._process_backfill_task_instances(

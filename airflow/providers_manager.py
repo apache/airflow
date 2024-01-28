@@ -404,7 +404,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return ProvidersManager._initialized
 
     @staticmethod
-    def initialization_stack_trace() -> str:
+    def initialization_stack_trace() -> str | None:
         return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
@@ -418,7 +418,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
-        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
+        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -966,6 +966,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
+        except ImportError as e:
+            if "No module named 'flask_appbuilder'" in e.msg:
+                log.warning(
+                    "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
+                    "the 'flask_appbuilder' package is not installed, however it is not required for "
+                    "Airflow components to work",
+                    hook_class_name,
+                )
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
@@ -1120,7 +1128,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("config"):
-                self._provider_configs[provider_package] = provider.data.get("config")
+                self._provider_configs[provider_package] = (
+                    provider.data.get("config")  # type: ignore[assignment]
+                )
 
     def _discover_plugins(self) -> None:
         """Retrieve all plugins defined in the providers."""
@@ -1196,7 +1206,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @property
     def taskflow_decorators(self) -> dict[str, TaskDecorator]:
         self.initialize_providers_taskflow_decorator()
-        return self._taskflow_decorators
+        return self._taskflow_decorators  # type: ignore[return-value]
 
     @property
     def extra_links_class_names(self) -> list[str]:

@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Redshift SQL. (#35794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 1.3.1
 .....
 

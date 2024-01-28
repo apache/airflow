@@ -172,7 +172,7 @@ def check_documentation_link_exists(link: str, doc_file_name: str):
         fail_pre_commit = True
         console.print()
         console.print(
-            f"[red]ERROR! The {docs_file} does not contain:\n:[/]" f"{link}\n" f"[bright_blue]Please add it!"
+            f"[red]ERROR! The {docs_file} does not contain:\n:[/]{link}\n[bright_blue]Please add it!"
         )
         console.print()
 

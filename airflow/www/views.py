@@ -72,7 +72,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -133,7 +133,6 @@ from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.auth import has_access_with_pk
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
@@ -1945,7 +1944,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, dag_id: str, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
-        run_id = request.values.get("run_id", "").replace(" ", "+")
+        run_id = request.values.get("run_id", "")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
@@ -2030,6 +2029,7 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
 
+        num_recent_confs = conf.getint("webserver", "num_recent_configurations_for_trigger")
         recent_runs = session.execute(
             select(DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date))
             .where(
@@ -2039,7 +2039,7 @@ class Airflow(AirflowBaseView):
             )
             .group_by(DagRun.conf)
             .order_by(func.max(DagRun.execution_date).desc())
-            .limit(5)
+            .limit(num_recent_confs)
         )
         recent_confs = {
             run_id: json.dumps(run_conf)
@@ -2890,14 +2890,6 @@ class Airflow(AirflowBaseView):
     @provide_session
     def calendar(self, dag_id: str, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
-
-        def _convert_to_date(session, column):
-            """Convert column to date."""
-            if session.bind.dialect.name == "mssql":
-                return column.cast(Date)
-            else:
-                return func.date(column)
-
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -2913,15 +2905,15 @@ class Airflow(AirflowBaseView):
 
         dag_states = session.execute(
             select(
-                _convert_to_date(session, DagRun.execution_date).label("date"),
+                func.date(DagRun.execution_date).label("date"),
                 DagRun.state,
                 func.max(DagRun.data_interval_start).label("data_interval_start"),
                 func.max(DagRun.data_interval_end).label("data_interval_end"),
                 func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag.dag_id)
-            .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
-            .order_by(_convert_to_date(session, DagRun.execution_date).asc())
+            .group_by(func.date(DagRun.execution_date), DagRun.state)
+            .order_by(func.date(DagRun.execution_date).asc())
         ).all()
 
         data_dag_states = [
@@ -4002,7 +3994,7 @@ class AirflowModelView(ModelView):
         return attribute
 
     @expose("/show/<pk>", methods=["GET"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def show(self, pk):
         """
         Show view.
@@ -4024,7 +4016,7 @@ class AirflowModelView(ModelView):
         )
 
     @expose("/edit/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def edit(self, pk):
         """
         Edit view.
@@ -4048,7 +4040,7 @@ class AirflowModelView(ModelView):
             )
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """
         Delete view.
@@ -4746,7 +4738,7 @@ class PoolModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """Single delete."""
         if models.Pool.is_default_pool(pk):
@@ -5450,7 +5442,6 @@ class TaskInstanceModelView(AirflowModelView):
         "action_clear": "edit",
         "action_clear_downstream": "edit",
         "action_muldelete": "delete",
-        "action_set_running": "edit",
         "action_set_failed": "edit",
         "action_set_success": "edit",
         "action_set_retry": "edit",
@@ -5726,15 +5717,6 @@ class TaskInstanceModelView(AirflowModelView):
             flash(f"{count} task instances were set to '{target_state}'")
         except Exception:
             flash("Failed to set state", "error")
-
-    @action("set_running", "Set state to 'running'", "", single=False)
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
-    def action_set_running(self, tis):
-        """Set state to 'running'."""
-        self.set_task_instance_state(tis, TaskInstanceState.RUNNING)
-        self.update_redirect()
-        return redirect(self.get_redirect())
 
     @action("set_failed", "Set state to 'failed'", "", single=False)
     @auth.has_access_dag_entities("PUT", DagAccessEntity.TASK_INSTANCE)

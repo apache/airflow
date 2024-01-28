@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
-# in your sources (or they were added automatically by setup.py etc.) to be mounted to container.
+# in your sources (or they were added automatically by pyproject.toml) to be mounted to container.
 # This is important to get a "clean" environment for different python versions and to avoid
 # unnecessary slow-downs when you are mounting files on MacOS (which has very slow filesystem)
 # Any time you add a top-level folder in airflow that should also be added to container you should
@@ -78,25 +78,21 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
-    ("BREEZE.rst", "/opt/airflow/BREEZE.rst"),
     ("LICENSE", "/opt/airflow/LICENSE"),
-    ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
     ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("constraints", "/opt/airflow/constraints"),
+    ("clients", "/opt/airflow/clients"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
-    ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
-    ("setup.cfg", "/opt/airflow/setup.cfg"),
-    ("setup.py", "/opt/airflow/setup.py"),
     ("tests", "/opt/airflow/tests"),
     ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
@@ -794,9 +790,6 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
             get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
         if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:

@@ -49,6 +49,10 @@ Name                                        Description
 ``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
 ``on_execute_callback``                     Invoked right before the task begins executing.
+``on_skipped_callback``                     Invoked when the task is :ref:`running <concepts:task-instances>` and  AirflowSkipException raised.
+                                            Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
+                                            decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+                                            is never scheduled.
 =========================================== ================================================================
 
 

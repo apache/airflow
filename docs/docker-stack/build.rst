@@ -1014,7 +1014,7 @@ The architecture of the images
 ..............................
 
 You can read more details about the images - the context, their parameters and internal structure in the
-`IMAGES.rst <https://github.com/apache/airflow/blob/main/IMAGES.rst>`_ document.
+`Images documentation <https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md>`_.
 
 
 Pip packages caching

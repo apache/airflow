@@ -33,7 +33,7 @@ class BuildCiParams(CommonBuildParams):
 
     airflow_constraints_mode: str = "constraints-source-providers"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    airflow_extras: str = "devel_ci"
+    airflow_extras: str = "devel-ci"
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
     upgrade_to_newer_dependencies: bool = False

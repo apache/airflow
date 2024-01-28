@@ -45,12 +45,32 @@ def read_airflow_version() -> str:
     raise RuntimeError("Couldn't find __version__ in AST")
 
 
-def filter_out_providers_on_non_main_branch(files: list[str]) -> list[str]:
-    """When running build on non-main branch do not take providers into account"""
+def pre_process_files(files: list[str]) -> list[str]:
+    """Pre-process files passed to mypy.
+
+    * When running build on non-main branch do not take providers into account.
+    * When running "airflow/providers" package, then we need to add --namespace-packages flag.
+    * When running "airflow" package, then we need to exclude providers.
+    """
     default_branch = os.environ.get("DEFAULT_BRANCH")
     if not default_branch or default_branch == "main":
         return files
-    return [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
+    result = [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
+    if "airflow/providers" in files:
+        if len(files) > 1:
+            raise RuntimeError(
+                "When running `airflow/providers` package, you cannot run any other packages because only "
+                "airflow/providers package requires --namespace-packages flag to be set"
+            )
+        result.append("--namespace-packages")
+    if "airflow" in files:
+        if len(files) > 1:
+            raise RuntimeError(
+                "When running `airflow` package, you cannot run any other packages because only "
+                "airflow/providers package requires --exclude airflow/providers/.* flag to be set"
+            )
+        result.extend(["--exclude", "airflow/providers/.*"])
+    return result
 
 
 def insert_documentation(file_path: Path, content: list[str], header: str, footer: str):

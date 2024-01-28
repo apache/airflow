@@ -472,3 +472,55 @@ class TestCliUsers:
     def test_cli_import_users_exceptions(self, user, message):
         with pytest.raises(SystemExit, match=re.escape(message)):
             self._import_users_from_file([user])
+
+    def test_cli_reset_user_password(self):
+        args = self.parser.parse_args(
+            [
+                "users",
+                "create",
+                "--username",
+                "test3",
+                "--lastname",
+                "doe",
+                "--firstname",
+                "jon",
+                "--email",
+                "jdoe@example.com",
+                "--role",
+                "Viewer",
+                "--use-random-password",
+            ]
+        )
+        user_command.users_create(args)
+        args = self.parser.parse_args(
+            ["users", "reset-password", "--username", "test3", "--use-random-password"]
+        )
+        with redirect_stdout(StringIO()) as stdout:
+            user_command.user_reset_password(args)
+        assert 'User "test3" password reset successfully' in stdout.getvalue()
+
+    def test_cli_reset_user_password_with_email(self):
+        args = self.parser.parse_args(
+            [
+                "users",
+                "create",
+                "--username",
+                "test3",
+                "--lastname",
+                "doe",
+                "--firstname",
+                "jon",
+                "--email",
+                "jdoe@example.com",
+                "--role",
+                "Viewer",
+                "--use-random-password",
+            ]
+        )
+        user_command.users_create(args)
+        args = self.parser.parse_args(
+            ["users", "reset-password", "--email", "jdoe@example.com", "--password", "s3cr3t"]
+        )
+        with redirect_stdout(StringIO()) as stdout:
+            user_command.user_reset_password(args)
+        assert 'User "test3" password reset successfully' in stdout.getvalue()

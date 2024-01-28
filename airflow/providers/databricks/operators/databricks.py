@@ -88,6 +88,19 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                             f"{operator.task_id} failed with terminal state: {run_state} "
                             f"and with the error {run_state.state_message}"
                         )
+                    if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
+                        operator.repair_run = False
+                        log.warning(
+                            "%s but since repair run is set, repairing the run with all failed tasks",
+                            error_message,
+                        )
+
+                        latest_repair_id = hook.get_latest_repair_id(operator.run_id)
+                        repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
+                        if latest_repair_id is not None:
+                            repair_json["latest_repair_id"] = latest_repair_id
+                        operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
+                        _handle_databricks_operator_execution(operator, hook, log, context)
                     raise AirflowException(error_message)
 
             else:
@@ -119,18 +132,24 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if operator.wait_for_termination:
-        operator.defer(
-            trigger=DatabricksExecutionTrigger(
-                run_id=operator.run_id,
-                databricks_conn_id=operator.databricks_conn_id,
-                polling_period_seconds=operator.polling_period_seconds,
-                retry_limit=operator.databricks_retry_limit,
-                retry_delay=operator.databricks_retry_delay,
-                retry_args=operator.databricks_retry_args,
-                run_page_url=run_page_url,
-            ),
-            method_name=DEFER_METHOD_NAME,
-        )
+        run_info = hook.get_run(operator.run_id)
+        run_state = RunState(**run_info["state"])
+        if not run_state.is_terminal:
+            operator.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=operator.run_id,
+                    databricks_conn_id=operator.databricks_conn_id,
+                    polling_period_seconds=operator.polling_period_seconds,
+                    retry_limit=operator.databricks_retry_limit,
+                    retry_delay=operator.databricks_retry_delay,
+                    retry_args=operator.databricks_retry_args,
+                    run_page_url=run_page_url,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        else:
+            if run_state.is_successful:
+                log.info("%s completed successfully.", operator.task_id)
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
@@ -623,6 +642,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``jar_params``
         - ``spark_submit_params``
         - ``idempotency_token``
+        - ``repair_run``
 
     :param job_id: the job_id of the existing Databricks job.
         This field will be templated.
@@ -711,6 +731,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
+    :param repair_run: Repair the databricks run in case of failure, doesn't work in deferrable mode
     """
 
     # Used in airflow.models.BaseOperator
@@ -741,6 +762,7 @@ class DatabricksRunNowOperator(BaseOperator):
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        repair_run: bool = False,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -753,6 +775,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.repair_run = repair_run
 
         if job_id is not None:
             self.json["job_id"] = job_id

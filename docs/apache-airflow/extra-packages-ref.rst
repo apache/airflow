@@ -18,17 +18,22 @@
 Reference for package extras
 ''''''''''''''''''''''''''''
 
+Airflow has a number of optional "extras" that you can use to add features to your installation when you
+are installing Airflow. Those extras are a good way for the users to manage their installation, but also
+they are useful for contributors to airflow when they want to contribute some of the features - including
+optional integrations of Airflow - via providers.
+
+.. warning::
+
+    Traditionally in Airflow some of the extras used `.` and `_` to separate the parts of the extra name.
+    This was not PEP-685 normalized name and we opted to change it to to `-` for all our extras, Expecting that
+    PEP-685 will be implemented in full by `pip` and other tools we change all our extras to use `-` as
+    separator even if in some cases it will introduce warnings (the warnings are harmless). This is future
+    proof approach. It's also fully backwards-compatible if you use `_` or `.` in your extras, but we
+    recommend using `-` as separator in the future.
+
+
 Here's the list of all the extra dependencies of Apache Airflow.
-
-The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
-pre-installed when Airflow is installed.
-
-.. note::
-  You can disable automated installation of the providers with extras when installing Airflow. You need to
-  have ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true`` before running ``pip install``
-  command. Contributors need to set it, if they are installing Airflow locally, and want to develop
-  providers directly via Airflow sources. This variable is automatically set in ``Breeze``
-  development environment. Setting this variable is not needed in editable mode (``pip install -e``).
 
 Core Airflow extras
 -------------------
@@ -46,11 +51,15 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| deprecated_api      | ``pip install 'apache-airflow[deprecated_api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
+| deprecated-api      | ``pip install 'apache-airflow[deprecated-api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                             |
+| github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
+| google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphvis]'``          | Enables exporting DAGs to .dot graphical output                            |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -97,7 +106,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
 .. code-block:: bash
     :substitutions:
 
-    pip install apache-airflow[google,amazon,apache.spark]==|version| \
+    pip install apache-airflow[google,amazon,apache-spark]==|version| \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
@@ -114,39 +123,38 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | extra               | install command                                     | enables                                        |
 +=====================+=====================================================+================================================+
-| apache.atlas        | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas                                   |
+| apache-atlas        | ``pip install 'apache-airflow[apache-atlas]'``      | Apache Atlas                                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.beam         | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                  |
+| apache-beam         | ``pip install 'apache-airflow[apache-beam]'``       | Apache Beam operators & hooks                  |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.cassandra    | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks            |
+| apache-cassandra    | ``pip install 'apache-airflow[apache-cassandra]'``  | Cassandra related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.drill        | ``pip install 'apache-airflow[apache.drill]'``      | Drill related operators & hooks                |
+| apache-drill        | ``pip install 'apache-airflow[apache-drill]'``      | Drill related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |
+| apache-druid        | ``pip install 'apache-airflow[apache-druid]'``      | Druid related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.flink        | ``pip install 'apache-airflow[apache.flink]'``      | Flink related operators & hooks                |
+| apache-flink        | ``pip install 'apache-airflow[apache-flink]'``      | Flink related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.hdfs         | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                       |
+| apache-hdfs         | ``pip install 'apache-airflow[apache-hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |
+| apache-hive         | ``pip install 'apache-airflow[apache-hive]'``       | All Hive related operators                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
+| apache-impala       | ``pip install 'apache-airflow[apache-impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.kafka        | ``pip install 'apache-airflow[apache.kafka]'``      | All Kafka related operators & hooks            |
+| apache-kafka        | ``pip install 'apache-airflow[apache-kafka]'``      | All Kafka related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
+| apache-kylin        | ``pip install 'apache-airflow[apache-kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.livy         | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors    |
+| apache-livy         | ``pip install 'apache-airflow[apache-livy]'``       | All Livy related operators, hooks & sensors    |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.pig          | ``pip install 'apache-airflow[apache.pig]'``        | All Pig related operators & hooks              |
+| apache-pig          | ``pip install 'apache-airflow[apache-pig]'``        | All Pig related operators & hooks              |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.pinot        | ``pip install 'apache-airflow[apache.pinot]'``      | All Pinot related hooks                        |
+| apache-pinot        | ``pip install 'apache-airflow[apache-pinot]'``      | All Pinot related hooks                        |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.spark        | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks            |
+| apache-spark        | ``pip install 'apache-airflow[apache-spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-| apache.webhdfs      | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                       |
+| apache-webhdfs      | ``pip install 'apache-airflow[apache-webhdfs]'``    | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
-
 
 External Services extras
 ========================
@@ -166,9 +174,9 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| atlassian.jira      | ``pip install 'apache-airflow[atlassian.jira]'``    | Jira hooks and operators                            |
+| atlassian-jira      | ``pip install 'apache-airflow[atlassian-jira]'``    | Jira hooks and operators                            |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
+| microsoft-azure     | ``pip install 'apache-airflow[microsoft-azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -178,7 +186,7 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| dbt.cloud           | ``pip install 'apache-airflow[dbt.cloud]'``         | dbt Cloud hooks and operators                       |
+| dbt-cloud           | ``pip install 'apache-airflow[dbt-cloud]'``         | dbt Cloud hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -241,7 +249,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | celery              | ``pip install 'apache-airflow[celery]'``            | Celery dependencies and sensor                                  | CeleryExecutor, CeleryKubernetesExecutor     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes client libraries, KubernetesPodOperator & friends    | KubernetesExecutor, LocalKubernetesExecutor  |
+| cncf-kubernetes     | ``pip install 'apache-airflow[cncf-kubernetes]'``   | Kubernetes client libraries, KubernetesPodOperator & friends    | KubernetesExecutor, LocalKubernetesExecutor  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                      |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
@@ -259,7 +267,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                       |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| microsoft.mssql     | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook.                        |                                              |
+| microsoft-mssql     | ``pip install 'apache-airflow[microsoft-mssql]'``   | Microsoft SQL Server operators and hook.                        |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | mysql               | ``pip install 'apache-airflow[mysql]'``             | MySQL operators and hook                                        |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
@@ -290,12 +298,16 @@ Other extras
 
 These are extras that provide support for integration with external systems via some - usually - standard protocols.
 
+The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
+pre-installed when Airflow is installed.
+
+
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
-| common.io           | ``pip install 'apache-airflow[common.io]'``         | Core IO Operators                    |              |
+| common-io           | ``pip install 'apache-airflow[common-io]'``         | Core IO Operators                    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Core SQL Operators                   |      *       |
+| common-sql          | ``pip install 'apache-airflow[common-sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
@@ -307,9 +319,9 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
+| microsoft-psrp      | ``pip install 'apache-airflow[microsoft-psrp]'``    | PSRP hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
+| microsoft-winrm     | ``pip install 'apache-airflow[microsoft-winrm]'``   | WinRM hooks and operators            |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
@@ -326,44 +338,90 @@ These are extras that provide support for integration with external systems via 
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
-Bundle extras
--------------
+Production Bundle extras
+-------------------------
 
-These are extras that install one or more extras as a bundle. Note that these extras should only be used for "development" version
-of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
-work when airflow is installed from 'PyPI`.
-
-If you want to install Airflow from PyPI with "all" extras (which should basically be never needed - you almost never need all extras from Airflow),
-you need to list explicitly all the non-bundle extras that you want to install.
+These are extras that install one or more extras as a bundle.
 
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                                |
 +=====================+=====================================================+========================================================================+
 | all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)       |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All database integrations                                              |
+| all-core            | ``pip install 'apache-airflow[all-core]'``          | All core airflow features that do not require installing providers     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum development dependencies (without Hadoop, Kerberos, providers) |
+| all-dbs             | ``pip install 'apache-airflow[all-dbs]'``           | All database integrations                                              |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Adds Hadoop stack libraries to ``devel`` dependencies                  |
+
+Development extras
+------------------
+
+The ``devel`` extras only make sense in editable mode. Users of Airflow should not be using them, unless they
+start contributing back and install airflow from sources. Those extras are only available in Airflow when
+it is installed in editable mode from sources (``pip install -e .[devel,EXTRAS]``).
+
+Devel extras
+============
+
+The devel extras do not install dependencies for features of Airflow, but add functionality that is needed to
+develop Airflow, such as running tests, static checks.
+
++---------------------+-----------------------------------------+------------------------------------------------------+
+| extra               | install command                         | enables                                              |
++=====================+=========================================+======================================================+
+| devel-debuggers     | pip install -e '.[devel-debuggers]'     | Adds all test libraries needed to test debuggers     |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-devscripts    | pip install -e '.[devel-devscripts]'    | Adds all test libraries needed to test devel scripts |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-duckdb        | pip install -e '.[devel-duckdb]'        | Adds all test libraries needed to test duckdb        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-iceberg       | pip install -e '.[devel-iceberg]'       | Adds all test libraries needed to test iceberg       |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-mypy          | pip install -e '.[devel-mypy]'          | Adds all test libraries needed to test mypy          |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-sentry        | pip install -e '.[devel-sentry]'        | Adds all test libraries needed to test sentry        |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-static-checks | pip install -e '.[devel-static-checks]' | Adds all test libraries needed to test static_checks |
++---------------------+-----------------------------------------+------------------------------------------------------+
+| devel-tests         | pip install -e '.[devel-tests]'         | Adds all test libraries needed to test tests         |
++---------------------+-----------------------------------------+------------------------------------------------------+
+
+Bundle devel extras
+===================
+
+Those are extras that bundle devel, editable and doc extras together to make it easy to install them together in a single installation. Some of the
+extras are more difficult to install on certain systems (such as ARM MacBooks) because they require system level dependencies to be installed.
+
+Note that ``pip install -e ".[devel]"`` should be run at least once, the first time you initialize the editable environment in order
+to get minimal, complete test environment with usual tools and dependencies needed for unit testing.
+
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development including Hadoop and providers       |
+| extra               | install command                                     | enables                                                                |
++=====================+=====================================================+========================================================================+
+| devel               | ``pip install -e '.[devel]'``                       | Minimum development dependencies - minimal, complete test environment  |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests (same as ``devel_all``)         |
+| devel-hadoop        | ``pip install -e '.[devel-hadoop]'``                | Adds Hadoop stack libraries ``devel`` dependencies                     |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel-all-dbs       | ``pip install -e '.[devel-all-dbs]'``               | Adds all libraries needed to test database providers                   |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel-all           | ``pip install -e '.[devel-all]'``                   | Everything needed for development including Hadoop, all devel extras,  |
+|                     |                                                     | all doc extras. Generally: all possible dependencies                   |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel-ci            | ``pip install -e '.[devel-ci]'``                    | All dependencies required for CI tests (same as ``devel-all``)         |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 
 Doc extras
-----------
+==========
 
 Those are the extras that are needed to generated documentation for Airflow. This is used for development time only
 
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                              |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| doc_gen             | ``pip install 'apache-airflow[doc_gen]'``           | Packages needed to generate er diagrams (included in ``devel_all``)  |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| extra               | install command                                     | enables                                                                |
++=====================+=====================================================+========================================================================+
+| doc                 | ``pip install -e '.[doc]'``                         | Packages needed to build docs (included in ``devel``)                  |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| doc-gen             | ``pip install -e '.[doc-gen]'``                     | Packages needed to generate er diagrams (included in ``devel-all``)    |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 
 
 Deprecated 1.10 extras
@@ -378,37 +436,37 @@ so there is no replacement for ``crypto`` extra.
 +---------------------+-----------------------------+
 | Deprecated extra    | Extra to be used instead    |
 +=====================+=============================+
-| atlas               | apache.atlas                |
+| atlas               | apache-atlas                |
 +---------------------+-----------------------------+
 | aws                 | amazon                      |
 +---------------------+-----------------------------+
-| azure               | microsoft.azure             |
+| azure               | microsoft-azure             |
 +---------------------+-----------------------------+
-| cassandra           | apache.cassandra            |
+| cassandra           | apache-cassandra            |
 +---------------------+-----------------------------+
 | crypto              |                             |
 +---------------------+-----------------------------+
-| druid               | apache.druid                |
+| druid               | apache-druid                |
 +---------------------+-----------------------------+
 | gcp                 | google                      |
 +---------------------+-----------------------------+
 | gcp_api             | google                      |
 +---------------------+-----------------------------+
-| hdfs                | apache.hdfs                 |
+| hdfs                | apache-hdfs                 |
 +---------------------+-----------------------------+
-| hive                | apache.hive                 |
+| hive                | apache-hive                 |
 +---------------------+-----------------------------+
-| kubernetes          | cncf.kubernetes             |
+| kubernetes          | cncf-kubernetes             |
 +---------------------+-----------------------------+
-| mssql               | microsoft.mssql             |
+| mssql               | microsoft-mssql             |
 +---------------------+-----------------------------+
-| pinot               | apache.pinot                |
+| pinot               | apache-pinot                |
 +---------------------+-----------------------------+
 | s3                  | amazon                      |
 +---------------------+-----------------------------+
-| spark               | apache.spark                |
+| spark               | apache-spark                |
 +---------------------+-----------------------------+
-| webhdfs             | apache.webhdfs              |
+| webhdfs             | apache-webhdfs              |
 +---------------------+-----------------------------+
-| winrm               | microsoft.winrm             |
+| winrm               | microsoft-winrm             |
 +---------------------+-----------------------------+

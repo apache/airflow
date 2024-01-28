@@ -46,7 +46,6 @@ from airflow_breeze.commands.common_image_options import (
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
     option_install_mysql_client_type,
-    option_install_providers_from_sources,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
@@ -304,7 +303,6 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_install_mysql_client_type
 @option_image_tag_for_building
 @option_include_success_outputs
-@option_install_providers_from_sources
 @option_parallelism
 @option_platform_multiple
 @option_prepare_buildx_cache
@@ -345,7 +343,6 @@ def build(
     image_tag: str,
     include_success_outputs,
     install_mysql_client_type: str,
-    install_providers_from_sources: bool,
     parallelism: int,
     platform: str | None,
     prepare_buildx_cache: bool,
@@ -417,7 +414,6 @@ def build(
         github_token=github_token,
         image_tag=image_tag,
         install_mysql_client_type=install_mysql_client_type,
-        install_providers_from_sources=install_providers_from_sources,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
         python=python,
@@ -619,7 +615,7 @@ def verify(
     )
     if (pull or image_name) and run_in_parallel:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:
@@ -713,7 +709,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                     get_console().print(
                         f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
                         "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n"
+                        "https://github.com/apache/airflow/blob/main/contributing-docs/11_working_with_git.rst\n"
                     )
                     get_console().print("[error]Exiting the process[/]\n")
                     sys.exit(1)

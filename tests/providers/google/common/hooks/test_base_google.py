@@ -26,6 +26,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import google.auth
+import google.auth.compute_engine
 import pytest
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
@@ -49,6 +50,7 @@ except GoogleAuthError:
 MODULE_NAME = "airflow.providers.google.common.hooks.base_google"
 PROJECT_ID = "PROJECT_ID"
 ENV_VALUE = "/tmp/a"
+SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 
 class NoForbiddenAfterCount:
@@ -874,3 +876,95 @@ class TestNumRetry:
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         assert isinstance(instance.num_retries, int)
         assert 5 == instance.num_retries
+
+
+class TestCredentialsToken:
+    @pytest.mark.asyncio
+    async def test_get_project(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
+        assert await token.get_project() == PROJECT_ID
+
+    @pytest.mark.asyncio
+    async def test_get(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    async def test_from_hook(self, get_creds_and_project, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://",
+        )
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        token = await hook._CredentialsToken.from_hook(instance)
+        assert token.credentials == "CREDENTIALS"
+        assert token.project == "PROJECT_ID"
+
+
+class TestGoogleBaseAsyncHook:
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token(self, mock_auth_default, monkeypatch) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID",
+        )
+
+        instance = hook.GoogleBaseAsyncHook(gcp_conn_id="google_cloud_default")
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token_impersonation(self, mock_auth_default, monkeypatch, requests_mock) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID",
+        )
+        requests_mock.post(
+            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com:generateAccessToken",
+            text='{"accessToken": "IMPERSONATED_ACCESS_TOKEN", "expireTime": "2014-10-02T15:01:23Z"}',
+        )
+
+        instance = hook.GoogleBaseAsyncHook(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain="SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com",
+        )
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "IMPERSONATED_ACCESS_TOKEN"
+
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token_impersonation_conn(self, mock_auth_default, monkeypatch, requests_mock) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID&impersonation_chain=SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com",
+        )
+        requests_mock.post(
+            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com:generateAccessToken",
+            text='{"accessToken": "IMPERSONATED_ACCESS_TOKEN", "expireTime": "2014-10-02T15:01:23Z"}',
+        )
+
+        instance = hook.GoogleBaseAsyncHook(gcp_conn_id="google_cloud_default")
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "IMPERSONATED_ACCESS_TOKEN"

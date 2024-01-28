@@ -33,7 +33,7 @@ of object-name => data. To enable remote access, operations on objects are usual
 
 Airflow provides a generic abstraction on top of object stores, like s3, gcs, and azure blob storage.
 This abstraction allows you to use a variety of object storage systems in your DAGs without having to
-change you code to deal with every different object storage system. In addition, it allows you to use
+change your code to deal with every different object storage system. In addition, it allows you to use
 most of the standard Python modules, like ``shutil``, that can work with file-like objects.
 
 Support for a particular object storage system depends on the providers you have installed. For
@@ -76,7 +76,8 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
     base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
-The username part of the URI is optional. It can alternatively be passed in as a separate keyword argument:
+The username part of the URI represents the Airflow connection id and is optional. It can alternatively be passed
+in as a separate keyword argument:
 
 .. code-block:: python
 
@@ -242,6 +243,11 @@ key
 
 Returns the object key.
 
+namespace
+^^^^^^^^^
+
+Returns the namespace of the object. Typically this is the protocol, like ``s3://`` with the
+bucket name.
 
 path
 ^^^^

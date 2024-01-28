@@ -86,7 +86,7 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_SOURCES_ROOT)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
-        f"[info]Copying provider sources: " f"{source_provider_sources_path} -> {target_providers_sub_folder}"
+        f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
     )
     copytree(source_provider_sources_path, target_providers_sub_folder)
     shutil.copy(AIRFLOW_SOURCES_ROOT / "LICENSE", target_providers_sub_folder / "LICENSE")
@@ -214,9 +214,7 @@ def build_provider_package(provider_id: str, target_provider_root_sources_path: 
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()
-    get_console().print(
-        f"\n[info]Prepared provider package {provider_id} in " f"format {package_format}[/]\n"
-    )
+    get_console().print(f"\n[info]Prepared provider package {provider_id} in format {package_format}[/]\n")
 
 
 def move_built_packages_and_cleanup(
@@ -260,7 +258,8 @@ def get_packages_list_to_act_on(
         return [
             package.strip()
             for package in package_list_file.readlines()
-            if (package.strip() not in removed_provider_ids or include_removed)
+            if not package.strip().startswith("#")
+            and (package.strip() not in removed_provider_ids or include_removed)
             and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
     elif provider_packages:

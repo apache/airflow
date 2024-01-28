@@ -458,7 +458,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(self.appbuilder.app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
-    def reset_password(self, userid, password):
+    def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
 
@@ -470,7 +470,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         user.password = generate_password_hash(password)
         self.reset_user_sessions(user)
-        self.update_user(user)
+        return self.update_user(user)
 
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
@@ -1290,6 +1290,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             .exists()
         )
         # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
+        # Note: We need to keep MSSQL compatibility as long as this provider package
+        #       might still be updated by Airflow prior 2.9.0 users with MSSQL
         if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
             return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
@@ -1534,7 +1536,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             .limit(1)
         )
 
-    def update_user(self, user):
+    def update_user(self, user: User) -> bool:
         try:
             self.get_session.merge(user)
             self.get_session.commit()
@@ -1543,6 +1545,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.get_session.rollback()
             return False
+        return True
 
     def del_register_user(self, register_user):
         """

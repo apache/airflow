@@ -21,15 +21,25 @@ from pathlib import Path
 from diagrams import Cluster, Diagram, Edge
 from diagrams.custom import Custom
 from diagrams.onprem.client import User
-from diagrams.onprem.database import PostgreSQL
-from diagrams.programming.flowchart import MultipleDocuments
+from diagrams.programming.language import Python
 from rich.console import Console
 
 MY_DIR = Path(__file__).parent
 MY_FILENAME = Path(__file__).with_suffix("").name
-PYTHON_MULTIPROCESS_LOGO = MY_DIR.parents[1] / "diagrams" / "python_multiprocess_logo.png"
+PACKAGES_IMAGE = MY_DIR.parents[1] / "diagrams" / "packages.png"
+DATABASE_IMAGE = MY_DIR.parents[1] / "diagrams" / "database.png"
+MULTIPLE_FILES_IMAGE = MY_DIR.parents[1] / "diagrams" / "multiple_files.png"
 
 console = Console(width=400, color_system="standard")
+
+graph_attr = {
+    "concentrate": "false",
+    "splines": "splines",
+}
+
+edge_attr = {
+    "minlen": "2",
+}
 
 
 def generate_basic_airflow_diagram():
@@ -37,39 +47,43 @@ def generate_basic_airflow_diagram():
 
     console.print(f"[bright_blue]Generating architecture image {image_file}")
     with Diagram(
-        name="", show=False, direction="LR", curvestyle="ortho", filename=MY_FILENAME, outformat="png"
+        name="",
+        show=False,
+        direction="LR",
+        filename=MY_FILENAME,
+        outformat="png",
+        graph_attr=graph_attr,
+        edge_attr=edge_attr,
     ):
-        with Cluster("Parsing & Scheduling"):
-            schedulers = Custom("Scheduler(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+        user = User("Airflow User")
 
-        metadata_db = PostgreSQL("Metadata DB")
+        dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix())
+        user >> Edge(color="brown", style="solid", reverse=False, label="author\n\n") >> dag_files
 
-        dag_author = User("DAG Author")
-        dag_files = MultipleDocuments("DAG files")
+        with Cluster("Parsing, Scheduling & Executing"):
+            scheduler = Python("Scheduler")
 
-        dag_author >> Edge(color="black", style="dashed", reverse=False) >> dag_files
+        metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
+        scheduler >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
 
-        with Cluster("Execution"):
-            workers = Custom("Worker(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-            triggerer = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+        plugins_and_packages = Custom(
+            "Plugin folder\n& installed packages", PACKAGES_IMAGE.as_posix(), color="transparent"
+        )
 
-        schedulers - Edge(color="blue", style="dashed", taillabel="Executor") - workers
+        user >> Edge(color="blue", style="solid", reverse=False, label="install\n\n") >> plugins_and_packages
 
-        schedulers >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
-        workers >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
-        triggerer >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
-
-        operations_user = User("Operations User")
         with Cluster("UI"):
-            webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            webserver = Python("Webserver")
 
-        webservers >> Edge(color="black", style="dashed", reverse=True) >> operations_user
+        webserver >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> user
 
-        metadata_db >> Edge(color="red", style="dotted", reverse=True) >> webservers
+        metadata_db >> Edge(color="red", style="dotted", reverse=True) >> webserver
 
-        dag_files >> Edge(color="brown", style="solid") >> workers
-        dag_files >> Edge(color="brown", style="solid") >> schedulers
-        dag_files >> Edge(color="brown", style="solid") >> triggerer
+        dag_files >> Edge(color="brown", style="solid", label="read\n\n") >> scheduler
+
+        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> scheduler
+        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> webserver
+
     console.print(f"[green]Generating architecture image {image_file}")
 
 

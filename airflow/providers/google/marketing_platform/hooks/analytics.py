@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -30,6 +32,13 @@ class GoogleAnalyticsHook(GoogleBaseHook):
 
     def __init__(self, api_version: str = "v3", *args, **kwargs):
         super().__init__(*args, **kwargs)
+        warnings.warn(
+            f"The `{type(self).__name__}` class is deprecated, please use "
+            f"`GoogleAnalyticsAdminHook` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         self.api_version = api_version
         self._conn = None
 

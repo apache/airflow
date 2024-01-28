@@ -47,8 +47,8 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
 # Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
+ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
@@ -111,14 +111,12 @@ ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.2"
+MYSQL_INNOVATION_RELEASE = "8.3"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
-
-ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.3.2"
 
@@ -213,7 +211,6 @@ SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
 POSTGRES_HOST_PORT = "25433"
 MYSQL_HOST_PORT = "23306"
-MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
@@ -232,8 +229,6 @@ if USE_MYSQL_INNOVATION_RELEASE:
 else:
     CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
-DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -387,8 +382,7 @@ with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open(
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "setup.py",
-    "setup.cfg",
+    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
     "generated/provider_dependencies.json",
@@ -409,7 +403,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.20.0"
-HELM_VERSION = "v3.9.4"
+HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -430,18 +424,19 @@ DEFAULT_EXTRAS = [
     "amazon",
     "async",
     "celery",
-    "cncf.kubernetes",
-    "common.io",
+    "cncf-kubernetes",
+    "common-io",
     "docker",
     "elasticsearch",
     "ftp",
     "google",
-    "google_auth",
+    "google-auth",
+    "graphviz",
     "grpc",
     "hashicorp",
     "http",
     "ldap",
-    "microsoft.azure",
+    "microsoft-azure",
     "mysql",
     "odbc",
     "openlineage",

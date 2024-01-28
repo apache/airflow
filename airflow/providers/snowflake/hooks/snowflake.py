@@ -170,7 +170,9 @@ class SnowflakeHook(DbApiHook):
                 warnings.warn(
                     f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras. "
                     f"Using value for `{field_name}`.  Please ensure this is the correct "
-                    f"value and remove the backcompat key `{backcompat_key}`."
+                    f"value and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
@@ -300,7 +302,7 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -385,10 +387,10 @@ class SnowflakeHook(DbApiHook):
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
 
                     if handler is not None:
-                        result = self._make_common_data_structure(handler(cur))
+                        result = self._make_common_data_structure(handler(cur))  # type: ignore[attr-defined]
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description

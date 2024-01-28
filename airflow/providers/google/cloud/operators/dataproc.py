@@ -25,6 +25,7 @@ import re
 import time
 import uuid
 import warnings
+from collections.abc import MutableSequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -56,9 +57,10 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
     DataprocDeleteClusterTrigger,
+    DataprocOperationTrigger,
     DataprocSubmitTrigger,
-    DataprocWorkflowTrigger,
 )
+from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -66,6 +68,7 @@ if TYPE_CHECKING:
     from google.api_core.retry_async import AsyncRetry
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask
+    from google.type.interval_pb2 import Interval
 
     from airflow.utils.context import Context
 
@@ -155,12 +158,18 @@ class ClusterGenerator:
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param master_disk_size: Disk size for the primary node
+    :param master_accelerator_type: Type of the accelerator card (GPU) to attach to the primary node,
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param master_accelerator_count: Number of accelerator cards (GPUs) to attach to the primary node
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
     :param worker_disk_type: Type of the boot disk for the worker node
         (default is ``pd-standard``).
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
+    :param worker_accelerator_type: Type of the accelerator card (GPU) to attach to the worker nodes,
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the worker nodes
     :param num_preemptible_workers: The # of VM instances in the instance group as secondary workers
         inside the cluster with Preemptibility enabled by default.
         Note, that it is not possible to mix non-preemptible and preemptible secondary workers in
@@ -197,6 +206,9 @@ class ClusterGenerator:
         identify the driver group in future operations, such as resizing the node group.
     :param secondary_worker_instance_flexibility_policy: Instance flexibility Policy allowing a mixture of VM
         shapes and provisioning models.
+    :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
+        see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
+    :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     """
 
     def __init__(
@@ -224,9 +236,13 @@ class ClusterGenerator:
         master_machine_type: str = "n1-standard-4",
         master_disk_type: str = "pd-standard",
         master_disk_size: int = 1024,
+        master_accelerator_type: str | None = None,
+        master_accelerator_count: int | None = None,
         worker_machine_type: str = "n1-standard-4",
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
+        worker_accelerator_type: str | None = None,
+        worker_accelerator_count: int | None = None,
         num_preemptible_workers: int = 0,
         preemptibility: str = PreemptibilityType.PREEMPTIBLE.value,
         service_account: str | None = None,
@@ -239,6 +255,8 @@ class ClusterGenerator:
         driver_pool_size: int = 0,
         driver_pool_id: str | None = None,
         secondary_worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
+        secondary_worker_accelerator_type: str | None = None,
+        secondary_worker_accelerator_count: int | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -260,10 +278,14 @@ class ClusterGenerator:
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
+        self.master_accelerator_type = master_accelerator_type
+        self.master_accelerator_count = master_accelerator_count
         self.autoscaling_policy = autoscaling_policy
         self.worker_machine_type = worker_machine_type
         self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
+        self.worker_accelerator_type = worker_accelerator_type
+        self.worker_accelerator_count = worker_accelerator_count
         self.zone = zone
         self.network_uri = network_uri
         self.subnetwork_uri = subnetwork_uri
@@ -280,6 +302,8 @@ class ClusterGenerator:
         self.driver_pool_size = driver_pool_size
         self.driver_pool_id = driver_pool_id
         self.secondary_worker_instance_flexibility_policy = secondary_worker_instance_flexibility_policy
+        self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
+        self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -420,6 +444,18 @@ class ClusterGenerator:
         if self.min_num_workers:
             cluster_data["worker_config"]["min_num_instances"] = self.min_num_workers
 
+        if self.master_accelerator_type:
+            cluster_data["master_config"]["accelerators"] = {
+                "accelerator_type_uri": self.master_accelerator_type,
+                "accelerator_count": self.master_accelerator_count,
+            }
+
+        if self.worker_accelerator_type:
+            cluster_data["worker_config"]["accelerators"] = {
+                "accelerator_type_uri": self.worker_accelerator_type,
+                "accelerator_count": self.worker_accelerator_count,
+            }
+
         if self.num_preemptible_workers > 0:
             cluster_data["secondary_worker_config"] = {
                 "num_instances": self.num_preemptible_workers,
@@ -431,6 +467,11 @@ class ClusterGenerator:
                 "is_preemptible": True,
                 "preemptibility": self.preemptibility.value,
             }
+            if self.worker_accelerator_type:
+                cluster_data["secondary_worker_config"]["accelerators"] = {
+                    "accelerator_type_uri": self.secondary_worker_accelerator_type,
+                    "accelerator_count": self.secondary_worker_accelerator_count,
+                }
             if self.secondary_worker_instance_flexibility_policy:
                 cluster_data["secondary_worker_config"]["instance_flexibility_policy"] = {
                     "instance_selection_list": [
@@ -608,7 +649,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
                 "method to obtain cluster object.",
                 AirflowProviderDeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
             # Remove result of apply defaults
             if "params" in kwargs:
@@ -681,10 +722,13 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             return
         self.log.info("Cluster is in ERROR state")
         self.log.info("Gathering diagnostic information.")
-        gcs_uri = hook.diagnose_cluster(
+        operation = hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
+        operation.result()
+        gcs_uri = str(operation.operation.response.value)
         self.log.info("Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri)
+
         if self.delete_on_error:
             self._delete_cluster(hook)
             # The delete op is asynchronous and can cause further failure if the cluster finishes
@@ -718,9 +762,21 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             cluster = self._get_cluster(hook)
         return cluster
 
+    def _start_cluster(self, hook: DataprocHook):
+        op: operation.Operation = hook.start_cluster(
+            region=self.region,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        return hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
+
     def execute(self, context: Context) -> dict:
         self.log.info("Creating cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
         # Save data required to display extra link no matter what the cluster status will be
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -731,6 +787,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
                 region=self.region,
             )
+
         try:
             # First try to create a new cluster
             operation = self._create_cluster(hook)
@@ -741,17 +798,24 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 self.log.info("Cluster created.")
                 return Cluster.to_dict(cluster)
             else:
-                self.defer(
-                    trigger=DataprocClusterTrigger(
-                        cluster_name=self.cluster_name,
-                        project_id=self.project_id,
-                        region=self.region,
-                        gcp_conn_id=self.gcp_conn_id,
-                        impersonation_chain=self.impersonation_chain,
-                        polling_interval_seconds=self.polling_interval_seconds,
-                    ),
-                    method_name="execute_complete",
+                cluster = hook.get_cluster(
+                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
                 )
+                if cluster.status.state == cluster.status.State.RUNNING:
+                    self.log.info("Cluster created.")
+                    return Cluster.to_dict(cluster)
+                else:
+                    self.defer(
+                        trigger=DataprocClusterTrigger(
+                            cluster_name=self.cluster_name,
+                            project_id=self.project_id,
+                            region=self.region,
+                            gcp_conn_id=self.gcp_conn_id,
+                            impersonation_chain=self.impersonation_chain,
+                            polling_interval_seconds=self.polling_interval_seconds,
+                        ),
+                        method_name="execute_complete",
+                    )
         except AlreadyExists:
             if not self.use_if_exists:
                 raise
@@ -786,6 +850,9 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             # Create new cluster
             cluster = self._create_cluster(hook)
             self._handle_error_state(hook, cluster)
+        elif cluster.status.state == cluster.status.State.STOPPED:
+            # if the cluster exists and already stopped, then start the cluster
+            self._start_cluster(hook)
 
         return Cluster.to_dict(cluster)
 
@@ -878,7 +945,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, "
             "please use `DataprocUpdateClusterOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
     def _build_scale_cluster_data(self) -> dict:
@@ -1016,6 +1083,16 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Cluster deleted.")
         else:
+            try:
+                hook.get_cluster(
+                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+                )
+            except NotFound:
+                self.log.info("Cluster deleted.")
+                return
+            except Exception as e:
+                raise AirflowException(str(e))
+
             end_time: float = time.time() + self.timeout
             self.defer(
                 trigger=DataprocDeleteClusterTrigger(
@@ -1051,6 +1128,189 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
             cluster_name=self.cluster_name,
             cluster_uuid=self.cluster_uuid,
             request_id=self.request_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+
+class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
+    """Base class to start or stop a cluster in a project.
+
+    :param cluster_name: Required. Name of the cluster to create
+    :param region: Required. The specified region where the dataproc cluster is created.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
+    :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
+        if cluster with specified UUID does not exist.
+    :param request_id: Optional. A unique id used to identify the request. If the server receives two
+        ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and the
+        first ``google.longrunning.Operation`` created and stored in the backend is returned.
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :param metadata: Additional metadata that is provided to the method.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "cluster_name",
+        "region",
+        "project_id",
+        "request_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        cluster_name: str,
+        region: str,
+        project_id: str | None = None,
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        timeout: float = 1 * 60 * 60,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.cluster_name = cluster_name
+        self.cluster_uuid = cluster_uuid
+        self.request_id = request_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self._hook: DataprocHook | None = None
+
+    @property
+    def hook(self):
+        if self._hook is None:
+            self._hook = DataprocHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            )
+        return self._hook
+
+    def _get_project_id(self) -> str:
+        return self.project_id or self.hook.project_id
+
+    def _get_cluster(self) -> Cluster:
+        """Retrieve the cluster information.
+
+        :return: Instance of ``google.cloud.dataproc_v1.Cluster``` class
+        """
+        return self.hook.get_cluster(
+            project_id=self._get_project_id(),
+            region=self.region,
+            cluster_name=self.cluster_name,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+    def _check_desired_cluster_state(self, cluster: Cluster) -> tuple[bool, str | None]:
+        """Implement this method in child class to return whether the cluster is in desired state or not.
+
+        If the cluster is in desired stated you can return a log message content as a second value
+        for the return tuple.
+
+        :param cluster: Required. Instance of ``google.cloud.dataproc_v1.Cluster``
+            class to interact with Dataproc API
+        :return: Tuple of (Boolean, Optional[str]) The first value of the tuple is whether the cluster is
+            in desired state or not. The second value of the tuple will use if you want to log something when
+            the cluster is in desired state already.
+        """
+        raise NotImplementedError
+
+    def _get_operation(self) -> operation.Operation:
+        """Implement this method in child class to call the related hook method and return its result.
+
+        :return: ``google.api_core.operation.Operation`` value whether the cluster is in desired state or not
+        """
+        raise NotImplementedError
+
+    def execute(self, context: Context) -> dict | None:
+        cluster: Cluster = self._get_cluster()
+        is_already_desired_state, log_str = self._check_desired_cluster_state(cluster)
+        if is_already_desired_state:
+            self.log.info(log_str)
+            return None
+
+        op: operation.Operation = self._get_operation()
+        result = self.hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
+        return Cluster.to_dict(result)
+
+
+class DataprocStartClusterOperator(_DataprocStartStopClusterBaseOperator):
+    """Start a cluster in a project."""
+
+    operator_extra_links = (DataprocClusterLink(),)
+
+    def execute(self, context: Context) -> dict | None:
+        self.log.info("Starting the cluster: %s", self.cluster_name)
+        cluster = super().execute(context)
+        DataprocClusterLink.persist(
+            context=context,
+            operator=self,
+            cluster_id=self.cluster_name,
+            project_id=self._get_project_id(),
+            region=self.region,
+        )
+        self.log.info("Cluster started")
+        return cluster
+
+    def _check_desired_cluster_state(self, cluster: Cluster) -> tuple[bool, str | None]:
+        if cluster.status.state == cluster.status.State.RUNNING:
+            return True, f'The cluster "{self.cluster_name}" already running!'
+        return False, None
+
+    def _get_operation(self) -> operation.Operation:
+        return self.hook.start_cluster(
+            region=self.region,
+            project_id=self._get_project_id(),
+            cluster_name=self.cluster_name,
+            cluster_uuid=self.cluster_uuid,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+
+class DataprocStopClusterOperator(_DataprocStartStopClusterBaseOperator):
+    """Stop a cluster in a project."""
+
+    def execute(self, context: Context) -> dict | None:
+        self.log.info("Stopping the cluster: %s", self.cluster_name)
+        cluster = super().execute(context)
+        self.log.info("Cluster stopped")
+        return cluster
+
+    def _check_desired_cluster_state(self, cluster: Cluster) -> tuple[bool, str | None]:
+        if cluster.status.state in [cluster.status.State.STOPPED, cluster.status.State.STOPPING]:
+            return True, f'The cluster "{self.cluster_name}" already stopped!'
+        return False, None
+
+    def _get_operation(self) -> operation.Operation:
+        return self.hook.stop_cluster(
+            region=self.region,
+            project_id=self._get_project_id(),
+            cluster_name=self.cluster_name,
+            cluster_uuid=self.cluster_uuid,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -1311,7 +1571,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1403,7 +1663,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1496,7 +1756,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1591,7 +1851,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1682,7 +1942,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -1796,7 +2056,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(
@@ -2035,7 +2295,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
-                trigger=DataprocWorkflowTrigger(
+                trigger=DataprocOperationTrigger(
                     name=operation_name,
                     project_id=self.project_id,
                     region=self.region,
@@ -2177,7 +2437,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
-                trigger=DataprocWorkflowTrigger(
+                trigger=DataprocOperationTrigger(
                     name=operation_name,
                     project_id=self.project_id or hook.project_id,
                     region=self.region,
@@ -2480,17 +2740,21 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
         else:
-            self.defer(
-                trigger=DataprocClusterTrigger(
-                    cluster_name=self.cluster_name,
-                    project_id=self.project_id,
-                    region=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_interval_seconds=self.polling_interval_seconds,
-                ),
-                method_name="execute_complete",
+            cluster = hook.get_cluster(
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
+            if cluster.status.state != cluster.status.State.RUNNING:
+                self.defer(
+                    trigger=DataprocClusterTrigger(
+                        cluster_name=self.cluster_name,
+                        project_id=self.project_id,
+                        region=self.region,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        polling_interval_seconds=self.polling_interval_seconds,
+                    ),
+                    method_name="execute_complete",
+                )
         self.log.info("Updated %s cluster.", self.cluster_name)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
@@ -2505,6 +2769,142 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         if cluster_state == ClusterStatus.State.ERROR:
             raise AirflowException(f"Cluster is in ERROR state:\n{cluster_name}")
         self.log.info("%s completed successfully.", self.task_id)
+
+
+class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
+    """Diagnose a cluster in a project.
+
+    After the operation completes, the response contains the Cloud Storage URI of the diagnostic output report containing a summary of collected diagnostics.
+
+    :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to (templated).
+    :param cluster_name: Required. The cluster name (templated).
+    :param tarball_gcs_dir:  The output Cloud Storage directory for the diagnostic tarball. If not specified, a task-specific directory in the cluster's staging bucket will be used.
+    :param diagnosis_interval: Time interval in which diagnosis should be carried out on the cluster.
+    :param jobs: Specifies a list of jobs on which diagnosis is to be performed. Format: `projects/{project}/regions/{region}/jobs/{job}`
+    :param yarn_application_ids: Specifies a list of yarn applications on which diagnosis is to be performed.
+    :param metadata: Additional metadata that is provided to the method.
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "region",
+        "cluster_name",
+        "impersonation_chain",
+        "tarball_gcs_dir",
+        "diagnosis_interval",
+        "jobs",
+        "yarn_application_ids",
+    )
+
+    def __init__(
+        self,
+        *,
+        region: str,
+        cluster_name: str,
+        project_id: str | None = None,
+        tarball_gcs_dir: str | None = None,
+        diagnosis_interval: dict | Interval | None = None,
+        jobs: MutableSequence[str] | None = None,
+        yarn_application_ids: MutableSequence[str] | None = None,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        timeout: float = 1 * 60 * 60,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        polling_interval_seconds: int = 10,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
+        self.project_id = project_id
+        self.region = region
+        self.cluster_name = cluster_name
+        self.tarball_gcs_dir = tarball_gcs_dir
+        self.diagnosis_interval = diagnosis_interval
+        self.jobs = jobs
+        self.yarn_application_ids = yarn_application_ids
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
+
+    def execute(self, context: Context):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Collecting diagnostic tarball for cluster: %s", self.cluster_name)
+        operation = hook.diagnose_cluster(
+            region=self.region,
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            tarball_gcs_dir=self.tarball_gcs_dir,
+            diagnosis_interval=self.diagnosis_interval,
+            jobs=self.jobs,
+            yarn_application_ids=self.yarn_application_ids,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+        if not self.deferrable:
+            result = hook.wait_for_operation(
+                timeout=self.timeout, result_retry=self.retry, operation=operation
+            )
+            self.log.info(
+                "The diagnostic output for cluster %s is available at: %s",
+                self.cluster_name,
+                result.output_uri,
+            )
+        else:
+            self.defer(
+                trigger=DataprocOperationTrigger(
+                    name=operation.operation.name,
+                    operation_type=DataprocOperationType.DIAGNOSE.value,
+                    project_id=self.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        """Callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
+        """
+        if event:
+            status = event.get("status")
+            if status in ("failed", "error"):
+                self.log.exception("Unexpected error in the operation.")
+                raise AirflowException(event.get("message"))
+
+            self.log.info(
+                "The diagnostic output for cluster %s is available at: %s",
+                self.cluster_name,
+                event.get("output_uri"),
+            )
 
 
 class DataprocCreateBatchOperator(GoogleCloudBaseOperator):

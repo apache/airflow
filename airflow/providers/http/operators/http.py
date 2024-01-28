@@ -349,5 +349,6 @@ class SimpleHttpOperator(HttpOperator):
             "Class `SimpleHttpOperator` is deprecated and "
             "will be removed in a future release. Please use `HttpOperator` instead.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(**kwargs)

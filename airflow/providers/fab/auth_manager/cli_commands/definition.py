@@ -137,6 +137,27 @@ USERS_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="reset-password",
+        help="Reset a user's password",
+        func=lazy_load_command(
+            "airflow.providers.fab.auth_manager.cli_commands.user_command.user_reset_password"
+        ),
+        args=(
+            ARG_USERNAME_OPTIONAL,
+            ARG_EMAIL_OPTIONAL,
+            ARG_PASSWORD,
+            ARG_USE_RANDOM_PASSWORD,
+            ARG_VERBOSE,
+        ),
+        epilog=(
+            "examples:\n"
+            'To reset an user with username equals to "admin", run:\n'
+            "\n"
+            "    $ airflow users reset-password \\\n"
+            "          --username admin"
+        ),
+    ),
+    ActionCommand(
         name="delete",
         help="Delete a user",
         func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.user_command.users_delete"),

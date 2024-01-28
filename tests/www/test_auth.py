@@ -222,7 +222,23 @@ class TestHasAccessDagEntities:
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()
-        assert result.status_code == 302
+        assert result.headers["Location"] == "/home"
+
+    @pytest.mark.db_test
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_dag_entities_when_logged_out(self, mock_get_auth_manager, app, dag_access_entity):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_dag.return_value = False
+        auth_manager.is_logged_in.return_value = False
+        auth_manager.get_url_login.return_value = "login_url"
+        mock_get_auth_manager.return_value = auth_manager
+        items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
+
+        with app.test_request_context():
+            result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
+
+        mock_call.assert_not_called()
+        assert result.headers["Location"] == "login_url"
 
 
 @pytest.mark.db_test

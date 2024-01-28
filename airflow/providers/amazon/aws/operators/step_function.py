@@ -23,6 +23,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
+from airflow.providers.amazon.aws.links.step_function import (
+    StateMachineDetailsLink,
+    StateMachineExecutionsDetailsLink,
+)
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -66,6 +70,7 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
     aws_hook_class = StepFunctionHook
     template_fields: Sequence[str] = aws_template_fields("state_machine_arn", "name", "input")
     ui_color = "#f9c915"
+    operator_extra_links = (StateMachineDetailsLink(), StateMachineExecutionsDetailsLink())
 
     def __init__(
         self,
@@ -87,8 +92,24 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         self.deferrable = deferrable
 
     def execute(self, context: Context):
+        StateMachineDetailsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            state_machine_arn=self.state_machine_arn,
+        )
+
         if not (execution_arn := self.hook.start_execution(self.state_machine_arn, self.name, self.input)):
             raise AirflowException(f"Failed to start State Machine execution for: {self.state_machine_arn}")
+
+        StateMachineExecutionsDetailsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            execution_arn=execution_arn,
+        )
 
         self.log.info("Started State Machine execution for %s: %s", self.state_machine_arn, execution_arn)
         if self.deferrable:
@@ -141,12 +162,21 @@ class StepFunctionGetExecutionOutputOperator(AwsBaseOperator[StepFunctionHook]):
     aws_hook_class = StepFunctionHook
     template_fields: Sequence[str] = aws_template_fields("execution_arn")
     ui_color = "#f9c915"
+    operator_extra_links = (StateMachineExecutionsDetailsLink(),)
 
     def __init__(self, *, execution_arn: str, **kwargs):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
 
     def execute(self, context: Context):
+        StateMachineExecutionsDetailsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            execution_arn=self.execution_arn,
+        )
+
         execution_status = self.hook.describe_execution(self.execution_arn)
         response = None
         if "output" in execution_status:

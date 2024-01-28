@@ -435,6 +435,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
                         project_id=self.project_id or self.hook.project_id,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
@@ -657,6 +658,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "nullMarker",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],

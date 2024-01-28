@@ -70,16 +70,7 @@ def users_create(args):
         if not role:
             valid_roles = appbuilder.sm.get_all_roles()
             raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
-        if args.use_random_password:
-            password = "".join(random.choices(string.printable, k=16))
-        elif args.password:
-            password = args.password
-        else:
-            password = getpass.getpass("Password:")
-            password_confirmation = getpass.getpass("Repeat for confirmation:")
-            if password != password_confirmation:
-                raise SystemExit("Passwords did not match")
-
+        password = _create_password(args)
         if appbuilder.sm.find_user(args.username):
             print(f"{args.username} already exist in the db")
             return
@@ -104,6 +95,32 @@ def _find_user(args):
         if not user:
             raise SystemExit(f'User "{args.username or args.email}" does not exist')
     return user
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def user_reset_password(args):
+    """Reset user password user from DB."""
+    user = _find_user(args)
+    password = _create_password(args)
+    with get_application_builder() as appbuilder:
+        if appbuilder.sm.reset_password(user.id, password):
+            print(f'User "{user.username}" password reset successfully')
+        else:
+            raise SystemExit("Failed to reset user password")
+
+
+def _create_password(args):
+    if args.use_random_password:
+        password = "".join(random.choices(string.printable, k=16))
+    elif args.password:
+        password = args.password
+    else:
+        password = getpass.getpass("Password:")
+        password_confirmation = getpass.getpass("Repeat for confirmation:")
+        if password != password_confirmation:
+            raise SystemExit("Passwords did not match")
+    return password
 
 
 @cli_utils.action_cli

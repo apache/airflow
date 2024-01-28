@@ -38,6 +38,20 @@
 
 .. toctree::
     :hidden:
+    :caption: References
+
+    Stable REST API <stable-rest-api-ref>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: References
+
+    Configuration <configurations-ref>
+    CLI <cli-ref>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 

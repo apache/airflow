@@ -22,8 +22,10 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 state: ready
-source-date-epoch: 1703288115
+source-date-epoch: 1705911941
 versions:
+  - 4.7.1
+  - 4.7.0
   - 4.6.0
   - 4.5.0
   - 4.4.0
@@ -54,7 +56,12 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - pyspark
-  - grpcio-status
+  - grpcio-status>=1.59.0
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.4.0
 
 integrations:
   - integration-name: Apache Spark
@@ -94,8 +101,3 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
     name: pyspark
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0
