@@ -416,6 +416,7 @@ Currently, **officially** using Airflow:
 1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
 1. [Simply Business](https://www.simplybusiness.com/) [[@simplybusiness](https://github.com/simplybusiness)]
+1. [SIRCLO](https://www.sirclo.com/)
 1. [Skai](https://www.skai.io/) [[@kenshoo](https://github.com/kenshoo)]
 1. [Skyscanner](https://www.skyscanner.net/) [[@skyscanner](https://github.com/Skyscanner)]
 1. [SMAP Energy Ltd.](https://smapenergy.com) [[@camenergydatalab](https://github.com/camenergydatalab)]
