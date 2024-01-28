@@ -24,6 +24,7 @@ from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Any, Dict, List, TypeVar
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -62,6 +63,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -350,8 +352,8 @@ class SelectiveChecks:
     def __init__(
         self,
         files: tuple[str, ...] = (),
-        default_branch="main",
-        default_constraints_branch="constraints-main",
+        default_branch=AIRFLOW_BRANCH,
+        default_constraints_branch=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
@@ -1039,3 +1041,9 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def is_committer_build(self):
+        if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
+            return False
+        return self._github_actor in COMMITTERS

@@ -91,7 +91,7 @@ The selective-check command will produce the set of ``name=value`` pairs of outp
 from the context of the commit/PR to be merged via stderr output.
 
 More details about the algorithm used to pick the right tests and the available outputs can be
-found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
+found in `Selective Checks <ci/04_selective_checks.md>`_.
 
 These are all available flags of ``selective-check`` command:
 

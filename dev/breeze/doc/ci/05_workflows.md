@@ -28,6 +28,7 @@
 - [Workflows](#workflows)
   - [Build Images Workflow](#build-images-workflow)
   - [Differences for main and release branches](#differences-for-main-and-release-branches)
+  - [Committer vs. non-committer PRs](#committer-vs-non-committer-prs)
   - [Tests Workflow](#tests-workflow)
   - [CodeQL scan](#codeql-scan)
   - [Publishing documentation](#publishing-documentation)
@@ -83,6 +84,13 @@ that changes the CI/CD infrastructure itself (for example changes to the
 CI/CD scripts or changes to the CI/CD workflows). In this case the PR is
 run in the context of the "apache/airflow" repository and has WRITE
 access to the GitHub Container Registry.
+
+When the PR changes important files (for example `generated/provider_depdencies.json` or
+`pyproject.toml`), the PR is run in "upgrade to newer dependencies" mode - where instead
+of using constraints to build images, attempt is made to upgrade all dependencies to latest
+versions and build images with them. This way we check how Airflow behaves when the
+dependencies are upgraded. This can also be forced by setting the `upgrade to newer dependencies`
+label in the PR if you are a committer and want to force dependency upgrade.
 
 ## Canary run
 
@@ -183,6 +191,28 @@ the `AIRFLOW_BRANCH` in `airflow_breeze/branch_defaults.py` to point to
 the new branch and there are a few places where selection of tests is
 based on whether this output is `main`. They are marked as - in the
 "Release branches" column of the table below.
+
+## Committer vs. non-committer PRs
+
+There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
+Main reason is security - we do not want to run untrusted code on our infrastructure for self-hosted runners,
+but also we do not want to run unverified code during the `Build imaage` workflow, because that workflow has
+access to GITHUB_TOKEN that has access to write to the Github Registry of ours (which is used to cache
+images between runs). Also those images are build on self-hosted runners and we have to make sure that
+those runners are not used to (fore example) mine cryptocurrencies on behalf of the person who opened the
+pull request from their newly opened fork of airflow.
+
+This is why the `Build Images` workflow checks if the actor of the PR (GITHUB_ACTOR) is one of the committers,
+and if not, then workflows and scripts used to run image building are coming  only from the ``target`` branch
+of the repository, where such scripts were reviewed and approved by the committers before being merged.
+
+This is controlled by `Selective checks <04_selective_checks.md>`__ that set appropriate output in
+the build-info job of the workflow (see`is-committer-build` to `true`) if the actor is in the committer's
+list and can be overridden by `non committer build` label in the PR.
+
+Also, for most of the jobs, committer builds by default use "Self-hosted" runners, while non-committer
+builds use "Public" runners. For committers, this can be overridden by setting the
+`use public runners` label in the PR.
 
 ## Tests Workflow
 
