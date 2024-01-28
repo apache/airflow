@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 
 
 WILDCARD = "*"
-_DEFAULT_CHUNKSIZE = 104857600  # 1024 * 1024 B * 100 = 100 MB
 
 class SFTPToGCSOperator(BaseOperator):
     """

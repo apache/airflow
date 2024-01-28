@@ -53,13 +53,6 @@ SOURCE_FILES_LIST = [
 DESTINATION_PATH_DIR = "destination_dir"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 
-SOURCE_FILE_CONTENT = (
-    "An apple beautifully crafted delivers extraordinary flavors, "
-    "giving happy individuals joyful knowledge, learning many new "
-    "opportunities, providing quality results, suggesting thoughtful "
-    "understanding, valuing wisdom, xenial youths zestfully."
-) # 241 bytes
-
 class TestSFTPToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -268,9 +261,6 @@ class TestSFTPToGCSOperatorStream:
         # setup @mock.patch
         patcher_sftp = mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
         self.mock_sftp_hook = patcher_sftp.start()
-        mock_file_content = SOURCE_FILE_CONTENT.encode()
-        self.mock_file = mock_open(read_data=mock_file_content)
-        self.mock_sftp_hook.return_value.get_conn.return_value.file = self.mock_file
         patcher_gcs = mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
         self.mock_gcs_hook = patcher_gcs.start()
 
