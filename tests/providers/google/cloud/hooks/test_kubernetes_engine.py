@@ -742,4 +742,3 @@ class TestGKEJobHook:
 
     def _get_credentials(self):
         return self.credentials
-

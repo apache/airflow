@@ -206,7 +206,6 @@ There are two operators available in order to run a job on a GKE cluster:
 ``GKEStartJobOperator`` extends ``KubernetesJobOperator`` to provide authorization using Google Cloud credentials.
 There is no need to manage the ``kube_config`` file, as it will be generated automatically.
 All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEStartJobOperator``.
-For more information on ``KubernetesJobOperator``, please look at: :ref:`howto/operator:KubernetesJobOperator` guide.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
     :language: python
