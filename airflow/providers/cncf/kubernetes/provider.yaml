@@ -352,8 +352,8 @@ config:
         default: ""
       task_publish_max_retries:
         description: |
-          The Maximum number of retries for queueing the task to the kubernetes scheduler when
-          failing due to Kube API trasnient errors before giving up and marking task as failed.
+          The Maximum number of retries for queuing the task to the kubernetes scheduler when
+          failing due to Kube API transient errors before giving up and marking task as failed.
           -1 for unlimited times.
         version_added: ~
         type: integer

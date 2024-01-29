@@ -56,7 +56,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 In the case of Kube API transient errors, we have introduced the ``task_publish_max_retries``
-flag to control the re-queueing task behavior. Changed the default behavior from unlimited
+flag to control the re-queuing task behavior. Changed the default behavior from unlimited
 retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
 unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
 ``task_publish_max_retries`` to any positive integer.
