@@ -524,7 +524,7 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: 6e486f782b4745afd1f0f19dabe1253c
+# Hash of dependencies: ee123f98f7863f010cb52314e9c76927
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -635,8 +635,8 @@ cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
   "asgiref>=3.5.2",
   "cryptography>=2.0.0",
   "google-re2>=1.0",
-  "kubernetes>=21.7.0,<24",
-  "kubernetes_asyncio>=18.20.1,<25",
+  "kubernetes>=28.1.0,<=29.0.0",
+  "kubernetes_asyncio>=28.1.0,<=29.0.0",
 ]
 cohere = [ # source: airflow/providers/cohere/provider.yaml
   "cohere>=4.37",
