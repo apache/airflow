@@ -78,7 +78,7 @@ So for example the following configuration will store anything above 1MB in S3 a
 
 .. note::
 
-  Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip works out of the box.
+  Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip, gzip and bz2 work out of the box.
 
 
 Custom XCom Backends
