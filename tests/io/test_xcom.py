@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
+from tests.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -215,3 +216,42 @@ class TestXcomObjectStoreBackend:
         )
 
         assert p.exists() is False
+
+    @conf_vars({("core", "xcom_objectstore_compression"): "gzip"})
+    def test_compression(self, task_instance, session):
+        XCom = resolve_xcom_backend()
+        airflow.models.xcom.XCom = XCom
+
+        XCom.set(
+            key=XCOM_RETURN_KEY,
+            value={"key": "superlargevalue" * 100},
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        )
+
+        res = (
+            XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+            .with_entities(BaseXCom.value)
+            .first()
+        )
+
+        data = BaseXCom.deserialize_value(res)
+        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        assert p.exists() is True
+        assert p.suffix == ".gz"
+
+        value = XCom.get_value(
+            key=XCOM_RETURN_KEY,
+            ti_key=task_instance.key,
+            session=session,
+        )
+
+        assert value == {"key": "superlargevalue" * 100}

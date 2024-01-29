@@ -21,6 +21,8 @@ import uuid
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
+import fsspec.utils
+
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
@@ -44,6 +46,18 @@ def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _get_compression_suffix(compression: str) -> str:
+    """This returns the compression suffix for the given compression.
+
+    :raises ValueError: if the compression is not supported
+    """
+    for suffix, c in fsspec.utils.compressions.items():
+        if c == compression:
+            return suffix
+
+    raise ValueError(f"Compression {compression} is not supported. Make sure it is installed.")
 
 
 class XComObjectStoreBackend(BaseXCom):
@@ -93,12 +107,18 @@ class XComObjectStoreBackend(BaseXCom):
         s_val = json.dumps(value, cls=XComEncoder).encode("utf-8")
         path = conf.get("core", "xcom_objectstore_path", fallback="")
         compression = conf.get("core", "xcom_objectstore_compression", fallback=None)
+
+        if compression:
+            suffix = "." + _get_compression_suffix(compression)
+        else:
+            suffix = ""
+
         threshold = conf.getint("core", "xcom_objectstore_threshold", fallback=-1)
 
         if path and -1 < threshold < len(s_val):
             # safeguard against collisions
             while True:
-                p = ObjectStoragePath(path) / f"{run_id}/{task_id}/{str(uuid.uuid4())}"
+                p = ObjectStoragePath(path) / f"{dag_id}/{run_id}/{task_id}/{str(uuid.uuid4())}{suffix}"
                 if not p.exists():
                     break
 
@@ -116,11 +136,16 @@ class XComObjectStoreBackend(BaseXCom):
     def deserialize_value(
         result: XCom,
     ) -> Any:
+        """Deserializes the value from the database or object storage.
+
+        Compression is inferred from the file extension.
+        """
         data = BaseXCom.deserialize_value(result)
         path = conf.get("core", "xcom_objectstore_path", fallback="")
+
         try:
             p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
-            return json.load(p.open("rb"), cls=XComDecoder)
+            return json.load(p.open("rb", compression="infer"), cls=XComDecoder)
         except TypeError:
             return data
         except ValueError:
