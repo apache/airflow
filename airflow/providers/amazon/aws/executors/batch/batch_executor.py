@@ -17,6 +17,7 @@
 
 """AWS Batch Executor. Each Airflow task gets delegated out to an AWS Batch Job."""
 from __future__ import annotations
+from collections import deque
 
 import time
 from copy import deepcopy
@@ -38,6 +39,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     BatchExecutorException,
     BatchJob,
     BatchJobCollection,
+    BatchQueuedJob,
 )
 from airflow.utils.state import State
 
@@ -74,22 +76,27 @@ class AwsBatchExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         region = conf.get("batch", "region", fallback="us-west-2")
         self.active_workers = BatchJobCollection()
+        self.pending_jobs: deque = deque()
         self.batch = boto3.client("batch", region_name=region)
         self.submit_job_kwargs = self._load_submit_kwargs()
 
     def sync(self):
         """Checks and update state on all running tasks."""
-        all_job_ids = self.active_workers.get_all_jobs()
-        if not all_job_ids:
-            self.log.debug("No active tasks, skipping sync")
-            return
         try:
-            describe_job_response = self._describe_tasks(all_job_ids)
+            self.sync_running_jobs()
+            self.attempt_submit_jobs()
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
+    def sync_running_jobs(self):
+        all_job_ids = self.active_workers.get_all_jobs()
+        if not all_job_ids:
+            self.log.debug("No active Airflow tasks, skipping sync")
+            return
+        describe_job_response = self._describe_jobs(all_job_ids)
+        
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
@@ -100,7 +107,20 @@ class AwsBatchExecutor(BaseExecutor):
                 task_key = self.active_workers.pop_by_id(job.job_id)
                 self.success(task_key)
 
-    def _describe_tasks(self, job_ids) -> list[BatchJob]:
+    def attempt_submit_jobs(self):
+        queue_len = len(self.pending_jobs)
+        for _ in range(queue_len):
+            self.log.info("attempting job run")
+            batch_job = self.pending_jobs.popleft()
+            key = batch_job.key
+            cmd = batch_job.command
+            queue = batch_job.queue
+            exec_config = batch_job.executor_config
+
+            submit_job_response = self._submit_job(key, cmd, queue, exec_config or {})
+            self.active_workers.add_job(submit_job_response["job_id"], key)
+
+    def _describe_jobs(self, job_ids) -> list[BatchJob]:
         all_jobs = []
         for i in range(0, len(job_ids), self.__class__.DESCRIBE_JOBS_BATCH_SIZE):
             batched_job_ids = job_ids[i : i + self.__class__.DESCRIBE_JOBS_BATCH_SIZE]
@@ -121,14 +141,10 @@ class AwsBatchExecutor(BaseExecutor):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
-        try:
-            job_id = self._submit_job(key, command, queue, executor_config or {})
-        except Exception:
-            # We catch any and all exceptions because otherwise they would bubble
-            # up and kill the scheduler process.
-            self.log.exception("Failed to submit Batch job %s", self.__class__.__name__)
-
-        self.active_workers.add_job(job_id, key)
+        
+        self.pending_jobs.append(
+            BatchQueuedJob(key=key, command=command, queue=queue, executor_config=executor_config)
+        )
 
     def _submit_job(
         self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
@@ -143,14 +159,8 @@ class AwsBatchExecutor(BaseExecutor):
         self.log.info("submitting job with these args %s", submit_job_api)
 
         boto_run_task = self.batch.submit_job(**submit_job_api)
-        try:
-            submit_job_response = BatchSubmitJobResponseSchema().load(boto_run_task)
-        except ValidationError as err:
-            self.log.error("Batch SubmitJob Response: %s", err)
-            raise BatchExecutorException(
-                f"RunTask API call does not match expected JSON shape. Are you sure that the correct version of Boto3 is installed? {err}"
-            )
-        return submit_job_response["job_id"]
+        submit_job_response = BatchSubmitJobResponseSchema().load(boto_run_task)
+        return submit_job_response
 
     def _submit_job_kwargs(
         self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType

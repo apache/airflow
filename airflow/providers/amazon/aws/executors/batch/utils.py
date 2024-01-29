@@ -15,13 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from dataclasses import dataclass
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
+
+
+CommandType = List[str]
+ExecutorConfigType = Dict[str, Any]
 
 CONFIG_GROUP_NAME = "aws_batch_executor"
 
@@ -31,6 +36,12 @@ CONFIG_DEFAULTS = {
     "check_health_on_startup": "True",
 }
 
+@dataclass
+class BatchQueuedJob:
+    key: TaskInstanceKey
+    command: CommandType
+    queue: str
+    executor_config: ExecutorConfigType
 
 class BatchJob:
     """Data Transfer Object for an AWS Batch Job."""
