@@ -377,6 +377,7 @@
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
                           <input type="hidden" name="unpause" value="True">
+                          <input type="hidden" name="conf" value="{}">
                           <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                         </form>
                       </li>
