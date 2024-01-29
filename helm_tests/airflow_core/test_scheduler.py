@@ -40,19 +40,6 @@ class TestScheduler:
         ],
     )
 
-    def test_can_be_disabled(self):
-        """
-        Scheduler should be able to be disabled if the users desires.
-
-        For example, user may be disabled when using scheduler and having it deployed on another host.
-        """
-        docs = render_chart(
-            values={"scheduler": {"enabled": False}},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert 0 == len(docs)
-
     def test_scheduler_kind(self, executor, persistence, kind):
         """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
@@ -915,3 +902,19 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+class TestSchedulerCreation:
+    """Tests scheduler deployment creation."""
+    
+    def test_can_be_disabled(self):
+        """
+        Scheduler should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using scheduler and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"scheduler": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)
