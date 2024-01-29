@@ -176,6 +176,37 @@ class TestLockboxSecretBackend:
 
         assert sm._client is not None
 
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_field")
+    def test_yandex_lockbox_secret_backend__client_credentials_received_from_connection(self, mock_get_field):
+        yc_oauth_token = "y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc"
+        yc_sa_key_json = "sa_key_json"
+        yc_sa_key_json_path = "sa_key_json_path"
+        folder_id = "folder_id123"
+        endpoint = "some-custom-api-endpoint.cloud.yandex.net"
+        yc_connection_id = "connection_id"
+
+        fields = {
+            "oauth": yc_oauth_token,
+            "service_account_json": yc_sa_key_json,
+            "service_account_json_path": yc_sa_key_json_path,
+            "folder_id": folder_id,
+            "endpoint": endpoint,
+        }
+        mock_get_field.side_effect = lambda key: fields[key]
+
+        sm = LockboxSecretBackend(
+            yc_connection_id=yc_connection_id,
+        )
+        client = sm._client
+
+        assert client is not None
+        assert sm.yc_oauth_token == yc_oauth_token
+        assert sm.yc_sa_key_json == yc_sa_key_json
+        assert sm.yc_sa_key_json_path == yc_sa_key_json_path
+        assert sm.folder_id == folder_id
+        assert sm.endpoint == endpoint
+        assert sm.yc_connection_id == yc_connection_id
+
     def test_yandex_lockbox_secret_backedn__get_endpoint(self):
         endpoint = "api.cloud.yandex.net"
         expected = {
