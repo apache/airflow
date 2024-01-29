@@ -905,7 +905,6 @@ class TestSchedulerServiceAccount:
 
 class TestSchedulerCreation:
     """Tests scheduler deployment creation."""
-    
     def test_can_be_disabled(self):
         """
         Scheduler should be able to be disabled if the users desires.
