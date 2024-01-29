@@ -143,11 +143,12 @@ class HiveCliHook(BaseHook):
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
-
+        if self.proxy_user is not None:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
         if proxy_user_value != "":
             return f"hive.server2.proxy.user={proxy_user_value}"
-        return f"hive.server2.proxy.user={self.proxy_user}"
+        return ""
 
     def _prepare_cli_cmd(self) -> list[Any]:
         """Create the command list from available information."""
