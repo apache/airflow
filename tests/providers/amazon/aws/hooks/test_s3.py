@@ -969,11 +969,11 @@ class TestAwsS3Hook:
         assert not mock_hook.check_for_bucket(s3_bucket)
 
     @mock_aws
-    def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
+    def test_delete_bucket_if_bucket_not_exist(self, s3_bucket):
         # assert if exception is raised if bucket not present
-        mock_hook = S3Hook()
+        mock_hook = S3Hook(aws_conn_id=None)
         with pytest.raises(ClientError) as ctx:
-            assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+            assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
     @pytest.mark.db_test
