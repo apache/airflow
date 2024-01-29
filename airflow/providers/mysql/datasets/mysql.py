@@ -20,15 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.datasets import Uri
+    from urllib.parse import SplitResult
 
 
-def sanitize_uri(uri: Uri) -> Uri:
+def sanitize_uri(uri: SplitResult) -> SplitResult:
     if not uri.netloc:
         raise ValueError("URI format mysql:// must contain a host")
     if uri.port is None:
         host = uri.netloc.rstrip(":")
-        uri = uri.replace(netloc=f"{host}:3306")
+        uri = uri._replace(netloc=f"{host}:3306")
     if len(uri.path.split("/")) != 3:  # Leading slash, database name, and table name.
         raise ValueError("URI format mysql:// must contain database and table names")
-    return uri.replace(scheme="mysql")
+    return uri._replace(scheme="mysql")

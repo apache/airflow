@@ -20,18 +20,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.datasets import Uri
+    from urllib.parse import SplitResult
 
 
-def sanitize_uri(uri: Uri) -> Uri:
+def sanitize_uri(uri: SplitResult) -> SplitResult:
     if not uri.netloc:
         raise ValueError("URI format postgres:// must contain a host")
     if uri.port is None:
         host = uri.netloc.rstrip(":")
-        uri = uri.replace(netloc=f"{host}:5432")
+        uri = uri._replace(netloc=f"{host}:5432")
     path_parts = uri.path.split("/")
     if len(path_parts) != 4:  # Leading slash, database, schema, and table names.
         raise ValueError("URI format postgres:// must contain database, schema, and table names")
     if not path_parts[2]:
         path_parts[2] = "default"
-    return uri.replace(scheme="postgres", path="/".join(path_parts))
+    return uri._replace(scheme="postgres", path="/".join(path_parts))

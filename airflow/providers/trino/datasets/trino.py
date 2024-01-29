@@ -20,15 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.datasets import Uri
+    from urllib.parse import SplitResult
 
 
-def sanitize_uri(uri: Uri) -> Uri:
+def sanitize_uri(uri: SplitResult) -> SplitResult:
     if not uri.netloc:
         raise ValueError("URI format trino:// must contain a host")
     if uri.port is None:
         host = uri.netloc.rstrip(":")
-        uri = uri.replace(netloc=f"{host}:8080")
+        uri = uri._replace(netloc=f"{host}:8080")
     if len(uri.path.split("/")) != 4:  # Leading slash, catalog, schema, and table names.
         raise ValueError("URI format trino:// must contain catalog, schema, and table names")
     return uri
