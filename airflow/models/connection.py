@@ -173,6 +173,7 @@ class Connection(Base, LoggingMixin):
 
         if self.password:
             mask_secret(self.password)
+            mask_secret(quote(self.password))
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -206,6 +207,7 @@ class Connection(Base, LoggingMixin):
     def on_db_load(self):
         if self.password:
             mask_secret(self.password)
+            mask_secret(quote(self.password))
 
     def parse_from_uri(self, **uri):
         """Use uri parameter in constructor, this method is deprecated."""
