@@ -18,10 +18,10 @@
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 import pdpyras
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -109,6 +109,13 @@ class PagerdutyHook(BaseHook):
         self._session = pdpyras.APISession(self.token)
         return self._session
 
+    @deprecated(
+        reason=(
+            "This method will be deprecated. Please use the "
+            "`airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_event(
         self,
         summary: str,
@@ -154,13 +161,6 @@ class PagerdutyHook(BaseHook):
             link's text.
         :return: PagerDuty Events API v2 response.
         """
-        warnings.warn(
-            "This method will be deprecated. Please use the "
-            "`airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         routing_key = routing_key or self.routing_key
 
         return PagerdutyEventsHook(integration_key=routing_key).create_event(
