@@ -2922,6 +2922,7 @@ components:
             - manual
             - scheduled
             - dataset_triggered
+            - triggered
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:

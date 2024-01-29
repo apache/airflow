@@ -122,7 +122,7 @@ class TestDagRunOperator:
         with create_session() as session:
             dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
             assert dagrun.external_trigger
-            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.execution_date)
+            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.TRIGGERED, dagrun.execution_date)
             self.assert_extra_link(dagrun, task, session)
 
     def test_trigger_dagrun_custom_run_id(self):
@@ -154,7 +154,7 @@ class TestDagRunOperator:
             dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
             assert dagrun.external_trigger
             assert dagrun.execution_date == custom_execution_date
-            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
+            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.TRIGGERED, custom_execution_date)
             self.assert_extra_link(dagrun, task, session)
 
     def test_trigger_dagrun_twice(self):
