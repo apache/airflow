@@ -34,6 +34,18 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
+    """This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8."""
+    if hasattr(o, "is_relative_to"):
+        return o.is_relative_to(other)
+
+    try:
+        o.relative_to(other)
+        return True
+    except ValueError:
+        return False
+
+
 class XComObjectStoreBackend(BaseXCom):
     """XCom backend that stores data in an object store or database depending on the size of the data.
 
@@ -53,11 +65,15 @@ class XComObjectStoreBackend(BaseXCom):
         path = conf.get("core", "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
 
-        url = urlsplit(data)
+        try:
+            url = urlsplit(data)
+        except AttributeError:
+            raise TypeError(f"Not a valid url: {data}")
+
         if url.scheme:
             k = ObjectStoragePath(data)
 
-            if k.is_relative_to(p) is False:
+            if _is_relative_to(k, p) is False:
                 raise ValueError(f"Invalid key: {data}")
             else:
                 return data.replace(path, "", 1).lstrip("/")

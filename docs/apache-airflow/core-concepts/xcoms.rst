@@ -69,16 +69,16 @@ put in object storage. This will allow a hybrid setup. If an xcom is stored on o
 saved in the database. Finally, you can set ``xcom_objectstorage_compression`` to fsspec supported compression methods like ``zip`` or ``snappy`` to
 compress the data before storing it in object storage.
 
-So for example the following configuration will store anything above 1MB in S3 and will compress it using snappy::
+So for example the following configuration will store anything above 1MB in S3 and will compress it using zip::
 
       xcom_backend = airflow.io.xcom.XComObjectStoreBackend
       xcom_objectstorage_path = s3://conn_id@mybucket/key
       xcom_objectstorage_threshold = 1048576
-      xcom_objectstorage_compression = snappy
+      xcom_objectstorage_compression = zip
 
 .. note::
 
-  Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``.
+  Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip works out of the box.
 
 
 Custom XCom Backends
