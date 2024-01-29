@@ -263,25 +263,154 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
     @pytest.mark.parametrize(
-        "status, should_requeue",
+        "response, task_publish_max_retries, should_requeue, task_expected_state",
         [
-            pytest.param(400, False, id="400 BadRequest"),
-            pytest.param(403, False, id="403 Forbidden"),
-            pytest.param(404, False, id="404 Not Found"),
-            pytest.param(422, False, id="422 Unprocessable Entity"),
-            pytest.param(12345, True, id="12345 fake-unhandled-reason"),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                0,
+                False,
+                State.FAILED,
+                id="400 BadRequest",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                1,
+                False,
+                State.FAILED,
+                id="400 BadRequest (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                0,
+                False,
+                State.FAILED,
+                id="400 BadRequest",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                1,
+                False,
+                State.FAILED,
+                id="400 BadRequest (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=403),
+                0,
+                False,
+                State.FAILED,
+                id="403 Forbidden (permission denied)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=403),
+                1,
+                False,
+                State.FAILED,
+                id="403 Forbidden (permission denied) (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                0,
+                False,
+                State.FAILED,
+                id="403 Forbidden (exceeded quota)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="403 Forbidden (exceeded quota) (task_publish_max_retries=1) (retry succeeded)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                1,
+                True,
+                State.FAILED,
+                id="403 Forbidden (exceeded quota) (task_publish_max_retries=1)  (retry failed)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=404),
+                0,
+                False,
+                State.FAILED,
+                id="404 Not Found",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=404),
+                1,
+                False,
+                State.FAILED,
+                id="404 Not Found (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=422),
+                0,
+                False,
+                State.FAILED,
+                id="422 Unprocessable Entity",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=422),
+                1,
+                False,
+                State.FAILED,
+                id="422 Unprocessable Entity (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                0,
+                False,
+                State.FAILED,
+                id="12345 fake-unhandled-reason",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                1,
+                True,
+                State.SUCCESS,
+                id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry succeeded)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                1,
+                True,
+                State.FAILED,
+                id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_run_next_exception_requeue(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        response,
+        task_publish_max_retries,
+        should_requeue,
+        task_expected_state,
     ):
         """
         When pod scheduling fails with any reason not yet
-        handled in the relevant try-except block, the task should stay in the ``task_queue``
-        and be attempted on a subsequent executor sync.  When reason is 'Unprocessable Entity'
-        or 'BadRequest', the task should be failed without being re-queued.
+        handled in the relevant try-except block and task publish retries not exhausted, the task should stay
+        in the ``task_queue`` and be attempted on a subsequent executor sync.
+        When reason is 'Unprocessable Entity' or 'BadRequest' or task publish retries exhausted,
+        the task should be failed without being re-queued.
 
         Note on error scenarios:
 
@@ -298,8 +427,6 @@ class TestKubernetesExecutor:
         """
         path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
 
-        response = HTTPResponse(body='{"message": "any message"}', status=status)
-
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))
@@ -312,6 +439,7 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.task_publish_max_retries = task_publish_max_retries
             kubernetes_executor.start()
             try:
                 # Execute a task while the Api Throws errors
@@ -330,16 +458,19 @@ class TestKubernetesExecutor:
                     assert not kubernetes_executor.task_queue.empty()
 
                     # Disable the ApiException
-                    mock_kube_client.create_namespaced_pod.side_effect = None
+                    if task_expected_state == State.SUCCESS:
+                        mock_kube_client.create_namespaced_pod.side_effect = None
 
                     # Execute the task without errors should empty the queue
                     mock_kube_client.create_namespaced_pod.reset_mock()
                     kubernetes_executor.sync()
                     assert mock_kube_client.create_namespaced_pod.called
                     assert kubernetes_executor.task_queue.empty()
+                    if task_expected_state != State.SUCCESS:
+                        assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
                 else:
                     assert kubernetes_executor.task_queue.empty()
-                    assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+                    assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
             finally:
                 kubernetes_executor.end()
 

@@ -28,7 +28,7 @@ import json
 import logging
 import multiprocessing
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
@@ -161,6 +161,8 @@ class KubernetesExecutor(BaseExecutor):
         self.event_scheduler: EventScheduler | None = None
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
+        self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
+        self.task_publish_max_retries = conf.getint("kubernetes", "task_publish_max_retries", fallback=0)
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -425,7 +427,9 @@ class KubernetesExecutor(BaseExecutor):
                 task = self.task_queue.get_nowait()
 
                 try:
+                    key, command, kube_executor_config, pod_template_file = task
                     self.kube_scheduler.run_next(task)
+                    self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
                     self.log.error(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
@@ -434,19 +438,35 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-                    # In case of the below error codes, fail the task and honor the task retries.
-                    # Otherwise, go for continuous/infinite retries.
-                    if e.status in (400, 403, 404, 422):
+                    body = json.loads(e.body)
+                    retries = self.task_publish_retries[key]
+                    # Fail the task in the following scenarios.
+                    # 1. kube api status code in (400, 404, 422)
+                    # 2. kube api status code is  403 and not related to exceeded quota
+                    # 3. task publish retries exhausted
+                    if (
+                        e.status in (400, 404, 422)
+                        or (e.status == 403 and "exceeded quota" not in body["message"])
+                        or not (
+                            self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
+                        )
+                    ):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
                         self.fail(key, e)
+                        self.task_publish_retries.pop(key, None)
+                    # Otherwise, requeue the task
                     else:
                         self.log.warning(
-                            "ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s",
+                            "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
+                            self.task_publish_retries[key] + 1,
+                            self.task_publish_max_retries,
+                            key,
                             e.reason,
-                            json.loads(e.body)["message"],
+                            body["message"],
                         )
                         self.task_queue.put(task)
+                        self.task_publish_retries[key] = retries + 1
                 except PodMutationHookException as e:
                     key, _, _, _ = task
                     self.log.error(
