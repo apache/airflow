@@ -1096,10 +1096,10 @@ class TestDag:
         dag_id1 = "test_dataset_dag1"
         dag_id2 = "test_dataset_dag2"
         task_id = "test_dataset_task"
-        uri1 = "s3://dataset1"
+        uri1 = "s3://dataset/1"
         d1 = Dataset(uri1, extra={"not": "used"})
-        d2 = Dataset("s3://dataset2")
-        d3 = Dataset("s3://dataset3")
+        d2 = Dataset("s3://dataset/2")
+        d3 = Dataset("s3://dataset/3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
