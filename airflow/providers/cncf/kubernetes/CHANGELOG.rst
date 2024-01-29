@@ -52,6 +52,17 @@ Misc
 * ``Changing wording in docstring for CNCF provider (#36547)``
 * ``Add support of Pendulum 3 (#36281)``
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In the case of Kube API transient errors, we have introduced the ``task_publish_max_retries``
+flag to control the re-queueing task behavior. Changed the default behavior from unlimited
+retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
+unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
+``task_publish_max_retries`` to any positive integer.
+
+* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
