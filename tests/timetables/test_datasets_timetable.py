@@ -25,7 +25,7 @@ from pendulum import DateTime
 
 from airflow.datasets import Dataset
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.datasets import DatasetTimetable
+from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.utils.types import DagRunType
 
 
@@ -104,17 +104,17 @@ def test_datasets() -> list[Dataset]:
 
 
 @pytest.fixture
-def dataset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset]) -> DatasetTimetable:
+def dataset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset]) -> DatasetOrTimeSchedule:
     """
     Pytest fixture for creating a DatasetTimetable object.
 
     :param test_timetable: The test timetable instance.
     :param test_datasets: A list of Dataset instances.
     """
-    return DatasetTimetable(time=test_timetable, event=test_datasets)
+    return DatasetOrTimeSchedule(time=test_timetable, datasets=test_datasets)
 
 
-def test_serialization(dataset_timetable: DatasetTimetable, monkeypatch: Any) -> None:
+def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: Any) -> None:
     """
     Tests the serialization method of DatasetTimetable.
 
@@ -127,7 +127,7 @@ def test_serialization(dataset_timetable: DatasetTimetable, monkeypatch: Any) ->
     serialized = dataset_timetable.serialize()
     assert serialized == {
         "time": "mock_serialized_timetable",
-        "event": [{"uri": "test_dataset", "extra": None}],
+        "datasets": [{"uri": "test_dataset", "extra": None}],
     }
 
 
@@ -140,12 +140,12 @@ def test_deserialization(monkeypatch: Any) -> None:
     monkeypatch.setattr(
         "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
     )
-    mock_serialized_data = {"time": "mock_serialized_timetable", "event": [{"uri": "test_dataset"}]}
-    deserialized = DatasetTimetable.deserialize(mock_serialized_data)
-    assert isinstance(deserialized, DatasetTimetable)
+    mock_serialized_data = {"time": "mock_serialized_timetable", "datasets": [{"uri": "test_dataset"}]}
+    deserialized = DatasetOrTimeSchedule.deserialize(mock_serialized_data)
+    assert isinstance(deserialized, DatasetOrTimeSchedule)
 
 
-def test_infer_manual_data_interval(dataset_timetable: DatasetTimetable) -> None:
+def test_infer_manual_data_interval(dataset_timetable: DatasetOrTimeSchedule) -> None:
     """
     Tests the infer_manual_data_interval method of DatasetTimetable.
 
@@ -156,7 +156,7 @@ def test_infer_manual_data_interval(dataset_timetable: DatasetTimetable) -> None
     assert isinstance(result, DataInterval)
 
 
-def test_next_dagrun_info(dataset_timetable: DatasetTimetable) -> None:
+def test_next_dagrun_info(dataset_timetable: DatasetOrTimeSchedule) -> None:
     """
     Tests the next_dagrun_info method of DatasetTimetable.
 
@@ -170,7 +170,7 @@ def test_next_dagrun_info(dataset_timetable: DatasetTimetable) -> None:
     assert result is None or isinstance(result, DagRunInfo)
 
 
-def test_generate_run_id(dataset_timetable: DatasetTimetable) -> None:
+def test_generate_run_id(dataset_timetable: DatasetOrTimeSchedule) -> None:
     """
     Tests the generate_run_id method of DatasetTimetable.
 

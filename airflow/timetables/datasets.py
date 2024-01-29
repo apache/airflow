@@ -24,7 +24,7 @@ import attrs
 
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.timetables.simple import DatasetTriggeredTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:
@@ -33,12 +33,12 @@ if typing.TYPE_CHECKING:
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
-class DatasetTimetable(DatasetTriggeredTimetable):
+class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
     """Combine time-based scheduling with event-based scheduling."""
 
-    def __init__(self, time: Timetable, event: collections.abc.Collection[Dataset]) -> None:
+    def __init__(self, time: Timetable, datasets: collections.abc.Collection[Dataset]) -> None:
         self.time = time
-        self.event = event
+        self.datasets = datasets
 
         self.description = f"Triggered by datasets or {time.description}"
         self.periodic = time.periodic
@@ -51,21 +51,21 @@ class DatasetTimetable(DatasetTriggeredTimetable):
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_timetable
 
-        return cls(time=decode_timetable(data["time"]), event=[Dataset(**d) for d in data["event"]])
+        return cls(time=decode_timetable(data["time"]), datasets=[Dataset(**d) for d in data["datasets"]])
 
     def serialize(self) -> dict[str, typing.Any]:
         from airflow.serialization.serialized_objects import encode_timetable
 
         return {
             "time": encode_timetable(self.time),
-            "event": [attrs.asdict(e) for e in self.event],
+            "datasets": [attrs.asdict(e) for e in self.datasets],
         }
 
     def validate(self) -> None:
-        if isinstance(self.time, DatasetTriggeredTimetable):
+        if isinstance(self.time, DatasetTriggeredSchedule):
             raise AirflowTimetableInvalid("cannot nest dataset timetables")
-        if not isinstance(self.event, collections.abc.Collection) or not all(
-            isinstance(d, Dataset) for d in self.event
+        if not isinstance(self.datasets, collections.abc.Collection) or not all(
+            isinstance(d, Dataset) for d in self.datasets
         ):
             raise AirflowTimetableInvalid("all elements in 'event' must be datasets")
 
