@@ -83,7 +83,7 @@ class SqlToS3Operator(BaseOperator):
     :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
     :param max_rows_per_file: (optional) argument to set destination file number of rows limit, if source data
         is larger than that, it will be dispatched into multiple files.
-        Will be ignored if groupby_kwargs argument is specified.
+        Will be ignored if ``groupby_kwargs`` argument is specified.
     :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
     :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
