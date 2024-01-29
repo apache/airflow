@@ -2189,7 +2189,8 @@ class Airflow(AirflowBaseView):
             form = DateTimeForm(data={"execution_date": execution_date})
             # Take over "bad" submitted fields for new form display
             for k, v in form_fields.items():
-                form_fields[k]["value"] = run_conf[k]
+                if k in run_conf:
+                    form_fields[k]["value"] = run_conf[k]
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
