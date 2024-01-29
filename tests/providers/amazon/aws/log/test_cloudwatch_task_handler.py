@@ -24,8 +24,8 @@ from unittest import mock
 from unittest.mock import ANY, Mock, call
 
 import boto3
-import moto
 import pytest
+from moto import mock_aws
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -44,9 +44,9 @@ def get_time_str(time_in_milliseconds):
     return dt_time.strftime("%Y-%m-%d %H:%M:%S,000")
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def logmock():
-    with moto.mock_logs():
+    with mock_aws():
         yield
 
 
@@ -83,8 +83,6 @@ class TestCloudwatchTaskHandler:
         self.remote_log_stream = (f"{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log").replace(
             ":", "_"
         )
-
-        moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn = boto3.client("logs", region_name=self.region_name)
 
         yield
