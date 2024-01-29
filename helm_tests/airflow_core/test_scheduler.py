@@ -903,6 +903,7 @@ class TestSchedulerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
+
 class TestSchedulerCreation:
     """Tests scheduler deployment creation."""
     def test_can_be_disabled(self):
