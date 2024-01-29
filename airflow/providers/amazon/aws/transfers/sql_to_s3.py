@@ -135,6 +135,12 @@ class SqlToS3Operator(BaseOperator):
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
 
+        if self.max_rows_per_file and self.groupby_kwargs:
+            raise AirflowException(
+                "SqlToS3Operator arguments max_rows_per_file and groupby_kwargs "
+                "can not be both specified. Please choose one."
+            )
+
         try:
             self.file_format = FILE_FORMAT[file_format.upper()]
         except KeyError:
