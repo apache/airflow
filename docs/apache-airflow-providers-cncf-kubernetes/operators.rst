@@ -78,7 +78,7 @@ Argument precedence
 ^^^^^^^^^^^^^^^^^^^
 
 When KPO defines the pod object, there may be overlap between the :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` arguments.
-In general, the order of precedence is ``full_pod_spec``, ``pod_template_file``, or otherwise the ``V1Pod`` default.
+In general, the order of precedence is ``full_pod_spec``, ``pod_template_file``, followed by ``V1Pod``, by default.
 
 For ``namespace``, if namespace is not provided via any of these methods, then we'll first try to
 get the current namespace (if the task is already running in kubernetes) and failing that we'll use
