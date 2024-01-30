@@ -524,7 +524,7 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: ee123f98f7863f010cb52314e9c76927
+# Hash of dependencies: c9383270c1203f9654cb69b133ee8213
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -879,6 +879,9 @@ presto = [ # source: airflow/providers/presto/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
   "presto-python-client>=0.8.4",
+]
+qdrant = [ # source: airflow/providers/qdrant/provider.yaml
+  "qdrant_client>=1.7.0",
 ]
 redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",

@@ -40,8 +40,8 @@ class QdrantIngestOperator(BaseOperator):
     :param conn_id: The connection id to connect to a Qdrant instance.
     :param collection_name: The name of the collection to ingest data into.
     :param vectors: An iterable over vectors to upload.
-    :param payload: Iterable of vectors payload, Optional. Defaults to None.
-    :param ids: Iterable of custom vectors ids, Optional. Defaults to None.
+    :param payload: Iterable of vector payloads, Optional. Defaults to None.
+    :param ids: Iterable of custom vector ids, Optional. Defaults to None.
     :param batch_size: Number of points to upload per-request. Defaults to 64.
     :param parallel: Number of parallel upload processes. Defaults to 1.
     :param method: Start method for parallel processes. Defaults to 'forkserver'.
