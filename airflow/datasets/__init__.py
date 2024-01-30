@@ -23,8 +23,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import attr
 
-from airflow.providers_manager import ProvidersManager
-
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
@@ -36,6 +34,8 @@ def normalize_noop(parts: SplitResult) -> SplitResult:
 def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
     if scheme == "file":
         return normalize_noop
+    from airflow.providers_manager import ProvidersManager
+
     return ProvidersManager().dataset_uri_handlers.get(scheme)
 
 
