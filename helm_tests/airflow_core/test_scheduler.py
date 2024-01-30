@@ -39,7 +39,6 @@ class TestScheduler:
             ("LocalExecutor", False, "Deployment"),
         ],
     )
-
     def test_scheduler_kind(self, executor, persistence, kind):
         """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
@@ -906,6 +905,7 @@ class TestSchedulerServiceAccount:
 
 class TestSchedulerCreation:
     """Tests scheduler deployment creation."""
+
     def test_can_be_disabled(self):
         """
         Scheduler should be able to be disabled if the users desires.
