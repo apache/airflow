@@ -133,6 +133,37 @@ with DAG(
     )
 
 with DAG(
+    dag_id="consume_1_and_2_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=(dag1_dataset & dag2_dataset),
+) as dag5:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_and_2_with_dataset_expressions",
+        bash_command="sleep 5",
+    )
+with DAG(
+    dag_id="consume_1_or_2_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=(dag1_dataset | dag2_dataset),
+) as dag6:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_or_2_with_dataset_expressions",
+        bash_command="sleep 5",
+    )
+with DAG(
+    dag_id="consume_1_or_both_2_and_3_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=(dag1_dataset | (dag2_dataset & dag3_dataset)),
+) as dag7:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_or_both_2_and_3_with_dataset_expressions",
+        bash_command="sleep 5",
+    )
+
+with DAG(
     dag_id="dataset_and_time_based_timetable",
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
