@@ -346,8 +346,9 @@ class TestLockboxSecretBackend:
 
         assert res is None
 
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._client")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._list_secrets")
-    def test_yandex_lockbox_secret_backend__get_secrets(self, mock_list_secrets):
+    def test_yandex_lockbox_secret_backend__get_secrets(self, mock_list_secrets, mock_client):
         secrets = secret_service_pb.ListSecretsResponse(
             secrets=[
                 secret_pb.Secret(
@@ -360,6 +361,7 @@ class TestLockboxSecretBackend:
         )
 
         mock_list_secrets.return_value = secrets
+        mock_client.return_value = None
 
         res = LockboxSecretBackend(
             folder_id="someid",
@@ -367,8 +369,9 @@ class TestLockboxSecretBackend:
 
         assert res == secrets.secrets
 
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._client")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._list_secrets")
-    def test_yandex_lockbox_secret_backend__get_secrets_page_token(self, mock_list_secrets):
+    def test_yandex_lockbox_secret_backend__get_secrets_page_token(self, mock_list_secrets, mock_client):
         first_secrets = secret_service_pb.ListSecretsResponse(
             secrets=[
                 secret_pb.Secret(
@@ -396,6 +399,7 @@ class TestLockboxSecretBackend:
             first_secrets,
             second_secrets,
         ]
+        mock_client.return_value = None
 
         res = LockboxSecretBackend(
             folder_id="someid",
