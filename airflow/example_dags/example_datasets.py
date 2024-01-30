@@ -136,7 +136,7 @@ with DAG(
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=DatasetOrTimeSchedule(
-        time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=[dag1_dataset]
+        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=[dag1_dataset]
     ),
     tags=["dataset-time-based-timetable"],
 ) as dag7:
