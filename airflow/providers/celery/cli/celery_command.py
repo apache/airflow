@@ -165,7 +165,7 @@ def worker(args):
         "--hostname",
         args.celery_hostname,
         "--loglevel",
-        celery_log_level
+        celery_log_level,
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])

@@ -28,6 +28,7 @@ import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
+from deprecated import deprecated
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
@@ -37,8 +38,6 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
-
-from deprecated import deprecated
 
 WORKER_PROCESS_NAME = "worker"
 
