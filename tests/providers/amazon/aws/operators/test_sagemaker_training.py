@@ -202,6 +202,7 @@ class TestSageMakerTrainingOperator:
         self.sagemaker.deferrable = True
         self.sagemaker.wait_for_completion = True
         self.sagemaker.check_if_job_exists = False
+        self.sagemaker.print_log = False
 
         with pytest.raises(TaskDeferred) as exc:
             self.sagemaker.execute(context=None)

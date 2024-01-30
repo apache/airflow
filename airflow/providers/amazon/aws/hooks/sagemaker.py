@@ -1349,7 +1349,7 @@ class SageMakerHook(AwsBaseHook):
         log_group = "/aws/sagemaker/TrainingJobs"
 
         if len(stream_names) < instance_count:
-            with AwsLogsHook(
+            async with AwsLogsHook(
                 aws_conn_id=self.aws_conn_id, region_name=self.region_name
             ).async_conn as logs_client:
                 streams = await logs_client.describe_log_streams(
@@ -1408,7 +1408,7 @@ class SageMakerHook(AwsBaseHook):
         positions = positions or {s: Position(timestamp=0, skip=0) for s in streams}
         events: list[Any | None] = []
 
-        with AwsLogsHook(
+        async with AwsLogsHook(
             aws_conn_id=self.aws_conn_id, region_name=self.region_name
         ).async_conn as logs_client:
             event_iters = [
