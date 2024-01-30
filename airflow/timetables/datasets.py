@@ -36,33 +36,35 @@ if typing.TYPE_CHECKING:
 class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
     """Combine time-based scheduling with event-based scheduling."""
 
-    def __init__(self, time: Timetable, datasets: collections.abc.Collection[Dataset]) -> None:
-        self.time = time
+    def __init__(self, timetable: Timetable, datasets: collections.abc.Collection[Dataset]) -> None:
+        self.timetable = timetable
         self.datasets = datasets
 
-        self.description = f"Triggered by datasets or {time.description}"
-        self.periodic = time.periodic
-        self._can_be_scheduled = time._can_be_scheduled
+        self.description = f"Triggered by datasets or {timetable.description}"
+        self.periodic = timetable.periodic
+        self._can_be_scheduled = timetable._can_be_scheduled
 
-        self.run_ordering = time.run_ordering
-        self.active_runs_limit = time.active_runs_limit
+        self.run_ordering = timetable.run_ordering
+        self.active_runs_limit = timetable.active_runs_limit
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_timetable
 
-        return cls(time=decode_timetable(data["time"]), datasets=[Dataset(**d) for d in data["datasets"]])
+        return cls(
+            timetable=decode_timetable(data["timetable"]), datasets=[Dataset(**d) for d in data["datasets"]]
+        )
 
     def serialize(self) -> dict[str, typing.Any]:
         from airflow.serialization.serialized_objects import encode_timetable
 
         return {
-            "time": encode_timetable(self.time),
+            "timetable": encode_timetable(self.timetable),
             "datasets": [attrs.asdict(e) for e in self.datasets],
         }
 
     def validate(self) -> None:
-        if isinstance(self.time, DatasetTriggeredSchedule):
+        if isinstance(self.timetable, DatasetTriggeredSchedule):
             raise AirflowTimetableInvalid("cannot nest dataset timetables")
         if not isinstance(self.datasets, collections.abc.Collection) or not all(
             isinstance(d, Dataset) for d in self.datasets
@@ -71,20 +73,20 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
 
     @property
     def summary(self) -> str:
-        return f"Dataset or {self.time.summary}"
+        return f"Dataset or {self.timetable.summary}"
 
     def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
-        return self.time.infer_manual_data_interval(run_after=run_after)
+        return self.timetable.infer_manual_data_interval(run_after=run_after)
 
     def next_dagrun_info(
         self, *, last_automated_data_interval: DataInterval | None, restriction: TimeRestriction
     ) -> DagRunInfo | None:
-        return self.time.next_dagrun_info(
+        return self.timetable.next_dagrun_info(
             last_automated_data_interval=last_automated_data_interval,
             restriction=restriction,
         )
 
     def generate_run_id(self, *, run_type: DagRunType, **kwargs: typing.Any) -> str:
         if run_type != DagRunType.DATASET_TRIGGERED:
-            return self.time.generate_run_id(run_type=run_type, **kwargs)
+            return self.timetable.generate_run_id(run_type=run_type, **kwargs)
         return super().generate_run_id(run_type=run_type, **kwargs)

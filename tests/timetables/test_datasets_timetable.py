@@ -111,7 +111,7 @@ def dataset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset
     :param test_timetable: The test timetable instance.
     :param test_datasets: A list of Dataset instances.
     """
-    return DatasetOrTimeSchedule(time=test_timetable, datasets=test_datasets)
+    return DatasetOrTimeSchedule(timetable=test_timetable, datasets=test_datasets)
 
 
 def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: Any) -> None:
@@ -126,7 +126,7 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
     )
     serialized = dataset_timetable.serialize()
     assert serialized == {
-        "time": "mock_serialized_timetable",
+        "timetable": "mock_serialized_timetable",
         "datasets": [{"uri": "test_dataset", "extra": None}],
     }
 
@@ -140,7 +140,7 @@ def test_deserialization(monkeypatch: Any) -> None:
     monkeypatch.setattr(
         "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
     )
-    mock_serialized_data = {"time": "mock_serialized_timetable", "datasets": [{"uri": "test_dataset"}]}
+    mock_serialized_data = {"timetable": "mock_serialized_timetable", "datasets": [{"uri": "test_dataset"}]}
     deserialized = DatasetOrTimeSchedule.deserialize(mock_serialized_data)
     assert isinstance(deserialized, DatasetOrTimeSchedule)
 
