@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import Counter
 from enum import IntEnum
 from functools import cached_property
@@ -26,7 +27,7 @@ from typing import Any, AsyncIterator
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -196,3 +197,98 @@ class SageMakerPipelineTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.waiter_delay))
 
             raise AirflowException("Waiter error: max attempts reached")
+
+
+class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
+    """
+    SageMakerTriggerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
+
+    :param job_name: name of the job to check status
+    :param instance_count: count of the instance created for running the training job
+    :param status: The status of the training job created.
+    :param poke_interval:  polling period in seconds to check for the status
+    :param end_time: Time in seconds to wait for a job run to reach a terminal status.
+    :param aws_conn_id: AWS connection ID for sagemaker
+    """
+
+    NON_TERMINAL_STATES = ("InProgress", "Stopping", "Stopped")
+    TERMINAL_STATE = ("Failed",)
+
+    def __init__(
+        self,
+        job_name: str,
+        instance_count: int,
+        status: str,
+        poke_interval: float,
+        end_time: float | None = None,
+        aws_conn_id: str = "aws_default",
+    ):
+        super().__init__()
+        self.job_name = job_name
+        self.instance_count = instance_count
+        self.status = status
+        self.poke_interval = poke_interval
+        self.end_time = end_time
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes SagemakerTrainingWithLogTrigger arguments and classpath."""
+        return (
+            "astronomer.providers.amazon.aws.triggers.sagemaker.SagemakerTrainingWithLogTrigger",
+            {
+                "poke_interval": self.poke_interval,
+                "aws_conn_id": self.aws_conn_id,
+                "end_time": self.end_time,
+                "job_name": self.job_name,
+                "status": self.status,
+                "instance_count": self.instance_count,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Makes async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
+        async with self.hook.async_conn:
+            last_description = await self.hook.describe_training_job_async(self.job_name)
+            stream_names: list[str] = []  # The list of log streams
+            positions: dict[
+                str, Any
+            ] = {}  # The current position in each stream, map of stream name -> position
+
+            job_already_completed = self.status not in self.NON_TERMINAL_STATES
+
+            state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
+            last_describe_job_call = time.time()
+            while True:
+                try:
+                    (
+                        state,
+                        last_description,
+                        last_describe_job_call,
+                    ) = await self.hook.describe_training_job_with_log_async(
+                        self.job_name,
+                        positions,
+                        stream_names,
+                        self.instance_count,
+                        state,
+                        last_description,
+                        last_describe_job_call,
+                    )
+                    status = last_description["TrainingJobStatus"]
+                    if status in self.NON_TERMINAL_STATES:
+                        await asyncio.sleep(self.poke_interval)
+                    elif status in self.TERMINAL_STATE:
+                        reason = last_description.get("FailureReason", "(No reason provided)")
+                        error_message = f"SageMaker job failed because {reason}"
+                        yield TriggerEvent({"status": "error", "message": error_message})
+                    else:
+                        billable_time = (
+                            last_description["TrainingEndTime"] - last_description["TrainingStartTime"]
+                        ) * self.instance_count
+                        self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+                        yield TriggerEvent({"status": "success", "message": last_description})
+                except Exception as e:
+                    yield TriggerEvent({"status": "error", "message": str(e)})
