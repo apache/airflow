@@ -44,6 +44,23 @@ Below is an example of using this operator to upload a file to ADL.
     :start-after: [START howto_operator_local_to_adls]
     :end-before: [END howto_operator_local_to_adls]
 
+.. _howto/operator:LocalFilesystemToADLSOperator:
+
+DataToADLSOperator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~airflow.providers.microsoft.azure.transfers.local_to_adls.DataToADLSOperator` allows you to
+upload data as a file to ADL.
+
+
+Below is an example of using this operator to upload data as a file to ADL.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_local_to_adls.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_data_to_adls]
+    :end-before: [END howto_operator_data_to_adls]
+
 
 Reference
 ---------
