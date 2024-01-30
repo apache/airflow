@@ -22,7 +22,17 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.api_core.retry_async import AsyncRetry
+try:
+    from google.api_core.retry import AsyncRetry  # type: ignore[attr-defined]
+    # There is a backwards-incompatible change in google.api_core.retry.AsyncRetry imports
+    # In 2.16.0 version of google-api-core, AsyncRetry was moved to google.api_core.retry_unary_async
+    # and backwards compatibility impots were not haandling the case of
+    # `from google.api_core.retry_async import AsyncRetry`
+    # The issue is tracked in https://github.com/googleapis/python-api-core/issues/586
+    # Until it is solved, we need to handle both cases, because one works before and one after 2.16.0
+    # But there is no import that works for both.
+except ImportError:
+    from google.api_core.retry_async import AsyncRetry  # type: ignore[attr-defined]
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
