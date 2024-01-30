@@ -904,9 +904,11 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
-                timeout=datetime.timedelta(seconds=self.max_ingestion_time)
-                if self.max_ingestion_time is not None
-                else None,
+                timeout=(
+                    datetime.timedelta(seconds=self.max_ingestion_time)
+                    if self.max_ingestion_time is not None
+                    else None
+                ),
             )
             description = {}  # never executed but makes static checkers happy
         elif self.wait_for_completion:
@@ -1127,6 +1129,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             if self.max_ingestion_time:
                 timeout = datetime.timedelta(seconds=self.max_ingestion_time)
 
+            trigger: SageMakerTrainingPrintLogTrigger | SageMakerTrigger
             if self.print_log:
                 trigger = SageMakerTrainingPrintLogTrigger(
                     job_name=self.config["TrainingJobName"],

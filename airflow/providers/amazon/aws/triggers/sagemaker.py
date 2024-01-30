@@ -271,7 +271,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
                     billable_seconds = SageMakerHook.count_billable_seconds(
                         training_start_time=last_description["TrainingStartTime"],
                         training_end_time=last_description["TrainingEndTime"],
-                        instance_count=self.instance_count,
+                        instance_count=instance_count,
                     )
                     self.log.info("Billable seconds: %d", billable_seconds)
                     yield TriggerEvent({"status": "success", "message": last_description})
