@@ -146,7 +146,7 @@ class SageMakerHook(AwsBaseHook):
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    non_terminal_states = {"InProgress", "Stopping", "Stopped"}
+    non_terminal_states = {"InProgress", "Stopping"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
     pipeline_non_terminal_states = {"Executing", "Stopping"}
     failed_states = {"Failed"}
@@ -1319,7 +1319,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param job_name: the name of the training job
         """
-        async with await self.async_conn as client:
+        async with self.async_conn as client:
             response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
             return response
 
@@ -1349,21 +1349,25 @@ class SageMakerHook(AwsBaseHook):
         log_group = "/aws/sagemaker/TrainingJobs"
 
         if len(stream_names) < instance_count:
-            streams = await self.logs_hook_async.describe_log_streams_async(
-                log_group=log_group,
-                stream_prefix=job_name + "/",
-                order_by="LogStreamName",
-                count=instance_count,
-            )
-            stream_names = [s["logStreamName"] for s in streams["logStreams"]] if streams else []
-            positions.update([(s, Position(timestamp=0, skip=0)) for s in stream_names if s not in positions])
+            with AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client:
+                streams = await logs_client.describe_log_streams(
+                    logGroupName=log_group,
+                    logStreamNamePrefix=job_name + "/",
+                    orderBy="LogStreamName",
+                    limit=instance_count,
+                )
+
+                stream_names = [s["logStreamName"] for s in streams["logStreams"]] if streams else []
+                positions.update(
+                    [(s, Position(timestamp=0, skip=0)) for s in stream_names if s not in positions]
+                )
 
         if len(stream_names) > 0:
             async for idx, event in self.get_multi_stream(log_group, stream_names, positions):
                 self.log.info(event["message"])
                 ts, count = positions[stream_names[idx]]
                 if event["timestamp"] == ts:
-                    positions[stream_names[idx]] = Position(timestamp=ts, skip=count + 1)  # pragma: no cover
+                    positions[stream_names[idx]] = Position(timestamp=ts, skip=count + 1)
                 else:
                     positions[stream_names[idx]] = Position(timestamp=event["timestamp"], skip=1)
 
@@ -1379,8 +1383,8 @@ class SageMakerHook(AwsBaseHook):
             if await sync_to_async(secondary_training_status_changed)(description, last_description):
                 self.log.info(
                     await sync_to_async(secondary_training_status_message)(description, last_description)
-                )  # pragma: no cover
-                last_description = description  # pragma: no cover
+                )
+                last_description = description
 
             status = description["TrainingJobStatus"]
 
@@ -1391,7 +1395,7 @@ class SageMakerHook(AwsBaseHook):
     async def get_multi_stream(
         self, log_group: str, streams: list[str], positions: dict[str, Any]
     ) -> AsyncGenerator[Any, tuple[int, Any | None]]:
-        """Iterate over the available events coming from a set of log streams in a single log group interleaving the events from each stream so they're yielded in timestamp order.
+        """Iterate over the available events coming and interleaving the events from each stream so they're yielded in timestamp order.
 
         :param log_group: The name of the log group.
         :param streams: A list of the log stream names. The position of the stream in this list is
@@ -1402,23 +1406,30 @@ class SageMakerHook(AwsBaseHook):
         positions = positions or {s: Position(timestamp=0, skip=0) for s in streams}
         events: list[Any | None] = []
 
-        event_iters = [
-            self.logs_hook_async.get_log_events_async(log_group, s, positions[s].timestamp, positions[s].skip)
-            for s in streams
-        ]
-        for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)  # pragma: no cover
-                continue  # pragma: no cover
-            try:
-                events.append(await event_stream.__anext__())
-            except StopAsyncIteration:  # pragma: no cover
-                events.append(None)  # pragma: no cover
+        with AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client:
+            event_iters = [
+                await logs_client.get_log_events(
+                    logGroupName=log_group,
+                    logStreamName=s,
+                    startTime=positions[s].timestamp,
+                )
+                for s in streams
+            ]
+            for event_stream in event_iters:
+                if not event_stream:
+                    events.append(None)
+                    continue
 
-        while any(events):
-            i = argmin(events, lambda x: x["timestamp"] if x else 9999999999) or 0
-            yield i, events[i]
-            try:
-                events[i] = await event_iters[i].__anext__()
-            except StopAsyncIteration:
-                events[i] = None
+                try:
+                    events.append(await event_stream.__anext__())
+                except StopAsyncIteration:
+                    events.append(None)
+
+            while any(events):
+                i = argmin(events, lambda x: x["timestamp"] if x else 9999999999) or 0
+                yield i, events[i]
+
+                try:
+                    events[i] = await event_iters[i].__anext__()
+                except StopAsyncIteration:
+                    events[i] = None

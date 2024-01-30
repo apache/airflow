@@ -236,44 +236,44 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Makes async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
-        async with self.hook.async_conn as client:
-            last_description = await self.hook.describe_training_job_async(self.job_name)
-            stream_names: list[str] = []  # The list of log streams
-            positions: dict[
-                str, Any
-            ] = {}  # The current position in each stream, map of stream name -> position
+        stream_names: list[str] = []  # The list of log streams
+        positions: dict[str, Any] = {}  # The current position in each stream, map of stream name -> position
 
-            instance_count = last_description["ResourceConfig"]["InstanceCount"]
-            last_describe_job_call = time.time()
-            while True:
-                try:
-                    (
-                        state,
-                        last_description,
-                        last_describe_job_call,
-                    ) = await self.hook.describe_training_job_with_log_async(
-                        self.job_name,
-                        positions,
-                        stream_names,
-                        instance_count,
-                        state,
-                        last_description,
-                        last_describe_job_call,
+        last_description = await self.hook.describe_training_job_async(self.job_name)
+        instance_count = last_description["ResourceConfig"]["InstanceCount"]
+        status = last_description["TrainingJobStatus"]
+        job_already_completed = status not in self.hook.non_terminal_states
+        state = LogState.TAILING if job_already_completed else LogState.COMPLETE
+        last_describe_job_call = time.time()
+        while True:
+            try:
+                (
+                    state,
+                    last_description,
+                    last_describe_job_call,
+                ) = await self.hook.describe_training_job_with_log_async(
+                    self.job_name,
+                    positions,
+                    stream_names,
+                    instance_count,
+                    state,
+                    last_description,
+                    last_describe_job_call,
+                )
+                status = last_description["TrainingJobStatus"]
+                if status in self.hook.non_terminal_states:
+                    await asyncio.sleep(self.poke_interval)
+                elif status in self.hook.failed_states:
+                    reason = last_description.get("FailureReason", "(No reason provided)")
+                    error_message = f"SageMaker job failed because {reason}"
+                    yield TriggerEvent({"status": "error", "message": error_message})
+                else:
+                    billable_seconds = SageMakerHook.count_billable_seconds(
+                        training_start_time=last_description["TrainingStartTime"],
+                        training_end_time=last_description["TrainingEndTime"],
+                        instance_count=self.instance_count,
                     )
-                    status = last_description["TrainingJobStatus"]
-                    if status in self.hook.non_terminal_states:
-                        await asyncio.sleep(self.poke_interval)
-                    elif status in self.hook.failed_states:
-                        reason = last_description.get("FailureReason", "(No reason provided)")
-                        error_message = f"SageMaker job failed because {reason}"
-                        yield TriggerEvent({"status": "error", "message": error_message})
-                    else:
-                        billable_seconds = SageMakerHook.count_billable_seconds(
-                            training_start_time=last_description["TrainingStartTime"],
-                            training_end_time=last_description["TrainingEndTime"],
-                            instance_count=self.instance_count,
-                        )
-                        self.log.info("Billable seconds: %d", billable_seconds)
-                        yield TriggerEvent({"status": "success", "message": last_description})
-                except Exception as e:
-                    yield TriggerEvent({"status": "error", "message": str(e)})
+                    self.log.info("Billable seconds: %d", billable_seconds)
+                    yield TriggerEvent({"status": "success", "message": last_description})
+            except Exception as e:
+                yield TriggerEvent({"status": "error", "message": str(e)})

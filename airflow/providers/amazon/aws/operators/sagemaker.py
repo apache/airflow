@@ -36,8 +36,8 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
-    SageMakerTrigger,
     SageMakerTrainingPrintLogTrigger,
+    SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
