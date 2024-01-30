@@ -462,5 +462,7 @@ This will also remove breeze from the folder: ``${HOME}.local/bin/``
 
     pipx uninstall apache-airflow-breeze
 
+----
+
 
 Next step: Follow the `Customizing <02_customizing.rst>`_ guide to customize your environment.

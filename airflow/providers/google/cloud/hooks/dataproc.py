@@ -584,6 +584,94 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def start_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """Start a cluster in a project.
+
+        :param region: Cloud Dataproc region to handle the request.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
+        :param cluster_name: The cluster name.
+        :param cluster_uuid: The cluster UUID
+        :param request_id: A unique id used to identify the request. If the
+            server receives two *UpdateClusterRequest* requests with the same
+            ID, the second request will be ignored, and an operation created
+            for the first one and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If *None*, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. If *retry* is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: An instance of ``google.api_core.operation.Operation``
+        """
+        client = self.get_cluster_client(region=region)
+        return client.start_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "cluster_uuid": cluster_uuid,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def stop_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """Start a cluster in a project.
+
+        :param region: Cloud Dataproc region to handle the request.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
+        :param cluster_name: The cluster name.
+        :param cluster_uuid: The cluster UUID
+        :param request_id: A unique id used to identify the request. If the
+            server receives two *UpdateClusterRequest* requests with the same
+            ID, the second request will be ignored, and an operation created
+            for the first one and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If *None*, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. If *retry* is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: An instance of ``google.api_core.operation.Operation``
+        """
+        client = self.get_cluster_client(region=region)
+        return client.stop_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "cluster_uuid": cluster_uuid,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow_template(
         self,
         template: dict | WorkflowTemplate,

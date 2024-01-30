@@ -146,34 +146,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Retrieve defaults from branch_defaults.py"
-        id: defaults
-        # We could retrieve it differently here - by just importing the variables and
-        # printing them from python code, however we want to have the same code as used in
-        # the build-images.yml (there we cannot import python code coming from the PR - we need to
-        # treat the python code as text and extract the variables from there.
-        run: |
-          python - <<EOF >> ${GITHUB_ENV}
-          from pathlib import Path
-          import re
-          import sys
-
-          DEFAULTS_CONTENT = Path('dev/breeze/src/airflow_breeze/branch_defaults.py').read_text()
-          BRANCH_PATTERN = r'^AIRFLOW_BRANCH = "(.*)"$'
-          CONSTRAINTS_BRANCH_PATTERN = r'^DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "(.*)"$'
-
-          branch = re.search(BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-          constraints_branch = re.search(CONSTRAINTS_BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-
-          output = f"""
-          DEFAULT_BRANCH={branch}
-          DEFAULT_CONSTRAINTS_BRANCH={constraints_branch}
-          """.strip()
-
-          print(output)
-          # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
-          print(output, file=sys.stderr)
-          EOF
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
@@ -1078,7 +1050,7 @@ jobs:
       - name: "Install helm gpg plugin"
         run: >
           breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
-          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b"
+          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b" || true
       - name: "Helm release tarball"
         run: >
           breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag

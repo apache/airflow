@@ -61,6 +61,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
+from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
@@ -336,11 +337,22 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     if not dagrun_instance:
         try:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
+
+            data_interval_start = post_body.get("data_interval_start")
+            data_interval_end = post_body.get("data_interval_end")
+            if data_interval_start and data_interval_end:
+                data_interval = DataInterval(
+                    start=pendulum.instance(data_interval_start),
+                    end=pendulum.instance(data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
                 execution_date=logical_date,
-                data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
+                data_interval=data_interval,
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
