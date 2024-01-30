@@ -385,7 +385,7 @@ core:
     xcom_objectstorage_threshold:
       description: |
           Threshold in bytes for storing XComs in object storage. -1 means always store in the
-          database. 0 means always store in object storage. Any positive number means store in
+          database. 0 means always store in object storage. Any positive number means
           it will be stored in object storage if the size of the value is greater than the threshold.
       version_added: 2.9.0
       type: integer
