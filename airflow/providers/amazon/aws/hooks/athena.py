@@ -34,13 +34,16 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 if TYPE_CHECKING:
     from botocore.paginate import PageIterator
 
+MULTI_LINE_QUERY_LOG_PREFIX = "\n\t\t"
+
 
 def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
-    line_prefix = "\n\t\t"
     result = ""
     for key, value in params.items():
         if key == "QueryString":
-            value = line_prefix + str(value).replace("\n", line_prefix).rstrip()
+            value = (
+                MULTI_LINE_QUERY_LOG_PREFIX + str(value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
+            )
         result += f"\t{key}: {value}\n"
     return result.rstrip()
 
