@@ -118,10 +118,7 @@ additional-extras:
 devel-dependencies:
   - aiobotocore>=2.7.0
   - aws_xray_sdk>=2.12.0
-  # Moto 5 replaced all decorators with single mock_aws decorator and we need to
-  # Replace the usage of mock decorators in our tests to be able to use moto 5
-  # See https://github.com/apache/airflow/issues/37053
-  - moto[cloudformation,glue]>=4.2.12,<5.0.0
+  - moto[cloudformation,glue]>=5.0.0
   - mypy-boto3-appflow>=1.33.0
   - mypy-boto3-rds>=1.33.0
   - mypy-boto3-redshift-data>=1.33.0

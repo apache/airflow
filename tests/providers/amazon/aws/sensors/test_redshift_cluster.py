@@ -20,7 +20,7 @@ from unittest import mock
 
 import boto3
 import pytest
-from moto import mock_redshift
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
@@ -52,7 +52,7 @@ class TestRedshiftClusterSensor:
         if not client.describe_clusters()["Clusters"]:
             raise ValueError("AWS not properly mocked")
 
-    @mock_redshift
+    @mock_aws
     def test_poke(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
@@ -65,7 +65,7 @@ class TestRedshiftClusterSensor:
         )
         assert op.poke({})
 
-    @mock_redshift
+    @mock_aws
     def test_poke_false(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
@@ -79,7 +79,7 @@ class TestRedshiftClusterSensor:
 
         assert not op.poke({})
 
-    @mock_redshift
+    @mock_aws
     def test_poke_cluster_not_found(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
