@@ -21,7 +21,7 @@ from unittest import mock
 
 import boto3
 import pytest
-from moto import mock_ecr
+from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.providers.amazon.aws.hooks.ecr import EcrHook
@@ -35,7 +35,7 @@ def patch_hook(monkeypatch):
     yield
 
 
-@mock_ecr
+@mock_aws
 class TestEcrHook:
     def test_service_type(self):
         """Test expected boto3 client type."""

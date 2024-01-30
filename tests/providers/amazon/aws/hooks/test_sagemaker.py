@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from botocore.exceptions import ClientError
 from dateutil.tz import tzlocal
-from moto import mock_sagemaker
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -689,14 +689,14 @@ class TestSageMakerHook:
         ret = hook.count_processing_jobs_by_name("existing_job")
         assert ret == 0
 
-    @mock_sagemaker
+    @mock_aws
     def test_delete_model(self):
         hook = SageMakerHook()
         with patch.object(hook.conn, "delete_model") as mock_delete:
             hook.delete_model(model_name="test")
         mock_delete.assert_called_once_with(ModelName="test")
 
-    @mock_sagemaker
+    @mock_aws
     def test_delete_model_when_not_exist(self):
         hook = SageMakerHook()
         with pytest.raises(ClientError) as raised_exception:

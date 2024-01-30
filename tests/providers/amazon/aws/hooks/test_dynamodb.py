@@ -20,18 +20,18 @@ from __future__ import annotations
 import uuid
 from unittest import mock
 
-from moto import mock_dynamodb
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 
 
 class TestDynamoDBHook:
-    @mock_dynamodb
+    @mock_aws
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
-    @mock_dynamodb
+    @mock_aws
     def test_insert_batch_items_dynamodb_table(self):
         hook = DynamoDBHook(
             aws_conn_id="aws_default", table_name="test_airflow", table_keys=["id"], region_name="us-east-1"
