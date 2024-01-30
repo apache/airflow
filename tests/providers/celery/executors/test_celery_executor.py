@@ -360,10 +360,10 @@ def test_sentinel_kwargs_loaded_from_string():
     }
 
 
-@conf_vars({("celery", "task_acks_late"): "True"})
+@conf_vars({("celery", "task_acks_late"): "False"})
 def test_celery_task_acks_late_loaded_from_string():
     import importlib
 
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is True
+    assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is False
