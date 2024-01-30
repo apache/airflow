@@ -25,7 +25,7 @@ with DAG(
     "example_qdrant_ingest",
     schedule=None,
     start_date=datetime(2024, 1, 1),
-    catchup=True,
+    catchup=False,
 ) as dag:
     # [START howto_operator_qdrant_ingest]
     vectors = [[0.732, 0.611, 0.289, 0.421], [0.217, 0.526, 0.416, 0.981], [0.326, 0.483, 0.376, 0.136]]
