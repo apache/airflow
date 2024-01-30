@@ -199,9 +199,9 @@ class SageMakerPipelineTrigger(BaseTrigger):
             raise AirflowException("Waiter error: max attempts reached")
 
 
-class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
+class SageMakerTrainingPrintLogTrigger(BaseTrigger):
     """
-    SageMakerTriggerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
+    SageMakerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
 
     :param job_name: name of the job to check status
     :param poke_interval:  polling period in seconds to check for the status
@@ -220,9 +220,9 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SageMakerTriggerTrainingPrintLogTrigger arguments and classpath."""
+        """Serializes SageMakerTrainingPrintLogTrigger arguments and classpath."""
         return (
-            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTriggerTrainingPrintLogTrigger",
+            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger",
             {
                 "poke_interval": self.poke_interval,
                 "aws_conn_id": self.aws_conn_id,

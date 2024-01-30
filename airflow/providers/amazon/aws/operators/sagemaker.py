@@ -37,7 +37,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
     SageMakerTrigger,
-    SageMakerTriggerTrainingPrintLogTrigger,
+    SageMakerTrainingPrintLogTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
@@ -1128,11 +1128,10 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 timeout = datetime.timedelta(seconds=self.max_ingestion_time)
 
             if self.print_log:
-                trigger = SageMakerTriggerTrainingPrintLogTrigger(
+                trigger = SageMakerTrainingPrintLogTrigger(
                     job_name=self.config["TrainingJobName"],
                     poke_interval=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
-                    instance_count=int(instance_count),
                 )
             else:
                 trigger = SageMakerTrigger(
