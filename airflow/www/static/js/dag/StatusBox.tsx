@@ -65,7 +65,11 @@ export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
     background={state && stateColors[state] ? stateColors[state] : "white"}
     borderRadius="2px"
     borderWidth={state ? 0 : 1}
-    transform="translateY(2px)"
+    display="flex"
+    flexDirection="column"
+    justifyContent="center"
+    alignItems="center"
+    style={{ marginTop: "auto", marginBottom: "auto" }}
     {...rest}
   />
 );
