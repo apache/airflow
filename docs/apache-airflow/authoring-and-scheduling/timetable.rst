@@ -184,7 +184,7 @@ DatasetTimetable
 
 The ``DatasetTimetable`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
 
-This feature is particularly useful in scenarios requiring a DAG to rerun upon dataset updates, while also necessitating periodic execution at set intervals. It ensures that the workflow remains responsive to data changes and consistently maintains regular checks or updates.
+This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
 Here's an example of a DAG using ``DatasetTimetable``:
 
