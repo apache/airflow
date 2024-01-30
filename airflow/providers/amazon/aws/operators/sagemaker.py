@@ -1097,7 +1097,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 instance_count = description["ResourceConfig"]["InstanceCount"]
                 last_describe_job_call = time.monotonic()
                 job_already_completed = status not in self.hook.non_terminal_states
-                _, last_description, last_describe_job_call = self.hook.describe_training_job_with_log(
+                _, description, last_describe_job_call = self.hook.describe_training_job_with_log(
                     self.config["TrainingJobName"],
                     {},
                     [],
@@ -1109,23 +1109,18 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 self.log.info(secondary_training_status_message(description, None))
 
             if status in self.hook.failed_states:
-                if self.print_log:
-                    reason = last_description.get("FailureReason", "(No reason provided)")
-                else:
-                    reason = description["FailureReason"]
-
+                reason = description.get("FailureReason", "(No reason provided)")
                 raise AirflowException(f"SageMaker job failed because {reason}")
             elif status == "Completed":
+                log_message = f"{self.task_id} completed successfully."
                 if self.print_log:
-                    billable_time = (
-                        last_description["TrainingEndTime"] - last_description["TrainingStartTime"]
-                    ) * instance_count
-                    billable_seconds = int(billable_time.total_seconds()) + 1
-                    self.log.info(
-                        "Billable seconds: %d\n%s completed successfully.", billable_seconds, self.task_id
+                    billable_seconds = SageMakerHook.count_billable_seconds(
+                        training_start_time=description["TrainingStartTime"],
+                        training_end_time=description["TrainingEndTime"],
+                        instance_count=instance_count,
                     )
-                else:
-                    self.log.info("%s completed successfully.", self.task_id)
+                    log_message = f"Billable seconds: {billable_seconds}\n{log_message}"
+                self.log.info(log_message)
                 return {"Training": serialize(description)}
 
             timeout = self.execution_timeout
@@ -1134,9 +1129,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
             if self.print_log:
                 trigger = SageMakerTriggerTrainingPrintLogTrigger(
+                    job_name=self.config["TrainingJobName"],
                     poke_interval=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
-                    job_name=self.config["TrainingJobName"],
                     instance_count=int(instance_count),
                     status=status,
                 )

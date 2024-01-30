@@ -311,10 +311,12 @@ class SageMakerHook(AwsBaseHook):
                 max_ingestion_time,
             )
 
-            billable_time = (
-                describe_response["TrainingEndTime"] - describe_response["TrainingStartTime"]
-            ) * describe_response["ResourceConfig"]["InstanceCount"]
-            self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+            billable_seconds = SageMakerHook.count_billable_seconds(
+                training_start_time=describe_response["TrainingStartTime"],
+                training_end_time=describe_response["TrainingEndTime"],
+                instance_count=describe_response["ResourceConfig"]["InstanceCount"],
+            )
+            self.log.info("Billable seconds: %d", billable_seconds)
 
         return response
 
@@ -812,10 +814,12 @@ class SageMakerHook(AwsBaseHook):
             if status in failed_states:
                 reason = last_description.get("FailureReason", "(No reason provided)")
                 raise AirflowException(f"Error training {job_name}: {status} Reason: {reason}")
-            billable_time = (
-                last_description["TrainingEndTime"] - last_description["TrainingStartTime"]
-            ) * instance_count
-            self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+            billable_seconds = SageMakerHook.count_billable_seconds(
+                training_start_time=last_description["TrainingStartTime"],
+                training_end_time=last_description["TrainingEndTime"],
+                instance_count=instance_count,
+            )
+            self.log.info("Billable seconds: %d", billable_seconds)
 
     def list_training_jobs(
         self, name_contains: str | None = None, max_results: int | None = None, **kwargs
@@ -1301,6 +1305,13 @@ class SageMakerHook(AwsBaseHook):
             if "BestCandidate" in res:
                 return res["BestCandidate"]
         return None
+
+    @staticmethod
+    def count_billable_seconds(
+        training_start_time: datetime, training_end_time: datetime, instance_count: int
+    ) -> int:
+        billable_time = (training_end_time - training_start_time) * instance_count
+        return int(billable_time.total_seconds()) + 1
 
     async def describe_training_job_async(self, job_name: str) -> dict[str, Any]:
         """
