@@ -1133,7 +1133,6 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                     poke_interval=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
                     instance_count=int(instance_count),
-                    status=status,
                 )
             else:
                 trigger = SageMakerTrigger(

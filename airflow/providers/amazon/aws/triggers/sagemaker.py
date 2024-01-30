@@ -204,41 +204,29 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
     SageMakerTriggerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
 
     :param job_name: name of the job to check status
-    :param instance_count: count of the instance created for running the training job
-    :param status: The status of the training job created.
     :param poke_interval:  polling period in seconds to check for the status
-    :param end_time: Time in seconds to wait for a job run to reach a terminal status.
     :param aws_conn_id: AWS connection ID for sagemaker
     """
 
     def __init__(
         self,
         job_name: str,
-        instance_count: int,
-        status: str,
         poke_interval: float,
-        end_time: float | None = None,
         aws_conn_id: str = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
-        self.instance_count = instance_count
-        self.status = status
         self.poke_interval = poke_interval
-        self.end_time = end_time
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SagemakerTrainingWithLogTrigger arguments and classpath."""
+        """Serializes SageMakerTriggerTrainingPrintLogTrigger arguments and classpath."""
         return (
-            "astronomer.providers.amazon.aws.triggers.sagemaker.SagemakerTrainingWithLogTrigger",
+            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTriggerTrainingPrintLogTrigger",
             {
                 "poke_interval": self.poke_interval,
                 "aws_conn_id": self.aws_conn_id,
-                "end_time": self.end_time,
                 "job_name": self.job_name,
-                "status": self.status,
-                "instance_count": self.instance_count,
             },
         )
 
@@ -248,16 +236,14 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Makes async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
-        async with self.hook.async_conn:
+        async with self.hook.async_conn as client:
             last_description = await self.hook.describe_training_job_async(self.job_name)
             stream_names: list[str] = []  # The list of log streams
             positions: dict[
                 str, Any
             ] = {}  # The current position in each stream, map of stream name -> position
 
-            job_already_completed = self.status not in self.hook.non_terminal_states
-
-            state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
+            instance_count = last_description["ResourceConfig"]["InstanceCount"]
             last_describe_job_call = time.time()
             while True:
                 try:
@@ -269,7 +255,7 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
                         self.job_name,
                         positions,
                         stream_names,
-                        self.instance_count,
+                        instance_count,
                         state,
                         last_description,
                         last_describe_job_call,
