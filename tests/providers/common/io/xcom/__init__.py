@@ -14,35 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-common-io
-name: Common IO
-description: |
-  ``Common IO Provider``
-
-state: ready
-source-date-epoch: 1704610529
-versions:
-  - 1.2.0
-  - 1.1.0
-  - 1.0.1
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.8.0
-
-integrations:
-  - integration-name: Common IO
-    external-doc-url: https://filesystem-spec.readthedocs.io/en/latest/index.html
-    how-to-guide:
-      - /docs/apache-airflow-providers-common-io/operators.rst
-    tags: [software]
-
-operators:
-  - integration-name: Common IO
-    python-modules:
-      - airflow.providers.common.io.operators.file_transfer
-
-xcom:
-  - airflow.providers.common.io.xcom.backend

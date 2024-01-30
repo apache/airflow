@@ -25,11 +25,11 @@ import airflow.models.xcom
 from airflow import settings
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
-from airflow.io.xcom import XComObjectStoreBackend
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.io.xcom.backend import XComObjectStoreBackend
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -88,7 +88,7 @@ class TestXcomObjectStoreBackend:
     path = "file:/tmp/xcom"
 
     def setup_method(self):
-        conf.set("core", "xcom_backend", "airflow.io.xcom.XComObjectStoreBackend")
+        conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
         conf.set("core", "xcom_objectstore_path", self.path)
         conf.set("core", "xcom_objectstore_threshold", "50")
         settings.configure_vars()
