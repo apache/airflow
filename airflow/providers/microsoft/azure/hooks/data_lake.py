@@ -332,7 +332,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         """Return the DataLakeServiceClient object (cached)."""
         return self.get_conn()
 
-    def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
+    def get_conn(self) -> Union[DataLakeFileClient, DataLakeServiceClient]:  # type: ignore[override]
         """Return the DataLakeServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
@@ -340,7 +340,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            return DataLakeServiceClient.from_connection_string(connection_string, **extra)
+            return DataLakeServiceClient.from_connection_string(
+                connection_string, **extra
+            )
 
         credential: Credentials
         tenant = self._get_field(extra, "tenant_id")
@@ -348,19 +350,36 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            credential = ClientSecretCredential(tenant, app_id, app_secret)
+            proxies = extra.get("proxies", {})
+
+            credential = ClientSecretCredential(
+                tenant_id=tenant,
+                client_id=app_id,
+                client_secret=app_secret,
+                proxies=proxies
+            )
         elif conn.password:
             credential = conn.password
         else:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            managed_identity_client_id = self._get_field(
+                extra, "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = self._get_field(
+                extra, "workload_identity_tenant_id"
+            )
             credential = AzureIdentityCredentialAdapter(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
+        account_url = extra.pop(
+            "account_url", f"https://{conn.host}.dfs.core.windows.net"
+        )
+
+        self.log.info("account_url: %s", account_url)
+
         return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            account_url=account_url,
             credential=credential,  # type: ignore[arg-type]
             **extra,
         )

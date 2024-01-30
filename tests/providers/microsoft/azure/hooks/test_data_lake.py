@@ -21,6 +21,8 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from azure.core.pipeline.policies._universal import ProxyPolicy
+from azure.storage.filedatalake import DataLakeServiceClient
 from azure.storage.filedatalake._models import FileSystemProperties
 
 from airflow.models import Connection
@@ -297,3 +299,35 @@ class TestAzureDataLakeStorageV2Hook:
 
         assert status is False
         assert msg == "Authentication failed."
+
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_connection")
+    def test_proxies_passed_to_credentials(self, mock_conn):
+        hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
+        mock_conn.return_value = Connection(
+            conn_id=self.conn_id,
+            login="client_id",
+            password="secret",
+            extra={
+                "tenant_id": "tenant-id",
+                "proxies": {"https": "https://proxy:80"},
+                "account_url": "https://onelake.dfs.fabric.microsoft.com"
+            },
+        )
+        conn: DataLakeServiceClient = hook.get_conn()
+
+        assert conn is not None
+        assert conn.primary_endpoint == "https://onelake.dfs.fabric.microsoft.com/"
+        assert conn.primary_hostname == "onelake.dfs.fabric.microsoft.com"
+        assert conn.scheme == "https"
+        assert conn.url == "https://onelake.dfs.fabric.microsoft.com/"
+        assert conn.credential._client_id == "client_id"
+        assert conn.credential._client_credential == "secret"
+        assert self.find_policy(conn, ProxyPolicy) is not None
+        assert self.find_policy(conn, ProxyPolicy).proxies["https"] == "https://proxy:80"
+
+    def find_policy(self, conn, policy_type):
+        policies = conn.credential._client._pipeline._impl_policies
+        return next(
+            map(lambda policy: policy._policy,
+                filter(lambda policy: isinstance(policy._policy, policy_type), policies))
+        )
