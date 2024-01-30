@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import os
-import urllib.parse
 from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-import attrs
+import attr
 
 from airflow.providers_manager import ProvidersManager
 
@@ -46,14 +46,14 @@ def _sanitize_uri(uri: str) -> str:
         raise ValueError("Dataset URI cannot be just whitespace")
     if not uri.isascii():
         raise ValueError("Dataset URI must only consist of ASCII characters")
-    parsed = urllib.parse.urlsplit(uri)
+    parsed = urlsplit(uri)
     if (normalized_scheme := parsed.scheme.lower()) == "airflow":
         raise ValueError("Dataset scheme 'airflow' is reserved")
     _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
     if auth_exists:
         raise ValueError("Dataset URI must not contain auth information")
     if parsed.query:
-        normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
+        normalized_query = urlencode(sorted(parse_qsl(parsed.query)))
     else:
         normalized_query = ""
     parsed = parsed._replace(
@@ -65,22 +65,22 @@ def _sanitize_uri(uri: str) -> str:
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
         parsed = normalizer(parsed)
-    return urllib.parse.urlunsplit(parsed)
+    return urlunsplit(parsed)
 
 
-@attrs.define()
+@attr.define()
 class Dataset(os.PathLike):
     """A Dataset is used for marking data dependencies between workflows."""
 
-    uri: str = attrs.field(
+    uri: str = attr.field(
         converter=_sanitize_uri,
-        validator=[attrs.validators.min_len(1), attrs.validators.max_len(3000)],
+        validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
     extra: dict[str, Any] | None = None
 
     __version__: ClassVar[int] = 1
 
-    def __fspath__(self):
+    def __fspath__(self) -> str:
         return self.uri
 
     def __eq__(self, other):
