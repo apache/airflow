@@ -146,7 +146,7 @@ class SageMakerHook(AwsBaseHook):
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    non_terminal_states = {"InProgress", "Stopping"}
+    non_terminal_states = {"InProgress", "Stopping", "Stopped"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
     pipeline_non_terminal_states = {"Executing", "Stopping"}
     failed_states = {"Failed"}
@@ -1384,7 +1384,7 @@ class SageMakerHook(AwsBaseHook):
 
             status = description["TrainingJobStatus"]
 
-            if status not in self.NON_TERMINAL_STATES:
+            if status not in self.non_terminal_states:
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 

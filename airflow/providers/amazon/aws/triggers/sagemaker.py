@@ -211,9 +211,6 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
     :param aws_conn_id: AWS connection ID for sagemaker
     """
 
-    NON_TERMINAL_STATES = ("InProgress", "Stopping", "Stopped")
-    TERMINAL_STATE = ("Failed",)
-
     def __init__(
         self,
         job_name: str,
@@ -258,7 +255,7 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
                 str, Any
             ] = {}  # The current position in each stream, map of stream name -> position
 
-            job_already_completed = self.status not in self.NON_TERMINAL_STATES
+            job_already_completed = self.status not in self.hook.non_terminal_states
 
             state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
             last_describe_job_call = time.time()
@@ -278,17 +275,19 @@ class SageMakerTriggerTrainingPrintLogTrigger(BaseTrigger):
                         last_describe_job_call,
                     )
                     status = last_description["TrainingJobStatus"]
-                    if status in self.NON_TERMINAL_STATES:
+                    if status in self.hook.non_terminal_states:
                         await asyncio.sleep(self.poke_interval)
-                    elif status in self.TERMINAL_STATE:
+                    elif status in self.hook.failed_states:
                         reason = last_description.get("FailureReason", "(No reason provided)")
                         error_message = f"SageMaker job failed because {reason}"
                         yield TriggerEvent({"status": "error", "message": error_message})
                     else:
-                        billable_time = (
-                            last_description["TrainingEndTime"] - last_description["TrainingStartTime"]
-                        ) * self.instance_count
-                        self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+                        billable_seconds = SageMakerHook.count_billable_seconds(
+                            training_start_time=last_description["TrainingStartTime"],
+                            training_end_time=last_description["TrainingEndTime"],
+                            instance_count=self.instance_count,
+                        )
+                        self.log.info("Billable seconds: %d", billable_seconds)
                         yield TriggerEvent({"status": "success", "message": last_description})
                 except Exception as e:
                     yield TriggerEvent({"status": "error", "message": str(e)})
