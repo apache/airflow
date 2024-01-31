@@ -524,7 +524,7 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: b724779455591b6a7542cf2d456e5366
+# Hash of dependencies: 5041869464e6475fea61bee848306a8c
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -595,7 +595,7 @@ apache-kylin = [ # source: airflow/providers/apache/kylin/provider.yaml
   "kylinpy>=2.6",
 ]
 apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "apache-airflow[http]",
   "asgiref",
 ]
@@ -647,7 +647,7 @@ common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.6.3, <4",
+  "aiohttp>=3.9.2, <4",
   "apache-airflow[common_sql]",
   "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
   "requests>=2.27,<3",
@@ -658,7 +658,7 @@ datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
 ]
 dbt-cloud = [ # source: airflow/providers/dbt/cloud/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "apache-airflow[http]",
   "asgiref",
 ]
@@ -764,7 +764,7 @@ hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
   "hvac>=1.1.0",
 ]
 http = [ # source: airflow/providers/http/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "asgiref",
   "requests>=2.26.0",
   "requests_toolbelt",
