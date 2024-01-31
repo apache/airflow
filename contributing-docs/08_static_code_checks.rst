@@ -323,11 +323,13 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ts-compile-format-lint-www                                | TS types generation / ESLint / Prettier against UI files     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-black-version                                      | Update black versions everywhere                             |         |
+| update-black-version                                      | Update black versions everywhere (manual)                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-breeze-cmd-output                                  | Update output of breeze commands in Breeze documentation     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash               |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-build-dependencies                                 | Update build-dependencies to latest (manual)                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-common-sql-api-stubs                               | Check and update common.sql API stubs                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

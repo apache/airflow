@@ -119,6 +119,7 @@ PRE_COMMIT_LIST = [
     "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
+    "update-build-dependencies",
     "update-common-sql-api-stubs",
     "update-er-diagram",
     "update-extras",
