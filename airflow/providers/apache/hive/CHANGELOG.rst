@@ -34,7 +34,6 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``use_beeline``, ``proxy_user``, ``principal`` in hive client connection options is moved from the extra field to ``Use Beeline``, ``Proxy User``, ``Principal`` parameter in the Hook.
 * Remove the ability of specify a proxy user as an ``owner`` or ``login`` or ``as_param`` in the connection. Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_user`` to HiveHook will do the job.
 
 
