@@ -802,7 +802,7 @@ def run_build_ci_image(
             if ci_image_params.upgrade_on_failure:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 get_console().print(
-                    "[warning]Attempting to build with --upgrade--to--newer--dependencies on failure"
+                    "[warning]Attempting to build with --upgrade-to-newer-dependencies on failure"
                 )
                 build_command_result = run_command(
                     prepare_docker_build_command(
