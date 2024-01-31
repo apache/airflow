@@ -49,7 +49,6 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -310,7 +309,7 @@ class AwsEcsExecutor(BaseExecutor):
                     queue,
                     exec_info,
                     failure_count + 1,
-                    utcnow() + calculate_next_attempt_delay(failure_count),
+                    timezone.utcnow() + calculate_next_attempt_delay(failure_count),
                 )
             )
         else:
@@ -342,7 +341,7 @@ class AwsEcsExecutor(BaseExecutor):
             exec_config = ecs_task.executor_config
             attempt_number = ecs_task.attempt_number
             _failure_reasons = []
-            if utcnow() < ecs_task.next_attempt_time:
+            if timezone.utcnow() < ecs_task.next_attempt_time:
                 continue
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
@@ -374,7 +373,9 @@ class AwsEcsExecutor(BaseExecutor):
                 # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
                 if int(attempt_number) <= int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
                     ecs_task.attempt_number += 1
-                    ecs_task.next_attempt_time = utcnow() + calculate_next_attempt_delay(attempt_number)
+                    ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
+                        attempt_number
+                    )
                     self.pending_tasks.appendleft(ecs_task)
                 else:
                     self.log.error(
@@ -436,7 +437,9 @@ class AwsEcsExecutor(BaseExecutor):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
         if executor_config and ("name" in executor_config or "command" in executor_config):
             raise ValueError('Executor Config should never override "name" or "command"')
-        self.pending_tasks.append(EcsQueuedTask(key, command, queue, executor_config or {}, 1, utcnow()))
+        self.pending_tasks.append(
+            EcsQueuedTask(key, command, queue, executor_config or {}, 1, timezone.utcnow())
+        )
 
     def end(self, heartbeat_interval=10):
         """Waits for all currently running tasks to end, and doesn't launch any tasks."""
