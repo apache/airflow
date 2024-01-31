@@ -18,11 +18,6 @@ from __future__ import annotations
 
 import packaging.version
 
-__all__ = ["__version__"]
-
-__version__ = "1.3.0"
-
-
 try:
     from airflow import __version__ as airflow_version
 except ImportError:
@@ -32,6 +27,6 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.9.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-common-io:{__version__}` needs Apache Airflow 2.9.0+"
-        f"for XCom Object Storage support."
+        "The package xcom backend feature of `apache-airflow-providers-common-io` needs "
+        "Apache Airflow 2.9.0+"
     )
