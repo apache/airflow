@@ -288,7 +288,7 @@ config:
           https://docs.celeryq.dev/en/stable/reference/celery.app.task.html#celery.app.task.Task.acks_late
         version_added: ~
         type: boolean
-        example: ~
+        example: "True"
         default: "True"
       task_track_started:
         description: |
