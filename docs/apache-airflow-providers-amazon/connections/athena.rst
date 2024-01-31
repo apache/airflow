@@ -29,7 +29,7 @@ The Athena connection type enables DB API 2.0 integrations with Athena.
 Authenticating to Amazon Athena
 ---------------------------------
 
-Authentication may be performed using any of the authentication methods supported by `Amazon Web Services Connection <./aws.rst>`_.
+Authentication may be performed using any of the authentication methods supported by `Amazon Web Services Connection <aws.rst>`_.
 
 Default Connection IDs
 ----------------------
