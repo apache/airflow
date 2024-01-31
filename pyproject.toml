@@ -524,7 +524,7 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: 5041869464e6475fea61bee848306a8c
+# Hash of dependencies: ad91a0758ca9b408679bd3ea3ec22c66
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -705,7 +705,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "gcsfs>=2023.10.0",
   "google-ads>=22.1.0",
   "google-analytics-admin",
-  "google-api-core>=2.11.0",
+  "google-api-core>=2.11.0,!=2.16.0",
   "google-api-python-client>=1.6.0",
   "google-auth-httplib2>=0.0.1",
   "google-auth>=1.0.0",
