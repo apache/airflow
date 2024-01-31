@@ -44,7 +44,7 @@ Below is an example of using this operator to upload a file to ADL.
     :start-after: [START howto_operator_local_to_adls]
     :end-before: [END howto_operator_local_to_adls]
 
-.. _howto/operator:LocalFilesystemToADLSOperator:
+.. _howto/operator:DataToADLSOperator:
 
 DataToADLSOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +55,7 @@ upload data as a file to ADL.
 
 Below is an example of using this operator to upload data as a file to ADL.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_local_to_adls.py
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_data_to_adls.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_data_to_adls]
