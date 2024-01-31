@@ -278,9 +278,10 @@ config:
         default: "1.0"
       task_acks_late:
         description: |
-          If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the task to a Celery worker, even if the
-          original task is still running successfully. The new task instance then runs
-          concurrently with the original task and the Airflow UI and logs only show an error message:
+          If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the
+          task to a Celery worker, even if the original task is still running successfully. The new task
+          instance then runs concurrently with the original task and the Airflow UI and logs only show an
+          error message:
           'Task Instance Not Running' FAILED: Task is in the running state'
           Setting task_acks_late to True will force Celery to wait until a task is finished before a
           new task instance is assigned. This effectively overrides the visibility timeout.
