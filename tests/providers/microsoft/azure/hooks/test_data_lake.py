@@ -333,6 +333,6 @@ class TestAzureDataLakeStorageV2Hook:
         return next(
             map(
                 lambda policy: policy._policy,
-                filter(lambda policy: isinstance(policy._policy, policy_type), policies)
+                filter(lambda policy: isinstance(policy._policy, policy_type), policies),
             )
         )
