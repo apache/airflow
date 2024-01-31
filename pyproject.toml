@@ -524,7 +524,6 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: ad91a0758ca9b408679bd3ea3ec22c66
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -599,8 +598,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
   "apache-airflow[http]",
   "asgiref",
 ]
-apache-pig = [ # source: airflow/providers/apache/pig/provider.yaml
-]
+apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
   "pinotdb>0.4.7",
@@ -641,8 +639,7 @@ cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
 cohere = [ # source: airflow/providers/cohere/provider.yaml
   "cohere>=4.37",
 ]
-common-io = [ # source: airflow/providers/common/io/provider.yaml
-]
+common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
@@ -690,8 +687,7 @@ fab = [ # source: airflow/providers/fab/provider.yaml
 facebook = [ # source: airflow/providers/facebook/provider.yaml
   "facebook-business>=6.0.2",
 ]
-ftp = [ # source: airflow/providers/ftp/provider.yaml
-]
+ftp = [] # source: airflow/providers/ftp/provider.yaml
 github = [ # source: airflow/providers/github/provider.yaml
   "PyGithub!=1.58",
 ]
@@ -769,8 +765,7 @@ http = [ # source: airflow/providers/http/provider.yaml
   "requests>=2.26.0",
   "requests_toolbelt",
 ]
-imap = [ # source: airflow/providers/imap/provider.yaml
-]
+imap = [] # source: airflow/providers/imap/provider.yaml
 influxdb = [ # source: airflow/providers/influxdb/provider.yaml
   "influxdb-client>=1.19.0",
   "requests>=2.26.0",
@@ -838,8 +833,7 @@ odbc = [ # source: airflow/providers/odbc/provider.yaml
 openai = [ # source: airflow/providers/openai/provider.yaml
   "openai[datalib]>=1.0",
 ]
-openfaas = [ # source: airflow/providers/openfaas/provider.yaml
-]
+openfaas = [] # source: airflow/providers/openfaas/provider.yaml
 openlineage = [ # source: airflow/providers/openlineage/provider.yaml
   "apache-airflow[common_sql]",
   "attrs>=22.2",
@@ -907,8 +901,7 @@ slack = [ # source: airflow/providers/slack/provider.yaml
   "apache-airflow[common_sql]",
   "slack_sdk>=3.19.0",
 ]
-smtp = [ # source: airflow/providers/smtp/provider.yaml
-]
+smtp = [] # source: airflow/providers/smtp/provider.yaml
 snowflake = [ # source: airflow/providers/snowflake/provider.yaml
   "apache-airflow[common_sql]",
   "snowflake-connector-python>=2.7.8",
