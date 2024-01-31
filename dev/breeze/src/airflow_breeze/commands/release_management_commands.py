@@ -133,6 +133,7 @@ from airflow_breeze.utils.path_utils import (
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
     GENERATED_PROVIDER_PACKAGES_DIR,
+    OUT_DIR,
     PROVIDER_METADATA_JSON_FILE_PATH,
     cleanup_python_generated_files,
 )
@@ -142,7 +143,7 @@ from airflow_breeze.utils.provider_dependencies import (
     get_related_providers,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.reproducible import get_source_date_epoch
+from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
@@ -389,7 +390,7 @@ def prepare_airflow_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch()
+    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
     if use_local_hatch:
         _build_airflow_packages_with_hatch(
             package_format=package_format,
@@ -1536,7 +1537,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(
                     slim_image_name,
                     f"{dockerhub_repo}:slim-{airflow_version}",
@@ -1568,7 +1569,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(image_name, f"{dockerhub_repo}:{airflow_version}")
     # in case of re-tagging the images might need few seconds to refresh multi-platform images in DockerHub
     time.sleep(10)
@@ -2394,3 +2395,272 @@ def prepare_python_client(
     finally:
         if version_suffix_for_pypi:
             VERSION_FILE.write_text(original_version)
+
+
+CHART_DIR = AIRFLOW_SOURCES_ROOT / "chart"
+CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
+VALUES_YAML_FILE = CHART_DIR / "values.yaml"
+
+
+@release_management.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
+@click.option(
+    "--version",
+    help="Version used for helm chart. This version has to be set and has to match the version in "
+    "Chart.yaml, unless the --ignore-version-check flag is used.",
+    envvar="VERSION",
+)
+@click.option(
+    "--version-suffix",
+    help="Version suffix used to publish the package. Needs to be present as we always build "
+    "archive using release candidate tag.",
+    required=True,
+    envvar="VERSION_SUFFIX",
+)
+@click.option(
+    "--ignore-version-check",
+    is_flag=True,
+    help="Ignores result of version update check. Produce tarball regardless of "
+    "whether version is correctly set in the Chart.yaml.",
+)
+@click.option(
+    "--skip-tagging",
+    is_flag=True,
+    help="Skip tagging the chart. Useful if the tag is already created, or when you verify the chart.",
+)
+@click.option(
+    "--skip-tag-signing",
+    is_flag=True,
+    help="Skip signing the tag. Useful for CI where we just tag without signing the tag.",
+)
+@click.option(
+    "--override-tag",
+    is_flag=True,
+    help="Override tag if it already exists. Useful when you want to re-create the tag, usually when you"
+    "test the breeze command locally.",
+)
+@option_dry_run
+@option_verbose
+def prepare_helm_chart_tarball(
+    version: str | None,
+    version_suffix: str,
+    ignore_version_check: bool,
+    override_tag: bool,
+    skip_tagging: bool,
+    skip_tag_signing: bool,
+) -> None:
+    import yaml
+
+    chart_yaml_file_content = CHART_YAML_FILE.read_text()
+    chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
+    version_in_chart = chart_yaml_dict["version"]
+    airflow_version_in_chart = chart_yaml_dict["appVersion"]
+    values_content = yaml.safe_load(VALUES_YAML_FILE.read_text())
+    airflow_version_in_values = values_content["airflowVersion"]
+    default_airflow_tag_in_values = values_content["defaultAirflowTag"]
+    if ignore_version_check:
+        if not version:
+            version = version_in_chart
+    else:
+        if not version or not version_suffix:
+            get_console().print(
+                "[error]You need to provide --version and --version-suffix parameter unless you "
+                "use --ignore-version-check[/]"
+            )
+            sys.exit(1)
+    get_console().print(f"[info]Airflow version in values.yaml: {airflow_version_in_values}[/]")
+    get_console().print(f"[info]Default Airflow Tag in values.yaml: {default_airflow_tag_in_values}[/]")
+    get_console().print(f"[info]Airflow version in Chart.yaml: {airflow_version_in_chart}[/]")
+    if airflow_version_in_values != default_airflow_tag_in_values:
+        get_console().print(
+            f"[error]Airflow version ({airflow_version_in_values}) does not match the "
+            f"defaultAirflowTag ({default_airflow_tag_in_values}) in values.yaml[/]"
+        )
+        sys.exit(1)
+    updating = False
+    if version_in_chart != version:
+        get_console().print(
+            f"[warning]Version in chart.yaml ({version_in_chart}) does not match the version "
+            f"passed as parameter ({version}). Updating[/]"
+        )
+        updating = True
+        chart_yaml_file_content = chart_yaml_file_content.replace(
+            f"version: {version_in_chart}", f"version: {version}"
+        )
+    else:
+        get_console().print(f"[success]Version in chart.yaml is good: {version}[/]")
+    if airflow_version_in_values != airflow_version_in_chart:
+        get_console().print(
+            f"[warning]Airflow version in Chart.yaml ({airflow_version_in_chart}) does not match the "
+            f"airflow version ({airflow_version_in_values}) in values.yaml. Updating[/]"
+        )
+        updating = True
+        chart_yaml_file_content = chart_yaml_file_content.replace(
+            f"appVersion: {airflow_version_in_chart}", f"appVersion: {airflow_version_in_values}"
+        )
+    else:
+        get_console().print(
+            f"[success]Airflow version in chart.yaml matches the airflow version in values.yaml: "
+            f"({airflow_version_in_values})[/]"
+        )
+    if updating:
+        CHART_YAML_FILE.write_text(chart_yaml_file_content)
+        get_console().print("\n[warning]Versions of the chart has been updated[/]\n")
+        if ignore_version_check:
+            get_console().print(
+                "[warning]Ignoring the version check. "
+                "The tarball will be created but it should not be published[/]"
+            )
+        else:
+            get_console().print(
+                "\n[info]Please create a PR with that change, get it merged, and try again.[/]\n"
+            )
+            sys.exit(1)
+    tag_with_suffix = f"helm-chart/{version}{version_suffix}"
+    if not skip_tagging:
+        get_console().print(f"[info]Tagging the chart with {tag_with_suffix}[/]")
+        tag_command = [
+            "git",
+            "tag",
+            tag_with_suffix,
+            "-m",
+            f"Apache Airflow Helm Chart {version}{version_suffix}",
+        ]
+        if override_tag:
+            tag_command.append("--force")
+        if not skip_tag_signing:
+            tag_command.append("--sign")
+        result = run_command(tag_command, check=False)
+        if result.returncode != 0:
+            get_console().print(f"[error]Error tagging the chart with {tag_with_suffix}.\n")
+            get_console().print(
+                "[warning]If you are sure the tag is set correctly, you can add --skip-tagging"
+                " flag to the command[/]"
+            )
+            sys.exit(result.returncode)
+    else:
+        get_console().print(f"[warning]Skipping tagging the chart with {tag_with_suffix}[/]")
+    get_console().print(f"[info]Creating tarball for Helm Chart {tag_with_suffix}[/]")
+    archive_name = f"airflow-chart-{version}-source.tar.gz"
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    source_archive = OUT_DIR / archive_name
+    source_archive.unlink(missing_ok=True)
+    result = run_command(
+        [
+            "git",
+            "-c",
+            "tar.umask=0077",
+            "archive",
+            "--format=tar.gz",
+            tag_with_suffix,
+            f"--prefix=airflow-chart-{version}/",
+            "-o",
+            source_archive.as_posix(),
+            "chart",
+            ".rat-excludes",
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        get_console().print(f"[error]Error running git archive for Helm Chart {tag_with_suffix}[/]")
+        sys.exit(result.returncode)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    final_archive = DIST_DIR / archive_name
+    final_archive.unlink(missing_ok=True)
+    result = repack_deterministically(
+        source_archive=source_archive,
+        dest_archive=final_archive,
+        prepend_path=None,
+        timestamp=get_source_date_epoch(CHART_DIR),
+    )
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Error repackaging source tarball for Helm Chart from {source_archive} tp "
+            f"{tag_with_suffix}[/]"
+        )
+        sys.exit(result.returncode)
+    get_console().print(f"[success]Tarball created in {final_archive}")
+
+
+@release_management.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
+@click.option(
+    "--sign-email",
+    help="Email associated with the key used to sign the package.",
+    envvar="SIGN_EMAIL",
+    default="",
+)
+@option_dry_run
+@option_verbose
+def prepare_helm_chart_package(sign_email: str):
+    import yaml
+
+    from airflow_breeze.utils.kubernetes_utils import (
+        K8S_BIN_BASE_PATH,
+        create_virtualenv,
+        make_sure_helm_installed,
+    )
+
+    chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
+    version = chart_yaml_dict["version"]
+    result = create_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_helm_installed()
+    get_console().print(f"[info]Packaging the chart for Helm Chart {version}[/]")
+    k8s_env = os.environ.copy()
+    k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
+    # Tar on modern unix options requires --wildcards parameter to work with globs
+    # See https://github.com/technosophos/helm-gpg/issues/1
+    k8s_env["TAR_OPTIONS"] = "--wildcards"
+    archive_name = f"airflow-{version}.tgz"
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    result = run_command(
+        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_DIR.as_posix()],
+        env=k8s_env,
+        check=False,
+    )
+    if result.returncode != 0:
+        get_console().print("[error]Error packaging the chart[/]")
+        sys.exit(result.returncode)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    final_archive = DIST_DIR / archive_name
+    final_archive.unlink(missing_ok=True)
+    source_archive = OUT_DIR / archive_name
+    result = repack_deterministically(
+        source_archive=source_archive,
+        dest_archive=final_archive,
+        prepend_path=None,
+        timestamp=get_source_date_epoch(CHART_DIR),
+    )
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
+        )
+        sys.exit(result.returncode)
+    else:
+        get_console().print(f"[success]Package created in {final_archive}[/]")
+    if sign_email:
+        get_console().print(f"[info]Signing the package with {sign_email}[/]")
+        prov_file = final_archive.with_suffix(".tgz.prov")
+        if prov_file.exists():
+            get_console().print(f"[warning]Removing existing {prov_file}[/]")
+            prov_file.unlink()
+        result = run_command(
+            cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
+            cwd=DIST_DIR.as_posix(),
+            env=k8s_env,
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console().print("[error]Error signing the chart[/]")
+            sys.exit(result.returncode)
+        result = run_command(
+            cmd=["helm", "gpg", "verify", archive_name],
+            cwd=DIST_DIR.as_posix(),
+            env=k8s_env,
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console().print("[error]Error signing the chart[/]")
+            sys.exit(result.returncode)
+        else:
+            get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")

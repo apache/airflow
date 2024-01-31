@@ -22,8 +22,9 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1703288119
+source-date-epoch: 1705911963
 versions:
+  - 3.5.2
   - 3.5.1
   - 3.5.0
   - 3.4.1
@@ -118,9 +119,10 @@ config:
         default: "16"
       worker_autoscale:
         description: |
-          The maximum and minimum concurrency that will be used when starting workers with the
-          ``airflow celery worker`` command (always keep minimum processes, but grow
-          to maximum if necessary). Note the value should be max_concurrency,min_concurrency
+          The maximum and minimum number of pool processes that will be used to dynamically resize
+          the pool based on load.Enable autoscaling by providing max_concurrency,min_concurrency
+          with the ``airflow celery worker`` command (always keep minimum processes,
+          but grow to maximum if necessary).
           Pick these numbers based on resources on worker box and the nature of the task.
           If autoscale option is available, worker_concurrency will be ignored.
           https://docs.celeryq.dev/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale

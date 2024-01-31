@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable
 
 import jwt
 import re2
+from deprecated import deprecated
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -458,7 +459,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(self.appbuilder.app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
-    def reset_password(self, userid, password):
+    def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
 
@@ -470,7 +471,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         user.password = generate_password_hash(password)
         self.reset_user_sessions(user)
-        self.update_user(user)
+        return self.update_user(user)
 
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
@@ -688,12 +689,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
     @property
+    @deprecated(
+        reason="The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def oauth_whitelists(self):
-        warnings.warn(
-            "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.oauth_allow_list
 
     def create_builtin_roles(self):
@@ -1536,7 +1536,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             .limit(1)
         )
 
-    def update_user(self, user):
+    def update_user(self, user: User) -> bool:
         try:
             self.get_session.merge(user)
             self.get_session.commit()
@@ -1545,6 +1545,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.get_session.rollback()
             return False
+        return True
 
     def del_register_user(self, register_user):
         """

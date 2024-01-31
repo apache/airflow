@@ -70,7 +70,8 @@ classifiers = [
 dependencies = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
-    "alembic>=1.6.3, <2.0",
+    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
+    "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref",
     "attrs>=22.1.0",
@@ -92,7 +93,9 @@ dependencies = [
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=1.5.0",
-    "flask-session>=0.4.0",
+    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    "flask-session>=0.4.0,<0.6",
     "flask-wtf>=0.15",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
@@ -521,15 +524,17 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-airbyte = [
+# Hash of dependencies: b724779455591b6a7542cf2d456e5366
+airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
-alibaba = [
+alibaba = [ # source: airflow/providers/alibaba/provider.yaml
   "alibabacloud_adb20211201>=1.0.0",
   "alibabacloud_tea_openapi>=0.3.7",
   "oss2>=2.14.0",
 ]
-amazon = [
+amazon = [ # source: airflow/providers/amazon/provider.yaml
+  "PyAthena>=3.0.10",
   "apache-airflow[common_sql]",
   "apache-airflow[http]",
   "asgiref",
@@ -543,104 +548,105 @@ amazon = [
   # Devel dependencies for the amazon provider
   "aiobotocore>=2.7.0",
   "aws_xray_sdk>=2.12.0",
-  "moto[cloudformation,glue]>=4.2.12",
+  "moto[cloudformation,glue]>=5.0.0",
   "mypy-boto3-appflow>=1.33.0",
   "mypy-boto3-rds>=1.33.0",
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
 ]
-apache-beam = [
+apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "apache-beam>=2.53.0",
   "pyarrow>=14.0.1",
 ]
-apache-cassandra = [
+apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
   "cassandra-driver>=3.13.0",
 ]
-apache-drill = [
+apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
   "sqlalchemy-drill>=1.1.0",
 ]
-apache-druid = [
+apache-druid = [ # source: airflow/providers/apache/druid/provider.yaml
   "apache-airflow[common_sql]",
   "pydruid>=0.4.1",
 ]
-apache-flink = [
+apache-flink = [ # source: airflow/providers/apache/flink/provider.yaml
   "apache-airflow[cncf_kubernetes]",
   "cryptography>=2.0.0",
 ]
-apache-hdfs = [
+apache-hdfs = [ # source: airflow/providers/apache/hdfs/provider.yaml
   "hdfs[avro,dataframe,kerberos]>=2.0.4",
 ]
-apache-hive = [
+apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
   "pandas>=1.2.5",
   "pyhive[hive-pure-sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
-apache-impala = [
+apache-impala = [ # source: airflow/providers/apache/impala/provider.yaml
   "impyla>=0.18.0,<1.0",
 ]
-apache-kafka = [
+apache-kafka = [ # source: airflow/providers/apache/kafka/provider.yaml
   "asgiref",
   "confluent-kafka>=1.8.2",
 ]
-apache-kylin = [
+apache-kylin = [ # source: airflow/providers/apache/kylin/provider.yaml
   "kylinpy>=2.6",
 ]
-apache-livy = [
+apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
   "aiohttp",
   "apache-airflow[http]",
   "asgiref",
 ]
-apache-pig = [
+apache-pig = [ # source: airflow/providers/apache/pig/provider.yaml
 ]
-apache-pinot = [
+apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
   "pinotdb>0.4.7",
 ]
-apache-spark = [
+apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
   "pyspark",
 ]
-apprise = [
+apprise = [ # source: airflow/providers/apprise/provider.yaml
   "apprise",
 ]
-arangodb = [
+arangodb = [ # source: airflow/providers/arangodb/provider.yaml
   "python-arango>=7.3.2",
 ]
-asana = [
+asana = [ # source: airflow/providers/asana/provider.yaml
   "asana>=0.10,<4.0.0",
 ]
-atlassian-jira = [
-  "atlassian-python-api>=1.14.2",
+atlassian-jira = [ # source: airflow/providers/atlassian/jira/provider.yaml
+  "atlassian-python-api>=1.14.2,!=3.41.6",
+  "beautifulsoup4",
 ]
-celery = [
+celery = [ # source: airflow/providers/celery/provider.yaml
   "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
   "flower>=1.0.0",
   "google-re2>=1.0",
 ]
-cloudant = [
+cloudant = [ # source: airflow/providers/cloudant/provider.yaml
   "cloudant>=2.0",
 ]
-cncf-kubernetes = [
+cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
   "aiofiles>=23.2.0",
   "asgiref>=3.5.2",
   "cryptography>=2.0.0",
   "google-re2>=1.0",
-  "kubernetes>=21.7.0,<24",
-  "kubernetes_asyncio>=18.20.1,<25",
+  "kubernetes>=28.1.0,<=29.0.0",
+  "kubernetes_asyncio>=28.1.0,<=29.0.0",
 ]
-cohere = [
+cohere = [ # source: airflow/providers/cohere/provider.yaml
   "cohere>=4.37",
 ]
-common-io = [
+common-io = [ # source: airflow/providers/common/io/provider.yaml
 ]
-common-sql = [
+common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
-databricks = [
+databricks = [ # source: airflow/providers/databricks/provider.yaml
   "aiohttp>=3.6.3, <4",
   "apache-airflow[common_sql]",
   "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
@@ -648,48 +654,48 @@ databricks = [
   # Devel dependencies for the databricks provider
   "deltalake>=0.12.0",
 ]
-datadog = [
+datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
 ]
-dbt-cloud = [
+dbt-cloud = [ # source: airflow/providers/dbt/cloud/provider.yaml
   "aiohttp",
   "apache-airflow[http]",
   "asgiref",
 ]
-dingding = [
+dingding = [ # source: airflow/providers/dingding/provider.yaml
   "apache-airflow[http]",
 ]
-discord = [
+discord = [ # source: airflow/providers/discord/provider.yaml
   "apache-airflow[http]",
 ]
-docker = [
+docker = [ # source: airflow/providers/docker/provider.yaml
   "docker>=5.0.3",
   "python-dotenv>=0.21.0",
 ]
-elasticsearch = [
+elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
   "apache-airflow[common_sql]",
   "elasticsearch>=8.10,<9",
 ]
-exasol = [
+exasol = [ # source: airflow/providers/exasol/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
   "pyexasol>=0.5.1",
 ]
-fab = [
+fab = [ # source: airflow/providers/fab/provider.yaml
   "flask-appbuilder==4.3.10",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
 ]
-facebook = [
+facebook = [ # source: airflow/providers/facebook/provider.yaml
   "facebook-business>=6.0.2",
 ]
-ftp = [
+ftp = [ # source: airflow/providers/ftp/provider.yaml
 ]
-github = [
+github = [ # source: airflow/providers/github/provider.yaml
   "PyGithub!=1.58",
 ]
-google = [
+google = [ # source: airflow/providers/google/provider.yaml
   "PyOpenSSL",
   "apache-airflow[common_sql]",
   "asgiref>=3.5.2",
@@ -749,34 +755,34 @@ google = [
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
 ]
-grpc = [
+grpc = [ # source: airflow/providers/grpc/provider.yaml
   "google-auth-httplib2>=0.0.1",
   "google-auth>=1.0.0, <3.0.0",
   "grpcio>=1.15.0",
 ]
-hashicorp = [
+hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
   "hvac>=1.1.0",
 ]
-http = [
+http = [ # source: airflow/providers/http/provider.yaml
   "aiohttp",
   "asgiref",
   "requests>=2.26.0",
   "requests_toolbelt",
 ]
-imap = [
+imap = [ # source: airflow/providers/imap/provider.yaml
 ]
-influxdb = [
+influxdb = [ # source: airflow/providers/influxdb/provider.yaml
   "influxdb-client>=1.19.0",
   "requests>=2.26.0",
 ]
-jdbc = [
+jdbc = [ # source: airflow/providers/jdbc/provider.yaml
   "apache-airflow[common_sql]",
   "jaydebeapi>=1.1.1",
 ]
-jenkins = [
+jenkins = [ # source: airflow/providers/jenkins/provider.yaml
   "python-jenkins>=1.0.0",
 ]
-microsoft-azure = [
+microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "adal>=1.2.7",
   "adlfs>=2023.10.0",
   "azure-batch>=8.0.0",
@@ -801,147 +807,147 @@ microsoft-azure = [
   # Devel dependencies for the microsoft.azure provider
   "pywinrm",
 ]
-microsoft-mssql = [
+microsoft-mssql = [ # source: airflow/providers/microsoft/mssql/provider.yaml
   "apache-airflow[common_sql]",
   "pymssql>=2.1.8",
 ]
-microsoft-psrp = [
+microsoft-psrp = [ # source: airflow/providers/microsoft/psrp/provider.yaml
   "pypsrp>=0.8.0",
 ]
-microsoft-winrm = [
+microsoft-winrm = [ # source: airflow/providers/microsoft/winrm/provider.yaml
   "pywinrm>=0.4",
 ]
-mongo = [
+mongo = [ # source: airflow/providers/mongo/provider.yaml
   "dnspython>=1.13.0",
   "pymongo>=3.6.0",
   # Devel dependencies for the mongo provider
   "mongomock",
 ]
-mysql = [
+mysql = [ # source: airflow/providers/mysql/provider.yaml
   "apache-airflow[common_sql]",
   "mysql-connector-python>=8.0.29",
   "mysqlclient>=1.3.6",
 ]
-neo4j = [
+neo4j = [ # source: airflow/providers/neo4j/provider.yaml
   "neo4j>=4.2.1",
 ]
-odbc = [
+odbc = [ # source: airflow/providers/odbc/provider.yaml
   "apache-airflow[common_sql]",
   "pyodbc",
 ]
-openai = [
+openai = [ # source: airflow/providers/openai/provider.yaml
   "openai[datalib]>=1.0",
 ]
-openfaas = [
+openfaas = [ # source: airflow/providers/openfaas/provider.yaml
 ]
-openlineage = [
+openlineage = [ # source: airflow/providers/openlineage/provider.yaml
   "apache-airflow[common_sql]",
   "attrs>=22.2",
   "openlineage-integration-common>=0.28.0",
   "openlineage-python>=0.28.0",
 ]
-opensearch = [
+opensearch = [ # source: airflow/providers/opensearch/provider.yaml
   "opensearch-py>=2.2.0",
 ]
-opsgenie = [
+opsgenie = [ # source: airflow/providers/opsgenie/provider.yaml
   "opsgenie-sdk>=2.1.5",
 ]
-oracle = [
+oracle = [ # source: airflow/providers/oracle/provider.yaml
   "apache-airflow[common_sql]",
   "oracledb>=1.0.0",
 ]
-pagerduty = [
+pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
   "pdpyras>=4.1.2",
 ]
-papermill = [
+papermill = [ # source: airflow/providers/papermill/provider.yaml
   "ipykernel",
   "papermill[all]>=2.4.0",
   "scrapbook[all]",
 ]
-pgvector = [
+pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "apache-airflow[postgres]",
   "pgvector>=0.2.3",
 ]
-pinecone = [
-  "pinecone-client>=2.2.4",
+pinecone = [ # source: airflow/providers/pinecone/provider.yaml
+  "pinecone-client>=2.2.4,<3.0",
 ]
-postgres = [
+postgres = [ # source: airflow/providers/postgres/provider.yaml
   "apache-airflow[common_sql]",
   "psycopg2-binary>=2.8.0",
 ]
-presto = [
+presto = [ # source: airflow/providers/presto/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
   "presto-python-client>=0.8.4",
 ]
-redis = [
+redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",
 ]
-salesforce = [
+salesforce = [ # source: airflow/providers/salesforce/provider.yaml
   "pandas>=1.2.5",
   "simple-salesforce>=1.0.0",
 ]
-samba = [
+samba = [ # source: airflow/providers/samba/provider.yaml
   "smbprotocol>=1.5.0",
 ]
-segment = [
+segment = [ # source: airflow/providers/segment/provider.yaml
   "analytics-python>=1.2.9",
 ]
-sendgrid = [
+sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
   "sendgrid>=6.0.0",
 ]
-sftp = [
+sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
   "paramiko>=2.8.0",
 ]
-singularity = [
+singularity = [ # source: airflow/providers/singularity/provider.yaml
   "spython>=0.0.56",
 ]
-slack = [
+slack = [ # source: airflow/providers/slack/provider.yaml
   "apache-airflow[common_sql]",
-  "slack_sdk>=3.0.0",
+  "slack_sdk>=3.19.0",
 ]
-smtp = [
+smtp = [ # source: airflow/providers/smtp/provider.yaml
 ]
-snowflake = [
+snowflake = [ # source: airflow/providers/snowflake/provider.yaml
   "apache-airflow[common_sql]",
   "snowflake-connector-python>=2.7.8",
   "snowflake-sqlalchemy>=1.1.0",
 ]
-sqlite = [
+sqlite = [ # source: airflow/providers/sqlite/provider.yaml
   "apache-airflow[common_sql]",
 ]
-ssh = [
+ssh = [ # source: airflow/providers/ssh/provider.yaml
   "paramiko>=2.6.0",
   "sshtunnel>=0.3.2",
 ]
-tableau = [
+tableau = [ # source: airflow/providers/tableau/provider.yaml
   "tableauserverclient",
 ]
-tabular = [
+tabular = [ # source: airflow/providers/tabular/provider.yaml
   # Devel dependencies for the tabular provider
   "pyiceberg>=0.5.0",
 ]
-telegram = [
+telegram = [ # source: airflow/providers/telegram/provider.yaml
   "python-telegram-bot>=20.2",
 ]
-trino = [
+trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
   "trino>=0.318.0",
 ]
-vertica = [
+vertica = [ # source: airflow/providers/vertica/provider.yaml
   "apache-airflow[common_sql]",
   "vertica-python>=0.5.1",
 ]
-weaviate = [
+weaviate = [ # source: airflow/providers/weaviate/provider.yaml
   "pandas>=1.2.5",
   "weaviate-client>=3.24.2",
 ]
-yandex = [
+yandex = [ # source: airflow/providers/yandex/provider.yaml
   "yandexcloud>=0.228.0",
 ]
-zendesk = [
+zendesk = [ # source: airflow/providers/zendesk/provider.yaml
   "zenpy>=2.0.24",
 ]
 all = [

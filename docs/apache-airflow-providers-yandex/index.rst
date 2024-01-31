@@ -36,6 +36,7 @@
 
     Configuration <configurations-ref>
     Connection types <connections/yandexcloud>
+    Lockbox Secret Backend <secrets-backends/yandex-cloud-lockbox-secret-backend>
     Operators <operators>
 
 .. toctree::
@@ -78,7 +79,7 @@ Package apache-airflow-providers-yandex
 Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 3.7.1
+Release: 3.8.0
 
 Provider package
 ----------------

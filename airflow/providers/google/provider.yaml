@@ -29,8 +29,9 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1703747618
+source-date-epoch: 1705912108
 versions:
+  - 10.14.0
   - 10.13.1
   - 10.13.0
   - 10.12.0
@@ -975,6 +976,9 @@ triggers:
   - integration-name: Google Cloud
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_batch
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.triggers.vertex_ai
 
 transfers:
   - source-integration-name: Presto

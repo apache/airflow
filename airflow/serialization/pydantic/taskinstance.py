@@ -390,7 +390,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         :meta: private
         """
         return TaskInstance._schedule_downstream_tasks(
-            ti=self, sessions=session, max_tis_per_query=max_tis_per_query
+            ti=self, session=session, max_tis_per_query=max_tis_per_query
         )
 
     def command_as_list(

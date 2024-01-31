@@ -54,14 +54,14 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.8.0)       |
-|-------------|------------------------------|------------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11         |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28       |
-| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
-| MySQL       | 8.0, Innovation              | 8.0, Innovation              |
-| SQLite      | 3.15.0+                      | 3.15.0+                      |
+|             | Main version (dev)           | Stable version (2.8.1) |
+|-------------|------------------------------|------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28 |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16     |
+| MySQL       | 8.0, Innovation              | 8.0, Innovation        |
+| SQLite      | 3.15.0+                      | 3.15.0+                |
 
 \* Experimental
 
@@ -132,15 +132,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.8.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
+pip install 'apache-airflow==2.8.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.8.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.8.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -163,10 +163,15 @@ release provided they have access to the appropriate platform and tools.
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
 
-Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
+Official Docker (container) images for Apache Airflow are described in [images](dev/breeze/doc/ci/02_images.md).
 
+
+## Voting Policy
+
+* Commits need a +1 vote from a committer who is not the author
+* When we do AIP voting, both PMC member's and committer's `+1s` are considered a binding vote.
 
 ## Who uses Apache Airflow?
 

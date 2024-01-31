@@ -35,14 +35,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.17.0
+......
+
+Latest change: 2024-01-22
+
+=================================================================================================  ===========  ===================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`d18c01a7a2 <https://github.com/apache/airflow/commit/d18c01a7a2f04449262606d79b4f663bdb200414>`_  2024-01-18   ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
+`9563dc573b <https://github.com/apache/airflow/commit/9563dc573bc53b2c84640c88371b62cccdd811ff>`_  2024-01-18   ``add deferrable mode to RedshiftDataOperator (#36586)``
+`f6e357a5fc <https://github.com/apache/airflow/commit/f6e357a5fcff8c791f9b2e03be968bf63b17e7c5>`_  2024-01-18   ``Fallback to default value if '[aws] cloudwatch_task_handler_json_serializer' not set (#36851)``
+`6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
+`666127238b <https://github.com/apache/airflow/commit/666127238b727c9ee5dfaa1d65782b9d1ab105ed>`_  2024-01-17   ``AthenaSqlHook implementation (#36171)``
+`08cc59a0c4 <https://github.com/apache/airflow/commit/08cc59a0c43e3936c053e6252cdec7ad6a504c6c>`_  2024-01-16   ``Raise AirflowOptionalProviderfeature exception for AVP command (#36824)``
+`81be6ac6c0 <https://github.com/apache/airflow/commit/81be6ac6c091c9c922c4060b12fc92e2d7ad424d>`_  2024-01-15   ``Create CLI commands for AWS auth manager to create Amazon Verified Permissions related resources (#36799)``
+`01724d85bc <https://github.com/apache/airflow/commit/01724d85bc24793e7885af9de33ac2013f7648b5>`_  2024-01-15   ``Use base aws classes in AWS DMS Operators/Sensors (#36772)``
+`4883c38f3b <https://github.com/apache/airflow/commit/4883c38f3b2e55c6e2acbc0ed690907d7b725e77>`_  2024-01-15   ``Use base aws classes in AWS Redshift Data API Operators (#36764)``
+`1e0a99c5f4 <https://github.com/apache/airflow/commit/1e0a99c5f482a5d243db8908200bdfe157fd0a06>`_  2024-01-15   ``Use base aws classes in Amazon EventBridge Operators (#36765)``
+`9eab3e199e <https://github.com/apache/airflow/commit/9eab3e199ecfcaca2c39cfcf66ff4d7fe83c69ef>`_  2024-01-15   ``Use base aws classes in Amazon QuickSight Operators/Sensors (#36776)``
+`c7f518fe09 <https://github.com/apache/airflow/commit/c7f518fe0963e6957f0e57519177788217f9bc01>`_  2024-01-15   ``Use base aws classes in AWS Datasync Operators (#36766)``
+`b241577c9c <https://github.com/apache/airflow/commit/b241577c9c2ef330709d66968e7bdede63c5ffbe>`_  2024-01-14   ``Use base aws classes in Amazon DynamoDB Sensors (#36770)``
+`1455a3babb <https://github.com/apache/airflow/commit/1455a3babb1bf4b890562a65610b33c0db206f69>`_  2024-01-14   ``Use base aws classes in AWS CloudFormation Operators/Sensors (#36771)``
+`e7166bb759 <https://github.com/apache/airflow/commit/e7166bb7594086ace1c8e34f358e236ab0dcd2b7>`_  2024-01-11   ``Adds support for capacity providers to ECS Executor (#36722)``
+`b260367208 <https://github.com/apache/airflow/commit/b260367208f9c3c09bc1da2a32abf59867ddd789>`_  2024-01-11   ``check transform job status before deferring SageMakerTransformOperator (#36680)``
+`c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+`9f04716179 <https://github.com/apache/airflow/commit/9f047161798f689c6b2e710441ac64caa3936cab>`_  2024-01-10   ``Add use_regex argument for allowing 'S3KeySensor' to check s3 keys with regular expression (#36578)``
+`5a6f959bd5 <https://github.com/apache/airflow/commit/5a6f959bd5826409a8d15a894edf36d0e76ef77a>`_  2024-01-10   ``check sagemaker processing job status before deferring (#36658)``
+`88c9596f4a <https://github.com/apache/airflow/commit/88c9596f4aaff492dda8b0b87fa60ee16444e9b6>`_  2024-01-10   ``check job_status before BatchOperator execute in deferrable mode (#36523)``
+`98b9e491e5 <https://github.com/apache/airflow/commit/98b9e491e5406b06ae80bf867852701d775a24f3>`_  2024-01-10   ``Update the redshift hostname check to avoid possible bugs (#36703)``
+`ecb2c9f24d <https://github.com/apache/airflow/commit/ecb2c9f24d1364642604c14f0deb681ab4894135>`_  2024-01-09   ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+`cb1182ea4f <https://github.com/apache/airflow/commit/cb1182ea4f5c2813f52d216dbcadd44a9d2e9aa4>`_  2024-01-09   ``Refresh credentials in 'AwsEcsExecutor' (#36179)``
+`9cb2052810 <https://github.com/apache/airflow/commit/9cb2052810a8a4b191e77d804fc79927f046c8bb>`_  2024-01-09   ``Fix docstring for apply_wildcard parameter in 'S3ListOperator'. Changed the order of docstring for fix (#36679)``
+`4d5e05b28b <https://github.com/apache/airflow/commit/4d5e05b28b99d8a06c20f00c93efa90002f8d401>`_  2024-01-08   ``Add deferrable mode to RedshiftClusterSensor (#36550)``
+`298c37d355 <https://github.com/apache/airflow/commit/298c37d355eeadfccbd655efb2922d39ba17052c>`_  2024-01-08   ``Bump min version of amazon-provider related dependencies (#36660)``
+`43afb2f6b8 <https://github.com/apache/airflow/commit/43afb2f6b8cc19c78c9f0117f6db9c057a49f08c>`_  2024-01-08   ``Implement 'is_authorized_dag' in AWS auth manager (#36619)``
+=================================================================================================  ===========  ===================================================================================================================
+
 8.16.0
 ......
 
-Latest change: 2024-01-06
+Latest change: 2024-01-07
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `1d41fc7ddb <https://github.com/apache/airflow/commit/1d41fc7ddbc0c5564f354f066b47155444013898>`_  2024-01-06   ``Check redshift cluster state before deferring to triggerer (#36416)``
 `365f206a32 <https://github.com/apache/airflow/commit/365f206a32fe36de54dcb26eb204dd4a23709787>`_  2024-01-05   ``Select ruff B006 to detect the usage of mutable values as argument default (#36626)``
 `16d16e2933 <https://github.com/apache/airflow/commit/16d16e2933c67c34a3825ed20ca362a65f0a29cc>`_  2024-01-05   ``Use base aws classes in Amazon SQS Operators/Sensors/Triggers (#36613)``

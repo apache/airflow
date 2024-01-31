@@ -48,6 +48,7 @@ else:
     )
     from airflow_breeze.commands.release_management_commands_config import (
         RELEASE_AIRFLOW_COMMANDS,
+        RELEASE_HELM_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
         RELEASE_OTHER_COMMANDS,
         RELEASE_PROVIDERS_COMMANDS,
@@ -62,7 +63,8 @@ else:
     click.rich_click.STYLE_ERRORS_SUGGESTION = "bright_blue italic"
     click.rich_click.ERRORS_SUGGESTION = "\nTry running the '--help' flag for more information.\n"
     click.rich_click.ERRORS_EPILOGUE = (
-        "\nTo find out more, visit [info]https://github.com/apache/airflow/blob/main/BREEZE.rst[/]\n"
+        "\nTo find out more, visit [info]https://github.com/apache/airflow/"
+        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
     )
     click.rich_click.OPTION_GROUPS = {
         **DEVELOPER_PARAMETERS,
@@ -106,6 +108,7 @@ else:
         "breeze setup": [SETUP_COMMANDS],
         "breeze release-management": [
             RELEASE_AIRFLOW_COMMANDS,
+            RELEASE_HELM_COMMANDS,
             RELEASE_PROVIDERS_COMMANDS,
             RELEASE_OTHER_COMMANDS,
         ],

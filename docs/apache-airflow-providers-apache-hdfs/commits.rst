@@ -36,14 +36,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.0
+.....
+
+Latest change: 2024-01-26
+
+=================================================================================================  ===========  ====================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ====================================================================================================================
+
 4.3.2
 .....
 
-Latest change: 2023-12-26
+Latest change: 2023-12-28
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
 `dd96be5468 <https://github.com/apache/airflow/commit/dd96be5468241eefeab4145e352764dee20d0f33>`_  2023-12-26   ``Remove _read method from hdfs task handler after bumping min airflow version to 2.6 (#36425)``
 `d986bed292 <https://github.com/apache/airflow/commit/d986bed292696a34b8dce48a5e84e7b912ffed69>`_  2023-12-25   ``Consolidate loading delete_local_logs conf in hdfs task handler (#36422)``
 =================================================================================================  ===========  ================================================================================================

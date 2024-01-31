@@ -72,9 +72,8 @@ class SalesforceHook(BaseHook):
         salesforce_conn_id: str = default_conn_name,
         session_id: str | None = None,
         session: Session | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.conn_id = salesforce_conn_id
         self.session_id = session_id
         self.session = session

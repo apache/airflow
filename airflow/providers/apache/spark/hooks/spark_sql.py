@@ -94,9 +94,8 @@ class SparkSqlHook(BaseHook):
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         options: dict = {}
         conn: Connection | None = None
 

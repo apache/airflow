@@ -146,34 +146,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Retrieve defaults from branch_defaults.py"
-        id: defaults
-        # We could retrieve it differently here - by just importing the variables and
-        # printing them from python code, however we want to have the same code as used in
-        # the build-images.yml (there we cannot import python code coming from the PR - we need to
-        # treat the python code as text and extract the variables from there.
-        run: |
-          python - <<EOF >> ${GITHUB_ENV}
-          from pathlib import Path
-          import re
-          import sys
-
-          DEFAULTS_CONTENT = Path('dev/breeze/src/airflow_breeze/branch_defaults.py').read_text()
-          BRANCH_PATTERN = r'^AIRFLOW_BRANCH = "(.*)"$'
-          CONSTRAINTS_BRANCH_PATTERN = r'^DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "(.*)"$'
-
-          branch = re.search(BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-          constraints_branch = re.search(CONSTRAINTS_BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-
-          output = f"""
-          DEFAULT_BRANCH={branch}
-          DEFAULT_CONSTRAINTS_BRANCH={constraints_branch}
-          """.strip()
-
-          print(output)
-          # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
-          print(output, file=sys.stderr)
-          EOF
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
@@ -341,7 +313,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -364,11 +336,11 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 21
       - name: "Cache eslint"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: 'airflow/www/node_modules'
           key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
@@ -411,7 +383,8 @@ jobs:
       - name: Install hatch
         run: |
           python -m pip install --upgrade pipx
-          pipx install hatch
+          pipx ensurepath
+          pipx install hatch --force
       - name: Run tests
         run: hatch run run-coverage
         env:
@@ -593,7 +566,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -640,7 +613,7 @@ jobs:
         id: breeze
         if: needs.build-info.outputs.needs-mypy == 'true'
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -680,7 +653,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -689,7 +662,7 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -733,7 +706,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -797,7 +770,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -834,12 +807,10 @@ jobs:
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
           --non-interactive
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --version-suffix-for-pypi dev0 --package-format wheel
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
@@ -862,25 +833,11 @@ jobs:
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-        env:
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Install affected provider packages and airflow via wheel files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference default
-          --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
         env:
           AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
         run: >
-          breeze release-management prepare-provider-packages --skip-tag-check
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          breeze release-management prepare-provider-packages --skip-tag-check --package-format wheel
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -975,7 +932,7 @@ jobs:
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          --package-format wheel
       - name: >
           Remove incompatible Airflow
           ${{matrix.airflow-version}}:Python ${{matrix.python-version}} provider packages
@@ -996,19 +953,6 @@ jobs:
           --use-airflow-version wheel
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: >
-          Install affected provider packages and airflow on
-          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
-          --providers-skip-constraints
-          --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -1075,6 +1019,58 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
+
+  tests-helm-release:
+    timeout-minutes: 80
+    name: "Release Helm"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.needs-helm-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Setup git for tagging
+        run: |
+          git config --global user.email "name@example.com"
+          git config --global user.name "Your Name"
+      - name: "Remove old artifacts"
+        run: rm -rf dist/*
+      - name: "Setup k8s/helm environment"
+        run: breeze k8s setup-env
+      - name: "Install helm gpg plugin"
+        run: >
+          breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
+          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b" || true
+      - name: "Helm release tarball"
+        run: >
+          breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
+          --skip-tag-signing --version 0.0.0 --version-suffix dev0
+      - name: Generate GPG key for signing
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+      - name: "Helm release package"
+        run: >
+          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Sign artifacts for ASF distribution"
+        run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
+        env:
+          SIGN_WITH: dev@airflow.apache.org
+      - name: "Upload Helm artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Helm artifacts
+          path: ./dist/airflow-*
+          retention-days: 7
+          if-no-files-found: error
 
   tests-postgres:
     timeout-minutes: 130
@@ -2103,7 +2099,7 @@ jobs:
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{needs.build-info.outputs.default-python-version}}
           cache: 'pip'
@@ -2186,7 +2182,7 @@ jobs:
           # Force more parallelism for pull even on public images
           PARALLELISM: 6
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ".build/.k8s-env"
           key: "\

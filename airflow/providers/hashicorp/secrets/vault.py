@@ -18,8 +18,9 @@
 """Objects relating to sourcing connections & variables from Hashicorp Vault."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
@@ -184,6 +185,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
+    @deprecated(
+        reason="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Get serialized representation of connection.
@@ -193,12 +198,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
         # don't need to implement (or direct users to use) method `get_conn_value` instead
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         response = self.get_response(conn_id)
         return response.get("conn_uri") if response else None
 
