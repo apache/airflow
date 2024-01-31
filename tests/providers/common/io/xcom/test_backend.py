@@ -218,7 +218,7 @@ class TestXcomObjectStoreBackend:
         assert p.exists() is False
 
     @pytest.mark.db_test
-    @conf_vars({("core", "xcom_objectstore_compression"): "gzip"})
+    @conf_vars({("common.io", "xcom_objectstore_compression"): "gzip"})
     def test_compression(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
