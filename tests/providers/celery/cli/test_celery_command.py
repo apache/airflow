@@ -27,8 +27,8 @@ import sqlalchemy
 
 import airflow
 from airflow.cli import cli_parser
-from airflow.providers.celery.cli import celery_command
 from airflow.configuration import conf
+from airflow.providers.celery.cli import celery_command
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
