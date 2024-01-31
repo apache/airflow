@@ -89,14 +89,14 @@ class TestXcomObjectStoreBackend:
 
     def setup_method(self):
         conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
-        conf.set("core", "xcom_objectstore_path", self.path)
-        conf.set("core", "xcom_objectstore_threshold", "50")
+        conf.set("common.io", "xcom_objectstore_path", self.path)
+        conf.set("common.io", "xcom_objectstore_threshold", "50")
         settings.configure_vars()
 
     def teardown_method(self):
         conf.remove_option("core", "xcom_backend")
-        conf.remove_option("core", "xcom_objectstore_path")
-        conf.remove_option("core", "xcom_objectstore_threshold")
+        conf.remove_option("common.io", "xcom_objectstore_path")
+        conf.remove_option("common.io", "xcom_objectstore_threshold")
         settings.configure_vars()
         p = ObjectStoragePath(self.path)
         if p.exists():

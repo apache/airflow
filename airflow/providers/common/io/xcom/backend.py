@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+SECTION = "common.io"
+
 
 def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
     """This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8."""
@@ -76,7 +78,7 @@ class XComObjectStoreBackend(BaseXCom):
         :raises ValueError: if the key is not relative to the configured path
         :raises TypeError: if the url is not a valid url or cannot be split
         """
-        path = conf.get("core", "xcom_objectstore_path", fallback="")
+        path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
 
         try:
@@ -105,15 +107,15 @@ class XComObjectStoreBackend(BaseXCom):
         map_index: int | None = None,
     ) -> bytes | str:
         s_val = json.dumps(value, cls=XComEncoder).encode("utf-8")
-        path = conf.get("core", "xcom_objectstore_path", fallback="")
-        compression = conf.get("core", "xcom_objectstore_compression", fallback=None)
+        path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
+        compression = conf.get(SECTION, "xcom_objectstore_compression", fallback=None)
 
         if compression:
             suffix = "." + _get_compression_suffix(compression)
         else:
             suffix = ""
 
-        threshold = conf.getint("core", "xcom_objectstore_threshold", fallback=-1)
+        threshold = conf.getint(SECTION, "xcom_objectstore_threshold", fallback=-1)
 
         if path and -1 < threshold < len(s_val):
             # safeguard against collisions
@@ -141,7 +143,7 @@ class XComObjectStoreBackend(BaseXCom):
         Compression is inferred from the file extension.
         """
         data = BaseXCom.deserialize_value(result)
-        path = conf.get("core", "xcom_objectstore_path", fallback="")
+        path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
 
         try:
             p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
@@ -153,7 +155,7 @@ class XComObjectStoreBackend(BaseXCom):
 
     @staticmethod
     def purge(xcom: XCom, session: Session) -> None:
-        path = conf.get("core", "xcom_objectstore_path", fallback="")
+        path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         if isinstance(xcom.value, str):
             try:
                 p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(xcom.value)

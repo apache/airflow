@@ -71,10 +71,14 @@ compress the data before storing it in object storage.
 
 So for example the following configuration will store anything above 1MB in S3 and will compress it using gzip::
 
+      [core]
       xcom_backend = airflow.providers.common.io.xcom.backend.XComObjectStoreBackend
+
+      [common.io]
       xcom_objectstorage_path = s3://conn_id@mybucket/key
       xcom_objectstorage_threshold = 1048576
       xcom_objectstorage_compression = gzip
+
 
 .. note::
 
