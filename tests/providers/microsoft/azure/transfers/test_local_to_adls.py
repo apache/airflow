@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -32,7 +33,7 @@ FILE_SYSTEM_NAME = "Fabric"
 LOCAL_PATH = "test/*"
 BAD_LOCAL_PATH = "test/**"
 REMOTE_PATH = "TEST-DIR"
-DATA = {"name": "David", "surname": "Blain", "gender": "M"}
+DATA = json.dumps({"name": "David", "surname": "Blain", "gender": "M"}).encode("utf-8")
 
 
 class TestADLSUploadOperator:
@@ -93,4 +94,7 @@ class TestADLSUploadOperator:
         data_lake_file_client_mock.assert_called_once_with(
             file_system_name=FILE_SYSTEM_NAME, file_name=REMOTE_PATH
         )
-        data_lake_file_client_mock.upload_data(data=DATA, length=None, overwrite=True)
+        upload_data_mock = data_lake_file_client_mock.return_value.upload_data
+        upload_data_mock.assert_called_once_with(
+            data=DATA, length=None, overwrite=True
+        )
