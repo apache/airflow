@@ -78,6 +78,9 @@ connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud
 
+secrets-backends:
+  - airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
+
 config:
   yandex:
     description: This section contains settings for Yandex Cloud integration.
