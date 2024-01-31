@@ -128,7 +128,7 @@ def test_this(session, dag_maker):
     session.query(DagModel).all()
     d1.uri
     with dag_maker(schedule=DatasetAny(d1, d2)) as dag:
-        op = EmptyOperator(task_id="hello")
+        EmptyOperator(task_id="hello")
     dag.dataset_triggers
     dm1.id
     ddrq = DatasetDagRunQueue(dataset_id=dm1.id, target_dag_id=dag.dag_id)
@@ -143,8 +143,8 @@ def test_this(session, dag_maker):
     assert deser_dtr.objects == dag.dataset_triggers.objects
     SerializedDagModel.write_dag(dag)
     session.commit()
-    with dag_maker(dag_id="dag2") as dag2:
-        op = EmptyOperator(task_id="hello2")
+    with dag_maker(dag_id="dag2"):
+        EmptyOperator(task_id="hello2")
 
     # here we start the scheduling logic
     records = session.scalars(select(DatasetDagRunQueue)).all()
@@ -153,7 +153,7 @@ def test_this(session, dag_maker):
     for ddrq in records:
         dag_statuses[ddrq.target_dag_id][ddrq.dataset.uri] = True
         ddrq_times[ddrq.target_dag_id].append(ddrq.created_at)
-    dataset_triggered_dag_info = {dag_id: (min(times), max(times)) for dag_id, times in ddrq_times.items()}
+    # dataset_triggered_dag_info = {dag_id: (min(times), max(times)) for dag_id, times in ddrq_times.items()}
     ser_dags = session.execute(
         select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
     ).all()
@@ -182,8 +182,8 @@ def test_this2(session, dag_maker):
     session.query(DagModel).all()
     d1.uri
     with dag_maker(schedule=DatasetAny(d1, DatasetAll(d2, d1))) as dag:
-        op = EmptyOperator(task_id="hello")
+        EmptyOperator(task_id="hello")
     dag.dataset_triggers
     SerializedDAG.serialize_to_json(dag, SerializedDAG._decorated_fields)
     SerializedDAG.serialize(dag.dataset_triggers).values()
-    dtr = SerializedDAG.to_dict(dag)["dag"]["dataset_triggers"]
+    SerializedDAG.to_dict(dag)["dag"]["dataset_triggers"]
