@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import IO, TYPE_CHECKING, Any, AnyStr, Iterable, Optional, Sequence
+from typing import IO, TYPE_CHECKING, Any, AnyStr, Iterable, Optional, Sequence, Dict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -136,11 +136,11 @@ class DataToADLSOperator(BaseOperator):
         self.file_system_name = file_system_name
         self.file_name = file_name
         self.overwrite = overwrite
-        self.data = data
+        self.data = data  # type: ignore[arg-type]
         self.length = length
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> Dict[str, Any]:
         self.log.info("Uploading %s to %s", self.data, self.file_name)
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
         return hook.create_file(file_system_name=self.file_system_name, file_name=self.file_name).upload_data(
