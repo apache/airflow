@@ -143,6 +143,6 @@ class DataToADLSOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.info("Uploading %s to %s", self.data, self.file_name)
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
-        return hook.create_file(
-            file_system_name=self.file_system_name, file_name=self.file_name
-        ).upload_data(data=self.data, length=self.length, overwrite=self.overwrite)
+        return hook.create_file(file_system_name=self.file_system_name, file_name=self.file_name).upload_data(
+            data=self.data, length=self.length, overwrite=self.overwrite
+        )

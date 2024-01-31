@@ -24,8 +24,8 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import (
-    LocalFilesystemToADLSOperator,
     DataToADLSOperator,
+    LocalFilesystemToADLSOperator,
 )
 
 TASK_ID = "test-adls-upload-operator"
@@ -95,6 +95,4 @@ class TestADLSUploadOperator:
             file_system_name=FILE_SYSTEM_NAME, file_name=REMOTE_PATH
         )
         upload_data_mock = data_lake_file_client_mock.return_value.upload_data
-        upload_data_mock.assert_called_once_with(
-            data=DATA, length=None, overwrite=True
-        )
+        upload_data_mock.assert_called_once_with(data=DATA, length=None, overwrite=True)
