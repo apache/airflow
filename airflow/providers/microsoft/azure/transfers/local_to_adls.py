@@ -125,7 +125,7 @@ class DataToADLSOperator(BaseOperator):
         *,
         file_system_name: str,
         file_name: str,
-        data: Union[bytes, str, Iterable[AnyStr], IO[AnyStr]],
+        data: bytes | str | Iterable[AnyStr] | IO[AnyStr],
         length: Optional[int] = None,
         overwrite: bool = False,
         azure_data_lake_conn_id: str = "azure_data_lake_default",
