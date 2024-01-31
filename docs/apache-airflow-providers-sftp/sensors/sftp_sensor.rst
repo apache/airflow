@@ -44,3 +44,11 @@ Whatever returned by the python callable is put into XCom.
     :dedent: 4
     :start-after: [START howto_operator_sftp_sensor_decorator]
     :end-before: [END howto_operator_sftp_sensor_decorator]
+
+Checks for the existence of a file on an SFTP server in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/sftp/example_sftp_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sftp_async]
+    :end-before: [END howto_sensor_sftp_async]
