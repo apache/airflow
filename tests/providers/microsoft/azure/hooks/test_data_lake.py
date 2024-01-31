@@ -313,7 +313,7 @@ class TestAzureDataLakeStorageV2Hook:
             extra={
                 "tenant_id": "tenant-id",
                 "proxies": {"https": "https://proxy:80"},
-                "account_url": "https://onelake.dfs.fabric.microsoft.com"
+                "account_url": "https://onelake.dfs.fabric.microsoft.com",
             },
         )
         conn: DataLakeServiceClient = hook.get_conn()
@@ -331,6 +331,8 @@ class TestAzureDataLakeStorageV2Hook:
     def find_policy(self, conn, policy_type):
         policies = conn.credential._client._pipeline._impl_policies
         return next(
-            map(lambda policy: policy._policy,
-                filter(lambda policy: isinstance(policy._policy, policy_type), policies))
+            map(
+                lambda policy: policy._policy,
+                filter(lambda policy: isinstance(policy._policy, policy_type), policies)
+            )
         )

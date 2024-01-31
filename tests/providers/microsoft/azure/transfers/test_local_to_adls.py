@@ -22,8 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator, \
-    DataToADLSOperator
+from airflow.providers.microsoft.azure.transfers.local_to_adls import (
+    LocalFilesystemToADLSOperator,
+    DataToADLSOperator,
+)
 
 TASK_ID = "test-adls-upload-operator"
 FILE_SYSTEM_NAME = "Fabric"
