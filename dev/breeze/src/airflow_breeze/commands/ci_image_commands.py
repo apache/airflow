@@ -102,6 +102,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
@@ -260,10 +261,13 @@ option_upgrade_to_newer_dependencies = click.option(
 )
 
 option_upgrade_on_failure = click.option(
-    "--upgrade-on-failure",
+    "--upgrade-on-failure/--no-upgrade-on-failure",
     is_flag=True,
-    help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
+    help="When set, attempt to run upgrade to newer dependencies when regular build fails. It is set to False"
+    " by default on CI and True by default locally.",
     envvar="UPGRADE_ON_FAILURE",
+    show_default=True,
+    default=not os.environ.get("CI", "") if not generating_command_images() else True,
 )
 
 option_version_suffix_for_pypi_ci = click.option(
@@ -798,7 +802,7 @@ def run_build_ci_image(
             if ci_image_params.upgrade_on_failure:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                    "[warning]Attempting to build with --upgrade--to--newer--dependencies on failure"
                 )
                 build_command_result = run_command(
                     prepare_docker_build_command(
@@ -851,6 +855,9 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
         upgrade_to_newer_dependencies=False,
         warn_image_upgrade_needed=command_params.warn_image_upgrade_needed,
+        # upgrade on failure is disabled on CI but enabled locally, to make sure we are not
+        # accidentally upgrading dependencies on CI
+        upgrade_on_failure=not os.environ.get("CI", ""),
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(
