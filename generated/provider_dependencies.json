@@ -196,7 +196,7 @@
   },
   "apache.livy": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.6.0",
       "asgiref"
@@ -358,7 +358,7 @@
   },
   "databricks": {
     "deps": [
-      "aiohttp>=3.6.3, <4",
+      "aiohttp>=3.9.2, <4",
       "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
@@ -385,7 +385,7 @@
   },
   "dbt.cloud": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.6.0",
       "asgiref"
@@ -615,7 +615,7 @@
   },
   "http": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow>=2.6.0",
       "asgiref",
       "requests>=2.26.0",
