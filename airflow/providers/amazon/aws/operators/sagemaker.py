@@ -1104,7 +1104,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                     {},
                     [],
                     instance_count,
-                    LogState.TAILING if job_already_completed else LogState.COMPLETE,
+                    LogState.COMPLETE if job_already_completed else LogState.TAILING,
                     description,
                     last_describe_job_call,
                 )

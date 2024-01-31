@@ -243,7 +243,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         instance_count = last_description["ResourceConfig"]["InstanceCount"]
         status = last_description["TrainingJobStatus"]
         job_already_completed = status not in self.hook.non_terminal_states
-        state = LogState.TAILING if job_already_completed else LogState.COMPLETE
+        state = LogState.COMPLETE if job_already_completed else LogState.TAILING
         last_describe_job_call = time.time()
         while True:
             try:
