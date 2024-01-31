@@ -17,16 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
 from azure.core.pipeline.policies._universal import ProxyPolicy
-from azure.storage.filedatalake import DataLakeServiceClient
 from azure.storage.filedatalake._models import FileSystemProperties
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
+
+if TYPE_CHECKING:
+    from azure.storage.filedatalake import DataLakeServiceClient
 
 MODULE = "airflow.providers.microsoft.azure.hooks.data_lake"
 
