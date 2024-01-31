@@ -28,10 +28,10 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from gcloud.aio.auth import Token
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -99,22 +99,23 @@ class GKEHook(GoogleBaseHook):
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason=(
+            "The get_conn method has been deprecated. "
+            "You should use the get_cluster_manager_client method."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn(self) -> container_v1.ClusterManagerClient:
-        warnings.warn(
-            "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.get_cluster_manager_client()
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason="The get_client method has been deprecated. You should use the get_conn method.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_client(self) -> ClusterManagerClient:
-        warnings.warn(
-            "The get_client method has been deprecated. You should use the get_conn method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:

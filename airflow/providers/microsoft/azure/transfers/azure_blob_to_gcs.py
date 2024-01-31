@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import (
@@ -25,6 +25,13 @@ from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import (
 )
 
 
+@deprecated(
+    reason=(
+        "Please use "
+        "`airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class AzureBlobStorageToGCSOperator(AzureBlobStorageToGCSOperatorFromGoogleProvider):
     """
     This class is deprecated.
@@ -34,11 +41,4 @@ class AzureBlobStorageToGCSOperator(AzureBlobStorageToGCSOperatorFromGoogleProvi
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use
-            `airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)

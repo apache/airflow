@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable
 
 import jwt
 import re2
+from deprecated import deprecated
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -688,12 +689,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
     @property
+    @deprecated(
+        reason="The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def oauth_whitelists(self):
-        warnings.warn(
-            "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.oauth_allow_list
 
     def create_builtin_roles(self):

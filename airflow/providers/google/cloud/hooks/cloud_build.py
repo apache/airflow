@@ -18,9 +18,9 @@
 """Hook for Google Cloud Build service."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -189,6 +189,10 @@ class CloudBuildHook(GoogleBaseHook):
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `create_build_without_waiting_for_result`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_build(
         self,
         build: dict | Build,
@@ -213,11 +217,6 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
-        warnings.warn(
-            "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_conn()
 
         self.log.info("Start creating build...")

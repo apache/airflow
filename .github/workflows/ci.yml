@@ -313,7 +313,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -336,11 +336,11 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 21
       - name: "Cache eslint"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: 'airflow/www/node_modules'
           key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
@@ -566,7 +566,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -582,6 +582,45 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
+
+  upgrade-check:
+    timeout-minutes: 45
+    name: "Upgrade checks"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: needs.build-info.outputs.canary-run == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Install python from scratch. No cache used. We always want to have fresh version of everything
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{needs.build-info.outputs.default-python-version}}"
+      - name: "Install latest pre-commit"
+        run: pip install pre-commit
+      - name: "Autoupdate all pre-commits"
+        run: pre-commit autoupdate
+      - name: "Run automated upgrade for black"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-black-version
+        if: always()
+      - name: "Run automated upgrade for build dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-build-dependencies
+        if: always()
 
   # Runs static checks for groups of files in the repository in a single process without passing .
   # List of files
@@ -613,7 +652,7 @@ jobs:
         id: breeze
         if: needs.build-info.outputs.needs-mypy == 'true'
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -653,7 +692,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -662,7 +701,7 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -706,7 +745,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -770,7 +809,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -2099,7 +2138,7 @@ jobs:
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{needs.build-info.outputs.default-python-version}}
           cache: 'pip'
@@ -2182,7 +2221,7 @@ jobs:
           # Force more parallelism for pull even on public images
           PARALLELISM: 6
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ".build/.k8s-env"
           key: "\
