@@ -29,7 +29,7 @@
     Detailed list of commits <commits>
 
 
-Package {{ PACKAGE_PIP_NAME }}
+{{ PACKAGE_PIP_NAME }} package
 ------------------------------------------------------
 
 {{  PROVIDER_DESCRIPTION | safe }}
@@ -39,8 +39,8 @@ Release: {{ RELEASE }}{{ VERSION_SUFFIX }}
 Provider package
 ----------------
 
-This is a provider package for ``{{PROVIDER_ID}}`` provider. All classes for this provider package
-are in ``{{FULL_PACKAGE_NAME}}`` python package.
+This package is for the ``{{PROVIDER_ID}}`` provider.
+All classes for this package are included in the ``{{FULL_PACKAGE_NAME}}`` python package.
 
 {%- if PROVIDER_REMOVED %}
 
@@ -57,9 +57,9 @@ are in ``{{FULL_PACKAGE_NAME}}`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install {{PACKAGE_PIP_NAME}}``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install {{PACKAGE_PIP_NAME}}``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

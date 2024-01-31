@@ -17,10 +17,21 @@
  under the License.
  -->
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [CI Sequence diagrams](#ci-sequence-diagrams)
+  - [Pull request flow from fork](#pull-request-flow-from-fork)
+  - [Pull request flow from "apache/airflow" repo](#pull-request-flow-from-apacheairflow-repo)
+  - [Merge "Canary" run](#merge-canary-run)
+  - [Scheduled run](#scheduled-run)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # CI Sequence diagrams
 
-You can see here the sequence diagrams of the flow happening during the CI Jobs. More detailed description
-for the CI flows can be found in the [CI.rst](CI.rst) document.
+You can see here the sequence diagrams of the flow happening during the CI Jobs.
 
 ## Pull request flow from fork
 
@@ -352,6 +363,8 @@ sequenceDiagram
         Note over Tests: React WWW tests
     and
         Note over Tests: Test git clone on Windows
+    and
+        Note over Tests: Run upgrade checks
     end
     Note over Tests: Skip waiting for CI images
     par
@@ -448,3 +461,7 @@ same as "Canary" run, with the difference that the image used to run the tests i
 cache - it's always built from the scratch. This way we can check that no "system" dependencies in debian
 base image have changed and that the build is still reproducible. No separate diagram is needed for
 scheduled run as it is identical to that of "Canary" run.
+
+-----
+
+Read next about [Debugging](07_debugging.md)

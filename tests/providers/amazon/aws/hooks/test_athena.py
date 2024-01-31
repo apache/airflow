@@ -20,12 +20,20 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.amazon.aws.hooks.athena import (
+    MULTI_LINE_QUERY_LOG_PREFIX,
+    AthenaHook,
+    query_params_to_string,
+)
+
+MULTILINE_QUERY = """
+SELECT * FROM TEST_TABLE
+WHERE Success='True';"""
 
 MOCK_DATA = {
     "query": "SELECT * FROM TEST_TABLE",
     "database": "TEST_DATABASE",
-    "outputLocation": "s3://test_s3_bucket/",
+    "output_location": "s3://test_s3_bucket/",
     "client_request_token": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
     "workgroup": "primary",
     "query_execution_id": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
@@ -34,7 +42,7 @@ MOCK_DATA = {
 }
 
 mock_query_context = {"Database": MOCK_DATA["database"]}
-mock_result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
+mock_result_configuration = {"OutputLocation": MOCK_DATA["output_location"]}
 
 MOCK_RUNNING_QUERY_EXECUTION = {"QueryExecution": {"Status": {"State": "RUNNING"}}}
 MOCK_SUCCEEDED_QUERY_EXECUTION = {"QueryExecution": {"Status": {"State": "SUCCEEDED"}}}
@@ -239,3 +247,32 @@ class TestAthenaHook:
         mock_conn.return_value.get_query_execution.assert_called_with(
             QueryExecutionId=MOCK_DATA["query_execution_id"]
         )
+
+    def test_single_line_query_log_formatting(self):
+        params = {
+            "QueryString": MOCK_DATA["query"],
+            "QueryExecutionContext": {"Database": MOCK_DATA["database"]},
+            "ResultConfiguration": {"OutputLocation": MOCK_DATA["output_location"]},
+            "WorkGroup": MOCK_DATA["workgroup"],
+        }
+
+        result = query_params_to_string(params)
+
+        assert isinstance(result, str)
+        assert result.count("\n") == len(params.keys())
+
+    def test_multi_line_query_log_formatting(self):
+        params = {
+            "QueryString": MULTILINE_QUERY,
+            "QueryExecutionContext": {"Database": MOCK_DATA["database"]},
+            "ResultConfiguration": {"OutputLocation": MOCK_DATA["output_location"]},
+            "WorkGroup": MOCK_DATA["workgroup"],
+        }
+        num_query_lines = MULTILINE_QUERY.count("\n")
+
+        result = query_params_to_string(params)
+
+        assert isinstance(result, str)
+        assert result.count("\n") == len(params.keys()) + num_query_lines
+        # All lines except the first line of the multiline query log message get the double prefix/indent.
+        assert result.count(MULTI_LINE_QUERY_LOG_PREFIX) == (num_query_lines * 2) - 1

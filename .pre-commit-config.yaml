@@ -18,7 +18,7 @@
 default_stages: [commit, push]
 default_language_version:
   python: python3
-  node: 18.6.0
+  node: 21.6.1
 minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
@@ -176,11 +176,21 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: update-black-version
-        name: Update black versions everywhere
+        name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$
         additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: update-build-dependencies
+        name: Update build-dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
@@ -781,7 +791,7 @@ repos:
         files: ^airflow/www/
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21']
       - id: compile-www-assets-dev
         name: Compile www assets in dev mode (manual)
         language: node
@@ -790,7 +800,7 @@ repos:
         files: ^airflow/www/
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false
@@ -1040,7 +1050,7 @@ repos:
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Check that unit tests do not inherit from unittest.TestCase

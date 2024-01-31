@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
+from deprecated import deprecated
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
@@ -153,9 +154,9 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
+    @deprecated(reason="This function is deprecated.", category=AirflowProviderDeprecationWarning)
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
-        warnings.warn("This function is deprecated. ", AirflowProviderDeprecationWarning, stacklevel=2)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
@@ -166,14 +167,15 @@ class PodGenerator:
         return result
 
     @staticmethod
+    @deprecated(
+        reason=(
+            "This function is deprecated. "
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Add sidecar."""
-        warnings.warn(
-            "This function is deprecated. "
-            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -570,6 +572,10 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
+    @deprecated(
+        reason="This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def make_unique_pod_id(pod_id: str) -> str | None:
         r"""
         Generate a unique Pod name.

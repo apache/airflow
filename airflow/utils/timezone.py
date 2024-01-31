@@ -60,13 +60,7 @@ def is_naive(value):
 
 def utcnow() -> dt.datetime:
     """Get the current date and time in UTC."""
-    # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not picklable and also creates issues
-    # when using replace()
-    result = dt.datetime.utcnow()
-    result = result.replace(tzinfo=utc)
-
-    return result
+    return dt.datetime.now(tz=utc)
 
 
 def utc_epoch() -> dt.datetime:

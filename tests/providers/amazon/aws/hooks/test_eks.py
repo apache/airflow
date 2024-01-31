@@ -28,7 +28,7 @@ import pytest
 import time_machine
 import yaml
 from botocore.exceptions import ClientError
-from moto import mock_eks
+from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 from moto.eks.exceptions import (
     InvalidParameterException,
@@ -128,13 +128,9 @@ def cluster_builder():
     def _execute(count: int = 1, minimal: bool = True) -> tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
-    mock_eks().start()
-    eks_hook = EksHook(
-        aws_conn_id=DEFAULT_CONN_ID,
-        region_name=REGION,
-    )
-    yield _execute
-    mock_eks().stop()
+    with mock_aws():
+        eks_hook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        yield _execute
 
 
 @pytest.fixture(scope="function")
@@ -234,7 +230,7 @@ class TestEksHooks:
     # in the list at initialization, which means the mock
     # decorator must be used manually in this one case.
     ###
-    @mock_eks
+    @mock_aws
     def test_list_clusters_returns_empty_by_default(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
 
@@ -422,7 +418,7 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result)
 
-    @mock_eks
+    @mock_aws
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
@@ -829,7 +825,7 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result)
 
-    @mock_eks
+    @mock_aws
     def test_create_fargate_profile_throws_exception_when_cluster_not_found(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
@@ -1161,7 +1157,7 @@ class TestEksHooks:
         "selectors, expected_message, expected_result",
         selector_formatting_test_cases,
     )
-    @mock_eks
+    @mock_aws
     def test_create_fargate_selectors(self, cluster_builder, selectors, expected_message, expected_result):
         client, generated_test_data = cluster_builder()
         cluster_name: str = generated_test_data.existing_cluster_name

@@ -20,7 +20,7 @@ from unittest import mock
 
 import boto3
 import pytest
-from moto import mock_datasync
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
@@ -66,7 +66,7 @@ MOCK_DATA = {
 }
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class DataSyncTestCaseBase:
     # Runs once for each test
@@ -144,7 +144,7 @@ def test_generic_params():
     assert op.hook.wait_interval_seconds is not None
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
     def set_up_operator(
@@ -356,7 +356,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
     def set_up_operator(
@@ -550,7 +550,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
     def set_up_operator(
@@ -649,7 +649,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperator(DataSyncTestCaseBase):
     def set_up_operator(
@@ -819,7 +819,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
     def set_up_operator(self, task_id="test_datasync_delete_task_operator", task_arn="self"):

@@ -37,7 +37,7 @@ class TestTrinoOperator:
     def test_execute(self, mock_get_db_hook):
         """Asserts that the run method is called when a TrinoOperator task is executed"""
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This class is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated class *"):
             op = TrinoOperator(
                 task_id=TASK_ID,
                 sql="SELECT 1;",

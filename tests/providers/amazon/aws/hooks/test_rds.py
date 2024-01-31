@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Generator
 from unittest.mock import patch
 
 import pytest
-from moto import mock_rds
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def rds_hook() -> Generator[RdsHook, None, None]:
     """Returns an RdsHook whose underlying connection is mocked with moto"""
-    with mock_rds():
+    with mock_aws():
         yield RdsHook(aws_conn_id="aws_default", region_name="us-east-1")
 
 

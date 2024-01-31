@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from moto import mock_stepfunctions
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
 
-@mock_stepfunctions
+@mock_aws
 class TestStepFunctionHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = StepFunctionHook(aws_conn_id="aws_default")

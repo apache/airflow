@@ -21,7 +21,7 @@ from typing import Generator
 from unittest import mock
 
 import pytest
-from moto import mock_sagemaker
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import (
@@ -38,7 +38,7 @@ ROLE_ARN = "arn:aws:iam:role/role"
 
 @pytest.fixture
 def hook() -> Generator[SageMakerHook, None, None]:
-    with mock_sagemaker():
+    with mock_aws():
         yield SageMakerHook(aws_conn_id="aws_default")
 
 

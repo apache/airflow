@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from botocore import UNSIGNED
 from botocore.config import Config
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -462,6 +463,13 @@ class AwsConnectionWrapper(LoggingMixin):
         return role_arn, assume_role_method, assume_role_kwargs
 
 
+@deprecated(
+    reason=(
+        "Use local credentials file is never documented and well tested. "
+        "Obtain credentials by this way deprecated and will be removed in a future releases."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 def _parse_s3_config(
     config_file_name: str, config_format: str | None = "boto", profile: str | None = None
 ) -> tuple[str | None, str | None]:
@@ -474,13 +482,6 @@ def _parse_s3_config(
         Defaults to "boto"
     :param profile: profile name in AWS type config file
     """
-    warnings.warn(
-        "Use local credentials file is never documented and well tested. "
-        "Obtain credentials by this way deprecated and will be removed in a future releases.",
-        AirflowProviderDeprecationWarning,
-        stacklevel=4,
-    )
-
     import configparser
 
     config = configparser.ConfigParser()

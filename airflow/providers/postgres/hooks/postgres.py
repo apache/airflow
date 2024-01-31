@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
+from deprecated import deprecated
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -90,23 +91,25 @@ class PostgresHook(DbApiHook):
         self.options = options
 
     @property
-    def schema(self):
-        warnings.warn(
+    @deprecated(
+        reason=(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to get the database name.',
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            'Please use "database" to get the database name.'
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def schema(self):
         return self.database
 
     @schema.setter
-    def schema(self, value):
-        warnings.warn(
+    @deprecated(
+        reason=(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to set the database name.',
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            'Please use "database" to set the database name.'
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def schema(self, value):
         self.database = value
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:

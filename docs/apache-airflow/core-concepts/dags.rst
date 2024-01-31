@@ -190,18 +190,20 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
     with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+There are various valid values for the ``schedule`` argument::
 
     with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
+    with DAG("my_one_time_dag", schedule="@once"):
+        ...
+
+    with DAG("my_continuous_dag", schedule="@continuous"):
+        ...
+
 .. tip::
 
-    For more information on ``schedule`` values, see :doc:`DAG Run <dag-run>`.
-
-    If ``schedule`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
-    For more information on ``logical date``, see :ref:`data-interval` and
-    :ref:`faq:what-does-execution-date-mean`.
+    For more information different types of scheduling, see :doc:`/authoring-and-scheduling/index`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run <dag-run>`. DAG Runs can run in parallel for the
@@ -236,6 +238,11 @@ to DAG run's start date. However, when the DAG is being automatically scheduled,
 schedule interval put in place, the logical date is going to indicate the time
 at which it marks the start of the data interval, where the DAG run's start
 date would then be the logical date + scheduled interval.
+
+.. tip::
+
+    For more information on ``logical date``, see :ref:`data-interval` and
+    :ref:`faq:what-does-execution-date-mean`.
 
 DAG Assignment
 --------------

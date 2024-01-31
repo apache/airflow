@@ -2062,7 +2062,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
     def test_deprecation_warning(self, mock_bq_hook, func_name):
         args, kwargs = [1], {"param1": "val1"}
         new_path = re.escape(f"airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}")
-        message_pattern = rf"This method is deprecated\.\s+Please use `{new_path}`"
+        message_pattern = rf"Call to deprecated method {func_name}\.\s+\(Please use `{new_path}`\)"
         message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
