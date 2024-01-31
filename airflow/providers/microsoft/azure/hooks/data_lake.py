@@ -340,9 +340,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            return DataLakeServiceClient.from_connection_string(
-                connection_string, **extra
-            )
+            return DataLakeServiceClient.from_connection_string(connection_string, **extra)
 
         credential: Credentials
         tenant = self._get_field(extra, "tenant_id")
@@ -353,28 +351,19 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             proxies = extra.get("proxies", {})
 
             credential = ClientSecretCredential(
-                tenant_id=tenant,
-                client_id=app_id,
-                client_secret=app_secret,
-                proxies=proxies
+                tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
             )
         elif conn.password:
             credential = conn.password
         else:
-            managed_identity_client_id = self._get_field(
-                extra, "managed_identity_client_id"
-            )
-            workload_identity_tenant_id = self._get_field(
-                extra, "workload_identity_tenant_id"
-            )
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
             credential = AzureIdentityCredentialAdapter(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        account_url = extra.pop(
-            "account_url", f"https://{conn.host}.dfs.core.windows.net"
-        )
+        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
 
         self.log.info("account_url: %s", account_url)
 
