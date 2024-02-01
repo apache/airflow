@@ -41,6 +41,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsExecutorException,
     EcsQueuedTask,
     EcsTaskCollection,
+    _deep_update,
 )
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
@@ -422,7 +423,7 @@ class AwsEcsExecutor(BaseExecutor):
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
         run_task_kwargs = deepcopy(self.run_task_kwargs)
-        run_task_kwargs = self._deep_update(run_task_kwargs, exec_config)
+        run_task_kwargs = _deep_update(run_task_kwargs, exec_config)
         container_override = self.get_container(run_task_kwargs["overrides"]["containerOverrides"])
         container_override["command"] = cmd
 
@@ -432,18 +433,6 @@ class AwsEcsExecutor(BaseExecutor):
         container_override["environment"].append({"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"})
 
         return run_task_kwargs
-
-    def _deep_update(self, dest_dict, source_dict):
-        """Deep updates dest_dict with the values from source_dict."""
-        for key, value in source_dict.items():
-            if key in dest_dict and isinstance(dest_dict[key], dict) and isinstance(value, dict):
-                # Recursively update nested dictionaries
-                self._deep_update(dest_dict[key], value)
-            else:
-                # Update or add key-value pairs
-                dest_dict[key] = value
-
-        return dest_dict
 
     def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
