@@ -152,7 +152,7 @@ class SFTPSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
         else:
-            super().execute(context=context)
+            return super().execute(context=context)
 
     def execute_complete(self, context: dict[str, Any], event: Any = None) -> None:
         """
