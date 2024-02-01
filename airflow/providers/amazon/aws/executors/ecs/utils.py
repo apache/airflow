@@ -266,16 +266,3 @@ def camelize_dict_keys(nested_dict) -> dict:
         else:
             result[new_key] = nested_dict[key]
     return result
-
-
-def _deep_update(dest_dict: dict, source_dict: dict) -> dict:
-    """Deep updates dest_dict with the values from source_dict."""
-    for key, value in source_dict.items():
-        if key in dest_dict and isinstance(dest_dict[key], dict) and isinstance(value, dict):
-            # Recursively update nested dictionaries
-            _deep_update(dest_dict[key], value)
-        else:
-            # Update or add key-value pairs
-            dest_dict[key] = value
-
-    return dest_dict

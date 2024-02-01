@@ -41,7 +41,6 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsExecutorException,
     EcsQueuedTask,
     EcsTaskCollection,
-    _deep_update,
 )
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
@@ -49,6 +48,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils import timezone
+from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -423,7 +423,7 @@ class AwsEcsExecutor(BaseExecutor):
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
         run_task_kwargs = deepcopy(self.run_task_kwargs)
-        run_task_kwargs = _deep_update(run_task_kwargs, exec_config)
+        run_task_kwargs = merge_dicts(run_task_kwargs, exec_config)
         container_override = self.get_container(run_task_kwargs["overrides"]["containerOverrides"])
         container_override["command"] = cmd
 
