@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-01-31T16:32:56.714903
+# This constraints file was automatically generated on 2024-02-01T14:09:10.427663
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -574,7 +574,7 @@ python-jenkins==1.8.2
 python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
-python-slugify==8.0.2
+python-slugify==8.0.3
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2023.4
@@ -672,7 +672,7 @@ towncrier==23.11.0
 tqdm==4.66.1
 traitlets==5.14.1
 trino==0.327.0
-trove-classifiers==2024.1.8
+trove-classifiers==2024.1.31
 twine==4.0.2
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
@@ -681,7 +681,7 @@ types-PyYAML==6.0.12.12
 types-aiofiles==23.2.0.20240106
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
-types-docutils==0.20.0.20240126
+types-docutils==0.20.0.20240201
 types-paramiko==3.4.0.20240120
 types-protobuf==4.24.0.20240129
 types-pyOpenSSL==24.0.0.20240130
