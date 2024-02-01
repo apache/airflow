@@ -623,7 +623,6 @@ class EmrContainerOperator(BaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
-        self.log.info("%s", event["message"])
         return event["job_id"]
 
     def on_kill(self) -> None:
@@ -717,7 +716,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             # waiter_countdown defaults to never timing out, which is not supported
             # by boto waiters, so we will set it here to "a very long time" for now.
@@ -726,7 +727,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -1025,7 +1028,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1037,7 +1042,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead. In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
@@ -1173,6 +1180,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "name",
     )
 
     template_fields_renderers = {
@@ -1205,7 +1213,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1217,7 +1227,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
@@ -1226,7 +1238,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
-        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.name = name
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
@@ -1268,14 +1280,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         self.log.info("Starting job on Application: %s", self.application_id)
-        response = self.hook.conn.start_job_run(
-            clientToken=self.client_request_token,
-            applicationId=self.application_id,
-            executionRoleArn=self.execution_role_arn,
-            jobDriver=self.job_driver,
-            configurationOverrides=self.configuration_overrides,
-            name=self.name,
+        self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        args = {
+            "clientToken": self.client_request_token,
+            "applicationId": self.application_id,
+            "executionRoleArn": self.execution_role_arn,
+            "jobDriver": self.job_driver,
+            "name": self.name,
             **self.config,
+        }
+        if self.configuration_overrides is not None:
+            args["configurationOverrides"] = self.configuration_overrides
+        response = self.hook.conn.start_job_run(
+            **args,
         )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
@@ -1403,7 +1420,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1415,7 +1434,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
@@ -1564,7 +1585,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1576,7 +1599,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.wait_for_delete_completion = wait_for_completion
         # super stops the app

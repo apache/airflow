@@ -17,20 +17,20 @@
 from __future__ import annotations
 
 import json
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class StepFunctionExecutionSensor(BaseSensorOperator):
+class StepFunctionExecutionSensor(AwsBaseSensor[StepFunctionHook]):
     """
     Poll the Step Function State Machine Execution until it reaches a terminal state; fails if the task fails.
 
@@ -42,7 +42,16 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         :ref:`howto/sensor:StepFunctionExecutionSensor`
 
     :param execution_arn: execution_arn to check the state of
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     INTERMEDIATE_STATES = ("RUNNING",)
@@ -53,22 +62,13 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("SUCCEEDED",)
 
-    template_fields: Sequence[str] = ("execution_arn",)
-    template_ext: Sequence[str] = ()
+    aws_hook_class = StepFunctionHook
+    template_fields: Sequence[str] = aws_template_fields("execution_arn")
     ui_color = "#66c3ff"
 
-    def __init__(
-        self,
-        *,
-        execution_arn: str,
-        aws_conn_id: str = "aws_default",
-        region_name: str | None = None,
-        **kwargs,
-    ):
+    def __init__(self, *, execution_arn: str, **kwargs):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
 
     def poke(self, context: Context):
         execution_status = self.hook.describe_execution(self.execution_arn)
@@ -93,7 +93,3 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     def get_hook(self) -> StepFunctionHook:
         """Create and return a StepFunctionHook."""
         return self.hook
-
-    @cached_property
-    def hook(self) -> StepFunctionHook:
-        return StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

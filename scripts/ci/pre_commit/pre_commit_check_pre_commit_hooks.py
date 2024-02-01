@@ -26,19 +26,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import (  # isort: skip # noqa: E402
+from collections import defaultdict
+from typing import Any
+
+import yaml
+from common_precommit_black_utils import black_format
+from common_precommit_utils import (
     AIRFLOW_BREEZE_SOURCES_PATH,
     AIRFLOW_SOURCES_ROOT_PATH,
     insert_documentation,
 )
-from common_precommit_black_utils import black_format  # isort: skip # noqa E402
-
-from collections import defaultdict  # noqa: E402
-from typing import Any  # noqa: E402
-
-import yaml  # noqa: E402
-from rich.console import Console  # noqa: E402
-from tabulate import tabulate  # noqa: E402
+from rich.console import Console
+from tabulate import tabulate
 
 console = Console(width=400, color_system="standard")
 
@@ -134,7 +133,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
         rows.append((hook_id, formatted_hook_description, " * " if hook_id in image_hooks else "  "))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", "Image")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "STATIC_CODE_CHECKS.rst",
+        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "08_static_code_checks.rst",
         content=formatted_table.splitlines(keepends=True),
         header="  .. BEGIN AUTO-GENERATED STATIC CHECK LIST",
         footer="  .. END AUTO-GENERATED STATIC CHECK LIST",

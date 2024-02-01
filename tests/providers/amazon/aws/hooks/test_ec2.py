@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -57,19 +57,19 @@ class TestEC2Hook:
         """Create Instance and return instance id."""
         return cls._create_instances(hook)[0]
 
-    @mock_ec2
+    @mock_aws
     def test_get_conn_returns_boto3_resource(self):
         ec2_hook = EC2Hook()
         instances = list(ec2_hook.conn.instances.all())
         assert instances is not None
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_get_conn_returns_boto3_resource(self):
         ec2_hook = EC2Hook(api_type="client_type")
         instances = list(ec2_hook.get_instances())
         assert instances is not None
 
-    @mock_ec2
+    @mock_aws
     def test_get_instance(self):
         ec2_hook = EC2Hook()
         created_instance_id = self._create_instance(ec2_hook)
@@ -77,7 +77,15 @@ class TestEC2Hook:
         existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
         assert created_instance_id == existing_instance.instance_id
 
-    @mock_ec2
+    @mock_aws
+    def test_get_instance_client_type(self):
+        ec2_hook = EC2Hook(api_type="client_type")
+        created_instance_id = self._create_instance(ec2_hook)
+        # test get_instance method
+        existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
+        assert created_instance_id == existing_instance["InstanceId"]
+
+    @mock_aws
     def test_get_instance_state(self):
         ec2_hook = EC2Hook()
         created_instance_id = self._create_instance(ec2_hook)
@@ -87,7 +95,7 @@ class TestEC2Hook:
         existing_instance_state = ec2_hook.get_instance_state(instance_id=created_instance_id)
         assert created_instance_state == existing_instance_state
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_get_instance_state(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instance_id = self._create_instance(ec2_hook)
@@ -97,7 +105,7 @@ class TestEC2Hook:
         existing_instance_state = ec2_hook.get_instance_state(instance_id=created_instance_id)
         assert created_instance_state == existing_instance_state
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_start_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instance_id = self._create_instance(ec2_hook)
@@ -106,7 +114,7 @@ class TestEC2Hook:
         assert response["StartingInstances"][0]["InstanceId"] == created_instance_id
         assert ec2_hook.get_instance_state(created_instance_id) == "running"
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_stop_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instance_id = self._create_instance(ec2_hook)
@@ -115,7 +123,7 @@ class TestEC2Hook:
         assert response["StoppingInstances"][0]["InstanceId"] == created_instance_id
         assert ec2_hook.get_instance_state(created_instance_id) == "stopped"
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_terminate_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instance_id = self._create_instance(ec2_hook)
@@ -124,7 +132,7 @@ class TestEC2Hook:
         assert response["TerminatingInstances"][0]["InstanceId"] == created_instance_id
         assert ec2_hook.get_instance_state(created_instance_id) == "terminated"
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_describe_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instance_id = self._create_instance(ec2_hook)
@@ -151,7 +159,7 @@ class TestEC2Hook:
 
         assert len(response["Reservations"]) == 0
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_get_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instances = self._create_instances(ec2_hook, max_count=2, min_count=2)
@@ -188,7 +196,7 @@ class TestEC2Hook:
 
         assert len(response) == 0
 
-    @mock_ec2
+    @mock_aws
     def test_client_type_get_instance_ids(self):
         ec2_hook = EC2Hook(api_type="client_type")
         created_instances = self._create_instances(ec2_hook, max_count=2, min_count=2)
@@ -215,7 +223,7 @@ class TestEC2Hook:
 
         assert len(response) == 0
 
-    @mock_ec2
+    @mock_aws
     def test_decorator_only_client_type(self):
         ec2_hook = EC2Hook()
 

@@ -295,6 +295,11 @@ There are two types of images you can extend your image from:
    for AMD64 platform and Postgres for ARM64 platform, but contains no extras or providers, except
    the 4 default providers.
 
+.. note:: Database clients and database providers in slim images
+    Slim images come with database clients preinstalled for your convenience, however the default
+    providers included do not include any database provider. You will still need to manually install
+    any database provider you need
+
 .. note:: Differences of slim image vs. regular image.
 
     The slim image is small comparing to regular image (~500 MB vs ~1.1GB) and you might need to add a
@@ -770,6 +775,23 @@ The following example builds the production image in version ``3.8`` based on ``
     :end-before: [END build]
 
 
+.. _image-build-mysql:
+
+Building images with MySQL client
+.................................
+
+.. warning::
+
+  By default Airflow images as of Airflow 2.8.0 use "MariaDB" client by default on both "X86_64" and "ARM64"
+  platforms. However, you can also build images with MySQL client. The following example builds the
+  production image in default Python version with "MySQL" client.
+
+.. exampleinclude:: docker-examples/customizing/mysql-client.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+
 .. _image-build-github:
 
 
@@ -992,7 +1014,7 @@ The architecture of the images
 ..............................
 
 You can read more details about the images - the context, their parameters and internal structure in the
-`IMAGES.rst <https://github.com/apache/airflow/blob/main/IMAGES.rst>`_ document.
+`Images documentation <https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md>`_.
 
 
 Pip packages caching

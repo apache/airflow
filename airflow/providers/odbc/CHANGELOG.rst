@@ -27,6 +27,74 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ODBC Hook sql select return empty table (#36709)``
+* ``Rename columns to valid namedtuple attributes + ensure Row.fields are retrieved as tuple (#36949)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make "placeholder" of ODBC configurable in UI (#36000)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Implement support for 'fetchone()' in the ODBCHook and the Databricks SQL Hook (#36161)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make pyodbc.Row and databricks.Row JSON-serializable via new 'make_serializable' method (#32319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
 4.1.0
 .....
 

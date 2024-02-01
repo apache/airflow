@@ -26,6 +26,65 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Redshift SQL. (#35794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo. (#36362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add parent_run_id for COMPLETE and FAIL events (#36067)``
+* ``Add basic metrics to stats collector. (#35368)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Repair run_id for OpenLineage FAIL events (#36051)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+
+Misc
+~~~~
+
+* ``Remove ClassVar annotations. (#36084)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 1.2.1
 .....
 

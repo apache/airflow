@@ -63,11 +63,11 @@ if [[ ${DEV_MODE=} == "true" ]]; then
 else
     tmux send-keys 'airflow webserver' C-m
 fi
-if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
-    tmux select-pane -t 0
-    tmux split-window -h
-    tmux send-keys 'airflow triggerer' C-m
-fi
+
+tmux select-pane -t 0
+tmux split-window -h
+tmux send-keys 'airflow triggerer' C-m
+
 if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux select-pane -t 0
     tmux split-window -h

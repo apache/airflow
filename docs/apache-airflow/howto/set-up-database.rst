@@ -32,9 +32,8 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 11, 12, 13, 14, 15
-* MySQL: 5.7, 8
-* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
+* PostgreSQL: 12, 13, 14, 15, 16
+* MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -235,7 +234,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
-   For managed Postgres such as Redshift, Azure Postgresql, CloudSQL, Amazon RDS, you should use
+   For managed Postgres such as Azure Postgresql, CloudSQL, Amazon RDS, you should use
    ``keepalives_idle`` in the connection parameters and set it to less than the idle time because those
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
@@ -309,10 +308,14 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
 
 .. note::
 
-   In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value). To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server. Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it. See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+    In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like
+    ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value).
+    To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server.
+    Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
+    See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
 
-Setting up a MsSQL Database
----------------------------
+MsSQL Database
+--------------
 
 .. warning::
 
@@ -320,39 +323,18 @@ Setting up a MsSQL Database
     and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
     the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
 
-    For new Airflow installations, it is advised against using MsSQL as the database backend.
-
-You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.
-Note, that in case of MsSQL, Airflow uses ``READ COMMITTED`` transaction isolation and it must have
-``READ_COMMITTED_SNAPSHOT`` feature enabled, otherwise read transactions might generate deadlocks
-(especially in case of backfill). Airflow will refuse to use database that has the feature turned off.
-You can read more about transaction isolation and snapshot features at
-`Transaction isolation level <https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql>`_
-
-.. code-block:: sql
-
-   CREATE DATABASE airflow;
-   ALTER DATABASE airflow SET READ_COMMITTED_SNAPSHOT ON;
-   CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
-   USE airflow;
-   CREATE USER airflow_user FROM LOGIN airflow_user;
-   GRANT ALL PRIVILEGES ON DATABASE::airflow TO airflow_user;
+    As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
+    This does not affect the existing provider packages (operators and hooks), DAGs can still access and process data from MsSQL.
 
 
-We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
+Migrating off MsSQL Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: text
+As with Airflow 2.9.0 the support of MSSQL has ended, a migration script can help with
+Airflow version 2.7.x or 2.8.x to migrate off SQL-Server. The migration script is available in
+`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
 
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>?[driver=<driver>]
-
-
-You do not need to specify the Driver if you have default driver configured in your system. For the
-Official Docker image we have ODBC driver installed, so you need to specify the ODBC driver to use:
-
-.. code-block:: text
-
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
+Note that the migration script is provided without support and warranty.
 
 
 Other configuration options
@@ -378,6 +360,103 @@ After configuring the database and connecting to it in Airflow configuration, yo
 .. code-block:: bash
 
     airflow db migrate
+
+Database Monitoring and Maintenance in Airflow
+----------------------------------------------
+
+Airflow extensively utilizes a relational metadata database for task scheduling and execution.
+Monitoring and proper configuration of this database are crucial for optimal Airflow performance.
+
+Key Concerns
+~~~~~~~~~~~~
+
+1. **Performance Impact**: Long or excessive queries can significantly affect Airflow's functionality.
+   These may arise due to workflow specifics, lack of optimizations, or code bugs.
+2. **Database Statistics**: Incorrect optimization decisions by the database engine,
+   often due to outdated data statistics, can degrade performance.
+
+Responsibilities
+~~~~~~~~~~~~~~~~
+
+The responsibilities for database monitoring and maintenance in Airflow environments vary depending on
+whether you're using self-managed databases and Airflow instances or opting for managed services.
+
+**Self-Managed Environments**:
+
+In the setups where both the database and Airflow are self-managed, the Deployment Manager
+is responsible for setting up, configuring, and maintaining the database. This includes monitoring
+its performance, managing backups, periodic cleanups and ensuring its optimal operation with Airflow.
+
+**Managed Services**:
+
+- Managed Database Services: When using managed DB services, many maintenance tasks (like backups,
+  patching, and basic monitoring) are handled by the provider. However, the Deployment Manager still
+  needs to oversee the configuration of Airflow and optimize performance settings specific to their
+  workflows, manages periodic cleanups and monitor their DB to ensure optimal operations with Airflow.
+
+- Managed Airflow Services: With managed Airflow services, those service provider take responsibility
+  for the configuration and maintenance of Airflow and its database. However, the Deployment Manager
+  needs to collaborate with the service configuration to ensure that the sizing and workflow requirements
+  are matching the sizing and configuration of the managed service.
+
+Monitoring Aspects
+~~~~~~~~~~~~~~~~~~
+
+Regular monitoring should include:
+
+- CPU, I/O, and memory usage.
+- Query frequency and number.
+- Identification and logging of slow or long-running queries.
+- Detection of inefficient query execution plans.
+- Analysis of disk swap versus memory usage and cache swapping frequency.
+
+Tools and Strategies
+~~~~~~~~~~~~~~~~~~~~
+
+- Airflow doesn't provide direct tooling for database monitoring.
+- Use server-side monitoring and logging to obtain metrics.
+- Enable tracking of long-running queries based on defined thresholds.
+- Regularly run house-keeping tasks (like ``ANALYZE`` SQL command) for maintenance.
+
+Database Cleaning Tools
+~~~~~~~~~~~~~~~~~~~~~~~
+
+- **Airflow DB Clean Command**: Utilize the ``airflow db clean`` command to help manage and clean
+  up your database.
+- **Python Methods in ``airflow.utils.db_cleanup``**: This module provides additional Python methods for
+  database cleanup and maintenance, offering more fine-grained control and customization for specific needs.
+
+Recommendations
+~~~~~~~~~~~~~~~
+
+- **Proactive Monitoring**: Implement monitoring and logging in production without significantly
+  impacting performance.
+- **Database-Specific Guidance**: Consult the chosen database's documentation for specific monitoring
+  setup instructions.
+- **Managed Database Services**: Check if automatic maintenance tasks are available with your
+  database provider.
+
+SQLAlchemy Logging
+~~~~~~~~~~~~~~~~~~
+
+For detailed query analysis, enable SQLAlchemy client logging (``echo=True`` in SQLAlchemy
+engine configuration).
+
+- This method is more intrusive and can affect Airflow's client-side performance.
+- It generates a lot of logs, especially in a busy Airflow environment.
+- Suitable for non-production environments like staging systems.
+
+You can do it with ``echo=True`` as sqlalchemy engine configuration as explained in the
+`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`_.
+
+Use :ref:`config:database__sql_alchemy_engine_args` configuration parameter to set echo arg to True.
+
+Caution
+~~~~~~~
+
+- Be mindful of the impact on Airflow's performance and system resources when enabling extensive logging.
+- Prefer server-side monitoring over client-side logging for production environments to minimize
+  performance interference.
 
 What's next?
 ------------

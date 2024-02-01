@@ -40,6 +40,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from airflow.utils.types import ArgNotSet
+
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
@@ -167,7 +169,7 @@ class S3Hook(AwsBaseHook):
 
     def __init__(
         self,
-        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
         transfer_config_args: dict | None = None,
         extra_args: dict | None = None,
         *args,
@@ -460,7 +462,9 @@ class S3Hook(AwsBaseHook):
         return prefixes
 
     @provide_bucket_name_async
-    async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
+    async def get_file_metadata_async(
+        self, client: AioBaseClient, bucket_name: str, key: str | None = None
+    ) -> list[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
@@ -468,7 +472,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param key: the path to the key
         """
-        prefix = re.split(r"[\[*?]", key, 1)[0]
+        prefix = re.split(r"[\[\*\?]", key, 1)[0] if key else ""
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
@@ -484,6 +488,7 @@ class S3Hook(AwsBaseHook):
         bucket_val: str,
         wildcard_match: bool,
         key: str,
+        use_regex: bool = False,
     ) -> bool:
         """
         Get a list of files that a key matching a wildcard expression or get the head object.
@@ -496,11 +501,17 @@ class S3Hook(AwsBaseHook):
         :param bucket_val: the name of the bucket
         :param key: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
             keys = await self.get_file_metadata_async(client, bucket_name, key)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+            if not key_matches:
+                return False
+        elif use_regex:
+            keys = await self.get_file_metadata_async(client, bucket_name)
+            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
             if not key_matches:
                 return False
         else:
@@ -516,22 +527,31 @@ class S3Hook(AwsBaseHook):
         bucket: str,
         bucket_keys: str | list[str],
         wildcard_match: bool,
+        use_regex: bool = False,
     ) -> bool:
         """
-        Check for all keys in bucket and returns boolean value.
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
+        is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket
         :param bucket_keys: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         if isinstance(bucket_keys, list):
             return all(
                 await asyncio.gather(
-                    *(self._check_key_async(client, bucket, wildcard_match, key) for key in bucket_keys)
+                    *(
+                        self._check_key_async(client, bucket, wildcard_match, key, use_regex)
+                        for key in bucket_keys
+                    )
                 )
             )
-        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
+        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys, use_regex)
 
     async def check_for_prefix_async(
         self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
@@ -709,7 +729,9 @@ class S3Hook(AwsBaseHook):
             }
 
         if last_activity_time:
-            inactivity_seconds = int((datetime.now() - last_activity_time).total_seconds())
+            inactivity_seconds = int(
+                (datetime.now(last_activity_time.tzinfo) - last_activity_time).total_seconds()
+            )
         else:
             # Handles the first poke where last inactivity time is None.
             last_activity_time = datetime.now()
@@ -801,7 +823,7 @@ class S3Hook(AwsBaseHook):
         _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
-        self.object_filter_usr = object_filter
+        object_filter_usr = object_filter
         config = {
             "PageSize": page_size,
             "MaxItems": max_items,
@@ -823,8 +845,8 @@ class S3Hook(AwsBaseHook):
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-        if self.object_filter_usr is not None:
-            return self.object_filter_usr(keys, from_datetime, to_datetime)
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
@@ -1229,6 +1251,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        **kwargs,
     ) -> None:
         """
         Create a copy of an object that is already stored in S3.
@@ -1270,7 +1293,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
         )
         return response
 

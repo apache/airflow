@@ -66,7 +66,8 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import (
         TaskStateChangeCallback,
     )
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.expandinput import (
         ExpandInput,
@@ -520,6 +521,14 @@ class MappedOperator(AbstractOperator):
     @on_success_callback.setter
     def on_success_callback(self, value: TaskStateChangeCallback | None) -> None:
         self.partial_kwargs["on_success_callback"] = value
+
+    @property
+    def on_skipped_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_skipped_callback")
+
+    @on_skipped_callback.setter
+    def on_skipped_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_skipped_callback"] = value
 
     @property
     def run_as_user(self) -> str | None:

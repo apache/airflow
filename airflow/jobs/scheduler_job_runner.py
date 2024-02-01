@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -62,12 +62,12 @@ from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
     prohibit_commit,
-    skip_locked,
     tuple_in_condition,
     with_row_locks,
 )
@@ -233,6 +233,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+        self._task_context_logger: TaskContextLogger = TaskContextLogger(
+            component_name=self.job_type,
+            call_site_logger=self.log,
+        )
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -394,12 +398,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                query = with_row_locks(
-                    query,
-                    of=TI,
-                    session=session,
-                    **skip_locked(session=session),
-                )
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                 task_instances_to_examine: list[TI] = session.scalars(query).all()
 
                 timer.stop(send=True)
@@ -701,13 +700,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis: Iterator[TI] = with_row_locks(
-            query,
-            of=TI,
-            session=session,
-            **skip_locked(session=session),
-        )
-        tis = session.scalars(tis)
+        tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        tis: Iterator[TI] = session.scalars(tis_query)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -773,7 +767,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self.log.error(msg, ti, state, ti.state, info)
+                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
 
                 # Get task from the Serialized DAG
                 try:
@@ -1429,7 +1423,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
         )
         dag_model = session.scalars(
-            with_row_locks(query, of=DagModel, session=session, **skip_locked(session=session))
+            with_row_locks(query, of=DagModel, session=session, skip_locked=True)
         ).one_or_none()
 
         if not dag:
@@ -1572,15 +1566,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
         try:
-            tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(tis=tasks_stuck_in_queued)
-            if tis_for_warning_message:
-                task_instance_str = "\n\t".join(tis_for_warning_message)
-                self.log.warning(
-                    "Marked the following %s task instances stuck in queued as failed. "
-                    "If the task instance has available retries, it will be retried.\n\t%s",
-                    len(tasks_stuck_in_queued),
-                    task_instance_str,
-                )
+            cleaned_up_task_instances = self.job.executor.cleanup_stuck_queued_tasks(
+                tis=tasks_stuck_in_queued
+            )
+            cleaned_up_task_instances = set(cleaned_up_task_instances)
+            for ti in tasks_stuck_in_queued:
+                if repr(ti) in cleaned_up_task_instances:
+                    self._task_context_logger.warning(
+                        "Marking task instance %s stuck in queued as failed. "
+                        "If the task instance has available retries, it will be retried.",
+                        ti,
+                        ti=ti,
+                    )
         except NotImplementedError:
             self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
             ...
@@ -1636,13 +1633,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
+                        .options(lazyload("dag_run"))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
-                        # outerjoin is because we didn't use to have queued_by_job
-                        # set, so we need to pick up anything pre upgrade. This (and the
-                        # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
-                        # released.
-                        .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != JobState.RUNNING))
+                        .join(TI.queued_by_job)
+                        .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1652,9 +1646,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_adopt_or_reset = with_row_locks(
-                        query, of=TI, session=session, **skip_locked(session=session)
-                    )
+                    tis_to_adopt_or_reset = with_row_locks(query, of=TI, session=session, skip_locked=True)
                     tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
                     to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
 
@@ -1706,6 +1698,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
+    # [START find_zombies]
     def _find_zombies(self) -> None:
         """
         Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
@@ -1749,9 +1742,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
-            self.log.error("Detected zombie job: %s", request)
+            log_message = (
+                f"Detected zombie job: {request} "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#zombie-undead-tasks)"
+            )
+            self._task_context_logger.error(log_message, ti=ti)
             self.job.executor.send_callback(request)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+
+    # [END find_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
@@ -1817,9 +1817,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskOutletDatasetReference,
                 isouter=True,
             )
-            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
-            # group by id and select all columns.
-            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .group_by(DatasetModel.id)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

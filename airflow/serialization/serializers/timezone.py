@@ -74,16 +74,13 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
 
 def deserialize(classname: str, version: int, data: object) -> Any:
-    from pendulum.tz import fixed_timezone, timezone
+    from airflow.utils.timezone import parse_timezone
 
     if not isinstance(data, (str, int)):
         raise TypeError(f"{data} is not of type int or str but of {type(data)}")
 
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
-
-    if isinstance(data, int):
-        return fixed_timezone(data)
 
     if "zoneinfo.ZoneInfo" in classname:
         try:
@@ -93,7 +90,7 @@ def deserialize(classname: str, version: int, data: object) -> Any:
 
         return ZoneInfo(data)
 
-    return timezone(data)
+    return parse_timezone(data)
 
 
 # ported from pendulum.tz.timezone._get_tzinfo_name

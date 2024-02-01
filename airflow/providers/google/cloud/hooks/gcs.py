@@ -45,6 +45,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 
@@ -54,14 +55,6 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from google.api_core.retry import Retry
 
-try:
-    # Airflow 2.3 doesn't have this yet
-    from airflow.typing_compat import ParamSpec
-except ImportError:
-    try:
-        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
-    except ImportError:
-        from typing_extensions import ParamSpec
 
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
@@ -829,10 +822,12 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
+            blob_names = [blob.name for blob in blobs]
+
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(blob.name for blob in blobs)
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -940,14 +935,16 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
+            blob_names = [
+                blob.name
+                for blob in blobs
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+            ]
+
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(
-                    blob.name
-                    for blob in blobs
-                    if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
-                )
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -1339,7 +1336,11 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
-def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+def parse_json_from_gcs(
+    gcp_conn_id: str,
+    file_uri: str,
+    impersonation_chain: str | Sequence[str] | None = None,
+) -> Any:
     """
     Downloads and parses json file from Google cloud Storage.
 
@@ -1347,7 +1348,10 @@ def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
     :param file_uri: full path to json file
         example: ``gs://test-bucket/dir1/dir2/file``
     """
-    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    gcs_hook = GCSHook(
+        gcp_conn_id=gcp_conn_id,
+        impersonation_chain=impersonation_chain,
+    )
     bucket, blob = _parse_gcs_url(file_uri)
     with NamedTemporaryFile(mode="w+b") as file:
         try:
@@ -1388,11 +1392,14 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
 
 
 class GCSAsyncHook(GoogleBaseAsyncHook):
-    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync."""
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseAsyncHook."""
 
     sync_hook_class = GCSHook
 
     async def get_storage_client(self, session: ClientSession) -> Storage:
         """Returns a Google Cloud Storage service object."""
-        with await self.service_file_as_context() as file:
-            return Storage(service_file=file, session=cast(Session, session))
+        token = await self.get_token(session=session)
+        return Storage(
+            token=token,
+            session=cast(Session, session),
+        )

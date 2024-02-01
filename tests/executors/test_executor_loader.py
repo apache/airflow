@@ -111,7 +111,7 @@ class TestExecutorLoader:
             assert import_source == ConnectorSource.CUSTOM_PATH
 
     @pytest.mark.db_test
-    @pytest.mark.backend("mssql", "mysql", "postgres")
+    @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.parametrize("executor", [FakeExecutor, FakeSingleThreadedExecutor])
     def test_validate_database_executor_compatibility_general(self, monkeypatch, executor):
         monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")

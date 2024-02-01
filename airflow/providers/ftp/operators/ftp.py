@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import socket
-from ftplib import FTP_PORT
+from ftplib import FTP_PORT  # nosec: B402
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
@@ -66,7 +66,7 @@ class FTPFileTransmitOperator(BaseOperator):
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
                 create_intermediate_dirs=True,
-                dag=dag
+                dag=dag,
             )
     """
 

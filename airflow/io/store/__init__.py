@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.io import get_fs, has_fs
@@ -23,6 +25,8 @@ from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+
+    from airflow.io.typedef import Properties
 
 
 class ObjectStore:
@@ -33,20 +37,28 @@ class ObjectStore:
     method: str
     conn_id: str | None
     protocol: str
+    storage_options: Properties | None
 
-    _fs: AbstractFileSystem | None = None
-
-    def __init__(self, protocol: str, conn_id: str | None, fs: AbstractFileSystem | None = None):
+    def __init__(
+        self,
+        protocol: str,
+        conn_id: str | None,
+        fs: AbstractFileSystem | None = None,
+        storage_options: Properties | None = None,
+    ):
         self.conn_id = conn_id
         self.protocol = protocol
-        self._fs = fs
+        if fs is not None:
+            self.fs = fs
+        self.storage_options = storage_options
 
     def __str__(self):
         return f"{self.protocol}-{self.conn_id}" if self.conn_id else self.protocol
 
-    @property
+    @cached_property
     def fs(self) -> AbstractFileSystem:
-        return self._connect()
+        # if the fs is provided in init, the next statement will be ignored
+        return get_fs(self.protocol, self.conn_id)
 
     @property
     def fsid(self) -> str:
@@ -58,9 +70,8 @@ class ObjectStore:
 
         :return: deterministic the filesystem ID
         """
-        fs = self._connect()
         try:
-            return fs.fsid
+            return self.fs.fsid
         except NotImplementedError:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
@@ -68,7 +79,8 @@ class ObjectStore:
         return {
             "protocol": self.protocol,
             "conn_id": self.conn_id,
-            "filesystem": qualname(self._fs) if self._fs else None,
+            "filesystem": qualname(self.fs) if self.fs else None,
+            "storage_options": self.storage_options,
         }
 
     @classmethod
@@ -90,15 +102,16 @@ class ObjectStore:
                 f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
             )
 
-        return attach(protocol=protocol, conn_id=conn_id)
-
-    def _connect(self) -> AbstractFileSystem:
-        if self._fs is None:
-            self._fs = get_fs(self.protocol, self.conn_id)
-        return self._fs
+        return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
 
     def __eq__(self, other):
-        return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
+        self_fs = None
+        other_fs = None
+        with suppress(ValueError):
+            self_fs = self.fs
+        with suppress(ValueError):
+            other_fs = other.fs
+        return isinstance(other, type(self)) and other.conn_id == self.conn_id and self_fs == other_fs
 
 
 _STORE_CACHE: dict[str, ObjectStore] = {}
@@ -110,6 +123,7 @@ def attach(
     alias: str | None = None,
     encryption_type: str | None = "",
     fs: AbstractFileSystem | None = None,
+    **kwargs,
 ) -> ObjectStore:
     """
     Attach a filesystem or object storage.
@@ -131,9 +145,9 @@ def attach(
 
     if not alias:
         alias = f"{protocol}-{conn_id}" if conn_id else protocol
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
 
-    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
+    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs, **kwargs)
 
     return store

@@ -378,7 +378,7 @@ class AzureBatchHook(BaseHook):
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:
-            tasks = self.connection.task.list(job_id)
+            tasks = list(self.connection.task.list(job_id))
 
             incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
             if not incomplete_tasks:
@@ -386,7 +386,7 @@ class AzureBatchHook(BaseHook):
                 fail_tasks = [
                     task
                     for task in tasks
-                    if task.executionInfo.result == batch_models.TaskExecutionResult.failure
+                    if task.execution_info.result == batch_models.TaskExecutionResult.failure
                 ]
                 return fail_tasks
             for task in incomplete_tasks:

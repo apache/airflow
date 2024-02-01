@@ -33,15 +33,18 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.serialization.enums import DagAttributeTypes as DAT
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.settings import _ENABLE_AIP_44
+from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
@@ -111,14 +114,14 @@ TI_WITH_START_DAY = TaskInstance(
     run_id="fake_run",
     state=State.RUNNING,
 )
-TI_WITH_START_DAY.start_date = datetime.utcnow()
+TI_WITH_START_DAY.start_date = timezone.utcnow()
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
     run_id="test_dag_run_id",
     run_type=DagRunType.MANUAL,
-    execution_date=datetime.utcnow(),
-    start_date=datetime.utcnow(),
+    execution_date=timezone.utcnow(),
+    start_date=timezone.utcnow(),
     external_trigger=True,
     state=DagRunState.SUCCESS,
 )
@@ -138,7 +141,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
     [
         ("test_str", None, equals),
         (1, None, equals),
-        (datetime.utcnow(), DAT.DATETIME, equal_time),
+        (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
@@ -149,7 +152,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=datetime.utcnow()
+                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
                 )
             ),
             DAT.POD,
@@ -160,7 +163,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
                 "fake-dag",
                 schedule="*/10 * * * *",
                 default_args={"depends_on_past": True},
-                start_date=datetime.utcnow(),
+                start_date=timezone.utcnow(),
                 catchup=False,
             ),
             DAT.DAG,
@@ -213,12 +216,33 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     json.dumps(serialized)  # does not raise
 
 
+@pytest.mark.parametrize(
+    "conn_uri",
+    [
+        pytest.param("aws://", id="only-conn-type"),
+        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
+            "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
+            id="extra",
+        ),
+    ],
+)
+def test_backcompat_deserialize_connection(conn_uri):
+    """Test deserialize connection which serialised by previous serializer implementation."""
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    deserialized = BaseSerialization.deserialize(conn_obj)
+    assert deserialized.get_uri() == conn_uri
+
+
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
     [
         (
-            Job(state=State.RUNNING, latest_heartbeat=datetime.utcnow()),
+            Job(state=State.RUNNING, latest_heartbeat=timezone.utcnow()),
             JobPydantic,
             DAT.BASE_JOB,
             lambda a, b: equal_time(a.latest_heartbeat, b.latest_heartbeat),
@@ -256,6 +280,12 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
             DagModelPydantic,
             DAT.DAG_MODEL,
             lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
+        ),
+        (
+            LogTemplate(id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()),
+            LogTemplatePydantic,
+            DAT.LOG_TEMPLATE,
+            lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
         ),
     ],
 )

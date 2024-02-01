@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from urllib.parse import quote
 
 import pytest
 
@@ -31,7 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
@@ -57,7 +58,7 @@ def test_trigger_dag_button_normal_exist(admin_client):
 )
 def test_trigger_dag_button(admin_client, req, expected_run_id):
     test_dag_id = "example_bash_operator"
-    admin_client.post(f"dags/{test_dag_id}/trigger?{req}")
+    admin_client.post(f"dags/{test_dag_id}/trigger?{req}", data={"conf": "{}"})
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
@@ -68,8 +69,12 @@ def test_trigger_dag_button(admin_client, req, expected_run_id):
 def test_duplicate_run_id(admin_client):
     test_dag_id = "example_bash_operator"
     run_id = "test_run"
-    admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
-    response = admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
+    admin_client.post(
+        f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"}, follow_redirects=True
+    )
+    response = admin_client.post(
+        f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"}, follow_redirects=True
+    )
     check_content_in_response(f"The run ID {run_id} already exists", response)
 
 
@@ -112,7 +117,9 @@ def test_trigger_dag_conf_not_dict(admin_client):
 def test_trigger_dag_wrong_execution_date(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": "not_a_date"})
+    response = admin_client.post(
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": "not_a_date"}
+    )
     check_content_in_response("Invalid execution date", response)
 
     with create_session() as session:
@@ -124,7 +131,9 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
-    admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": exec_date.isoformat()})
+    admin_client.post(
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": exec_date.isoformat()}
+    )
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -236,6 +245,55 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
     )
 
 
+@pytest.mark.parametrize("allow_html", [False, True])
+def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
+    """
+    Test that HTML is escaped per default in description.
+    """
+    from markupsafe import escape
+
+    DAG_ID = "params_dag"
+    HTML_DESCRIPTION1 = "HTML <code>raw code</code>."
+    HTML_DESCRIPTION2 = "HTML <code>in md text</code>."
+    expect_escape = not allow_html
+    with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
+        param1 = Param(
+            42,
+            description_html=HTML_DESCRIPTION1,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        param2 = Param(
+            42,
+            description_md=HTML_DESCRIPTION2,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        with monkeypatch.context() as m:
+            with dag_maker(
+                dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1, "param2": param2}
+            ):
+                EmptyOperator(task_id="task1")
+
+            m.setattr(app, "dag_bag", dag_maker.dagbag)
+            resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+
+        if expect_escape:
+            check_content_in_response(escape(HTML_DESCRIPTION1), resp)
+            check_content_in_response(escape(HTML_DESCRIPTION2), resp)
+            check_content_in_response(
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
+            )
+        else:
+            check_content_in_response(HTML_DESCRIPTION1, resp)
+            check_content_in_response(HTML_DESCRIPTION2, resp)
+            check_content_not_in_response(
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
+            )
+
+
 def test_trigger_endpoint_uses_existing_dagbag(admin_client):
     """
     Test that Trigger Endpoint uses the DagBag already created in views.py
@@ -312,7 +370,8 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
 def test_dag_run_id_pattern(session, admin_client, pattern, run_id, result):
     with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
         test_dag_id = "example_bash_operator"
-        admin_client.post(f"dags/{test_dag_id}/trigger?&run_id={run_id}")
+        run_id = quote(run_id)
+        admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"})
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         if result:
             assert run is not None

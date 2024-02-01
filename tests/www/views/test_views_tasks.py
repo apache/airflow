@@ -797,6 +797,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     Example usage::
 
         from airflow.www.views import TaskInstanceModelView
+
         ti = session.Query(TaskInstance).filter(...).one()
         pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
         client.post("...", data={"action": "...", "rowid": pk})
@@ -832,7 +833,7 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
+    check_content_in_response("Access is Denied", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
@@ -862,7 +863,9 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
         data={"action": "clear", "rowid": rowid},
         follow_redirects=True,
     )
-    assert resp.status_code == (200 if should_succeed else 404)
+    assert resp.status_code == 200
+    if not should_succeed and client_fixture != "anonymous_client":
+        check_content_in_response("Access is Denied", resp)
 
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
@@ -940,13 +943,12 @@ def test_task_instance_clear_failure(admin_client):
 @pytest.mark.parametrize(
     "action, expected_state",
     [
-        ("set_running", State.RUNNING),
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
         ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry", "skipped"],
+    ids=["failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -969,7 +971,6 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
 @pytest.mark.parametrize(
     "action",
     [
-        "set_running",
         "set_failed",
         "set_success",
         "set_retry",

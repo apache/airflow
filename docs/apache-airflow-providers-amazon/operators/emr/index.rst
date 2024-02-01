@@ -20,6 +20,13 @@
 Amazon EMR Operators
 ====================
 
+Amazon EMR offers several different deployment options to run Spark, Hive, and other big data workloads.
+
+1. `Amazon EMR <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-overview.html>`__ runs on EC2 clusters and can be used to run Steps or execute notebooks
+2. `Amazon EMR on EKS <https://aws.amazon.com/emr/features/eks/>`__ runs on Amazon EKS and supports running Spark jobs
+3. `Amazon EMR Serverless <https://aws.amazon.com/emr/serverless/>`__ is a serverless option that can run Spark and Hive jobs
+
+While the EMR release can be the same across the different deployment options, you will need to configure each environment separately to support your workloads.
 
 .. toctree::
     :maxdepth: 1

@@ -35,6 +35,13 @@
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
+<picture width="500">
+  <img
+    src="https://github.com/apache/airflow/blob/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635/docs/apache-airflow/img/logos/wordmark_1.png?raw=true"
+    alt="Apache Airflow logo"
+  />
+</picture>
+
 [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
@@ -60,6 +67,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
+- [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
 - [What goes into the next release?](#what-goes-into-the-next-release)
@@ -90,19 +98,16 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.3)       |
-|-------------|------------------------|------------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
-| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
-| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
-| SQLite      | 3.15.0+                | 3.15.0+                      |
-| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
+|             | Main version (dev)           | Stable version (2.8.1) |
+|-------------|------------------------------|------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28, 1.29 | 1.25, 1.26, 1.27, 1.28 |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16     |
+| MySQL       | 8.0, Innovation              | 8.0, Innovation        |
+| SQLite      | 3.15.0+                      | 3.15.0+                |
 
 \* Experimental
-
-\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -145,7 +150,7 @@ Documentation for dependent projects like provider packages, Docker image, Helm 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open, and
 applications usually pin them, but we should do neither and both simultaneously. We decided to keep
-our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
+our dependencies as open as possible (in `pyproject.toml`) so users can install different versions of libraries
 if needed. This means that `pip install apache-airflow` will not work from time to time or will
 produce unusable Airflow installation.
 
@@ -175,15 +180,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow==2.8.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.8.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -219,7 +224,7 @@ Those are - in the order of most common ways people install Airflow:
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm`, etc. You can
   read more about using, customising, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/docker-stack/index.html), and
-  learn details on the internals in the [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst) document.
+  learn details on the internals in the [images](https://airflow.apache.org/docs/docker-stack/index.html) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git
 
@@ -269,22 +274,15 @@ packages:
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
   there will sometimes be breaking changes that might make some, or all
-  providers, have minimum Airflow version specified. Change of that minimum supported Airflow version
-  is a breaking change for provider because installing the new provider might automatically
-  upgrade Airflow (which might be an undesired side effect of upgrading provider).
+  providers, have minimum Airflow version specified.
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent of the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
   only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
-* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
-  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
-  if this PATCH is relevant to the clients.
-  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
-  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
-  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
-  independently of their Airflow PATCH version.
+* **Airflow API clients**: Their versioning is independent from Airflow versions. They follow their own
+  SemVer rules for breaking changes and new features - which for example allows to change the way we generate
+  the clients.
 
 ## Version Life Cycle
 
@@ -295,7 +293,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.8.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -384,7 +382,7 @@ binding.
 
 ### Approach for dependencies for Airflow Core
 
-Those `extras` and `providers` dependencies are maintained in `setup.cfg`.
+Those dependencies are maintained in ``pyproject.toml``.
 
 There are few dependencies that we decided are important enough to upper-bound them by default, as they are
 known to follow predictable versioning scheme, and we know that new versions of those are very likely to
@@ -395,14 +393,14 @@ The important dependencies are:
 
 * `SQLAlchemy`: upper-bound to specific MINOR version (SQLAlchemy is known to remove deprecations and
    introduce breaking changes especially that support for different Databases varies and changes at
-   various speed (example: SQLAlchemy 1.4 broke MSSQL integration for Airflow)
+   various speed)
 * `Alembic`: it is important to handle our migrations in predictable and performant way. It is developed
    together with SQLAlchemy. Our experience with Alembic is that it very stable in MINOR version
 * `Flask`: We are using Flask as the back-bone of our web UI and API. We know major version of Flask
    are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
 * `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
    libraries, and we should update them together
-* `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
+* `celery`: Celery is a crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
    [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
    we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
    we should make sure Celery Provider minimum Airflow version is updated.
@@ -429,12 +427,17 @@ might decide to add additional limits (and justify them with comment).
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
 
-Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
+Official Docker (container) images for Apache Airflow are described in [images](dev/breeze/doc/ci/02_images.md).
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Voting Policy
+
+* Commits need a +1 vote from a committer who is not the author
+* When we do AIP voting, both PMC member's and committer's `+1s` are considered a binding vote.
 
 ## Who uses Apache Airflow?
 
@@ -458,16 +461,18 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## What goes into the next release?
 
-Often you will see an issue that is assigned to specific milestone with Airflow version, or PR that gets merged
-to the main branch and you might wonder which release the merged PR will be released in or which release the
-issue will be fixed in. The answer to it is as usual - it depends. The answer is different for PRs and Issues.
+Often you will see an issue that is assigned to specific milestone with Airflow version, or a PR that gets merged
+to the main branch and you might wonder which release the merged PR(s) will be released in or which release the fixed
+issues will be in. The answer to this is as usual - it depends on various scenarios. The answer is different for PRs and Issues.
 
-To add a bit of context, ee are following the [Semver](https://semver.org/) versioning scheme as described in
+To add a bit of context, we are following the [Semver](https://semver.org/) versioning scheme as described in
 [Airflow release process](https://airflow.apache.org/docs/apache-airflow/stable/release-process.html). More
-details are explained in detail in this README in [Semantic versioning](#semantic-versioning) chapter, but
-in short, we have `MAJOR.MINOR.PATCH` versions of Airflow, where `MAJOR` version is incremented when there
-are breaking changes, `MINOR` version is incremented when there are new features added, and `PATCH` version
-is incremented when there are only bug-fixes and doc-only changes.
+details are explained in detail in this README under the [Semantic versioning](#semantic-versioning) chapter, but
+in short, we have `MAJOR.MINOR.PATCH` versions of Airflow.
+
+* `MAJOR` version is incremented in case of breaking changes
+* `MINOR` version is incremented when there are new features added
+* `PATCH` version is incremented when there are only bug-fixes and doc-only changes
 
 Generally we release `MINOR` versions of Airflow from a branch that is named after the MINOR version. For example
 `2.7.*` releases are released from `v2-7-stable` branch, `2.8.*` releases are released from `v2-8-stable`
@@ -475,28 +480,34 @@ branch, etc.
 
 Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
 PRs merged to `main` (unless they get reverted), will find their way to the next `MINOR` release. For example
-if the last release is `2.7.0` or `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
+if the last release is `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
 is `2.8.0` and all PRs merged to main will be released in `2.8.0`. There is a brief period of time when we
-cut a new `MINOR` release branch and prepare alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
+cut a new `MINOR` release branch and prepare the alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
 where PRs merged to main will only be released in the following `MINOR` release.
 
 However, some PRs (bug-fixes and doc-only changes) when merged, can be cherry-picked to current `MINOR` branch
 and released in the next `PATCHLEVEL` release - for example when the last released version from `v2-7-stable`
-branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers and attempt by the
-release manager to cherry-pick them is made. If successful, they will be released in `2.7.3`. The final
-decision about cherry-picking is made by the release manager.
+branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers, the release manager
+will try to cherry-pick them into the release branch. If successful, they will be released in `2.7.3`.
+The final decision about cherry-picking is made by the release manager.
 
 Marking issues with a milestone is a bit different. Maintainers do not mark issues with a milestone usually,
 normally they are only marked in PRs. If PR linked to the issue (and "fixing it") gets merged and released
 in a specific version following the process described above, the issue will be automatically closed, no
 milestone will be set for the issue, you need to check the PR that fixed the issue to see which version
-it was released in. However sometimes maintainers mark issues with specific milestone, which means that the
+it was released in.
+
+However, sometimes maintainers mark issues with specific milestone, which means that the
 issue is important to become a candidate to take a look when the release is being prepared. Since this is an
 Open-Source project, where basically all contributors volunteer their time, there is no guarantee that specific
 issue will be fixed in specific version. We do not want to hold the release because some issue is not fixed,
 so in such case release manager will reassign such unfixed issues to the next milestone in case they are not
 fixed in time for the current release. Therefore, the milestone for issue is more of an intent that it should be
 looked at, than promise it will be fixed in the version.
+
+More context and **FAQ** about the patchlevel release can be found in the
+[What goes into the next release](dev/WHAT_GOES_INTO_NEXT_RELEASE.md) document in the `dev` folder of the
+repository.
 
 ## Can I use the Apache Airflow logo in my presentation?
 
@@ -511,6 +522,7 @@ If you would love to have Apache Airflow stickers, t-shirt, etc. then check out
 
 - [Documentation](https://airflow.apache.org/docs/apache-airflow/stable/)
 - [Chat](https://s.apache.org/airflow-slack)
+- [Community Information](https://airflow.apache.org/community/)
 
 ## Sponsors
 

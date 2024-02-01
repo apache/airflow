@@ -21,9 +21,11 @@ import logging
 import warnings
 from ast import literal_eval
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -257,6 +259,21 @@ class EksCreateClusterOperator(BaseOperator):
             **kwargs,
         )
 
+    @cached_property
+    def hook(self) -> EksHook:
+        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+
+    @property
+    @deprecated(
+        reason=(
+            "`eks_hook` property is deprecated and will be removed in the future. "
+            "Please use `hook` property instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def eks_hook(self):
+        return self.hook
+
     def execute(self, context: Context):
         if self.compute:
             if self.compute not in SUPPORTED_COMPUTE_VALUES:
@@ -271,8 +288,7 @@ class EksCreateClusterOperator(BaseOperator):
                         compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
                     )
                 )
-        self.eks_hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-        self.eks_hook.create_cluster(
+        self.hook.create_cluster(
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
             resourcesVpcConfig=self.resources_vpc_config,
@@ -285,7 +301,7 @@ class EksCreateClusterOperator(BaseOperator):
             return None
 
         self.log.info("Waiting for EKS Cluster to provision. This will take some time.")
-        client = self.eks_hook.conn
+        client = self.hook.conn
 
         if self.deferrable:
             self.defer(
@@ -307,7 +323,7 @@ class EksCreateClusterOperator(BaseOperator):
             )
         except (ClientError, WaiterError) as e:
             self.log.error("Cluster failed to start and will be torn down.\n %s", e)
-            self.eks_hook.delete_cluster(name=self.cluster_name)
+            self.hook.delete_cluster(name=self.cluster_name)
             client.get_waiter("cluster_deleted").wait(
                 name=self.cluster_name,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
@@ -337,7 +353,7 @@ class EksCreateClusterOperator(BaseOperator):
             raise AirflowException("Trigger error: event is None")
         elif event["status"] == "failed":
             self.log.error("Cluster failed to start and will be torn down.")
-            self.eks_hook.delete_cluster(name=self.cluster_name)
+            self.hook.delete_cluster(name=self.cluster_name)
             self.defer(
                 trigger=EksDeleteClusterTrigger(
                     cluster_name=self.cluster_name,
@@ -382,7 +398,7 @@ class EksCreateClusterOperator(BaseOperator):
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
-            else:
+            elif self.compute == "nodegroup":
                 self.defer(
                     trigger=EksCreateNodegroupTrigger(
                         nodegroup_name=self.nodegroup_name,
@@ -400,9 +416,9 @@ class EksCreateClusterOperator(BaseOperator):
         if event is None:
             self.log.info("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "delteted":
+        elif event["status"] == "deleted":
             self.log.info("Cluster deleted")
-            raise event["exception"]
+        raise AirflowException("Error creating cluster")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         resource = "fargate profile" if self.compute == "fargate" else self.compute

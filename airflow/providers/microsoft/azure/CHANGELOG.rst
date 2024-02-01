@@ -27,6 +27,117 @@
 Changelog
 ---------
 
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   In this version of the provider, ``include`` and ``delimiter`` params have been removed from
+   ``WasbPrefixSensorTrigger``. These params will now need to passed through ``check_options`` param
+
+* ``Fix WasbPrefixSensor arg inconsistency between sync and async mode (#36806)``
+* ``add WasbPrefixSensorTrigger params breaking change to azure provider changelog (#36940)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix failed tasks are not detected in 'AzureBatchHook' (#36785)``
+* ``Fix assignment of template field in '__init__' in 'container_instances.py' (#36529)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Fix stacklevel in warnings.warn into the providers (#36831)``
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+
+8.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``azurefilesharehook fix with connection type azure (#36309)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix reraise outside of try block in 'AzureSynapsePipelineRunLink.get_fields_from_url' (#36009)``
+* ``Do not catch too broad exception in 'WasbHook.delete_container' (#36034)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Synapse Pipeline connection-type in the UI (#35709)``
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Add operator to invoke Azure-Synapse pipeline (#35091)``
+* ``Extend task context logging support for remote logging using WASB (Azure Blob Storage) (#32972)``
+
+Misc
+~~~~
+
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
 8.2.0
 .....
 

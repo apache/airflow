@@ -43,7 +43,8 @@ venv
 files
 airflow.iml
 .gitmodules
-installed_providers.txt
+prod_image_installed_providers.txt
+airflow_pre_installed_providers.txt
 
 # Generated doc files
 .*html
@@ -61,7 +62,7 @@ spelling_wordlist.txt
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
-licenses/*
+3rd-party-licenses/*
 parallel.js
 underscore.js
 jquery.dataTables.min.js
@@ -85,6 +86,7 @@ PULL_REQUEST_TEMPLATE.md
 PROVIDER_CHANGES*.md
 manifests/*
 redirects.txt
+reproducible_build.yaml
 
 # Locally mounted files
 .*egg-info/*
@@ -130,6 +132,8 @@ scripts/*
 images/*
 dev/*
 chart/*.iml
+out/*
+airflow-build-dockerfile*
 
 # Sha files
 .*sha256
@@ -142,3 +146,13 @@ doap_airflow.rdf
 
 # nvm (Node Version Manager)
 .nvmrc
+
+# PKG-INFO file
+PKG-INFO
+
+# checksum files
+.*\.md5sum
+
+# Openapi files
+.openapi-generator-ignore
+version.txt

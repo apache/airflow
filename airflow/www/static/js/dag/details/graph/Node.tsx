@@ -162,6 +162,8 @@ export const BaseNode = ({
             )}
             {task?.operator && (
               <Text
+                noOfLines={1}
+                maxWidth={`calc(${width}px - 12px)`}
                 fontWeight={400}
                 fontSize="md"
                 width="fit-content"

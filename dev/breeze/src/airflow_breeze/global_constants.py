@@ -24,9 +24,10 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -46,8 +47,8 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
 # Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
+ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
@@ -65,16 +66,29 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
         *ALL_INTEGRATIONS,
     ]
 )
+ALLOWED_TTY = ["auto", "enabled", "disabled"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
-ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
-START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
-START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0", "v1.29.0"]
+ALLOWED_EXECUTORS = [
+    "LocalExecutor",
+    "KubernetesExecutor",
+    "CeleryExecutor",
+    "CeleryKubernetesExecutor",
+    "SequentialExecutor",
+]
+
+DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
+START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
+START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
@@ -97,24 +111,22 @@ ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.2"
+MYSQL_INNOVATION_RELEASE = "8.3"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "23.3.1"
+PIP_VERSION = "23.3.2"
 
-# key used for generating providers index
-PROVIDERS_INDEX_KEY = "providers-index"
-# keys for generated non providers docs
-NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
-# Mapping which store short-key:full-key
-ALL_SPECIAL_DOC_KEYS = {
-    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
-    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
-}
+# packages that  providers docs
+REGULAR_DOC_PACKAGES = [
+    "apache-airflow",
+    "docker-stack",
+    "helm-chart",
+    "apache-airflow-providers",
+]
 
 
 @lru_cache(maxsize=None)
@@ -184,28 +196,10 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
-def get_available_documentation_packages(short_version=False, only_providers: bool = False) -> list[str]:
-    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = []
-    if not only_providers:
-        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
-    all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    all_providers.sort()
-    available_packages.extend(all_providers)
-    if short_version:
-        prefix_len = len("apache-airflow-providers-")
-        available_packages = [
-            package[prefix_len:].replace("-", ".") if len(package) > prefix_len else package
-            for package in available_packages
-        ]
-    return available_packages
-
-
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine
     # Some additional conversion for various platforms...
-    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
 
 
@@ -217,9 +211,9 @@ SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
 POSTGRES_HOST_PORT = "25433"
 MYSQL_HOST_PORT = "23306"
-MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
+CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
@@ -235,8 +229,6 @@ if USE_MYSQL_INNOVATION_RELEASE:
 else:
     CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
-DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -274,6 +266,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
     "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.3": ["3.8", "3.9", "3.10", "3.11"],
 }
 
 DB_RESET = False
@@ -340,6 +333,7 @@ COMMITTERS = [
     "sekikn",
     "turbaszek",
     "uranusjr",
+    "utkarsharma2",
     "vikramkoka",
     "vincbeck",
     "xinbinhuang",
@@ -381,14 +375,14 @@ AVAILABLE_INTEGRATIONS = [
     "trino",
 ]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "setup.py",
-    "setup.cfg",
+    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
     "generated/provider_dependencies.json",
@@ -409,7 +403,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.20.0"
-HELM_VERSION = "v3.9.4"
+HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -418,8 +412,8 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "23.0.0"
-MIN_DOCKER_COMPOSE_VERSION = "2.14.0"
+MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -430,18 +424,19 @@ DEFAULT_EXTRAS = [
     "amazon",
     "async",
     "celery",
-    "cncf.kubernetes",
-    "daskexecutor",
+    "cncf-kubernetes",
+    "common-io",
     "docker",
     "elasticsearch",
     "ftp",
     "google",
-    "google_auth",
+    "google-auth",
+    "graphviz",
     "grpc",
     "hashicorp",
     "http",
     "ldap",
-    "microsoft.azure",
+    "microsoft-azure",
     "mysql",
     "odbc",
     "openlineage",
@@ -456,6 +451,35 @@ DEFAULT_EXTRAS = [
     "statsd",
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]
+
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "fab",
+    ]
+)
+
+
+def _exclusion(providers: Iterable[str]) -> str:
+    return " ".join([f"apache_airflow_providers_{provider.replace('.', '_')}*" for provider in providers])
+
+
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab"]),
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "2.6.0",
+        "remove-providers": _exclusion(["openlineage", "common.io", "fab"]),
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.7.1",
+        "remove-providers": _exclusion(["common.io", "fab"]),
+    },
 ]
 
 

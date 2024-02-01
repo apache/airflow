@@ -24,6 +24,7 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
+import re2
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
@@ -32,11 +33,19 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException, Remov
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+# sanitize the `conn_id` pattern by allowing alphanumeric characters plus
+# the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
+#
+# You can try the regex here: https://regex101.com/r/69033B/1
+RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+# the conn ID max len should be 250
+CONN_ID_MAX_LEN: int = 250
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -45,10 +54,35 @@ def parse_netloc_to_hostname(*args, **kwargs):
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
+def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | None:
+    r"""Sanitizes the connection id and allows only specific characters to be within.
+
+    Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
+    250 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
+
+    You can try to play with the regex here: https://regex101.com/r/69033B/1
+
+    The character selection is such that it prevents the injection of javascript or
+    executable bits to avoid any awkward behaviour in the front-end.
+
+    :param conn_id: The connection id to sanitize.
+    :param max_length: The max length of the connection ID, by default it is 250.
+    :return: the sanitized string, `None` otherwise.
+    """
+    # check if `conn_id` or our match group is `None` and the `conn_id` is within the specified length.
+    if (not isinstance(conn_id, str) or len(conn_id) > max_length) or (
+        res := re2.match(RE_SANITIZE_CONN_ID, conn_id)
+    ) is None:
+        return None
+
+    # if we reach here, then we matched something, return the first match
+    return res.group(0)
+
+
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
-    """Parse a URI string to get correct Hostname."""
+    """Parse a URI string to get the correct Hostname."""
     hostname = unquote(uri_parts.hostname or "")
     if "/" in hostname:
         hostname = uri_parts.netloc
@@ -114,7 +148,7 @@ class Connection(Base, LoggingMixin):
         uri: str | None = None,
     ):
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -139,6 +173,7 @@ class Connection(Base, LoggingMixin):
 
         if self.password:
             mask_secret(self.password)
+            mask_secret(quote(self.password))
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -172,6 +207,7 @@ class Connection(Base, LoggingMixin):
     def on_db_load(self):
         if self.password:
             mask_secret(self.password)
+            mask_secret(quote(self.password))
 
     def parse_from_uri(self, **uri):
         """Use uri parameter in constructor, this method is deprecated."""
@@ -363,7 +399,7 @@ class Connection(Base, LoggingMixin):
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
-            warnings.warn(
+            log.error(
                 "Could not import %s when discovering %s %s",
                 hook.hook_class_name,
                 hook.hook_name,
@@ -477,8 +513,33 @@ class Connection(Base, LoggingMixin):
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
-    def to_dict(self) -> dict[str, Any]:
-        return {"conn_id": self.conn_id, "description": self.description, "uri": self.get_uri()}
+    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+        """
+        Convert Connection to json-serializable dictionary.
+
+        :param prune_empty: Whether or not remove empty values.
+        :param validate: Validate dictionary is JSON-serializable
+
+        :meta private:
+        """
+        conn = {
+            "conn_id": self.conn_id,
+            "conn_type": self.conn_type,
+            "description": self.description,
+            "host": self.host,
+            "login": self.login,
+            "password": self.password,
+            "schema": self.schema,
+            "port": self.port,
+        }
+        if prune_empty:
+            conn = prune_dict(val=conn, mode="strict")
+        if (extra := self.extra_dejson) or not prune_empty:
+            conn["extra"] = extra
+
+        if validate:
+            json.dumps(conn)
+        return conn
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
@@ -496,3 +557,9 @@ class Connection(Base, LoggingMixin):
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
         return Connection(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
+        conn_repr = self.to_dict(prune_empty=True, validate=False)
+        conn_repr.pop("conn_id", None)
+        return json.dumps(conn_repr)

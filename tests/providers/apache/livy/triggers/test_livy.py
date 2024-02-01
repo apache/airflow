@@ -107,18 +107,11 @@ class TestLivyTrigger:
 
         task = [i async for i in trigger.run()]
         assert len(task) == 1
-        assert (
-            TriggerEvent(
-                {
-                    "status": "error",
-                    "batch_id": 1,
-                    "response": "Batch 1 did not succeed with Cannot connect to host livy:8998 ssl:default "
-                    "[Name or service not known]",
-                    "log_lines": None,
-                }
-            )
-            in task
-        )
+        event = task[0]
+        assert isinstance(event, TriggerEvent)
+        assert event.payload.get("status") == "error"
+        assert event.payload.get("batch_id") == 1
+        assert "Cannot connect to host livy:8998 ssl:default" in event.payload.get("response")
 
     @pytest.mark.db_test
     @pytest.mark.asyncio

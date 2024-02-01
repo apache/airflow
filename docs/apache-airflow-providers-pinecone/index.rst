@@ -98,6 +98,8 @@ PIP package          Version required
 ===================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -112,7 +114,7 @@ Package apache-airflow-providers-pinecone
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 1.0.0
+Release: 1.1.2
 
 Provider package
 ----------------
@@ -130,11 +132,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.5.0``
-``pinecone-client``  ``>=2.2.4``
+``apache-airflow``   ``>=2.6.0``
+``pinecone-client``  ``>=2.2.4,<3.0``
 ===================  ==================

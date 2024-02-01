@@ -39,6 +39,3 @@ runs:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/other_logs*"
         retention-days: 7
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership

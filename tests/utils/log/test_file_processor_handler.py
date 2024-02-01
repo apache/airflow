@@ -80,13 +80,13 @@ class TestFileProcessorHandler:
         with time_machine.travel(date1, tick=False):
             handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
             assert os.path.islink(link)
-            assert os.path.basename(os.readlink(link)) == date1
+            assert os.path.basename(os.path.realpath(link)) == date1
             assert os.path.exists(os.path.join(link, "log1"))
 
         with time_machine.travel(date2, tick=False):
             handler.set_context(filename=os.path.join(self.dag_dir, "log2"))
             assert os.path.islink(link)
-            assert os.path.basename(os.readlink(link)) == date2
+            assert os.path.basename(os.path.realpath(link)) == date2
             assert os.path.exists(os.path.join(link, "log2"))
 
     def test_symlink_latest_log_directory_exists(self):

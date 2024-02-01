@@ -65,7 +65,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
 
@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+    from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -165,7 +166,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='running'"),
-            mssql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
         ),
         # since mysql lacks filtered/partial indices, this creates a
@@ -175,7 +175,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='queued'"),
-            mssql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         ),
     )
@@ -366,7 +365,7 @@ class DagRun(Base, LoggingMixin):
             query = query.where(DagRun.execution_date <= func.now())
 
         return session.scalars(
-            with_row_locks(query.limit(max_number), of=cls, session=session, **skip_locked(session=session))
+            with_row_locks(query.limit(max_number), of=cls, session=session, skip_locked=True)
         )
 
     @classmethod
@@ -680,9 +679,8 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with Stats.timer(
-            f"dagrun.dependency-check.{self.dag_id}",
-            tags=self.stats_tags,
+        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"), Stats.timer(
+            "dagrun.dependency-check", tags=self.stats_tags
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1042,8 +1040,8 @@ class DagRun(Base, LoggingMixin):
 
         duration = self.end_date - self.start_date
         timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
@@ -1069,7 +1067,7 @@ class DagRun(Base, LoggingMixin):
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
-                or task.start_date <= self.execution_date
+                or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
 
@@ -1460,14 +1458,23 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
-        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate | LogTemplatePydantic:
+        return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _get_log_template(
+        log_template_id: int | None, session: Session = NEW_SESSION
+    ) -> LogTemplate | LogTemplatePydantic:
+        template: LogTemplate | None
+        if log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
         else:
-            template = session.get(LogTemplate, self.log_template_id)
+            template = session.get(LogTemplate, log_template_id)
         if template is None:
             raise AirflowException(
-                f"No log_template entry found for ID {self.log_template_id!r}. "
+                f"No log_template entry found for ID {log_template_id!r}. "
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template

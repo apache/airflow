@@ -21,10 +21,12 @@ name: PowerShell Remoting Protocol (PSRP)
 description: |
     This package provides remote execution capabilities via the
     `PowerShell Remoting Protocol (PSRP)
-    <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
+    <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
-suspended: false
+state: ready
+source-date-epoch: 1705912159
 versions:
+  - 2.5.0
   - 2.4.0
   - 2.3.2
   - 2.3.1
@@ -41,7 +43,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - pypsrp>=0.8.0
 
 integrations:

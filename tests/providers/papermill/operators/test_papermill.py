@@ -17,11 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.papermill.operators.papermill import NoteBook, PapermillOperator
+from airflow.providers.papermill.hooks.kernel import (
+    JUPYTER_KERNEL_CONTROL_PORT,
+    JUPYTER_KERNEL_HB_PORT,
+    JUPYTER_KERNEL_IOPUB_PORT,
+    JUPYTER_KERNEL_SHELL_PORT,
+    JUPYTER_KERNEL_STDIN_PORT,
+)
+from airflow.providers.papermill.operators.papermill import REMOTE_KERNEL_ENGINE, NoteBook, PapermillOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -62,11 +69,20 @@ class TestPapermillOperator:
             pytest.param(NoteBook(TEST_INPUT_URL), id="input-as-notebook-object"),
         ],
     )
-    def test_notebooks_objects(self, input_nb, output_nb):
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    @patch("airflow.providers.papermill.operators.papermill.PapermillOperator.hook")
+    def test_notebooks_objects(self, mock_papermill, mock_hook, input_nb, output_nb):
         """Test different type of Input/Output notebooks arguments."""
         op = PapermillOperator(task_id="test_notebooks_objects", input_nb=input_nb, output_nb=output_nb)
+
+        op.execute(None)
+
         assert op.input_nb.url == TEST_INPUT_URL
         assert op.output_nb.url == TEST_OUTPUT_URL
+
+        # Test render Lineage inlets/outlets
+        assert op.inlets[0] == op.input_nb
+        assert op.outlets[0] == op.output_nb
 
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
@@ -96,6 +112,51 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            engine_name=None,
+        )
+
+    @patch("airflow.providers.papermill.hooks.kernel.KernelHook.get_connection")
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_remote_kernel(self, mock_papermill, kernel_hook):
+        in_nb = "/tmp/does_not_exist"
+        out_nb = "/tmp/will_not_exist"
+        kernel_name = "python3"
+        language_name = "python"
+        parameters = {"msg": "hello_world", "train": 1}
+        conn = MagicMock()
+        conn.host = "127.0.0.1"
+        conn.extra_dejson = {"session_key": "notebooks"}
+        kernel_hook.return_value = conn
+
+        op = PapermillOperator(
+            input_nb=in_nb,
+            output_nb=out_nb,
+            parameters=parameters,
+            task_id="papermill_operator_test",
+            kernel_name=kernel_name,
+            language_name=language_name,
+            kernel_conn_id="jupyter_kernel_default",
+            dag=None,
+        )
+
+        op.execute(context={})
+
+        mock_papermill.execute_notebook.assert_called_once_with(
+            in_nb,
+            out_nb,
+            parameters=parameters,
+            kernel_name=kernel_name,
+            language=language_name,
+            progress_bar=False,
+            report_mode=True,
+            engine_name=REMOTE_KERNEL_ENGINE,
+            kernel_session_key="notebooks",
+            kernel_shell_port=JUPYTER_KERNEL_SHELL_PORT,
+            kernel_iopub_port=JUPYTER_KERNEL_IOPUB_PORT,
+            kernel_stdin_port=JUPYTER_KERNEL_STDIN_PORT,
+            kernel_control_port=JUPYTER_KERNEL_CONTROL_PORT,
+            kernel_hb_port=JUPYTER_KERNEL_HB_PORT,
+            kernel_ip="127.0.0.1",
         )
 
     @pytest.mark.db_test
@@ -121,19 +182,9 @@ class TestPapermillOperator:
         task = ti.render_templates()
 
         # Test render Input/Output notebook attributes
-        assert task.input_nb.url == "/tmp/test_render_template.ipynb"
-        assert task.input_nb.parameters == {
-            "msgs": "dag id is test_render_template!",
-            "test_dt": DEFAULT_DATE.date().isoformat(),
-        }
-        assert task.output_nb.url == "/tmp/out-test_render_template.ipynb"
-        assert task.output_nb.parameters == {}
+        assert task.input_nb == "/tmp/test_render_template.ipynb"
+        assert task.output_nb == "/tmp/out-test_render_template.ipynb"
 
         # Test render other templated attributes
-        assert task.parameters == task.input_nb.parameters
         assert "python3" == task.kernel_name
         assert "python" == task.language_name
-
-        # Test render Lineage inlets/outlets
-        assert task.inlets[0] == task.input_nb
-        assert task.outlets[0] == task.output_nb

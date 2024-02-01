@@ -52,11 +52,13 @@
         background-color: {{state_color}};
       }
     {% endfor %}
-    {% if navbar_text_color %}
-      .navbar-nav > li > a {
-        color: {{ navbar_text_color }};
-      }
-    {% endif %}
+    .navbar-nav > li > a {
+      color: {{ navbar_text_color }};
+    }
+    .navbar-nav > li > a:hover {
+      background-color:  {{ navbar_hover_color }};
+      color: {{ navbar_text_hover_color }};
+    }
   </style>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 {% endblock %}

@@ -16,15 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
+from openlineage.client.facet import (
+    SchemaDatasetFacet,
+    SchemaField,
+    SqlJobFacet,
+    SymlinksDatasetFacet,
+    SymlinksDatasetFacetIdentifiers,
+)
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
@@ -47,7 +57,8 @@ result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
 class TestAthenaOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
@@ -66,6 +77,10 @@ class TestAthenaOperator:
         self.athena = AthenaOperator(
             **self.default_op_kwargs, output_location="s3://test_s3_bucket/", aws_conn_id=None, dag=self.dag
         )
+
+        with mock.patch("airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink.persist") as m:
+            self.mocked_athena_result_link = m
+            yield
 
     def test_base_aws_op_attributes(self):
         op = AthenaOperator(**self.default_op_kwargs)
@@ -128,6 +143,15 @@ class TestAthenaOperator:
         )
         assert mock_check_query_status.call_count == 1
 
+        # Validate call persist Athena Query result link
+        self.mocked_athena_result_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            query_execution_id=ATHENA_QUERY_ID,
+        )
+
     @mock.patch.object(
         AthenaHook,
         "check_query_status",
@@ -150,7 +174,11 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_failure_query(
-        self, mock_conn, mock_run_query, mock_check_query_status, mock_get_state_change_reason
+        self,
+        mock_conn,
+        mock_run_query,
+        mock_check_query_status,
+        mock_get_state_change_reason,
     ):
         with pytest.raises(Exception):
             self.athena.execute({})
@@ -226,3 +254,116 @@ class TestAthenaOperator:
             self.athena.execute(None)
 
         assert isinstance(deferred.value.trigger, AthenaTrigger)
+
+        # Validate call persist Athena Query result link
+        self.mocked_athena_result_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            query_execution_id=ATHENA_QUERY_ID,
+        )
+
+    @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_operator_openlineage_data(self, mock_conn, mock_region_name):
+        mock_region_name.return_value = "eu-west-1"
+
+        def mock_get_table_metadata(CatalogName, DatabaseName, TableName):
+            with open("tests/providers/amazon/aws/operators/athena_metadata.json") as f:
+                return json.load(f)[TableName]
+
+        mock_conn.return_value.get_table_metadata = mock_get_table_metadata
+
+        op = AthenaOperator(
+            task_id="test_athena_openlineage",
+            query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
+            database="TEST_DATABASE",
+            output_location="s3://test_s3_bucket/",
+            client_request_token="eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
+            sleep_time=0,
+            max_polling_attempts=3,
+            dag=self.dag,
+        )
+
+        expected_lineage = OperatorLineage(
+            inputs=[
+                Dataset(
+                    namespace="awsathena://athena.eu-west-1.amazonaws.com",
+                    name="AwsDataCatalog.TEST_DATABASE.DISCOUNTS",
+                    facets={
+                        "symlinks": SymlinksDatasetFacet(
+                            identifiers=[
+                                SymlinksDatasetFacetIdentifiers(
+                                    namespace="s3://bucket",
+                                    name="/discount/data/path/",
+                                    type="TABLE",
+                                )
+                            ],
+                        ),
+                        "schema": SchemaDatasetFacet(
+                            fields=[
+                                SchemaField(
+                                    name="ID",
+                                    type="int",
+                                    description="from deserializer",
+                                ),
+                                SchemaField(
+                                    name="AMOUNT_OFF",
+                                    type="int",
+                                    description="from deserializer",
+                                ),
+                                SchemaField(
+                                    name="CUSTOMER_EMAIL",
+                                    type="varchar",
+                                    description="from deserializer",
+                                ),
+                                SchemaField(
+                                    name="STARTS_ON",
+                                    type="timestamp",
+                                    description="from deserializer",
+                                ),
+                                SchemaField(
+                                    name="ENDS_ON",
+                                    type="timestamp",
+                                    description="from deserializer",
+                                ),
+                            ],
+                        ),
+                    },
+                )
+            ],
+            outputs=[
+                Dataset(
+                    namespace="awsathena://athena.eu-west-1.amazonaws.com",
+                    name="AwsDataCatalog.TEST_DATABASE.TEST_TABLE",
+                    facets={
+                        "symlinks": SymlinksDatasetFacet(
+                            identifiers=[
+                                SymlinksDatasetFacetIdentifiers(
+                                    namespace="s3://bucket",
+                                    name="/data/test_table/data/path",
+                                    type="TABLE",
+                                )
+                            ],
+                        ),
+                        "schema": SchemaDatasetFacet(
+                            fields=[
+                                SchemaField(
+                                    name="column",
+                                    type="string",
+                                    description="from deserializer",
+                                )
+                            ],
+                        ),
+                    },
+                ),
+                Dataset(namespace="s3://test_s3_bucket", name="/"),
+            ],
+            job_facets={
+                "sql": SqlJobFacet(
+                    query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
+                )
+            },
+        )
+        assert op.get_openlineage_facets_on_start() == expected_lineage

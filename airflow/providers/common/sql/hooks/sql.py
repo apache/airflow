@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from contextlib import closing
 from datetime import datetime
 from typing import (
@@ -24,6 +25,7 @@ from typing import (
     Callable,
     Generator,
     Iterable,
+    List,
     Mapping,
     Protocol,
     Sequence,
@@ -34,12 +36,11 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from packaging.version import Version
+from deprecated import deprecated
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.version import version
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -120,23 +121,14 @@ class ConnectorProtocol(Protocol):
         """
 
 
-# In case we are running it on Airflow 2.4+, we should use BaseHook, but on Airflow 2.3 and below
-# We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
-# SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
-# accept the new Hooks as not derived from the original DbApiHook
-if Version(version) < Version("2.4"):
-    try:
-        from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
-    except ImportError:
-        # just in case we have a problem with circular import
-        BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
-else:
-    BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
-
-
-class DbApiHook(BaseForDbApiHook):
+class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
+
+    When subclassing, maintainers can override the `_make_common_data_structure` method:
+    This method transforms the result of the handler method (typically `cursor.fetchall()`) into
+    objects common across all Hooks derived from this class (tuples). Most of the time, the underlying SQL
+    library already returns tuples from its cursor, and the `_make_common_data_structure` method can be ignored.
 
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
@@ -154,8 +146,6 @@ class DbApiHook(BaseForDbApiHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
-    # Override with the db-specific value used for placeholders
-    placeholder: str = "%s"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -174,6 +164,11 @@ class DbApiHook(BaseForDbApiHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
+        self._placeholder: str = "%s"
+
+    @property
+    def placeholder(self) -> str:
+        return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""
@@ -316,7 +311,7 @@ class DbApiHook(BaseForDbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -327,7 +322,7 @@ class DbApiHook(BaseForDbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
@@ -403,7 +398,7 @@ class DbApiHook(BaseForDbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -422,6 +417,33 @@ class DbApiHook(BaseForDbApiHook):
             return _last_result
         else:
             return results
+
+    @deprecated(
+        reason=(
+            "The `_make_serializable` method is deprecated and support will be removed in a future "
+            "version of the common.sql provider. Please update the DbApiHook's provider "
+            "to a version based on common.sql >= 1.9.1."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
+        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
+
+        This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
+        transform the result of an SQL command (typically returned by cursor methods) into a common
+        data structure (a tuple or list[tuple]) across all DBApiHook derived Hooks, as defined in the
+        ADR-0002 of the sql provider.
+
+        If this method is not overridden, the result data is returned as-is. If the output of the cursor
+        is already a common data structure, this method should be ignored.
+        """
+        # Back-compatibility call for providers implementing old ´_make_serializable' method.
+        with contextlib.suppress(AttributeError):
+            result = self._make_serializable(result=result)  # type: ignore[attr-defined]
+
+        if isinstance(result, Sequence):
+            return cast(List[tuple], result)
+        return cast(tuple, result)
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
@@ -460,8 +482,7 @@ class DbApiHook(BaseForDbApiHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    @classmethod
-    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -474,7 +495,7 @@ class DbApiHook(BaseForDbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
 
         if target_fields:

@@ -30,6 +30,13 @@ from typing import Any, Iterable, NamedTuple
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_dry_run,
+    option_github_repository,
+    option_verbose,
+)
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -39,12 +46,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
-    option_answer,
-    option_dry_run,
-    option_github_repository,
-    option_verbose,
-)
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
@@ -53,7 +54,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -81,7 +82,6 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
-        run_command(["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)], check=False)
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -101,7 +101,6 @@ DIRECTORIES_TO_FIX = [
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
     HOME_DIR / ".docker",
-    HOME_DIR / MSSQL_TMP_DIR_NAME,
 ]
 
 
@@ -199,14 +198,14 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 @click.option(
     "--default-branch",
     help="Branch against which the PR should be run",
-    default="main",
+    default=AIRFLOW_BRANCH,
     envvar="DEFAULT_BRANCH",
     show_default=True,
 )
 @click.option(
     "--default-constraints-branch",
     help="Constraints Branch against which the PR should be run",
-    default="constraints-main",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     show_default=True,
 )

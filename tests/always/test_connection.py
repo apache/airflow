@@ -22,6 +22,7 @@ import os
 import re
 from collections import namedtuple
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 import sqlalchemy
@@ -31,9 +32,44 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+from airflow.providers_manager import HookInfo
 from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+
+@pytest.fixture()
+def get_connection1():
+    return Connection()
+
+
+@pytest.fixture()
+def get_connection2():
+    return Connection(host="apache.org", extra={})
+
+
+@pytest.fixture()
+def get_connection3():
+    return Connection(conn_type="foo", login="", password="p@$$")
+
+
+@pytest.fixture()
+def get_connection4():
+    return Connection(
+        conn_type="bar",
+        description="Sample Description",
+        host="example.org",
+        login="user",
+        password="p@$$",
+        schema="schema",
+        port=777,
+        extra={"foo": "bar", "answer": 42},
+    )
+
+
+@pytest.fixture()
+def get_connection5():
+    return Connection(uri="aws://")
 
 
 class UriTestCaseConfig:
@@ -362,6 +398,7 @@ class TestConnection:
         expected_calls = []
         if test_config.test_conn_attributes.get("password"):
             expected_calls.append(mock.call(test_config.test_conn_attributes["password"]))
+            expected_calls.append(mock.call(quote(test_config.test_conn_attributes["password"])))
 
         if test_config.test_conn_attributes.get("extra_dejson"):
             expected_calls.append(mock.call(test_config.test_conn_attributes["extra_dejson"]))
@@ -592,7 +629,7 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI": "postgresql://username:password@ec2.compute.com:5432/the_database",
+            "AIRFLOW_CONN_TEST_URI": "postgresql://username:password%21@ec2.compute.com:5432/the_database",
         },
     )
     def test_using_env_var(self):
@@ -600,10 +637,10 @@ class TestConnection:
         assert "ec2.compute.com" == conn.host
         assert "the_database" == conn.schema
         assert "username" == conn.login
-        assert "password" == conn.password
+        assert "password!" == conn.password
         assert 5432 == conn.port
 
-        self.mask_secret.assert_called_once_with("password")
+        self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
 
     @mock.patch.dict(
         "os.environ",
@@ -717,7 +754,7 @@ class TestConnection:
             conn = Connection(
                 conn_id=f"test-{os.getpid()}",
                 conn_type="http",
-                password="s3cr3t",
+                password="s3cr3t!",
                 extra='{"apikey":"masked too"}',
             )
             session.add(conn)
@@ -733,7 +770,8 @@ class TestConnection:
 
             assert self.mask_secret.mock_calls == [
                 # We should have called it _again_ when loading from the DB
-                mock.call("s3cr3t"),
+                mock.call("s3cr3t!"),
+                mock.call(quote("s3cr3t!")),
                 mock.call({"apikey": "masked too"}),
             ]
         finally:
@@ -790,3 +828,79 @@ class TestConnection:
         assert Connection(host="abc").get_uri() == "//abc"
         # parsing back as conn still works
         assert Connection(uri="//abc").host == "abc"
+
+    @pytest.mark.parametrize(
+        "conn, expected_json",
+        [
+            pytest.param("get_connection1", "{}", id="empty"),
+            pytest.param("get_connection2", '{"host": "apache.org"}', id="empty-extra"),
+            pytest.param(
+                "get_connection3",
+                '{"conn_type": "foo", "login": "", "password": "p@$$"}',
+                id="some-fields",
+            ),
+            pytest.param(
+                "get_connection4",
+                json.dumps(
+                    {
+                        "conn_type": "bar",
+                        "description": "Sample Description",
+                        "host": "example.org",
+                        "login": "user",
+                        "password": "p@$$",
+                        "schema": "schema",
+                        "port": 777,
+                        "extra": {"foo": "bar", "answer": 42},
+                    }
+                ),
+                id="all-fields",
+            ),
+            pytest.param(
+                "get_connection5",
+                # During parsing URI some of the fields evaluated as an empty strings
+                '{"conn_type": "aws", "host": "", "schema": ""}',
+                id="uri",
+            ),
+        ],
+    )
+    def test_as_json_from_connection(self, conn: Connection, expected_json, request):
+        conn = request.getfixturevalue(conn)
+        result = conn.as_json()
+        assert result == expected_json
+        restored_conn = Connection.from_json(result)
+
+        assert restored_conn.conn_type == conn.conn_type
+        assert restored_conn.description == conn.description
+        assert restored_conn.host == conn.host
+        assert restored_conn.password == conn.password
+        assert restored_conn.schema == conn.schema
+        assert restored_conn.port == conn.port
+        assert restored_conn.extra_dejson == conn.extra_dejson
+
+    def test_get_hook_not_found(self):
+        with mock.patch("airflow.providers_manager.ProvidersManager") as m:
+            m.return_value.hooks = {}
+            with pytest.raises(AirflowException, match='Unknown hook type "awesome-test-conn-type"'):
+                Connection(conn_type="awesome-test-conn-type").get_hook()
+
+    def test_get_hook_import_error(self, caplog):
+        with mock.patch("airflow.providers_manager.ProvidersManager") as m:
+            m.return_value.hooks = {
+                "awesome-test-conn-type": HookInfo(
+                    hook_class_name="foo.bar.AwesomeTest",
+                    connection_id_attribute_name="conn-id",
+                    package_name="test.package",
+                    hook_name="Awesome Connection",
+                    connection_type="awesome-test-conn-type",
+                    connection_testable=False,
+                )
+            }
+            caplog.clear()
+            caplog.set_level("ERROR", "airflow.models.connection")
+            with pytest.raises(ImportError):
+                Connection(conn_type="awesome-test-conn-type").get_hook()
+
+            assert caplog.messages
+            assert caplog.messages[0] == (
+                "Could not import foo.bar.AwesomeTest when discovering Awesome Connection test.package"
+            )

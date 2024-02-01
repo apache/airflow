@@ -23,7 +23,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState

@@ -23,9 +23,13 @@ name: Cohere
 description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1705911992
 
 versions:
+  - 1.1.2
+  - 1.1.1
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -36,8 +40,8 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.5.0
-  - cohere>=4.27
+  - apache-airflow>=2.6.0
+  - cohere>=4.37
 
 hooks:
   - integration-name: Cohere

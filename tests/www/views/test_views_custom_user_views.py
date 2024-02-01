@@ -247,9 +247,14 @@ class TestResetUserSessions:
     def get_session_by_id(self, session_id: str):
         return self.db.session.query(self.model).filter(self.model.session_id == session_id).scalar()
 
-    @mock.patch("airflow.auth.managers.fab.security_manager.override.flash")
-    @mock.patch("airflow.auth.managers.fab.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1)
-    def test_refuse_delete(self, flash_mock):
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
+    )
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
+    )
+    def test_refuse_delete(self, _mock_has_context, flash_mock):
         self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
         self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
         self.db.session.commit()
@@ -267,12 +272,47 @@ class TestResetUserSessions:
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
-    @mock.patch("airflow.auth.managers.fab.security_manager.override.flash")
-    def test_warn_securecookie(self, flash_mock):
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
+    )
+    def test_warn_securecookie(self, _mock_has_context, flash_mock):
         self.app.session_interface = SecureCookieSessionInterface()
         self.security_manager.reset_password(self.user_1.id, "new_password")
         assert flash_mock.called
         assert (
             "Since you are using `securecookie` session backend mechanism, we cannot"
             in flash_mock.call_args[0][0]
+        )
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
+    )
+    def test_refuse_delete_cli(self, log_mock):
+        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
+        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
+        self.db.session.commit()
+        self.db.session.flush()
+        assert self.db.session.query(self.model).count() == 2
+        assert self.get_session_by_id("session_id_1") is not None
+        assert self.get_session_by_id("session_id_2") is not None
+        self.security_manager.reset_password(self.user_1.id, "new_password")
+        assert log_mock.warning.called
+        assert (
+            "The old sessions for user user_to_delete_1 have *NOT* been deleted!\n"
+            in log_mock.warning.call_args[0][0]
+        )
+        assert self.db.session.query(self.model).count() == 2
+        assert self.get_session_by_id("session_id_1") is not None
+        assert self.get_session_by_id("session_id_2") is not None
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_warn_securecookie_cli(self, log_mock):
+        self.app.session_interface = SecureCookieSessionInterface()
+        self.security_manager.reset_password(self.user_1.id, "new_password")
+        assert log_mock.warning.called
+        assert (
+            "Since you are using `securecookie` session backend mechanism, we cannot"
+            in log_mock.warning.call_args[0][0]
         )

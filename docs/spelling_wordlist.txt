@@ -118,6 +118,7 @@ Autoscale
 autoscale
 autoscaler
 autoscaling
+avp
 Avro
 avro
 aws
@@ -272,6 +273,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -312,9 +314,11 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -383,6 +387,7 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataprocDiagnoseClusterOperator
 DataScan
 dataScans
 Dataset
@@ -456,6 +461,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -478,6 +484,7 @@ dlp
 DlpJob
 DlpServiceClient
 dms
+DNs
 dns
 dnsPolicy
 dnspolicy
@@ -512,6 +519,7 @@ dsn
 dttm
 dtypes
 du
+duckdb
 durations
 dylib
 Dynamodb
@@ -546,8 +554,10 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -682,6 +692,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+graphviz
 greenlet
 Groupalia
 groupId
@@ -791,7 +802,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -802,6 +815,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -854,6 +868,7 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+JWT
 Kafka
 kafka
 Kalibrr
@@ -888,6 +903,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -927,6 +943,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1076,6 +1093,8 @@ Oozie
 openai
 openapi
 openfaas
+OpenID
+Openid
 openlineage
 OpenSearch
 opensearch
@@ -1131,6 +1150,7 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
@@ -1143,6 +1163,7 @@ pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1349,6 +1370,7 @@ Sagemaker
 sagemaker
 salesforce
 samesite
+saml
 sanitization
 sas
 Sasl
@@ -1426,6 +1448,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1550,6 +1573,7 @@ TaskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
+taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta
@@ -1623,10 +1647,12 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
 ukey
 ulimit
+ulimits
 Umask
 umask
 Un

@@ -231,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.8.0.dev0'
+  version: "2.9.0.dev0"
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -253,20 +253,20 @@ paths:
       operationId: get_connections
       tags: [Connection]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/ConnectionCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
     post:
       summary: Create a connection
@@ -278,24 +278,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Connection'
+              $ref: "#/components/schemas/Connection"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Connection'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /connections/{connection_id}:
     parameters:
-      - $ref: '#/components/parameters/ConnectionID'
+      - $ref: "#/components/parameters/ConnectionID"
 
     get:
       summary: Get a connection
@@ -303,18 +303,18 @@ paths:
       operationId: get_connection
       tags: [Connection]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Connection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Connection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Update a connection
@@ -322,29 +322,29 @@ paths:
       operationId: patch_connection
       tags: [Connection]
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Connection'
+              $ref: "#/components/schemas/Connection"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Connection'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       summary: Delete a connection
@@ -352,16 +352,16 @@ paths:
       operationId: delete_connection
       tags: [Connection]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /connections/test:
     post:
@@ -387,40 +387,41 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Connection'
+              $ref: "#/components/schemas/Connection"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionTest'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/ConnectionTest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags:
     get:
       summary: List DAGs
       description: >
-       List DAGs in the database.
+        List DAGs in the database.
 
-       `dag_id_pattern` can be set to match dags of a specific pattern
+        `dag_id_pattern` can be set to match dags of a specific pattern
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dags
       tags: [DAG]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
-        - $ref: '#/components/parameters/FilterTags'
-        - $ref: '#/components/parameters/OnlyActive'
-        - $ref: '#/components/parameters/Paused'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterTags"
+        - $ref: "#/components/parameters/OnlyActive"
+        - $ref: "#/components/parameters/Paused"
+        - $ref: "#/components/parameters/ReturnFields"
         - name: dag_id_pattern
           in: query
           schema:
@@ -429,31 +430,31 @@ paths:
           description: |
             If set, only return DAGs with dag_ids matching this pattern.
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
+                $ref: "#/components/schemas/DAGCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
 
     patch:
       summary: Update DAGs
       description: >
-       Update DAGs of a given dag_id_pattern using UpdateMask.
+        Update DAGs of a given dag_id_pattern using UpdateMask.
 
-       This endpoint allows specifying `~` as the dag_id_pattern to update all DAGs.
+        This endpoint allows specifying `~` as the dag_id_pattern to update all DAGs.
 
-       *New in version 2.3.0*
+        *New in version 2.3.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: patch_dags
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/FilterTags'
-        - $ref: '#/components/parameters/UpdateMask'
-        - $ref: '#/components/parameters/OnlyActive'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/FilterTags"
+        - $ref: "#/components/parameters/UpdateMask"
+        - $ref: "#/components/parameters/OnlyActive"
         - name: dag_id_pattern
           in: query
           schema:
@@ -467,26 +468,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAG'
+              $ref: "#/components/schemas/DAG"
             example:
               is_paused: true
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
+      - $ref: "#/components/parameters/DAGID"
 
     get:
       summary: Get basic information about a DAG
@@ -497,48 +498,50 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAG'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAG"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Update a DAG
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: patch_dag
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       tags: [DAG]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAG'
+              $ref: "#/components/schemas/DAG"
             example:
               is_paused: true
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAG'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAG"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       summary: Delete a DAG
@@ -551,22 +554,22 @@ paths:
       operationId: delete_dag
       tags: [DAG]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/AlreadyExists"
 
   /dags/{dag_id}/clearTaskInstances:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
+      - $ref: "#/components/parameters/DAGID"
 
     post:
       summary: Clear a set of task instances
@@ -581,27 +584,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClearTaskInstances'
+              $ref: "#/components/schemas/ClearTaskInstances"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstanceReferenceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/setNote:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
 
     patch:
       summary: Update the TaskInstance note.
@@ -618,30 +621,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetTaskInstanceNote'
+              $ref: "#/components/schemas/SetTaskInstanceNote"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstance"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote:
-    parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
-      - $ref: '#/components/parameters/MapIndex'
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
 
     patch:
       summary: Update the TaskInstance note.
@@ -658,27 +661,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetTaskInstanceNote'
+              $ref: "#/components/schemas/SetTaskInstanceNote"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstance"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
+      - $ref: "#/components/parameters/DAGID"
 
     post:
       summary: Set a state of task instances
@@ -693,25 +696,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTaskInstancesState'
+              $ref: "#/components/schemas/UpdateTaskInstancesState"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstanceReferenceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
+      - $ref: "#/components/parameters/DAGID"
 
     get:
       summary: List DAG runs
@@ -721,27 +724,28 @@ paths:
       operationId: get_dag_runs
       tags: [DAGRun]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/FilterExecutionDateGTE'
-        - $ref: '#/components/parameters/FilterExecutionDateLTE'
-        - $ref: '#/components/parameters/FilterStartDateGTE'
-        - $ref: '#/components/parameters/FilterStartDateLTE'
-        - $ref: '#/components/parameters/FilterEndDateGTE'
-        - $ref: '#/components/parameters/FilterEndDateLTE'
-        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
-        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
-        - $ref: '#/components/parameters/FilterState'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/FilterExecutionDateGTE"
+        - $ref: "#/components/parameters/FilterExecutionDateLTE"
+        - $ref: "#/components/parameters/FilterStartDateGTE"
+        - $ref: "#/components/parameters/FilterStartDateLTE"
+        - $ref: "#/components/parameters/FilterEndDateGTE"
+        - $ref: "#/components/parameters/FilterEndDateLTE"
+        - $ref: "#/components/parameters/FilterUpdatedAtGTE"
+        - $ref: "#/components/parameters/FilterUpdatedAtLTE"
+        - $ref: "#/components/parameters/FilterState"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
-        '200':
+        "200":
           description: List of DAG runs.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRunCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
+                $ref: "#/components/schemas/DAGRunCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
 
     post:
       summary: Trigger a new DAG run.
@@ -756,24 +760,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAGRun'
+              $ref: "#/components/schemas/DAGRun"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/AlreadyExists"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/~/dagRuns/list:
     post:
@@ -789,44 +793,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ListDagRunsForm'
+              $ref: "#/components/schemas/ListDagRunsForm"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRunCollection'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/DAGRunCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
 
     get:
       summary: Get a DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_run
       tags: [DAGRun]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGRun"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       summary: Delete a DAG run
@@ -834,16 +840,16 @@ paths:
       operationId: delete_dag_run
       tags: [DAGRun]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Modify a DAG run
@@ -859,28 +865,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateDagRunState'
+              $ref: "#/components/schemas/UpdateDagRunState"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/clear:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
 
     post:
       summary: Clear a DAG run
@@ -896,30 +902,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClearDagRun'
+              $ref: "#/components/schemas/ClearDagRun"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
                 anyOf:
-                  - $ref: '#/components/schemas/DAGRun'
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                  - $ref: "#/components/schemas/DAGRun"
+                  - $ref: "#/components/schemas/TaskInstanceCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
     get:
       summary: Get dataset events for a DAG run
       description: |
@@ -930,23 +936,23 @@ paths:
       operationId: get_upstream_dataset_events
       tags: [DAGRun, Dataset]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEventCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DatasetEventCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/setNote:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
     patch:
       summary: Update the DagRun note.
       description: |
@@ -962,57 +968,56 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetDagRunNote'
+              $ref: "#/components/schemas/SetDagRunNote"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /eventLogs:
     get:
       summary: List log entries
-      description:
-        List log entries from event log.
+      description: List log entries from event log.
       x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
       operationId: get_event_logs
       tags: [EventLog]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
-        - $ref: '#/components/parameters/FilterDAGID'
-        - $ref: '#/components/parameters/FilterTaskID'
-        - $ref: '#/components/parameters/Event'
-        - $ref: '#/components/parameters/Owner'
-        - $ref: '#/components/parameters/Before'
-        - $ref: '#/components/parameters/After'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterDAGID"
+        - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/Event"
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Before"
+        - $ref: "#/components/parameters/After"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventLogCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/EventLogCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /eventLogs/{event_log_id}:
     parameters:
-      - $ref: '#/components/parameters/EventLogID'
+      - $ref: "#/components/parameters/EventLogID"
 
     get:
       summary: Get a log entry
@@ -1020,18 +1025,18 @@ paths:
       operationId: get_event_log
       tags: [EventLog]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventLog'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/EventLog"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /importErrors:
     get:
@@ -1040,43 +1045,43 @@ paths:
       operationId: get_import_errors
       tags: [ImportError]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportErrorCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/ImportErrorCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /importErrors/{import_error_id}:
     parameters:
-      - $ref: '#/components/parameters/ImportErrorID'
+      - $ref: "#/components/parameters/ImportErrorID"
     get:
       summary: Get an import error
       x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
       operationId: get_import_error
       tags: [ImportError]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportError'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/ImportError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /pools:
     get:
@@ -1085,20 +1090,20 @@ paths:
       operationId: get_pools
       tags: [Pool]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: List of pools.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PoolCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/PoolCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
     post:
       summary: Create a pool
@@ -1110,24 +1115,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pool'
+              $ref: "#/components/schemas/Pool"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pool'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/Pool"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /pools/{pool_name}:
     parameters:
-      - $ref: '#/components/parameters/PoolName'
+      - $ref: "#/components/parameters/PoolName"
 
     get:
       summary: Get a pool
@@ -1135,18 +1140,18 @@ paths:
       operationId: get_pool
       tags: [Pool]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pool'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Pool"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Update a pool
@@ -1154,31 +1159,31 @@ paths:
       operationId: patch_pool
       tags: [Pool]
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pool'
+              $ref: "#/components/schemas/Pool"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pool'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
+                $ref: "#/components/schemas/Pool"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/AlreadyExists"
 
     delete:
       summary: Delete a pool
@@ -1186,16 +1191,16 @@ paths:
       operationId: delete_pool
       tags: [Pool]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /providers:
     get:
@@ -1208,36 +1213,36 @@ paths:
       operationId: get_providers
       tags: [Provider]
       responses:
-        '200':
+        "200":
           description: List of providers.
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ProviderCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                  - $ref: "#/components/schemas/ProviderCollection"
+                  - $ref: "#/components/schemas/CollectionInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/FilterExecutionDateGTE'
-      - $ref: '#/components/parameters/FilterExecutionDateLTE'
-      - $ref: '#/components/parameters/FilterStartDateGTE'
-      - $ref: '#/components/parameters/FilterStartDateLTE'
-      - $ref: '#/components/parameters/FilterEndDateGTE'
-      - $ref: '#/components/parameters/FilterEndDateLTE'
-      - $ref: '#/components/parameters/FilterUpdatedAtGTE'
-      - $ref: '#/components/parameters/FilterUpdatedAtLTE'
-      - $ref: '#/components/parameters/FilterDurationGTE'
-      - $ref: '#/components/parameters/FilterDurationLTE'
-      - $ref: '#/components/parameters/FilterState'
-      - $ref: '#/components/parameters/FilterPool'
-      - $ref: '#/components/parameters/FilterQueue'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/FilterExecutionDateGTE"
+      - $ref: "#/components/parameters/FilterExecutionDateLTE"
+      - $ref: "#/components/parameters/FilterStartDateGTE"
+      - $ref: "#/components/parameters/FilterStartDateLTE"
+      - $ref: "#/components/parameters/FilterEndDateGTE"
+      - $ref: "#/components/parameters/FilterEndDateLTE"
+      - $ref: "#/components/parameters/FilterUpdatedAtGTE"
+      - $ref: "#/components/parameters/FilterUpdatedAtLTE"
+      - $ref: "#/components/parameters/FilterDurationGTE"
+      - $ref: "#/components/parameters/FilterDurationLTE"
+      - $ref: "#/components/parameters/FilterState"
+      - $ref: "#/components/parameters/FilterPool"
+      - $ref: "#/components/parameters/FilterQueue"
     get:
       summary: List task instances
       description: >
@@ -1247,25 +1252,25 @@ paths:
       operationId: get_task_instances
       tags: [TaskInstance]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
 
     get:
       summary: Get a task instance
@@ -1273,18 +1278,18 @@ paths:
       operationId: get_task_instance
       tags: [TaskInstance]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Updates the state of a task instance
@@ -1301,28 +1306,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTaskInstance'
+              $ref: "#/components/schemas/UpdateTaskInstance"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReference'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/TaskInstanceReference"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
-      - $ref: '#/components/parameters/MapIndex'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
 
     get:
       summary: Get a mapped task instance
@@ -1334,54 +1338,53 @@ paths:
       operationId: get_mapped_task_instance
       tags: [TaskInstance]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
-        summary: Updates the state of a mapped task instance
-        description: >
-            Updates the state for single mapped task instance.
+      summary: Updates the state of a mapped task instance
+      description: >
+        Updates the state for single mapped task instance.
 
-            *New in version 2.5.0*
-        x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-        operationId: patch_mapped_task_instance
-        tags: [TaskInstance]
-        requestBody:
-          description: Parameters of action
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: patch_mapped_task_instance
+      tags: [TaskInstance]
+      requestBody:
+        description: Parameters of action
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskInstance"
+      responses:
+        "200":
+          description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UpdateTaskInstance'
-        responses:
-          '200':
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/TaskInstanceReference'
-          '401':
-            $ref: '#/components/responses/Unauthenticated'
-          '403':
-            $ref: '#/components/responses/PermissionDenied'
-          '404':
-            $ref: '#/components/responses/NotFound'
-
+                $ref: "#/components/schemas/TaskInstanceReference"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
 
     get:
       summary: List mapped task instances
@@ -1393,35 +1396,35 @@ paths:
       operationId: get_mapped_task_instances
       tags: [TaskInstance]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/FilterExecutionDateGTE'
-        - $ref: '#/components/parameters/FilterExecutionDateLTE'
-        - $ref: '#/components/parameters/FilterStartDateGTE'
-        - $ref: '#/components/parameters/FilterStartDateLTE'
-        - $ref: '#/components/parameters/FilterEndDateGTE'
-        - $ref: '#/components/parameters/FilterEndDateLTE'
-        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
-        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
-        - $ref: '#/components/parameters/FilterDurationGTE'
-        - $ref: '#/components/parameters/FilterDurationLTE'
-        - $ref: '#/components/parameters/FilterState'
-        - $ref: '#/components/parameters/FilterPool'
-        - $ref: '#/components/parameters/FilterQueue'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/FilterExecutionDateGTE"
+        - $ref: "#/components/parameters/FilterExecutionDateLTE"
+        - $ref: "#/components/parameters/FilterStartDateGTE"
+        - $ref: "#/components/parameters/FilterStartDateLTE"
+        - $ref: "#/components/parameters/FilterEndDateGTE"
+        - $ref: "#/components/parameters/FilterEndDateLTE"
+        - $ref: "#/components/parameters/FilterUpdatedAtGTE"
+        - $ref: "#/components/parameters/FilterUpdatedAtLTE"
+        - $ref: "#/components/parameters/FilterDurationGTE"
+        - $ref: "#/components/parameters/FilterDurationLTE"
+        - $ref: "#/components/parameters/FilterState"
+        - $ref: "#/components/parameters/FilterPool"
+        - $ref: "#/components/parameters/FilterQueue"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/~/dagRuns/~/taskInstances/list:
     post:
@@ -1439,21 +1442,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ListTaskInstanceForm'
+              $ref: "#/components/schemas/ListTaskInstanceForm"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /variables:
     get:
@@ -1463,20 +1466,20 @@ paths:
       operationId: get_variables
       tags: [Variable]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VariableCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/VariableCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
     post:
       summary: Create a variable
@@ -1488,24 +1491,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Variable'
+              $ref: "#/components/schemas/Variable"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Variable'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/Variable"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /variables/{variable_key}:
     parameters:
-      - $ref: '#/components/parameters/VariableKey'
+      - $ref: "#/components/parameters/VariableKey"
 
     get:
       summary: Get a variable
@@ -1514,18 +1517,18 @@ paths:
       operationId: get_variable
       tags: [Variable]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Variable'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Variable"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       summary: Update a variable
@@ -1534,29 +1537,29 @@ paths:
       operationId: patch_variable
       tags: [Variable]
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Variable'
+              $ref: "#/components/schemas/Variable"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Variable'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Variable"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       summary: Delete a variable
@@ -1564,22 +1567,22 @@ paths:
       operationId: delete_variable
       tags: [Variable]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
 
     get:
       summary: List XCom entries
@@ -1591,28 +1594,28 @@ paths:
       operationId: get_xcom_entries
       tags: [XCom]
       parameters:
-        - $ref: '#/components/parameters/FilterMapIndex'
-        - $ref: '#/components/parameters/FilterXcomKey'
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
+        - $ref: "#/components/parameters/FilterMapIndex"
+        - $ref: "#/components/parameters/FilterXcomKey"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XComCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/XComCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
-    parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
-      - $ref: '#/components/parameters/XComKey'
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/XComKey"
 
     get:
       summary: Get an XCom entry
@@ -1620,7 +1623,7 @@ paths:
       operationId: get_xcom_entry
       tags: [XCom]
       parameters:
-        - $ref: '#/components/parameters/FilterMapIndex'
+        - $ref: "#/components/parameters/FilterMapIndex"
         - in: query
           name: deserialize
           schema:
@@ -1638,25 +1641,25 @@ paths:
 
             *New in version 2.4.0*
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XCom'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/XCom"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   # Non-database resources
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
 
     get:
       summary: List extra links
@@ -1666,28 +1669,28 @@ paths:
       operationId: get_extra_links
       tags: [TaskInstance]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExtraLinkCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/ExtraLinkCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
-    parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-      - $ref: '#/components/parameters/TaskID'
-      - $ref: '#/components/parameters/TaskTryNumber'
-      - $ref: '#/components/parameters/FullContent'
-      - $ref: '#/components/parameters/FilterMapIndex'
-      - $ref: '#/components/parameters/ContinuationToken'
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/TaskTryNumber"
+      - $ref: "#/components/parameters/FullContent"
+      - $ref: "#/components/parameters/FilterMapIndex"
+      - $ref: "#/components/parameters/ContinuationToken"
 
     get:
       summary: Get logs
@@ -1723,7 +1726,7 @@ paths:
       operationId: get_log
       tags: [TaskInstance]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
@@ -1737,19 +1740,18 @@ paths:
             text/plain:
               schema:
                 type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/details:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
+      - $ref: "#/components/parameters/DAGID"
 
     get:
       summary: Get a simplified representation of DAG
@@ -1759,24 +1761,26 @@ paths:
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/ReturnFields"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGDetail'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DAGDetail"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/tasks:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/OrderBy'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/OrderBy"
 
     get:
       summary: Get tasks for DAG
@@ -1784,23 +1788,23 @@ paths:
       operationId: get_tasks
       tags: [DAG]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/TaskCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dags/{dag_id}/tasks/{task_id}:
     parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/TaskID"
 
     get:
       summary: Get simplified representation of a task
@@ -1808,22 +1812,22 @@ paths:
       operationId: get_task
       tags: [DAG]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /dagSources/{file_token}:
     parameters:
-      - $ref: '#/components/parameters/FileToken'
+      - $ref: "#/components/parameters/FileToken"
 
     get:
       summary: Get a source code
@@ -1833,7 +1837,7 @@ paths:
       operationId: get_dag_source
       tags: [DAG]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
@@ -1846,14 +1850,14 @@ paths:
               schema:
                 type: string
 
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
 
   /dagWarnings:
     get:
@@ -1874,21 +1878,21 @@ paths:
             type: string
           required: false
           description: If set, only return DAG warnings with this type.
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DagWarningCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/DagWarningCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /datasets:
     get:
@@ -1897,9 +1901,9 @@ paths:
       operationId: get_datasets
       tags: [Dataset]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
         - name: uri_pattern
           in: query
           schema:
@@ -1908,20 +1912,20 @@ paths:
           description: |
             If set, only return datasets with uris matching this pattern.
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/DatasetCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /datasets/{uri}:
     parameters:
-      - $ref: '#/components/parameters/DatasetURI'
+      - $ref: "#/components/parameters/DatasetURI"
     get:
       summary: Get a dataset
       description: Get a dataset by uri.
@@ -1929,29 +1933,29 @@ paths:
       operationId: get_dataset
       tags: [Dataset]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Dataset'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /datasets/events:
     parameters:
-      - $ref: '#/components/parameters/PageLimit'
-      - $ref: '#/components/parameters/PageOffset'
-      - $ref: '#/components/parameters/OrderBy'
-      - $ref: '#/components/parameters/FilterDatasetID'
-      - $ref: '#/components/parameters/FilterSourceDAGID'
-      - $ref: '#/components/parameters/FilterSourceTaskID'
-      - $ref: '#/components/parameters/FilterSourceRunID'
-      - $ref: '#/components/parameters/FilterSourceMapIndex'
+      - $ref: "#/components/parameters/PageLimit"
+      - $ref: "#/components/parameters/PageOffset"
+      - $ref: "#/components/parameters/OrderBy"
+      - $ref: "#/components/parameters/FilterDatasetID"
+      - $ref: "#/components/parameters/FilterSourceDAGID"
+      - $ref: "#/components/parameters/FilterSourceTaskID"
+      - $ref: "#/components/parameters/FilterSourceRunID"
+      - $ref: "#/components/parameters/FilterSourceMapIndex"
     get:
       summary: Get dataset events
       description: Get dataset events
@@ -1959,18 +1963,18 @@ paths:
       operationId: get_dataset_events
       tags: [Dataset]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEventCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/DatasetEventCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /config:
     get:
@@ -1986,12 +1990,12 @@ paths:
           required: false
           description: If given, only return config of this section.
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Config'
+                $ref: "#/components/schemas/Config"
               example:
                 sections:
                   - name: core
@@ -2015,12 +2019,12 @@ paths:
                 smtp_host = localhost
                 smtp_mail_from =  airflow@example.com
 
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /config/section/{section}/option/{option}:
     get:
@@ -2040,12 +2044,12 @@ paths:
             type: string
           required: true
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Config'
+                $ref: "#/components/schemas/Config"
               example:
                 sections:
                   - name: core
@@ -2059,13 +2063,12 @@ paths:
                 [core]
                 dags_folder = /home/user/my-dags-folder
 
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-           $ref: '#/components/responses/NotFound'
-
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /health:
     get:
@@ -2077,12 +2080,12 @@ paths:
       operationId: get_health
       tags: [Monitoring]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthInfo'
+                $ref: "#/components/schemas/HealthInfo"
 
   /version:
     get:
@@ -2091,12 +2094,12 @@ paths:
       operationId: get_version
       tags: [Monitoring]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VersionInfo'
+                $ref: "#/components/schemas/VersionInfo"
 
   /plugins:
     get:
@@ -2109,21 +2112,21 @@ paths:
       operationId: get_plugins
       tags: [Plugin]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PluginCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/PluginCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /roles:
     get:
@@ -2132,25 +2135,25 @@ paths:
       description: |
         Get a list of roles.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_roles
       tags: [Role]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/RoleCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
     post:
       deprecated: true
@@ -2158,7 +2161,7 @@ paths:
       description: |
         Create a new role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_role
       tags: [Role]
@@ -2167,24 +2170,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Role'
+              $ref: "#/components/schemas/Role"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Role'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /roles/{role_name}:
     parameters:
-      - $ref: '#/components/parameters/RoleName'
+      - $ref: "#/components/parameters/RoleName"
 
     get:
       deprecated: true
@@ -2192,23 +2195,23 @@ paths:
       description: |
         Get a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_role
       tags: [Role]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Role'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       deprecated: true
@@ -2216,34 +2219,34 @@ paths:
       description: |
         Update a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_role
       tags: [Role]
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Role'
+              $ref: "#/components/schemas/Role"
 
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Role'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       deprecated: true
@@ -2251,21 +2254,21 @@ paths:
       description: |
         Delete a role.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_role
       tags: [Role]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /permissions:
     get:
@@ -2274,24 +2277,24 @@ paths:
       description: |
         Get a list of permissions.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_permissions
       tags: [Permission]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ActionCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/ActionCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /users:
     get:
@@ -2300,25 +2303,25 @@ paths:
       description: |
         Get a list of users.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_users
       tags: [User]
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/OrderBy'
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserCollection'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
+                $ref: "#/components/schemas/UserCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
     post:
       deprecated: true
@@ -2326,7 +2329,7 @@ paths:
       description: |
         Create a new user with unique username and email.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_user
       tags: [User]
@@ -2335,49 +2338,49 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/User'
+              $ref: "#/components/schemas/User"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/AlreadyExists"
 
   /users/{username}:
     parameters:
-      - $ref: '#/components/parameters/Username'
+      - $ref: "#/components/parameters/Username"
     get:
       deprecated: true
       summary: Get a user
       description: |
         Get a user with a specific username.
 
-        *New in version 2.1.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_user
       tags: [User]
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserCollectionItem'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/UserCollectionItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     patch:
       deprecated: true
@@ -2385,33 +2388,33 @@ paths:
       description: |
         Update fields for a user.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_user
       tags: [User]
       parameters:
-        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: "#/components/parameters/UpdateMask"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/User'
+              $ref: "#/components/schemas/User"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserCollectionItem'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/UserCollectionItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       deprecated: true
@@ -2419,21 +2422,21 @@ paths:
       description: |
         Delete a user with a specific username.
 
-        *New in version 2.2.0*
+        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
       x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_user
       tags: [User]
       responses:
-        '204':
+        "204":
           description: Success.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
 components:
   # Reusable schemas (data models)
@@ -2524,7 +2527,7 @@ components:
 
         *New in version 2.1.0*
       allOf:
-        - $ref: '#/components/schemas/UserCollectionItem'
+        - $ref: "#/components/schemas/UserCollectionItem"
         - type: object
           properties:
             password:
@@ -2543,8 +2546,8 @@ components:
             users:
               type: array
               items:
-                $ref: '#/components/schemas/UserCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/UserCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     ConnectionCollectionItem:
       description: >
@@ -2593,13 +2596,13 @@ components:
             connections:
               type: array
               items:
-                $ref: '#/components/schemas/ConnectionCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/ConnectionCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Connection:
       description: Full representation of the connection.
       allOf:
-        - $ref: '#/components/schemas/ConnectionCollectionItem'
+        - $ref: "#/components/schemas/ConnectionCollectionItem"
         - type: object
           properties:
             password:
@@ -2733,7 +2736,7 @@ components:
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
         schedule_interval:
-          $ref: '#/components/schemas/ScheduleInterval'
+          $ref: "#/components/schemas/ScheduleInterval"
         timetable_description:
           type: string
           readOnly: true
@@ -2747,7 +2750,7 @@ components:
           type: array
           nullable: true
           items:
-            $ref: '#/components/schemas/Tag'
+            $ref: "#/components/schemas/Tag"
           readOnly: true
         max_active_tasks:
           type: integer
@@ -2830,8 +2833,8 @@ components:
             dags:
               type: array
               items:
-                $ref: '#/components/schemas/DAG'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/DAG"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     DAGRun:
       type: object
@@ -2897,12 +2900,14 @@ components:
         data_interval_start:
           type: string
           format: date-time
-          readOnly: true
+          description: |
+            The beginning of the interval the DAG run covers.
           nullable: true
         data_interval_end:
           type: string
           format: date-time
-          readOnly: true
+          description: |
+            The end of the interval the DAG run covers.
           nullable: true
         last_scheduling_decision:
           type: string
@@ -2918,7 +2923,7 @@ components:
             - scheduled
             - dataset_triggered
         state:
-          $ref: '#/components/schemas/DagState'
+          $ref: "#/components/schemas/DagState"
         external_trigger:
           type: boolean
           readOnly: true
@@ -2964,8 +2969,8 @@ components:
             dag_runs:
               type: array
               items:
-                $ref: '#/components/schemas/DAGRun'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/DAGRun"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     DagWarning:
       type: object
@@ -2999,8 +3004,8 @@ components:
             import_errors:
               type: array
               items:
-                $ref: '#/components/schemas/DagWarning'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/DagWarning"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     SetDagRunNote:
       type: object
@@ -3066,8 +3071,8 @@ components:
             event_logs:
               type: array
               items:
-                $ref: '#/components/schemas/EventLog'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/EventLog"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     ImportError:
       type: object
@@ -3102,35 +3107,35 @@ components:
             import_errors:
               type: array
               items:
-                $ref: '#/components/schemas/ImportError'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/ImportError"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     HealthInfo:
       type: object
       description: Instance status information.
       properties:
         metadatabase:
-          $ref: '#/components/schemas/MetadatabaseStatus'
+          $ref: "#/components/schemas/MetadatabaseStatus"
         scheduler:
-          $ref: '#/components/schemas/SchedulerStatus'
+          $ref: "#/components/schemas/SchedulerStatus"
         triggerer:
-          $ref: '#/components/schemas/TriggererStatus'
+          $ref: "#/components/schemas/TriggererStatus"
         dag_processor:
-          $ref: '#/components/schemas/DagProcessorStatus'
+          $ref: "#/components/schemas/DagProcessorStatus"
 
     MetadatabaseStatus:
       type: object
       description: The status of the metadatabase.
       properties:
         status:
-          $ref: '#/components/schemas/HealthStatus'
+          $ref: "#/components/schemas/HealthStatus"
 
     SchedulerStatus:
       type: object
       description: The status and the latest scheduler heartbeat.
       properties:
         status:
-          $ref: '#/components/schemas/HealthStatus'
+          $ref: "#/components/schemas/HealthStatus"
         latest_scheduler_heartbeat:
           description: The time the scheduler last did a heartbeat.
           type: string
@@ -3146,7 +3151,7 @@ components:
         *New in version 2.6.2*
       properties:
         status:
-          $ref: '#/components/schemas/HealthStatus'
+          $ref: "#/components/schemas/HealthStatus"
         latest_triggerer_heartbeat:
           description: The time the triggerer last did a heartbeat.
           type: string
@@ -3162,7 +3167,7 @@ components:
         *New in version 2.6.3*
       properties:
         status:
-          $ref: '#/components/schemas/HealthStatus'
+          $ref: "#/components/schemas/HealthStatus"
         latest_dag_processor_heartbeat:
           description: The time the dag processor last did a heartbeat.
           type: string
@@ -3234,9 +3239,8 @@ components:
             pools:
               type: array
               items:
-                $ref: '#/components/schemas/Pool'
-        - $ref: '#/components/schemas/CollectionInfo'
-
+                $ref: "#/components/schemas/Pool"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Provider:
       description: |
@@ -3265,7 +3269,7 @@ components:
         providers:
           type: array
           items:
-            $ref: '#/components/schemas/Provider'
+            $ref: "#/components/schemas/Provider"
 
     SLAMiss:
       type: object
@@ -3374,7 +3378,7 @@ components:
           type: number
           nullable: true
         state:
-          $ref: '#/components/schemas/TaskState'
+          $ref: "#/components/schemas/TaskState"
         try_number:
           type: integer
         map_index:
@@ -3403,13 +3407,15 @@ components:
         queued_when:
           type: string
           nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
         pid:
           type: integer
           nullable: true
         executor_config:
           type: string
         sla_miss:
-          $ref: '#/components/schemas/SLAMiss'
+          $ref: "#/components/schemas/SLAMiss"
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3417,9 +3423,9 @@ components:
             *New in version 2.3.0*
           type: object
         trigger:
-          $ref: '#/components/schemas/Trigger'
+          $ref: "#/components/schemas/Trigger"
         triggerer_job:
-          $ref: '#/components/schemas/Job'
+          $ref: "#/components/schemas/Job"
         note:
           type: string
           description: |
@@ -3440,8 +3446,8 @@ components:
             task_instances:
               type: array
               items:
-                $ref: '#/components/schemas/TaskInstance'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/TaskInstance"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     TaskInstanceReference:
       type: object
@@ -3469,11 +3475,10 @@ components:
         task_instances:
           type: array
           items:
-            $ref: '#/components/schemas/TaskInstanceReference'
+            $ref: "#/components/schemas/TaskInstanceReference"
 
     VariableCollectionItem:
-      description:
-        XCom entry collection item.
+      description: XCom entry collection item.
 
         The value field are only available when retrieving a single object due to the sensitivity of this
         data.
@@ -3502,13 +3507,13 @@ components:
             variables:
               type: array
               items:
-                $ref: '#/components/schemas/VariableCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/VariableCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Variable:
       description: Full representation of Variable
       allOf:
-        - $ref: '#/components/schemas/VariableCollectionItem'
+        - $ref: "#/components/schemas/VariableCollectionItem"
         - type: object
           properties:
             value:
@@ -3549,13 +3554,13 @@ components:
             xcom_entries:
               type: array
               items:
-                $ref: '#/components/schemas/XComCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/XComCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     XCom:
       description: Full representations of XCom entry.
       allOf:
-        - $ref: '#/components/schemas/XComCollectionItem'
+        - $ref: "#/components/schemas/XComCollectionItem"
         - type: object
           properties:
             value:
@@ -3573,23 +3578,27 @@ components:
         For details see:
         [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
       allOf:
-        - $ref: '#/components/schemas/DAG'
+        - $ref: "#/components/schemas/DAG"
         - type: object
           properties:
             timezone:
-              $ref: '#/components/schemas/Timezone'
+              $ref: "#/components/schemas/Timezone"
+              nullable: true
             catchup:
               type: boolean
               readOnly: true
+              nullable: true
             orientation:
               type: string
               readOnly: true
+              nullable: true
             concurrency:
               type: number
               readOnly: true
+              nullable: true
             start_date:
               type: string
-              format: 'date-time'
+              format: "date-time"
               readOnly: true
               nullable: true
               description: |
@@ -3597,7 +3606,8 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              $ref: '#/components/schemas/TimeDelta'
+              $ref: "#/components/schemas/TimeDelta"
+              nullable: true
             doc_md:
               type: string
               readOnly: true
@@ -3605,6 +3615,7 @@ components:
             default_view:
               type: string
               readOnly: true
+              nullable: true
             params:
               type: object
               readOnly: true
@@ -3614,7 +3625,7 @@ components:
                 *New in version 2.0.1*
             end_date:
               type: string
-              format: 'date-time'
+              format: "date-time"
               readOnly: true
               nullable: true
               description: |
@@ -3660,7 +3671,7 @@ components:
       description: Additional links containing additional information about the task.
       properties:
         class_ref:
-          $ref: '#/components/schemas/ClassReference'
+          $ref: "#/components/schemas/ClassReference"
         name:
           type: string
           readOnly: true
@@ -3675,7 +3686,7 @@ components:
         extra_links:
           type: array
           items:
-            $ref: '#/components/schemas/ExtraLink'
+            $ref: "#/components/schemas/ExtraLink"
 
     Task:
       type: object
@@ -3684,7 +3695,7 @@ components:
         [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
       properties:
         class_ref:
-          $ref: '#/components/schemas/ClassReference'
+          $ref: "#/components/schemas/ClassReference"
         task_id:
           type: string
           readOnly: true
@@ -3693,15 +3704,15 @@ components:
           readOnly: true
         start_date:
           type: string
-          format: 'date-time'
+          format: "date-time"
           readOnly: true
         end_date:
           type: string
-          format: 'date-time'
+          format: "date-time"
           readOnly: true
           nullable: true
         trigger_rule:
-          $ref: '#/components/schemas/TriggerRule'
+          $ref: "#/components/schemas/TriggerRule"
         extra_links:
           type: array
           readOnly: true
@@ -3709,7 +3720,7 @@ components:
             type: object
             properties:
               class_ref:
-                $ref: '#/components/schemas/ClassReference'
+                $ref: "#/components/schemas/ClassReference"
         depends_on_past:
           type: boolean
           readOnly: true
@@ -3733,9 +3744,9 @@ components:
           type: number
           readOnly: true
         execution_timeout:
-          $ref: '#/components/schemas/TimeDelta'
+          $ref: "#/components/schemas/TimeDelta"
         retry_delay:
-          $ref: '#/components/schemas/TimeDelta'
+          $ref: "#/components/schemas/TimeDelta"
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -3743,18 +3754,18 @@ components:
           type: number
           readOnly: true
         weight_rule:
-          $ref: '#/components/schemas/WeightRule'
+          $ref: "#/components/schemas/WeightRule"
         ui_color:
-          $ref: '#/components/schemas/Color'
+          $ref: "#/components/schemas/Color"
         ui_fgcolor:
-          $ref: '#/components/schemas/Color'
+          $ref: "#/components/schemas/Color"
         template_fields:
           type: array
           readOnly: true
           items:
             type: string
         sub_dag:
-          $ref: '#/components/schemas/DAG'
+          $ref: "#/components/schemas/DAG"
         downstream_task_ids:
           type: array
           readOnly: true
@@ -3768,7 +3779,7 @@ components:
         tasks:
           type: array
           items:
-            $ref: '#/components/schemas/Task'
+            $ref: "#/components/schemas/Task"
 
     # Plugin
     PluginCollectionItem:
@@ -3861,8 +3872,8 @@ components:
             plugins:
               type: array
               items:
-                $ref: '#/components/schemas/PluginCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/PluginCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Role:
       description: |
@@ -3881,7 +3892,7 @@ components:
         actions:
           type: array
           items:
-            $ref: '#/components/schemas/ActionResource'
+            $ref: "#/components/schemas/ActionResource"
 
     RoleCollection:
       description: |
@@ -3895,8 +3906,8 @@ components:
             roles:
               type: array
               items:
-                $ref: '#/components/schemas/Role'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/Role"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Action:
       description: |
@@ -3922,8 +3933,8 @@ components:
             actions:
               type: array
               items:
-                $ref: '#/components/schemas/Action'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/Action"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     Resource:
       description: |
@@ -3946,11 +3957,11 @@ components:
       properties:
         action:
           type: object
-          $ref: '#/components/schemas/Action'
+          $ref: "#/components/schemas/Action"
           description: The permission action
         resource:
           type: object
-          $ref: '#/components/schemas/Resource'
+          $ref: "#/components/schemas/Resource"
           description: The permission resource
 
     Dataset:
@@ -3980,14 +3991,13 @@ components:
           description: The dataset update time
           nullable: false
         consuming_dags:
-            type: array
-            items:
-              $ref: '#/components/schemas/DagScheduleDatasetReference'
+          type: array
+          items:
+            $ref: "#/components/schemas/DagScheduleDatasetReference"
         producing_tasks:
-            type: array
-            items:
-              $ref: '#/components/schemas/TaskOutletDatasetReference'
-
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskOutletDatasetReference"
 
     TaskOutletDatasetReference:
       description: |
@@ -4045,8 +4055,8 @@ components:
             datasets:
               type: array
               items:
-                $ref: '#/components/schemas/Dataset'
-        - $ref: '#/components/schemas/CollectionInfo'
+                $ref: "#/components/schemas/Dataset"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     DatasetEvent:
       description: |
@@ -4083,9 +4093,9 @@ components:
           description: The task map index that updated the dataset.
           nullable: true
         created_dagruns:
-            type: array
-            items:
-              $ref: '#/components/schemas/BasicDAGRun'
+          type: array
+          items:
+            $ref: "#/components/schemas/BasicDAGRun"
         timestamp:
           type: string
           description: The dataset event creation time
@@ -4139,7 +4149,7 @@ components:
           readOnly: true
           nullable: true
         state:
-          $ref: '#/components/schemas/DagState'
+          $ref: "#/components/schemas/DagState"
 
     DatasetEventCollection:
       description: |
@@ -4153,9 +4163,8 @@ components:
             dataset_events:
               type: array
               items:
-                $ref: '#/components/schemas/DatasetEvent'
-        - $ref: '#/components/schemas/CollectionInfo'
-
+                $ref: "#/components/schemas/DatasetEvent"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     # Configuration
     ConfigOption:
@@ -4179,7 +4188,7 @@ components:
         options:
           type: array
           items:
-            $ref: '#/components/schemas/ConfigOption'
+            $ref: "#/components/schemas/ConfigOption"
 
     Config:
       type: object
@@ -4188,7 +4197,7 @@ components:
         sections:
           type: array
           items:
-            $ref: '#/components/schemas/ConfigSection'
+            $ref: "#/components/schemas/ConfigSection"
 
     VersionInfo:
       type: object
@@ -4267,7 +4276,7 @@ components:
 
         dag_run_id:
           type: string
-          description:  The DagRun ID for this task instance
+          description: The DagRun ID for this task instance
           nullable: true
 
         include_upstream:
@@ -4333,7 +4342,7 @@ components:
           type: boolean
 
         new_state:
-          $ref: '#/components/schemas/UpdateTaskState'
+          $ref: "#/components/schemas/UpdateTaskState"
 
     UpdateTaskInstance:
       type: object
@@ -4346,7 +4355,7 @@ components:
           default: true
 
         new_state:
-          $ref: '#/components/schemas/UpdateTaskState'
+          $ref: "#/components/schemas/UpdateTaskState"
 
     SetTaskInstanceNote:
       type: object
@@ -4382,8 +4391,7 @@ components:
           type: array
           items:
             type: string
-          description:
-            Return objects with specific DAG IDs.
+          description: Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -4391,8 +4399,7 @@ components:
           type: array
           items:
             type: string
-          description:
-            Return objects with specific states.
+          description: Return objects with specific states.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -4450,16 +4457,14 @@ components:
           type: array
           items:
             type: string
-          description:
-            Return objects with specific DAG IDs.
+          description: Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
         dag_run_ids:
           type: array
           items:
             type: string
-          description:
-            Return objects with specific DAG Run IDs.
+          description: Return objects with specific DAG Run IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -4468,8 +4473,7 @@ components:
           type: array
           items:
             type: string
-          description:
-            Return objects with specific task IDs.
+          description: Return objects with specific task IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -4531,21 +4535,18 @@ components:
         state:
           type: array
           items:
-            $ref: '#/components/schemas/TaskState'
-          description:
-            The value can be repeated to retrieve multiple matching values (OR condition).
+            $ref: "#/components/schemas/TaskState"
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
         pool:
           type: array
           items:
             type: string
-          description:
-            The value can be repeated to retrieve multiple matching values (OR condition).
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
         queue:
           type: array
           items:
             type: string
-          description:
-            The value can be repeated to retrieve multiple matching values (OR condition).
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
 
     # Common data type
     ScheduleInterval:
@@ -4555,9 +4556,9 @@ components:
       nullable: true
       readOnly: true
       anyOf:
-        - $ref: '#/components/schemas/TimeDelta'
-        - $ref: '#/components/schemas/RelativeDelta'
-        - $ref: '#/components/schemas/CronExpression'
+        - $ref: "#/components/schemas/TimeDelta"
+        - $ref: "#/components/schemas/RelativeDelta"
+        - $ref: "#/components/schemas/CronExpression"
       discriminator:
         propertyName: __type
 
@@ -4571,10 +4572,10 @@ components:
         - seconds
         - microseconds
       properties:
-        __type: {type: string}
-        days: {type: integer}
-        seconds: {type: integer}
-        microseconds: {type: integer}
+        __type: { type: string }
+        days: { type: integer }
+        seconds: { type: integer }
+        microseconds: { type: integer }
 
     RelativeDelta:
       description: Relative delta
@@ -4598,22 +4599,22 @@ components:
         - second
         - microsecond
       properties:
-        __type: {type: string}
-        years: {type: integer}
-        months: {type: integer}
-        days: {type: integer}
-        leapdays: {type: integer}
-        hours: {type: integer}
-        minutes: {type: integer}
-        seconds: {type: integer}
-        microseconds: {type: integer}
-        year: {type: integer}
-        month: {type: integer}
-        day: {type: integer}
-        hour: {type: integer}
-        minute: {type: integer}
-        second: {type: integer}
-        microsecond: {type: integer}
+        __type: { type: string }
+        years: { type: integer }
+        months: { type: integer }
+        days: { type: integer }
+        leapdays: { type: integer }
+        hours: { type: integer }
+        minutes: { type: integer }
+        seconds: { type: integer }
+        microseconds: { type: integer }
+        year: { type: integer }
+        month: { type: integer }
+        day: { type: integer }
+        hour: { type: integer }
+        minute: { type: integer }
+        second: { type: integer }
+        microsecond: { type: integer }
 
     CronExpression:
       description: Cron expression
@@ -4622,8 +4623,8 @@ components:
         - __type
         - value
       properties:
-        __type: {type: string}
-        value: {type: string}
+        __type: { type: string }
+        value: { type: string }
       nullable: true
 
     Timezone:
@@ -4726,7 +4727,6 @@ components:
         - deferred
         - removed
         - restarting
-
 
     UpdateTaskState:
       description: |
@@ -5085,8 +5085,7 @@ components:
         items:
           type: string
       required: false
-      description:
-        The value can be repeated to retrieve multiple matching values (OR condition).
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterPool:
       in: query
       name: pool
@@ -5095,8 +5094,7 @@ components:
         items:
           type: string
       required: false
-      description:
-        The value can be repeated to retrieve multiple matching values (OR condition).
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterQueue:
       in: query
       name: queue
@@ -5104,8 +5102,7 @@ components:
         type: array
         items:
           type: string
-      description:
-        The value can be repeated to retrieve multiple matching values (OR condition).
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
 
     FilterTags:
       in: query
@@ -5115,9 +5112,9 @@ components:
         items:
           type: string
       description: |
-          List of tags to filter results.
+        List of tags to filter results.
 
-          *New in version 2.2.0*
+        *New in version 2.2.0*
 
     FilterDatasetID:
       in: query
@@ -5273,67 +5270,77 @@ components:
       style: form
       explode: false
 
+    ReturnFields:
+      in: query
+      name: fields
+      schema:
+        type: array
+        items:
+          type: string
+      description: |
+        List of field for return.
+
   # Reusable request bodies
   requestBodies: {}
 
   # Reusable responses, such as 401 Unauthenticated or 400 Bad Request
   responses:
     # 400
-    'BadRequest':
+    "BadRequest":
       description: Client specified an invalid argument.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 401
-    'Unauthenticated':
+    "Unauthenticated":
       description: Request not authenticated due to missing, invalid, authentication info.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 403
-    'PermissionDenied':
+    "PermissionDenied":
       description: Client does not have sufficient permission.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 404
-    'NotFound':
+    "NotFound":
       description: A specified resource is not found.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 405
-    'MethodNotAllowed':
+    "MethodNotAllowed":
       description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 406
-    'NotAcceptable':
+    "NotAcceptable":
       description: A specified Accept header is not allowed.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 409
-    'AlreadyExists':
+    "AlreadyExists":
       description: An existing resource conflicts with the request.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     # 500
-    'Unknown':
+    "Unknown":
       description: Unknown server error.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
 
   # Reusable response headers
   headers: {}

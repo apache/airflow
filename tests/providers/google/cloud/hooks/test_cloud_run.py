@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from google.cloud.run_v2 import (
     CreateJobRequest,
+    DeleteJobRequest,
     GetJobRequest,
     Job,
     ListJobsRequest,
@@ -70,7 +71,7 @@ class TestCloudRunHook:
         region = "region1"
         project_id = "projectid"
         job = Job()
-        job.name = job.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        job.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
 
         update_request = UpdateJobRequest()
         update_request.job = job
@@ -246,6 +247,17 @@ class TestCloudRunHook:
 
         with pytest.raises(expected_exception=AirflowException):
             cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    def test_delete_job(self, mock_batch_service_client, cloud_run_hook):
+        job_name = "job1"
+        region = "region1"
+        project_id = "projectid"
+
+        delete_request = DeleteJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+
+        cloud_run_hook.delete_job(job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
 
     def _mock_pager(self, number_of_jobs):
         mock_pager = []

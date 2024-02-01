@@ -33,23 +33,26 @@ from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
+from deprecated import deprecated
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
-    RemovedInAirflow3Warning,
+    AirflowProviderDeprecationWarning,
 )
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
+    add_pod_suffix,
+    rand_str,
+)
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
     PodDefaults,
     PodGenerator as PodGeneratorDeprecated,
 )
-
-# replace it with airflow.utils.hashlib_wrapper.md5 when min airflow version for k8s provider is 2.6.0
-from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
+from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -151,9 +154,9 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
+    @deprecated(reason="This function is deprecated.", category=AirflowProviderDeprecationWarning)
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
-        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
@@ -164,12 +167,15 @@ class PodGenerator:
         return result
 
     @staticmethod
-    def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Add sidecar."""
-        warnings.warn(
+    @deprecated(
+        reason=(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
-        )
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
+        """Add sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -205,7 +211,8 @@ class PodGenerator:
                 "Using a dictionary for the executor_config is deprecated and will soon be removed."
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
                 " instead. ",
-                category=RemovedInAirflow3Warning,
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:
@@ -382,11 +389,14 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
-        if len(pod_id) > 253:
+        if len(pod_id) > POD_NAME_MAX_LENGTH:
             warnings.warn(
-                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+                f"pod_id supplied is longer than {POD_NAME_MAX_LENGTH} characters; "
+                f"truncating and adding unique suffix.",
+                UserWarning,
+                stacklevel=2,
             )
-            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
+            pod_id = add_pod_suffix(pod_name=pod_id, max_len=POD_NAME_MAX_LENGTH)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -434,8 +444,8 @@ class PodGenerator:
         )
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
+        pod_list = [base_worker_pod, dynamic_pod, pod_override_object]
 
         try:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)
@@ -562,6 +572,10 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
+    @deprecated(
+        reason="This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def make_unique_pod_id(pod_id: str) -> str | None:
         r"""
         Generate a unique Pod name.
@@ -581,7 +595,8 @@ class PodGenerator:
         """
         warnings.warn(
             "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
-            RemovedInAirflow3Warning,
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
 
         if not pod_id:

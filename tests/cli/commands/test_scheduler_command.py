@@ -141,6 +141,22 @@ class TestSchedulerCommand:
         with pytest.raises(AssertionError):
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
+    @mock.patch("airflow.utils.scheduler_health.HTTPServer")
+    def test_scheduler_health_host(
+        self,
+        http_server_mock,
+    ):
+        health_check_host = "192.168.0.0"
+        health_check_port = 1111
+        with conf_vars(
+            {
+                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST"): health_check_host,
+                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(health_check_port),
+            }
+        ):
+            serve_health_check()
+        assert http_server_mock.call_args.args[0] == (health_check_host, health_check_port)
+
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @mock.patch("airflow.cli.commands.scheduler_command.run_job", side_effect=Exception("run_job failed"))
@@ -153,7 +169,8 @@ class TestSchedulerCommand:
         mock_scheduler_job,
     ):
         args = self.parser.parse_args(["scheduler"])
-        scheduler_command.scheduler(args)
+        with pytest.raises(Exception, match="run_job failed"):
+            scheduler_command.scheduler(args)
 
         # Make sure that run_job is called, that the exception has been logged, and that the serve_logs
         # sub-process has been terminated

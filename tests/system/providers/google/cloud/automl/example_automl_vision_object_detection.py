@@ -22,48 +22,48 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import cast
+
+from google.cloud.aiplatform import schema
+from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.operators.automl import (
-    AutoMLCreateDatasetOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
-    AutoMLDeployModelOperator,
-    AutoMLImportDataOperator,
-    AutoMLTrainModelOperator,
-)
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLImageTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+    ImportDataOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_automl_vision_obj_detect"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-GCP_AUTOML_LOCATION = "us-central1"
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+REGION = "us-central1"
+IMAGE_DISPLAY_NAME = f"automl-vision-detect-{ENV_ID}"
+MODEL_DISPLAY_NAME = f"automl-vision-detect-model-{ENV_ID}"
+
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+IMAGE_GCS_BUCKET_NAME = f"bucket_image_detect_{ENV_ID}".replace("_", "-")
 
-MODEL_NAME = "vision_detect_test_model"
-MODEL = {
-    "display_name": MODEL_NAME,
-    "image_object_detection_model_metadata": {},
+IMAGE_DATASET = {
+    "display_name": f"image-detect-dataset-{ENV_ID}",
+    "metadata_schema_uri": schema.dataset.metadata.image,
+    "metadata": Value(string_value="image-dataset"),
 }
-
-DATASET_NAME = f"ds_vision_detect_{ENV_ID}".replace("-", "_")
-DATASET = {
-    "display_name": DATASET_NAME,
-    "image_object_detection_dataset_metadata": {},
-}
-
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/object_detection.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
-extract_object_id = CloudAutoMLHook.extract_object_id
+IMAGE_DATA_CONFIG = [
+    {
+        "import_schema_uri": schema.dataset.ioformat.image.bounding_box,
+        "gcs_source": {"uris": [f"gs://{IMAGE_GCS_BUCKET_NAME}/automl/object_detection.csv"]},
+    },
+]
 
 
 # Example DAG for AutoML Vision Object Detection
@@ -72,81 +72,94 @@ with DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    user_defined_macros={"extract_object_id": extract_object_id},
-    tags=["example", "automl", "object-detection"],
+    tags=["example", "automl", "vision", "object-detection"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        bucket_name=IMAGE_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
-        location=GCP_AUTOML_LOCATION,
+        location=REGION,
     )
 
     move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_data_to_bucket",
+        task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
         source_object="automl/datasets/vision",
-        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_bucket=IMAGE_GCS_BUCKET_NAME,
         destination_object="automl",
         recursive=True,
     )
 
-    create_dataset = AutoMLCreateDatasetOperator(
-        task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
+    create_image_dataset = CreateDatasetOperator(
+        task_id="image_dataset",
+        dataset=IMAGE_DATASET,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    image_dataset_id = create_image_dataset.output["dataset_id"]
+
+    import_image_dataset = ImportDataOperator(
+        task_id="import_image_data",
+        dataset_id=image_dataset_id,
+        region=REGION,
+        project_id=PROJECT_ID,
+        import_configs=IMAGE_DATA_CONFIG,
     )
 
-    dataset_id = cast(str, XComArg(create_dataset, key="dataset_id"))
-    MODEL["dataset_id"] = dataset_id
+    # [START howto_cloud_create_image_object_detection_training_job_operator]
+    create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
+        task_id="auto_ml_image_task",
+        display_name=IMAGE_DISPLAY_NAME,
+        dataset_id=image_dataset_id,
+        prediction_type="object_detection",
+        multi_label=False,
+        model_type="CLOUD",
+        training_fraction_split=0.6,
+        validation_fraction_split=0.2,
+        test_fraction_split=0.2,
+        budget_milli_node_hours=20000,
+        model_display_name=MODEL_DISPLAY_NAME,
+        disable_early_stopping=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END howto_cloud_create_image_object_detection_training_job_operator]
 
-    import_dataset = AutoMLImportDataOperator(
-        task_id="import_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        input_config=IMPORT_INPUT_CONFIG,
+    delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_auto_ml_training_job",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_image_task', "
+        "key='training_id') }}",
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    MODEL["dataset_id"] = dataset_id
-
-    create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
-    model_id = cast(str, XComArg(create_model, key="model_id"))
-
-    deploy_model = AutoMLDeployModelOperator(
-        task_id="deploy_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-
-    delete_model = AutoMLDeleteModelOperator(
-        task_id="delete_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-
-    delete_dataset = AutoMLDeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+    delete_image_dataset = DeleteDatasetOperator(
+        task_id="delete_image_dataset",
+        dataset_id=image_dataset_id,
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        bucket_name=IMAGE_GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
         # TEST SETUP
-        [create_bucket >> move_dataset_file, create_dataset]
+        [
+            create_bucket >> move_dataset_file,
+            create_image_dataset,
+        ]
+        >> import_image_dataset
         # TEST BODY
-        >> import_dataset
-        >> create_model
-        >> deploy_model
+        >> create_auto_ml_image_training_job
         # TEST TEARDOWN
-        >> delete_model
-        >> delete_dataset
+        >> delete_auto_ml_image_training_job
+        >> delete_image_dataset
         >> delete_bucket
     )
 

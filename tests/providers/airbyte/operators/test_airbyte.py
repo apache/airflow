@@ -37,7 +37,7 @@ class TestAirbyteTriggerSyncOp:
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
     def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
         mock_submit_sync_connection.return_value = mock.Mock(
-            **{"json.return_value": {"job": {"id": self.job_id}}}
+            **{"json.return_value": {"job": {"id": self.job_id, "status": "running"}}}
         )
 
         op = AirbyteTriggerSyncOperator(

@@ -131,9 +131,19 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        update_perms=conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ),
+        auth_rate_limited=conf.getboolean(
+            "fab",
+            "AUTH_RATE_LIMITED",
+            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        ),
+        auth_rate_limit=conf.get(
+            "fab",
+            "AUTH_RATE_LIMIT",
+            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        ),
     ):
         """
         App-builder constructor.
@@ -214,7 +224,7 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(app, self)
+        auth_manager = init_auth_manager(self)
         self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()
@@ -411,32 +421,27 @@ class AirflowAppBuilder:
             # or not instantiated
             appbuilder.add_view(MyModelView, "My View")
             # Register a view, a submenu "Other View" from "Other" with a phone icon.
-            appbuilder.add_view(
-                MyOtherModelView,
-                "Other View",
-                icon='fa-phone',
-                category="Others"
-            )
+            appbuilder.add_view(MyOtherModelView, "Other View", icon="fa-phone", category="Others")
             # Register a view, with category icon and translation.
             appbuilder.add_view(
                 YetOtherModelView,
                 "Other View",
-                icon='fa-phone',
-                label=_('Other View'),
+                icon="fa-phone",
+                label=_("Other View"),
                 category="Others",
-                category_icon='fa-envelop',
-                category_label=_('Other View')
+                category_icon="fa-envelop",
+                category_label=_("Other View"),
             )
             # Register a view whose menu item will be conditionally displayed
             appbuilder.add_view(
                 YourFeatureView,
                 "Your Feature",
-                icon='fa-feature',
-                label=_('Your Feature'),
+                icon="fa-feature",
+                label=_("Your Feature"),
                 menu_cond=lambda: is_feature_enabled("your-feature"),
             )
             # Add a link
-            appbuilder.add_link("google", href="www.google.com", icon = "fa-google-plus")
+            appbuilder.add_link("google", href="www.google.com", icon="fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
         log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)
@@ -566,6 +571,8 @@ class AirflowAppBuilder:
             This deletes any permission that is no longer part of any registered
             view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
@@ -657,7 +664,17 @@ def init_appbuilder(app: Flask) -> AirflowAppBuilder:
         app=app,
         session=settings.Session,
         base_template="airflow/main.html",
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        update_perms=conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ),
+        auth_rate_limited=conf.getboolean(
+            "fab",
+            "AUTH_RATE_LIMITED",
+            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        ),
+        auth_rate_limit=conf.get(
+            "fab",
+            "AUTH_RATE_LIMIT",
+            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        ),
     )

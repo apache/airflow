@@ -151,6 +151,7 @@ extensions = [
     "sphinx_airflow_theme",
     "redirects",
     "substitution_extensions",
+    "sphinx_design",
 ]
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
@@ -184,6 +185,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         [
             "extra_provider_files_with_substitutions",
             "autoapi.extension",
+            "providers_extensions",
         ]
     )
 else:
@@ -195,6 +197,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # "_api/airflow/operators/index.rst",
+        # "_api/airflow/sensors/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
@@ -248,6 +252,7 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",
@@ -316,6 +321,9 @@ if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
     html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []
+
+html_static_path.append("sphinx_design/static/")  # Style overrides for the sphinx-design extension.
+
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
@@ -342,6 +350,8 @@ if PACKAGE_NAME.startswith("apache-airflow-providers"):
 if PACKAGE_NAME == "docker-stack":
     # Substitute in links
     manual_substitutions_in_generated_html = ["build.html"]
+
+html_css_files = ["custom.css"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -812,6 +822,25 @@ if PACKAGE_NAME == "apache-airflow":
     redoc = [
         {
             "name": "Airflow REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+elif PACKAGE_NAME == "apache-airflow-providers-fab":
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            "name": "Fab provider REST API",
             "page": "stable-rest-api-ref",
             "spec": OPENAPI_FILE,
             "opts": {
