@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 import re
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
@@ -78,6 +78,14 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CreateBatchPredictionJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
@@ -214,14 +222,6 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self._labels = labels
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `CreateBatchPredictionJobOperator`",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         if not self._project_id:
             raise AirflowException("Google Cloud project id is required.")
         if not self._job_id:
@@ -296,6 +296,13 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         return finished_prediction_job["predictionOutput"]
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. Consider using operators for specific operations: "
+        "MLEngineCreateModelOperator, MLEngineGetModelOperator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineManageModelOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
@@ -345,14 +352,6 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        warnings.warn(
-            "This operator is deprecated. Consider using operators for specific operations: "
-            "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         self._project_id = project_id
         self._model = model
         self._operation = operation
@@ -372,6 +371,14 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use appropriate VertexAI operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
     """
     Creates a new model.
@@ -422,14 +429,6 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use appropriate VertexAI operator.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
@@ -448,6 +447,14 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `GetModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineGetModelOperator(GoogleCloudBaseOperator):
     """
     Gets a particular model.
@@ -498,14 +505,6 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `GetModelOperator`",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
@@ -523,6 +522,14 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `DeleteModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Deletes a model.
@@ -579,14 +586,6 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `DeleteModelOperator`",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
@@ -606,6 +605,14 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. Consider using operators for specific operations: "
+        "MLEngineCreateVersion, MLEngineSetDefaultVersion, "
+        "MLEngineListVersions, MLEngineDeleteVersion."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
@@ -688,13 +695,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. Consider using operators for specific operations: "
-            "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def execute(self, context: Context):
         if "name" not in self._version:
             self._version["name"] = self._version_name
@@ -724,6 +724,14 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use parent_model parameter for VertexAI operators instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     """
     Creates a new version in the model.
@@ -779,14 +787,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use parent_model parameter for VertexAI operators instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def _validate_inputs(self):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
@@ -815,6 +815,14 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `SetDefaultVersionOnModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
     """
     Sets a version in the model.
@@ -872,14 +880,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `SetDefaultVersionOnModelOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def _validate_inputs(self):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
@@ -908,6 +908,14 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `ListModelVersionsOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     """
     Lists all available versions of the model.
@@ -961,14 +969,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `ListModelVersionsOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def _validate_inputs(self):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
@@ -994,6 +994,14 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `DeleteModelVersionOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
     """
     Deletes the version from the model.
@@ -1051,14 +1059,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `DeleteModelVersionOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def _validate_inputs(self):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
@@ -1086,6 +1086,14 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CreateCustomPythonPackageTrainingJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     """
     Operator for launching a MLEngine training job.
@@ -1219,14 +1227,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         self._impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.cancel_on_kill = cancel_on_kill
-
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `CreateCustomPythonPackageTrainingJobOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
 
         custom = self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM"
         custom_image = (
@@ -1428,6 +1428,14 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
             self.log.info("Skipping to cancel job: %s:%s.%s", self._project_id, self.job_id)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CancelCustomTrainingJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
     """
     Operator for cleaning up failed MLEngine training job.
@@ -1473,14 +1481,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
-
-        warnings.warn(
-            "This operator is deprecated. All the functionality of legacy "
-            "MLEngine and new features are available on the Vertex AI platform. "
-            "Please use `CancelCustomTrainingJobOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
 
         if not self._project_id:
             raise AirflowException("Google Cloud project id is required.")

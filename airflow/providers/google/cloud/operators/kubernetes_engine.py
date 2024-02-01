@@ -22,6 +22,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 
@@ -510,13 +511,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @staticmethod
+    @deprecated(
+        reason="Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_gke_config_file():
-        warnings.warn(
-            "The `get_gke_config_file` method is deprecated, "
-            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        pass
 
     @cached_property
     def cluster_hook(self) -> GKEHook:

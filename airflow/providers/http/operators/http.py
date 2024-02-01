@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import base64
 import pickle
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from deprecated import deprecated
 from requests import Response
 
 from airflow.configuration import conf
@@ -291,6 +291,13 @@ class HttpOperator(BaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "Class `SimpleHttpOperator` is deprecated and "
+        "will be removed in a future release. Please use `HttpOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SimpleHttpOperator(HttpOperator):
     """
     Calls an endpoint on an HTTP system to execute an action.
@@ -345,10 +352,4 @@ class SimpleHttpOperator(HttpOperator):
     """
 
     def __init__(self, **kwargs: Any):
-        warnings.warn(
-            "Class `SimpleHttpOperator` is deprecated and "
-            "will be removed in a future release. Please use `HttpOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)

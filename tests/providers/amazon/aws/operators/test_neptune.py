@@ -21,7 +21,7 @@ from typing import Generator
 from unittest import mock
 
 import pytest
-from moto import mock_neptune
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 from airflow.providers.amazon.aws.operators.neptune import (
@@ -36,7 +36,7 @@ EXPECTED_RESPONSE = {"db_cluster_id": CLUSTER_ID}
 
 @pytest.fixture
 def hook() -> Generator[NeptuneHook, None, None]:
-    with mock_neptune():
+    with mock_aws():
         yield NeptuneHook(aws_conn_id="aws_default")
 
 

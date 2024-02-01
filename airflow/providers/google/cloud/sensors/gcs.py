@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import os
 import textwrap
-import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from deprecated import deprecated
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
@@ -142,6 +142,13 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         return event["message"]
 
 
+@deprecated(
+    reason=(
+        "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
+        "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
     Checks for the existence of a file in Google Cloud Storage.
@@ -165,12 +172,6 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
-            "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, **kwargs)
 
 

@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import boto3
 import pytest
-from moto import mock_cloudformation
+from moto import mock_aws
 
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
@@ -37,7 +37,7 @@ def mocked_hook_client():
 
 
 class TestCloudFormationCreateStackSensor:
-    @mock_cloudformation
+    @mock_aws
     def setup_method(self, method):
         self.client = boto3.client("cloudformation", region_name="us-east-1")
 
@@ -65,7 +65,7 @@ class TestCloudFormationCreateStackSensor:
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
 
-    @mock_cloudformation
+    @mock_aws
     def test_poke(self):
         self.client.create_stack(StackName="foobar", TemplateBody='{"Resources": {}}')
         op = CloudFormationCreateStackSensor(task_id="task", stack_name="foobar")
@@ -91,7 +91,7 @@ class TestCloudFormationCreateStackSensor:
 
 
 class TestCloudFormationDeleteStackSensor:
-    @mock_cloudformation
+    @mock_aws
     def setup_method(self, method):
         self.client = boto3.client("cloudformation", region_name="us-east-1")
 
@@ -119,7 +119,7 @@ class TestCloudFormationDeleteStackSensor:
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
 
-    @mock_cloudformation
+    @mock_aws
     def test_poke(self):
         stack_name = "foobar"
         self.client.create_stack(StackName=stack_name, TemplateBody='{"Resources": {}}')
@@ -145,7 +145,7 @@ class TestCloudFormationDeleteStackSensor:
         with pytest.raises(expected_exception, match="Stack foo in bad state: bar"):
             op.poke({})
 
-    @mock_cloudformation
+    @mock_aws
     def test_poke_stack_does_not_exist(self):
         op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
         assert op.poke({})

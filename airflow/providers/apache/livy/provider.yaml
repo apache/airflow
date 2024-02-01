@@ -50,7 +50,7 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - apache-airflow-providers-http
-  - aiohttp
+  - aiohttp>=3.9.2
   - asgiref
 
 integrations:
