@@ -256,7 +256,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
 
 if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
     # Handle collection of the test by non-db case
-    Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+    Variable = mock.MagicMock()  # type: ignore[misc]  # noqa: F811
 else:
     initial_db_init()
 
