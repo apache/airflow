@@ -72,7 +72,7 @@ def context():
     """
     Creates an empty context.
     """
-    context = {"data_interval_end": datetime.utcnow()}
+    context = {"data_interval_end": datetime.now(tz=timezone.utc)}
     yield context
 
 
