@@ -78,7 +78,7 @@ with DAG(
 
     # [START howto_sensor_sftp_async]
     sftp_sensor_with_async = SFTPSensor(
-        task_id="sftp_operator", path=FULL_FILE_PATH, poke_interval=10, deferrable=True
+        task_id="sftp_operator_async", path=FULL_FILE_PATH, poke_interval=10, deferrable=True
     )
     # [END howto_sensor_sftp_async]
 
