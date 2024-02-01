@@ -93,3 +93,8 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.sftp.decorators.sensors.sftp.sftp_sensor_task
     name: sftp_sensor
+
+triggers:
+  - integration-name: SSH File Transfer Protocol (SFTP)
+    python-modules:
+      - airflow.providers.sftp.triggers.sftp
