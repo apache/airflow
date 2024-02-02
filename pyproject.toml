@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.8",
+    "trove-classifiers==2024.1.31",
 ]
 build-backend = "hatchling.build"
 
