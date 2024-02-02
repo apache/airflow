@@ -128,8 +128,7 @@ class SFTPSensor(BaseSensorOperator):
     def execute(self, context: Context) -> Any:
         # Unlike other async sensors, we do not follow the pattern of calling the synchronous self.poke()
         # method before deferring here. This is due to the current limitations we have in the synchronous
-        # SFTPHook methods. The limitations are discovered while being worked upon the ticket
-        # https://github.com/astronomer/astronomer-providers/issues/1021. They are as follows:
+        # SFTPHook methods. They are as follows:
         #
         # For file_pattern sensing, the hook implements list_directory() method which returns a list of
         # filenames only without the attributes like modified time which is required for the file_pattern
