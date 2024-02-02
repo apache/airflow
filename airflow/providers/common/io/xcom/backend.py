@@ -26,7 +26,7 @@ import fsspec.utils
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
-from airflow.utils.json import XComDecoder, XComEncoder
+from airflow.utils.json import XComDecoder
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -106,7 +106,7 @@ class XComObjectStoreBackend(BaseXCom):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> bytes | str:
-        s_val = json.dumps(value, cls=XComEncoder).encode("utf-8")
+        s_val = BaseXCom.serialize_value(value)
         path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         compression = conf.get(SECTION, "xcom_objectstore_compression", fallback=None)
 
