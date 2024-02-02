@@ -34,7 +34,6 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
@@ -53,8 +52,24 @@ def _run_command_with_daemon_option(*args, **kwargs):
         )
 
 
+def _providers_configuration_loaded(func):
+    def wrapper(*args, **kwargs):
+        try:
+            from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+            providers_configuration_loaded(func)(*args, **kwargs)
+        except ImportError:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
+            )
+
+    return wrapper
+
+
 @cli_utils.action_cli
-@providers_configuration_loaded
+@_providers_configuration_loaded
 def flower(args):
     """Start Flower, Celery monitoring tool."""
     # This needs to be imported locally to not trigger Providers Manager initialization
@@ -97,7 +112,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 
 @after_setup_logger.connect()
-@providers_configuration_loaded
+@_providers_configuration_loaded
 def logger_setup_handler(logger, **kwargs):
     """
     Reconfigure the logger.
@@ -127,7 +142,7 @@ def logger_setup_handler(logger, **kwargs):
 
 
 @cli_utils.action_cli
-@providers_configuration_loaded
+@_providers_configuration_loaded
 def worker(args):
     """Start Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
@@ -224,7 +239,7 @@ def worker(args):
 
 
 @cli_utils.action_cli
-@providers_configuration_loaded
+@_providers_configuration_loaded
 def stop_worker(args):
     """Send SIGTERM to Celery worker."""
     # Read PID from file
