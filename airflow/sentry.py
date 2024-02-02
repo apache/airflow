@@ -122,7 +122,8 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
         def add_tagging(self, task_instance):
             """Add tagging for a task_instance."""
             dag_run = task_instance.dag_run
-            task = task_instance.task
+            # See TaskInstance definition, the "task" attribute may not be set
+            task = getattr(task_instance, "task")
 
             with sentry_sdk.configure_scope() as scope:
                 for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
@@ -131,7 +132,8 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 for tag_name in self.SCOPE_DAG_RUN_TAGS:
                     attribute = getattr(dag_run, tag_name)
                     scope.set_tag(tag_name, attribute)
-                scope.set_tag("operator", task.__class__.__name__)
+                if task is not None:
+                    scope.set_tag("operator", task.__class__.__name__)
 
         @provide_session
         def add_breadcrumbs(
