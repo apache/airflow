@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pendulum
@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
+from airflow.utils import timezone
 
 TEST_BUCKET = "TEST_BUCKET"
 
@@ -72,7 +73,7 @@ def context():
     """
     Creates an empty context.
     """
-    context = {"data_interval_end": datetime.now(tz=timezone.utc)}
+    context = {"data_interval_end": timezone.utcnow()}
     yield context
 
 
