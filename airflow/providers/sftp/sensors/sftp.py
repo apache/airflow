@@ -137,7 +137,7 @@ class SFTPSensor(BaseSensorOperator):
         # attributes for each of the files in the directory.This limitation is resolved here by instead
         # calling the read_directory() method which returns a list of files along with their attributes
         # in a single call. We can add back the call to self.poke() before deferring once the above
-        # limitations are resolved in the
+        # limitations are resolved in the sync sensor.
         if self.deferrable:
             self.defer(
                 timeout=timedelta(seconds=self.timeout),
