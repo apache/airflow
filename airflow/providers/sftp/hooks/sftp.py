@@ -549,18 +549,6 @@ class SFTPHookAsync(BaseHook):
         matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
         return matched_files
 
-    async def get_files_by_pattern(self, path: str = "", fnmatch_pattern: str = "") -> list[str]:
-        """
-        Returns the name of a file matching the file pattern at the provided path.
-
-        If one exists Otherwise, raises an AirflowException to be handled upstream for deferring.
-        """
-        files_list = await self.list_directory(path)
-        if files_list is None:
-            raise AirflowException(f"No files at path {path} found...")
-        matched_files = [file for file in files_list if fnmatch(file, fnmatch_pattern)]
-        return matched_files
-
     async def get_mod_time(self, path: str) -> str:
         """
         Makes SFTP async connection.

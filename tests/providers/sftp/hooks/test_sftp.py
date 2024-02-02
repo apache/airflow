@@ -762,30 +762,6 @@ class TestSFTPHookAsync:
 
     @pytest.mark.asyncio
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
-    async def test_get_file_by_pattern_with_no_match(self, mock_hook_get_conn):
-        """
-        Assert that AirflowException is raised when no files match file pattern on SFTP server
-        """
-        mock_hook_get_conn.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
-        file = await hook.get_files_by_pattern(path="/path/exists/", fnmatch_pattern="file_does_not_exist")
-
-        assert file == []
-
-    @pytest.mark.asyncio
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
-    async def test_get_file_by_pattern_path_not_exists(self, mock_hook_get_conn):
-        """
-        Assert that AirflowException is raised when no files match file pattern on SFTP server
-        """
-        mock_hook_get_conn.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
-        file = await hook.get_files_by_pattern(path="/path/exists/", fnmatch_pattern="file_does_not_exist")
-
-        assert file == []
-
-    @pytest.mark.asyncio
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     async def test_get_mod_time(self, mock_hook_get_conn):
         """
         Assert that file attribute and return the modified time of the file
