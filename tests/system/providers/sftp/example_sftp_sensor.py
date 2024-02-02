@@ -76,11 +76,11 @@ with DAG(
     sftp_with_operator = SFTPSensor(task_id="sftp_operator", path=FULL_FILE_PATH, poke_interval=10)
     # [END howto_operator_sftp_sensor]
 
-    # [START howto_sensor_sftp_async]
+    # [START howto_sensor_sftp_deferrable]
     sftp_sensor_with_async = SFTPSensor(
         task_id="sftp_operator_async", path=FULL_FILE_PATH, poke_interval=10, deferrable=True
     )
-    # [END howto_sensor_sftp_async]
+    # [END howto_sensor_sftp_deferrable]
 
     remove_file_task_start >> sleep_task >> create_decoy_file_task
     (

@@ -50,5 +50,5 @@ Checks for the existence of a file on an SFTP server in the deferrable mode:
 .. exampleinclude:: /../../tests/system/providers/sftp/example_sftp_sensor.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_sensor_sftp_async]
-    :end-before: [END howto_sensor_sftp_async]
+    :start-after: [START howto_sensor_sftp_deferrable]
+    :end-before: [END howto_sensor_sftp_deferrable]
