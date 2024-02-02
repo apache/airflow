@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, Any, Collection
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
@@ -35,7 +35,7 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    run_ordering = ("execution_date",)
+    run_ordering: Sequence[str] = ("execution_date",)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
