@@ -20,7 +20,6 @@ from airflow.ti_deps.dependencies_states import (
     BACKFILL_QUEUEABLE_STATES,
     QUEUEABLE_STATES,
     RUNNABLE_STATES,
-    SCHEDULEABLE_STATES,
 )
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
