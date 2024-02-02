@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-01T14:03:23.131571
+# This constraints file was automatically generated on 2024-02-02T07:50:21.380214
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -55,7 +55,7 @@ blinker==1.7.0
 boto3==1.33.13
 botocore==1.33.13
 cachelib==0.9.0
-certifi==2023.11.17
+certifi==2024.2.2
 cffi==1.16.0
 cgroupspy==0.2.2
 charset-normalizer==3.3.2
@@ -85,7 +85,7 @@ google-re2==1.1
 googleapis-common-protos==1.62.0
 graphviz==0.20.1
 greenlet==3.0.3
-grpcio==1.60.0
+grpcio==1.60.1
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -114,7 +114,7 @@ marshmallow-sqlalchemy==0.26.1
 marshmallow==3.20.2
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
-multidict==6.0.4
+multidict==6.0.5
 numpy==1.26.3
 opentelemetry-api==1.22.0
 opentelemetry-exporter-otlp-proto-common==1.22.0
@@ -151,7 +151,7 @@ python-ldap==3.4.4
 python-nvd3==0.15.0
 python-slugify==8.0.3
 python3-saml==1.16.0
-pytz==2023.4
+pytz==2024.1
 referencing==0.33.0
 requests-kerberos==0.14.0
 requests==2.31.0
