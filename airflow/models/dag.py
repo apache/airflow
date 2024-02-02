@@ -600,12 +600,14 @@ class DAG(LoggingMixin):
         elif schedule is not NOTSET:
             schedule_interval = schedule
 
-        if self.dataset_triggers:
+        if isinstance(schedule, DatasetOrTimeSchedule):
+            self.timetable = schedule
+            self.dataset_triggers = self.timetable.datasets
+            self.schedule_interval = self.timetable.summary
+        elif self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
-            if isinstance(timetable, DatasetOrTimeSchedule):
-                self.dataset_triggers = timetable.datasets
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
