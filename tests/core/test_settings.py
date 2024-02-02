@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import tempfile
 from unittest import mock
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -216,11 +217,20 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
-def test_sqlite_relative_path():
+@pytest.mark.parametrize(
+    ["value", "expectation"],
+    [
+        (
+            "sqlite:///./relative_path.db",
+            pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
+        ),
+        # Should not raise an exception
+        ("sqlite://", contextlib.nullcontext()),
+    ],
+)
+def test_sqlite_relative_path(monkeypatch, value, expectation):
     from airflow import settings
 
-    with patch("airflow.settings.conf.get") as conf_get_mock:
-        conf_get_mock.return_value = "sqlite:///./relative_path.db"
-        with pytest.raises(AirflowConfigException) as exc:
-            settings.configure_vars()
-        assert "Cannot use relative path:" in str(exc.value)
+    monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", value)
+    with expectation:
+        settings.configure_orm()
