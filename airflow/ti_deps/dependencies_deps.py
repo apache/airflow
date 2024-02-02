@@ -33,14 +33,6 @@ from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 
-# Context to get the dependencies that need to be met in order for a task instance to be
-# set to 'scheduled' state.
-SCHEDULED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(SCHEDULEABLE_STATES),
-    TaskNotRunningDep(),
-}
-
 # Dependencies that if met, task instance should be re-queued.
 REQUEUEABLE_DEPS = {
     DagTISlotsAvailableDep(),
