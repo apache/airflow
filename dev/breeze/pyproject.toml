@@ -60,7 +60,7 @@ dependencies = [
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    "pytest>=7.4.4",
+    "pytest>=8.0.0",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
     "rich-click>=1.7.1",
@@ -81,7 +81,7 @@ line-length = 110
 target-version = ['py37', 'py38', 'py39', 'py310']
 
 [tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+addopts = "-rasl --verbosity=2 -p no:flaky -p no:legacypath"
 norecursedirs = [
     ".eggs",
 ]

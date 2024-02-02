@@ -339,7 +339,7 @@ devel-tests = [
     "pytest-rerunfailures>=13.0",
     "pytest-timeouts>=1.2.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=7.4.4",
+    "pytest>=8.0.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
 ]
@@ -1298,9 +1298,8 @@ docstring-code-format = true
 
 [tool.pytest.ini_options]
 # * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
-# * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
 # * And we focus on use native pytest capabilities rather than adopt another frameworks.
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
+addopts = "-rasl --verbosity=2 -p no:flaky --asyncio-mode=strict"
 norecursedirs = [
     ".eggs",
     "airflow",
