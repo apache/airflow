@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from configparser import DuplicateSectionError
 from typing import TYPE_CHECKING
 
 import pytest
@@ -88,6 +89,10 @@ class TestXcomObjectStoreBackend:
     path = "file:/tmp/xcom"
 
     def setup_method(self):
+        try:
+            conf.add_section("common.io")
+        except DuplicateSectionError:
+            pass
         conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
         conf.set("common.io", "xcom_objectstore_path", self.path)
         conf.set("common.io", "xcom_objectstore_threshold", "50")
