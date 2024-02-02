@@ -23,7 +23,9 @@ echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
-pytest "${@}"
+python_script_path="$( dirname "${BASH_SOURCE[0]}" )/run_ci_tests.py"
+python "${python_script_path}" "${@}"
+
 RES=$?
 
 if [[ ${RES} == "139" ]]; then

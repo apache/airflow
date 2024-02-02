@@ -41,7 +41,7 @@ def test_pr_info():
         assert wi.pr_number == 26004
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_push_info():
@@ -55,7 +55,7 @@ def test_push_info():
         assert wi.pr_number is None
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
         assert wi.is_canary_run() == "true"
-        assert wi.run_coverage() == "true"
+        assert wi.upload_coverage() == "true"
 
 
 def test_schedule():
@@ -69,7 +69,7 @@ def test_schedule():
         assert wi.pr_number is None
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_runs_on_self_hosted():
@@ -83,7 +83,7 @@ def test_runs_on_self_hosted():
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == '["self-hosted", "Linux", "X64"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_runs_on_forced_public_runner():
@@ -97,7 +97,7 @@ def test_runs_on_forced_public_runner():
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_runs_on_simple_pr_other_repo():
@@ -111,7 +111,7 @@ def test_runs_on_simple_pr_other_repo():
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_runs_on_push_other_branch():
@@ -125,7 +125,7 @@ def test_runs_on_push_other_branch():
         assert wi.pr_number is None
         assert wi.get_runs_on() == '["self-hosted", "Linux", "X64"]'
         assert wi.is_canary_run() == "false"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"
 
 
 def test_runs_on_push_v_test_branch():
@@ -139,4 +139,4 @@ def test_runs_on_push_v_test_branch():
         assert wi.pr_number is None
         assert wi.get_runs_on() == '["self-hosted", "Linux", "X64"]'
         assert wi.is_canary_run() == "true"
-        assert wi.run_coverage() == "false"
+        assert wi.upload_coverage() == "false"

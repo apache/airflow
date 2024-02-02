@@ -135,7 +135,7 @@ jobs:
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
+      upload-coverage: ${{ steps.source-run-info.outputs.upload-coverage }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1174,7 +1174,7 @@ jobs:
       POSTGRES_VERSION: "${{matrix.postgres-version}}"
       BACKEND_VERSION: "${{matrix.postgres-version}}"
       JOB_ID: "postgres-${{matrix.postgres-version}}-${{matrix.python-version}}"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1271,7 +1271,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1323,7 +1323,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1372,7 +1372,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1421,7 +1421,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1476,7 +1476,7 @@ jobs:
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       MYSQL_VERSION: "${{matrix.mysql-version}}"
       BACKEND_VERSION: "${{matrix.mysql-version}}"
@@ -1531,7 +1531,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "sqlite"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       BACKEND_VERSION: ""
       JOB_ID: "sqlite-${{matrix.python-version}}"
     steps:
@@ -1574,7 +1574,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1649,7 +1649,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
@@ -1695,7 +1695,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      UPLOAD_COVERAGE: "${{needs.build-info.outputs.upload-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.is-airflow-runner == 'true'
     steps:
       - name: Cleanup repo
