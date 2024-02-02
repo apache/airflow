@@ -124,6 +124,8 @@ class SFTPTrigger(BaseTrigger):
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:
                 await asyncio.sleep(self.poke_interval)
+            except FileNotFoundError:
+                await asyncio.sleep(self.poke_interval)
             except Exception as e:
                 exc = e
                 # Break loop to avoid infinite retries on terminal failure
