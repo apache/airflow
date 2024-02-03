@@ -42,6 +42,7 @@ class TeradataHook(DbApiHook):
     See :doc:` docs/apache-airflow-providers-teradata/connections/teradata.rst` for full documentation.
 
     :param args: passed to DbApiHook
+    :param database: The Teradata database to connect to.
     :param kwargs: passed to DbApiHook
 
 
