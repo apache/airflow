@@ -339,7 +339,9 @@ devel-tests = [
     "pytest-rerunfailures>=13.0",
     "pytest-timeouts>=1.2.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=7.4.4",
+    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
+    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
+    "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
 ]
