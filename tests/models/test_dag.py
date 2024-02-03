@@ -1435,6 +1435,11 @@ class TestDag:
             assert "t1" in stdout_lines[0]
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]
+            assert dag.get_tree_view() == (
+                "<Task(EmptyOperator): t1>\n"
+                "    <Task(EmptyOperator): t2>\n"
+                "        <Task(EmptyOperator): t3>\n"
+            )
 
     def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
