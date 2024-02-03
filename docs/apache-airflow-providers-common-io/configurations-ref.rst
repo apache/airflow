@@ -15,31 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Authoring and Scheduling
-=========================
-
-Here you can find detailed documentation about advanced authoring and scheduling airflow DAGs.
-It's recommended that you first review the pages in :doc:`core concepts </core-concepts/index>`
-
-**Authoring**
-
-.. toctree::
-    :maxdepth: 2
-
-    plugins
-    deferring
-    dagfile-processing
-    serializers
-    connections
-    dynamic-task-mapping
-
-
-**Scheduling**
-
-.. toctree::
-    :maxdepth: 2
-
-    cron
-    timezone
-    datasets
-    timetable
+.. include:: ../exts/includes/providers-configurations-ref.rst

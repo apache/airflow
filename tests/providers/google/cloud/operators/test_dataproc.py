@@ -677,6 +677,19 @@ class TestsClusterGenerator:
         cluster = generator.make()
         assert CONFIG_WITH_GPU_ACCELERATOR == cluster
 
+    def test_build_with_default_value_for_internal_ip_only(self):
+        generator = ClusterGenerator(project_id="project_id")
+        cluster = generator.make()
+        assert "internal_ip_only" not in cluster["gce_cluster_config"]
+
+    def test_build_sets_provided_value_for_internal_ip_only(self):
+        for internal_ip_only in [True, False]:
+            generator = ClusterGenerator(
+                project_id="project_id", internal_ip_only=internal_ip_only, subnetwork_uri="subnetwork_uri"
+            )
+            cluster = generator.make()
+            assert cluster["gce_cluster_config"]["internal_ip_only"] == internal_ip_only
+
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):

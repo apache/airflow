@@ -19,7 +19,9 @@
 package-name: apache-airflow-providers-yandex
 name: Yandex
 description: |
-    Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
+    This package is for Yandex, including:
+
+        - `Yandex.Cloud <https://cloud.yandex.com/>`__
 state: ready
 source-date-epoch: 1705912322
 versions:
@@ -75,6 +77,9 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud
+
+secrets-backends:
+  - airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
 
 config:
   yandex:

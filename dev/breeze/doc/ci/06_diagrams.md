@@ -363,6 +363,8 @@ sequenceDiagram
         Note over Tests: React WWW tests
     and
         Note over Tests: Test git clone on Windows
+    and
+        Note over Tests: Run upgrade checks
     end
     Note over Tests: Skip waiting for CI images
     par

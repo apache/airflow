@@ -28,6 +28,7 @@
     Home <self>
     Changelog <changelog>
     Security <security>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
@@ -36,6 +37,7 @@
 
     Transferring a file <transfer>
     Operators <operators>
+    Object Storage XCom Backend <xcom_backend>
 
 .. toctree::
     :hidden:

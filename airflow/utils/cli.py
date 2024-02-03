@@ -27,7 +27,6 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
@@ -36,7 +35,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils import cli_action_loggers
+from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -116,7 +115,7 @@ def action_cli(func=None, check_db=True):
                 metrics["error"] = e
                 raise
             finally:
-                metrics["end_datetime"] = datetime.utcnow()
+                metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
         return cast(T, wrapper)
@@ -155,7 +154,7 @@ def _build_metrics(func_name, namespace):
 
     metrics = {
         "sub_command": func_name,
-        "start_datetime": datetime.utcnow(),
+        "start_datetime": timezone.utcnow(),
         "full_command": f"{full_command}",
         "user": getuser(),
     }
