@@ -93,6 +93,6 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``    ``>=2.6.0``
+``apache-airflow``    ``>=2.7.0``
 ``qdrant_client``     ``>=1.7.0``
 ===================  ==================
