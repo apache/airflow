@@ -891,6 +891,7 @@ sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
 ]
 sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
+  "asyncssh>=2.12.0",
   "paramiko>=2.8.0",
 ]
 singularity = [ # source: airflow/providers/singularity/provider.yaml
