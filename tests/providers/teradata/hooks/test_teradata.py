@@ -25,14 +25,8 @@ import pytest
 
 from airflow.models import Connection
 
-try:
-    from airflow.providers.teradata.hooks.teradata import TeradataHook
-except ImportError:
-    pytest.skip(
-        "Airflow Provider for Teradata not available, unable to import dependency "
-        "airflow.providers.teradata.hooks.teradata.TeradataHook",
-        allow_module_level=True,
-    )
+from airflow.providers.teradata.hooks.teradata import TeradataHook
+
 
 
 class TestTeradataHook:

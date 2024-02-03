@@ -32,7 +32,7 @@ To transfer data between two Teradata instances, use the
 
 An example usage of the TeradataToTeradataOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/teradata/example_dags/example_teradata_to_teradata_transfer_operator.py
+.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_to_teradata_transfer.py
     :language: python
-    :start-after: [START howto_transfer_operator_teradata_to_teradata]
-    :end-before: [END howto_transfer_operator_teradata_to_teradata]
+    :start-after: [START teradata_to_teradata_transfer_operator_howto_guide]
+    :end-before: [END teradata_to_teradata_transfer_operator_howto_guide]

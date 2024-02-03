@@ -57,7 +57,6 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-teradata/|version|/airflow/providers/teradata/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-teradata/>
     Installing from sources <installing-providers-from-sources>
 
@@ -103,6 +102,8 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``teradatasqlalchemy``                   ``>=17.20.0.0``
+``teradatasql``                          ``>=17.20.0.28``
 =======================================  ==================
 
 Cross provider package dependencies

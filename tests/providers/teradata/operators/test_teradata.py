@@ -20,17 +20,13 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
-import pytest
-
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.utils import timezone
 
-try:
-    from airflow.providers.teradata.hooks.teradata import TeradataHook
-    from airflow.providers.teradata.operators.teradata import TeradataOperator
-except ImportError:
-    pytest.skip("Teradata not available", allow_module_level=True)
+from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.operators.teradata import TeradataOperator
+
 
 from airflow.exceptions import AirflowException
 
@@ -47,12 +43,10 @@ class TestTeradataOperator:
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_get_hook_from_conn(self, mock_get_db_hook):
         """
-        :class:`~.MsSqlOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
+        :class:`~.TeradataOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
         if one is returned.
 
-        This behavior is necessary in order to support usage of :class:`~.OdbcHook` with this operator.
-
-        Specifically we verify here that :meth:`~.MsSqlOperator.get_hook` returns the hook returned from a
+        Specifically we verify here that :meth:`~.TeradataOperator.get_hook` returns the hook returned from a
         call of ``get_hook`` on the object returned from :meth:`~.BaseHook.get_connection`.
         """
         mock_hook = MagicMock()

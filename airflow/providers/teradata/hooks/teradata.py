@@ -200,10 +200,11 @@ class TeradataHook(DbApiHook):
                 "host": "Database Server URL",
                 "schema": "Database Name",
                 "login": "Username",
-                "password": "Password",
             },
             "placeholders": {
-                "extra": json.dumps({"example_parameter": "parameter"}, indent=4),
+                "extra": json.dumps(
+                    {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}, indent=4
+                ),
                 "login": "dbc",
                 "password": "dbc",
             },

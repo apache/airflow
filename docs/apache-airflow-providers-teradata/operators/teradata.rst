@@ -30,7 +30,7 @@ To execute arbitrary SQL in an Teradata, use the
 
 An example of executing a simple query is as follows:
 
-.. exampleinclude:: /../../airflow/providers/teradata/example_dags/example_teradata_operator.py
+.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
     :language: python
-    :start-after: [START howto_teradata_operator]
-    :end-before: [END howto_teradata_operator]
+    :start-after: [START teradata_operator_howto_guide]
+    :end-before: [END teradata_operator_howto_guide]
