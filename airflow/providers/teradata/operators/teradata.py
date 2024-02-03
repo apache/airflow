@@ -36,6 +36,9 @@ class TeradataOperator(SQLExecuteQueryOperator):
     :param conn_id: reference to a predefined database
     :param autocommit: if True, each command is automatically committed.(default value: False)
     :param parameters: (optional) the parameters to render the SQL query with.
+    :param host: The Teradata instance hostname to connect to.
+    :param schema: The Teradata database to connect to.
+    :param login: Username to connect
     """
 
     template_fields: Sequence[str] = (

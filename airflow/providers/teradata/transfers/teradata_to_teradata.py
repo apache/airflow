@@ -82,7 +82,7 @@ class TeradataToTeradataOperator(BaseOperator):
                     self.destination_table, rows, target_fields=target_fields, commit_every=self.rows_chunk
                 )
                 rows_total += len(rows)
-            self.log.info("Finished data transfer.")
+            self.log.info("Finished data transfer. Total number of rows transferred - %s", rows_total)
             cursor.close()
 
     def execute(self, context: Context) -> None:
