@@ -197,12 +197,14 @@ class _TimetableNotRegistered(ValueError):
         )
 
 
-def _encode_timetable(var: Timetable) -> dict[str, Any]:
+def encode_timetable(var: Timetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
+
+    :meta private:
     """
     timetable_class = type(var)
     importable_string = qualname(timetable_class)
@@ -211,12 +213,14 @@ def _encode_timetable(var: Timetable) -> dict[str, Any]:
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def _decode_timetable(var: dict[str, Any]) -> Timetable:
+def decode_timetable(var: dict[str, Any]) -> Timetable:
     """
     Decode a previously serialized timetable.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
+
+    :meta private:
     """
     importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
@@ -401,7 +405,7 @@ class BaseSerialization:
             elif key in decorated_fields:
                 serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
-                serialized_object[key] = _encode_timetable(value)
+                serialized_object[key] = encode_timetable(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -1368,7 +1372,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = _decode_timetable(v)
+                v = decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":

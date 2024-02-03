@@ -189,6 +189,13 @@
                 "type": "string"
             }
         },
+        "xcom": {
+            "type": "array",
+            "description": "XCom module names",
+            "items": {
+                "type": "string"
+            }
+        },
         "transfers": {
             "type": "array",
             "items": {
