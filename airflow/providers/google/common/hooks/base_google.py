@@ -24,7 +24,6 @@ import json
 import logging
 import os
 import tempfile
-import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
@@ -36,6 +35,7 @@ import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from deprecated import deprecated
 from gcloud.aio.auth.token import Token
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
@@ -239,9 +239,8 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -391,6 +390,10 @@ class GoogleBaseHook(BaseHook):
             )
 
     @property
+    @deprecated(
+        reason="Please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def client_info(self) -> ClientInfo:
         """
         Return client information used to generate a user-agent for API calls.
@@ -401,11 +404,6 @@ class GoogleBaseHook(BaseHook):
         the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
-        warnings.warn(
-            "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return CLIENT_INFO
 
     @property
@@ -682,7 +680,6 @@ class GoogleBaseAsyncHook(BaseHook):
     sync_hook_class: Any = None
 
     def __init__(self, **kwargs: Any):
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

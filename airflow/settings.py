@@ -191,13 +191,6 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
-    if SQL_ALCHEMY_CONN.startswith("sqlite") and not SQL_ALCHEMY_CONN.startswith("sqlite:////"):
-        from airflow.exceptions import AirflowConfigException
-
-        raise AirflowConfigException(
-            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
-            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
-        )
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -218,7 +211,8 @@ class SkipDBTestsSession:
         raise RuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
-            "See https://github.com/apache/airflow/blob/main/TESTING.rst#best-practices-for-db-tests on how "
+            "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
+            "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
         )
 
@@ -229,6 +223,20 @@ class SkipDBTestsSession:
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
+
+    if (
+        SQL_ALCHEMY_CONN
+        and SQL_ALCHEMY_CONN.startswith("sqlite")
+        and not SQL_ALCHEMY_CONN.startswith("sqlite:////")
+        # In memory is not useful for production, but useful for writing tests against Airflow for extensions
+        and SQL_ALCHEMY_CONN != "sqlite://"
+    ):
+        from airflow.exceptions import AirflowConfigException
+
+        raise AirflowConfigException(
+            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+        )
 
     global Session
     global engine

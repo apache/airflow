@@ -59,21 +59,21 @@ and users:
 * `Constraints files` - used by both, CI jobs (to fix the versions of dependencies used by CI jobs in regular
   PRs) and used by our users to reproducibly install released airflow versions.
 
-Normally, both are updated and refreshed automatically via [CI system](../CI.rst). However, there are some
-cases where we need to update them manually. This document describes how to do it.
+Normally, both are updated and refreshed automatically via [CI system](../dev/breeze/doc/ci/README.md).
+However, there are some cases where we need to update them manually. This document describes how to do it.
 
 # Automated image cache and constraints refreshing in CI
 
-Our [CI system](../CI.rst) is build in the way that it self-maintains. Regular scheduled builds and
+Our [CI](../dev/breeze/doc/ci/README.md) is build in the way that it self-maintains. Regular scheduled builds and
 merges to `main` branch builds (also known as `canary` builds) have separate maintenance step that
 take care about refreshing the cache that is used to speed up our builds and to speed up
-rebuilding of [Breeze](./breeze/doc/breeze.rst) images for development purpose. This is all happening automatically, usually:
+rebuilding of [Breeze](./breeze/doc/README.rst) images for development purpose. This is all happening automatically, usually:
 
-* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
+* The latest [constraints](../contributing-docs/12_airflow_dependencies_and_extras.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.
 
-* The [images](../IMAGES.rst) in `ghcr.io` registry are refreshed early at the beginning of the `canary` build. This
-  is done twice during the canary build:
+* The [images](breeze/doc/ci/02_images.md) in `ghcr.io` registry are refreshed early at the beginning of the
+  `canary` build. This is done twice during the canary build:
    * By the `Push Early Image Cache` job that is run at the beginning of the `canary` build. This cover the
      case when there are new dependencies added or Dockerfile/scripts change. Thanks to that step, subsequent
      PRs will be faster when they use the new Dockerfile/script. Those jobs **might fail** occasionally,

@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.6.0
 .....
 
-Latest change: 2024-01-19
+Latest change: 2024-01-26
 
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `78b179f0c1 <https://github.com/apache/airflow/commit/78b179f0c1cba0dfb38d3db7df037b85e208d19c>`_  2024-01-19   ``Switch to 'mongo_conn_id' argument into the MongoHook constructor (#36896)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
 `6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
@@ -50,7 +52,7 @@ Commit                                                                          
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 `9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
 `b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 
 3.5.0
 .....

@@ -37,9 +37,8 @@ if TYPE_CHECKING:
 
 class MongoHook(BaseHook):
     """
-    Interact with Mongo. This hook uses the Mongo conn_id.
+    PyMongo wrapper to interact with MongoDB.
 
-    PyMongo Wrapper to Interact With Mongo Database
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
@@ -54,13 +53,13 @@ class MongoHook(BaseHook):
         when connecting to MongoDB.
     """
 
-    conn_name_attr = "conn_id"
+    conn_name_attr = "mongo_conn_id"
     default_conn_name = "mongo_default"
     conn_type = "mongo"
     hook_name = "MongoDB"
 
     def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
+        super().__init__()
         if conn_id := kwargs.pop("conn_id", None):
             warnings.warn(
                 "Parameter `conn_id` is deprecated and will be removed in a future releases. "

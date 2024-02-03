@@ -2900,12 +2900,14 @@ components:
         data_interval_start:
           type: string
           format: date-time
-          readOnly: true
+          description: |
+            The beginning of the interval the DAG run covers.
           nullable: true
         data_interval_end:
           type: string
           format: date-time
-          readOnly: true
+          description: |
+            The end of the interval the DAG run covers.
           nullable: true
         last_scheduling_decision:
           type: string
@@ -3405,6 +3407,8 @@ components:
         queued_when:
           type: string
           nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
         pid:
           type: integer
           nullable: true

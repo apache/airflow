@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 import time
-import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from deprecated import deprecated
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -80,10 +80,8 @@ class TableauHook(BaseHook):
     conn_type = "tableau"
     hook_name = "Tableau"
 
-    def __init__(
-        self, site_id: str | None = None, tableau_conn_id: str = default_conn_name, **kwargs
-    ) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, site_id: str | None = None, tableau_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get("site_id", "")
@@ -123,14 +121,15 @@ class TableauHook(BaseHook):
         )
         return self.server.auth.sign_in(tableau_auth)
 
+    @deprecated(
+        reason=(
+            "Authentication via personal access token is deprecated. "
+            "Please, use the password authentication to avoid inconsistencies."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def _auth_via_token(self) -> Auth.contextmgr:
         """The method is deprecated. Please, use the authentication via password instead."""
-        warnings.warn(
-            "Authentication via personal access token is deprecated. "
-            "Please, use the password authentication to avoid inconsistencies.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
             personal_access_token=self.conn.extra_dejson["personal_access_token"],

@@ -85,8 +85,8 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Docker socket used">
     </div>
 
-Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
-/CONTRIBUTORS_QUICK_START.rst>`__
+Note: If you use Colima, please follow instructions at:
+`Contributors Quick Start Guide <../../../contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
 --------------
@@ -461,6 +461,8 @@ This will also remove breeze from the folder: ``${HOME}.local/bin/``
 .. code-block:: bash
 
     pipx uninstall apache-airflow-breeze
+
+----
 
 
 Next step: Follow the `Customizing <02_customizing.rst>`_ guide to customize your environment.

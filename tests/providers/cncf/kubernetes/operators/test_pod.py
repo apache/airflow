@@ -179,7 +179,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.arguments
         assert dag_id == ti.task.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == ti.task.configmaps[0]
+        assert dag_id == ti.task.env_from[0].config_map_ref.name
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 

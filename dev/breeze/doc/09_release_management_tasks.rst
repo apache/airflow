@@ -385,7 +385,7 @@ Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate cons
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
-`<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
+`<../../../contributing-docs/12_airflow_dependencies_and_extras.rst#pinned-constraint-files>`_ contributing documentation.
 
 
 You can use ``breeze release-management generate-constraints`` command to manually generate constraints for
@@ -596,6 +596,8 @@ This command will build one docker image per python version, with all the airflo
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_build-all-airflow-images.svg
   :width: 100%
   :alt: Breeze build all airflow images
+
+-----
 
 Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
 learn more about Breeze internals.

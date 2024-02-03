@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.5.2
 .....
 
-Latest change: 2024-01-10
+Latest change: 2024-01-22
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
 `c29632aab4 <https://github.com/apache/airflow/commit/c29632aab4cf13a861bfffcbd11f1c9964d8910a>`_  2024-01-08   ``Bump min version of mysql-connector-python (#36668)``
 =================================================================================================  ===========  ====================================================================================

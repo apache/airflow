@@ -159,5 +159,5 @@ Thanks to combination of features available in GitHub, the builds are secured ag
 code by users contributing PRs, that could get uncontrolled write access to Airflow repository.
 
 The negative consequence of this is that the build process becomes much more complex
-(see [CI](../../../../CI.rst) for complete description) and that some cases (like modifying build behaviour
+(see [CI](../ci/README.md) for complete description) and that some cases (like modifying build behaviour
 require additional process of testing by pushing the changes as `main` branch to a fork of Apache Airflow)

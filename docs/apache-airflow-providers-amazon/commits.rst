@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.17.0
 ......
 
-Latest change: 2024-01-18
+Latest change: 2024-01-22
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `d18c01a7a2 <https://github.com/apache/airflow/commit/d18c01a7a2f04449262606d79b4f663bdb200414>`_  2024-01-18   ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
 `9563dc573b <https://github.com/apache/airflow/commit/9563dc573bc53b2c84640c88371b62cccdd811ff>`_  2024-01-18   ``add deferrable mode to RedshiftDataOperator (#36586)``
 `f6e357a5fc <https://github.com/apache/airflow/commit/f6e357a5fcff8c791f9b2e03be968bf63b17e7c5>`_  2024-01-18   ``Fallback to default value if '[aws] cloudwatch_task_handler_json_serializer' not set (#36851)``

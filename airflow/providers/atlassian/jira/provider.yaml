@@ -24,7 +24,7 @@ description: |
 state: ready
 source-date-epoch: 1705911955
 versions:
-  - 2.6.0
+  - 2.5.1
   - 2.5.0
   - 2.4.0
   - 2.3.0

@@ -108,7 +108,7 @@ customized variant of the image that contains everything you need.
 
 You can building the production image manually by using ``prod-image build`` command.
 Note, that the images can also be built using ``docker build`` command by passing appropriate
-build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
+build-args as described in `Images documentation <ci/02_images.md>`_ , but Breeze provides several flags that
 makes it easier to do it. You can see all the flags by running ``breeze prod-image build --help``,
 but here typical examples are presented:
 
@@ -179,6 +179,8 @@ These are all available flags of ``verify-prod-image`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image_verify.svg
   :width: 100%
   :alt: Breeze prod-image verify
+
+------
 
 Next step: Follow the `Breeze maintenance tasks <07_breeze_maintenance_tasks.rst>`_ to learn about tasks that
 are useful when you are modifying Breeze itself.

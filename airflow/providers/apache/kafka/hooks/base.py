@@ -38,7 +38,7 @@ class KafkaBaseHook(BaseHook):
 
     def __init__(self, kafka_config_id=default_conn_name, *args, **kwargs):
         """Initialize our Base."""
-        super().__init__(**kwargs)
+        super().__init__()
         self.kafka_config_id = kafka_config_id
         self.get_conn
 

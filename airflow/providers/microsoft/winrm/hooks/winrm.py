@@ -90,9 +90,8 @@ class WinRMHook(BaseHook):
         message_encryption: str | None = "auto",
         credssp_disable_tlsv1_2: bool = False,
         send_cbt: bool = True,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
         self.remote_host = remote_host

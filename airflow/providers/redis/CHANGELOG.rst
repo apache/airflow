@@ -27,14 +27,6 @@
 Changelog
 ---------
 
-3.7.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
-
 3.6.0
 .....
 

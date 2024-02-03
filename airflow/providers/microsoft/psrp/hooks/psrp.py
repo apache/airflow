@@ -88,9 +88,7 @@ class PsrpHook(BaseHook):
         on_output_callback: OutputCallback | None = None,
         exchange_keys: bool = True,
         host: PSHost | None = None,
-        **kwargs,
     ):
-        super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self._logging_level = logging_level
         self._operation_timeout = operation_timeout

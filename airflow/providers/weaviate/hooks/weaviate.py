@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import contextlib
 import json
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
 import weaviate.exceptions
+from deprecated import deprecated
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -139,14 +139,13 @@ class WeaviateHook(BaseHook):
         """Returns a Weaviate client."""
         return self.get_conn()
 
+    @deprecated(
+        reason="The `get_client` method has been renamed to `get_conn`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_client(self) -> WeaviateClient:
         """Returns a Weaviate client."""
         # Keeping this for backwards compatibility
-        warnings.warn(
-            "The `get_client` method has been renamed to `get_conn`",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.conn
 
     def test_connection(self) -> tuple[bool, str]:

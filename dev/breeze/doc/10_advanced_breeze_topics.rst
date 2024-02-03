@@ -242,6 +242,6 @@ It's enabled by setting ``RECORD_BREEZE_OUTPUT_FILE`` to a file name where it wi
 By default it records the screenshots with default characters width and with "Breeze screenshot" title,
 but you can override it with ``RECORD_BREEZE_WIDTH`` and ``RECORD_BREEZE_TITLE`` variables respectively.
 
-
+------
 
 **Thank you for getting that far** - we hope you will enjoy using Breeze!

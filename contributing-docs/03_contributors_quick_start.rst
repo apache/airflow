@@ -30,7 +30,7 @@ you follow the guide.
 There are three ways you can run the Airflow dev env:
 
 1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <dev/breeze/doc/breeze.rst>`_ tool written in Python that makes the environment
+   with `Breeze <dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
    management, yeah you guessed it - a breeze.
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)
@@ -41,8 +41,7 @@ Before deciding which method to choose, there are a couple of factors to conside
   and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.).
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
 * If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
-  For a comprehensive venv tutorial - visit
-  `Virtual Env guide <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_
+  For a comprehensive venv tutorial - visit `Local virtualenv <07_local_virtualenv.rst>`_
 * You need to have usually a paid account to access managed, remote virtual environment.
 
 Local machine development
@@ -52,7 +51,7 @@ If you do not work in remote development environment, you need those prerequisit
 
 1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
-3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
+3. Hatch (you can also use pyenv, pyenv-virtualenv or virtualenvwrapper)
 
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
 
@@ -141,13 +140,16 @@ Docker Compose
 
   docker-compose --version
 
-Pyenv and setting up virtual-env
---------------------------------
-    Note: You might have issues with pyenv if you have a Mac with an M1 chip. Consider using virtualenv as an alternative.
+Setting up virtual-env
+----------------------
 
-1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
+1. While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
+   as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
+   You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
+   See [PEP-517](https://peps.python.org/pep-0517/#terminology-and-goals) for explanation of what the
+   frontend and backend meaning is.
 
-2. After installing pyenv, you need to install a few more required packages for Airflow. The below command adds
+2. After creating, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
    if your operating system is MacOS or another flavour of Linux
 
@@ -167,56 +169,7 @@ like system, this command will install all necessary dependencies that should be
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
-3. Restart your shell so the path changes take effect and verifying installation
-
-.. code-block:: bash
-
-  exec $SHELL
-  pyenv --version
-
-4. Checking available version, installing required Python version to pyenv and verifying it
-
-.. code-block:: bash
-
-For Architectures other than MacOS/ARM
-
-.. code-block:: bash
-
-  pyenv install --list
-  pyenv install 3.8.5
-  pyenv versions
-
-For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
-
-.. code-block:: bash
-
-  pyenv install --list
-  pyenv install 3.8.10
-  pyenv versions
-
-5. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
-   environment ``airflow-env`` will be used for installing airflow.
-
-.. code-block:: bash
-
-For Architectures other than MacOS/ARM
-
-.. code-block:: bash
-
-  pyenv virtualenv 3.8.5 airflow-env
-
-For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
-
-.. code-block:: bash
-
-  pyenv virtualenv 3.8.10 airflow-env
-
-6. Entering virtual environment ``airflow-env``
-
-.. code-block:: bash
-
-  pyenv activate airflow-env
-
+3. With Hatch you can enter virtual environment with ``hatch env shell`` command:
 
 Forking and cloning Project
 ---------------------------
@@ -477,7 +430,7 @@ For more information visit : |Breeze documentation|
 
 .. |Breeze documentation| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/breeze.rst" target="_blank">Breeze documentation</a>
+   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst" target="_blank">Breeze documentation</a>
 
 Following are some of important topics of Breeze documentation:
 
@@ -631,27 +584,27 @@ on macOS, install via
   pre-commit uninstall
 
 
-- For more information on visit |STATIC_CODE_CHECKS.rst|
+- For more information on visit |08_static_code_checks.rst|
 
-.. |STATIC_CODE_CHECKS.rst| raw:: html
+.. |08_static_code_checks.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst" target="_blank">
-   STATIC_CODE_CHECKS.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst" target="_blank">
+   08_static_code_checks.rst</a>
 
-- Following are some of the important links of STATIC_CODE_CHECKS.rst
+- Following are some of the important links of 08_static_code_checks.rst
 
   - |Pre-commit Hooks|
 
   .. |Pre-commit Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
 
   - |Running Static Code Checks via Breeze|
 
   .. |Running Static Code Checks via Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
 
 
@@ -737,94 +690,42 @@ All Tests are inside ./tests directory.
 
    breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
+- For more information on Testing visit : |09_testing.rst|
 
-- For more information on Testing visit : |TESTING.rst|
+  .. |09_testing.rst| raw:: html
 
-.. |TESTING.rst| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst" target="_blank">TESTING.rst</a>
-
-- Following are the some of important topics of TESTING.rst
-
-  - |Airflow Test Infrastructure|
-
-  .. |Airflow Test Infrastructure| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-test-infrastructure" target="_blank">
-   Airflow Test Infrastructure</a>
-
-
-  - |Airflow Unit Tests|
-
-  .. |Airflow Unit Tests| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
-   Tests</a>
-
-
-  - |Helm Unit Tests|
-
-  .. |Helm Unit Tests| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
-   </a>
-
-
-  - |Airflow Integration Tests|
-
-  .. |Airflow Integration Tests| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests" target="_blank">
-   Airflow Integration Tests</a>
-
-
-  - |Running Tests with Kubernetes|
-
-  .. |Running Tests with Kubernetes| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#running-tests-with-kubernetes" target="_blank">
-   Running Tests with Kubernetes</a>
-
-
-  - |Airflow System Tests|
-
-  .. |Airflow System Tests| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-system-tests" target="_blank">Airflow
-   System Tests</a>
-
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/09_testing.rst" target="_blank">09_testing.rst</a>
 
   - |Local and Remote Debugging in IDE|
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
 
 Contribution guide
 ##################
 
-- To know how to contribute to the project visit |CONTRIBUTING.rst|
+- To know how to contribute to the project visit |README.rst|
 
-.. |CONTRIBUTING.rst| raw:: html
+.. |README.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/README.rst" target="_blank">README.rst</a>
 
-- Following are some of important links of CONTRIBUTING.rst
+- Following are some of important links of Contribution documentation
 
   - |Types of contributions|
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contributions" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/contributing-docs/04_how_to_contribute.rst" target="_blank">
    Types of contributions</a>
-
 
   - |Roles of contributor|
 
   .. |Roles of contributor| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#roles" target="_blank">Roles of
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/01_roles_in_airflow_project.rst" target="_blank">Roles of
    contributor</a>
 
 
@@ -832,7 +733,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contribution-workflow" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst" target="_blank">
    Workflow for a contribution</a>
 
 
@@ -881,7 +782,7 @@ describes how to do it.
 
 .. |Syncing fork| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git.rst#how-to-sync-your-fork" target="_blank">
    Update new changes made to apache:airflow project to your fork</a>
 
 
@@ -889,7 +790,7 @@ describes how to do it.
 
 .. |Rebasing pull request| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git.rst#how-to-rebase-pr" target="_blank">
    Rebasing pull request</a>
 
 Using your IDE
@@ -899,8 +800,8 @@ If you are familiar with Python development and use your favourite editors, Airf
 similarly to other projects of yours. However, if you need specific instructions for your IDE you
 will find more detailed instructions here:
 
-* `Pycharm/IntelliJ <CONTRIBUTORS_QUICK_START_PYCHARM.rst>`_
-* `Visual Studio Code <CONTRIBUTORS_QUICK_START_VSCODE.rst>`_
+* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`_
+* `Visual Studio Code <quick-start-ide/contributors_quick_start_vscode.rst>`_
 
 
 Using Remote development environments
@@ -909,5 +810,11 @@ Using Remote development environments
 In order to use remote development environment, you usually need a paid account, but you do not have to
 setup local machine for development.
 
-* `GitPod <CONTRIBUTORS_QUICK_START_GITPOD.rst>`_
-* `GitHub Codespaces <CONTRIBUTORS_QUICK_START_CODESPACES.rst>`_
+* `GitPod <quick-start-ide/contributors_quick_start_gitpod.rst>`_
+* `GitHub Codespaces <quick-start-ide/contributors_quick_start_codespaces.rst>`_
+
+
+----------------
+
+Once you have your environment set up, you can start contributing to Airflow. You can find more
+about ways you can contribute in the `How to contribute <04_how_to_contribute.rst>`_ document.

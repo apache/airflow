@@ -61,8 +61,8 @@ class TabularHook(BaseHook):
             },
         }
 
-    def __init__(self, tabular_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, tabular_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = tabular_conn_id
 
     def test_connection(self) -> tuple[bool, str]:
