@@ -1061,10 +1061,11 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         result = hook.get_first(self.sql)
 
         # if the query returns 0 rows result will be None so cannot be indexed into
-        if result is None:
-            self._raise_exception(f"The following query returned zero rows: {self.sql}")
-        else:
+        # also covers indexing out of bounds on empty list, tuple etc. if returned
+        try:
             result = result[0]
+        except (TypeError, IndexError):
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         min_threshold = _convert_to_float_if_possible(self.min_threshold)
         max_threshold = _convert_to_float_if_possible(self.max_threshold)
