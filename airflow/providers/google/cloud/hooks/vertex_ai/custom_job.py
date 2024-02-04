@@ -18,9 +18,9 @@
 """This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import (
@@ -358,6 +358,10 @@ class CustomJobHook(GoogleBaseHook):
         return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.cancel_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def cancel_pipeline_job(
         self,
         project_id: str,
@@ -388,11 +392,6 @@ class CustomJobHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        warnings.warn(
-            "This method is deprecated, please use `PipelineJobHook.cancel_pipeline_job` method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
 
@@ -488,6 +487,10 @@ class CustomJobHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.create_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_pipeline_job(
         self,
         project_id: str,
@@ -514,11 +517,6 @@ class CustomJobHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        warnings.warn(
-            "This method is deprecated, please use `PipelineJobHook.create_pipeline_job` method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_pipeline_service_client(region)
         parent = client.common_location_path(project_id, region)
 
@@ -1755,6 +1753,10 @@ class CustomJobHook(GoogleBaseHook):
         return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.delete_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def delete_pipeline_job(
         self,
         project_id: str,
@@ -1776,11 +1778,6 @@ class CustomJobHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        warnings.warn(
-            "This method is deprecated, please use `PipelineJobHook.delete_pipeline_job` method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
 
@@ -1861,6 +1858,10 @@ class CustomJobHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.get_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_pipeline_job(
         self,
         project_id: str,
@@ -1882,11 +1883,6 @@ class CustomJobHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        warnings.warn(
-            "This method is deprecated, please use `PipelineJobHook.get_pipeline_job` method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
 
@@ -1967,6 +1963,10 @@ class CustomJobHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.list_pipeline_jobs`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def list_pipeline_jobs(
         self,
         project_id: str,
@@ -2039,11 +2039,6 @@ class CustomJobHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        warnings.warn(
-            "This method is deprecated, please use `PipelineJobHook.list_pipeline_jobs` method.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_pipeline_service_client(region)
         parent = client.common_location_path(project_id, region)
 

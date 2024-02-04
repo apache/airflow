@@ -73,7 +73,7 @@ You can pass the following parameters:
 * ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox. Default: "airflow/variables"
 * ``config_prefix``: Specifies the prefix of the secret to read to get Configurations. If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox. Default: "airflow/config"
 * ``sep``: Specifies the separator used to concatenate secret_prefix and secret_id. Default: "/"
-* ``endpoint``: Specifies an API endpoint. Leave blank to use default.
+* ``endpoint``: Specifies an API endpoint. If set to None (null in JSON), requests will use the connection endpoint, if specified, or the default endpoint.
 
 All options should be passed as a JSON dictionary.
 

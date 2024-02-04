@@ -20,7 +20,7 @@ from __future__ import annotations
 from io import RawIOBase
 from unittest import mock
 
-from moto import mock_s3
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator
@@ -44,7 +44,7 @@ def _create_test_bucket():
     return hook, bucket
 
 
-@mock_s3
+@mock_aws
 class TestAzureBlobToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.azure_blob_to_s3.WasbHook")
     def test_operator_all_file_upload(self, mock_hook):

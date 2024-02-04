@@ -29,6 +29,7 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
+from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import build
@@ -567,6 +568,15 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason=(
+            "This method is deprecated. "
+            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline` "
+            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
+            "to wait for the required pipeline state."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def start_java_dataflow(
         self,
         job_name: str,
@@ -593,16 +603,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :param location: Job location.
         """
-        warnings.warn(
-            """"This method is deprecated.
-            Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline`
-            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
-            to wait for the required pipeline state.
-            """,
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         name = self.build_dataflow_job_name(job_name, append_job_name)
 
         variables["jobName"] = name
@@ -816,6 +816,15 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason=(
+            "This method is deprecated. "
+            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline` "
+            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
+            "to wait for the required pipeline state."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def start_python_dataflow(
         self,
         job_name: str,
@@ -859,16 +868,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :param location: Job location.
         """
-        warnings.warn(
-            """This method is deprecated.
-            Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline`
-            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
-            to wait for the required pipeline state.
-            """,
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         name = self.build_dataflow_job_name(job_name, append_job_name)
         variables["job_name"] = name
         variables["region"] = location

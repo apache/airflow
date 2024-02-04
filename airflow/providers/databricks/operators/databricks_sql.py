@@ -146,14 +146,14 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                 if write_header:
                     writer.writeheader()
                 for row in last_results:
-                    writer.writerow(row.asDict())
+                    writer.writerow(row._asdict())
         elif self._output_format.lower() == "json":
             with open(self._output_path, "w") as file:
-                file.write(json.dumps([row.asDict() for row in last_results]))
+                file.write(json.dumps([row._asdict() for row in last_results]))
         elif self._output_format.lower() == "jsonl":
             with open(self._output_path, "w") as file:
                 for row in last_results:
-                    file.write(json.dumps(row.asDict()))
+                    file.write(json.dumps(row._asdict()))
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")

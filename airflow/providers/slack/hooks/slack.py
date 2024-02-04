@@ -72,9 +72,6 @@ class SlackHook(BaseHook):
         This hook intend to use `Slack API` connection
         and might not work correctly with `Slack Incoming Webhook` and `HTTP` connections.
 
-    Takes both Slack API token directly and connection that has Slack API token. If both are
-    supplied, Slack API token will be used. Also exposes the rest of slack.WebClient args.
-
     Examples:
      .. code-block:: python
 
@@ -88,6 +85,9 @@ class SlackHook(BaseHook):
         # Call method from Slack SDK (you have to handle errors yourself)
         #  For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
         slack_hook.client.chat_postMessage(channel="#random", text="Hello world!")
+
+    Additional arguments which are not listed into parameters exposed
+    into the rest of ``slack.WebClient`` constructor args.
 
     :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
         that has Slack API token in the password field.

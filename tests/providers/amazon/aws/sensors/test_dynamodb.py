@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_dynamodb
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
@@ -47,7 +47,7 @@ class TestDynamoDBValueSensor:
             sort_key_value=self.sk_value,
         )
 
-    @mock_dynamodb
+    @mock_aws
     def test_sensor_with_pk(self):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name])
 
@@ -65,7 +65,7 @@ class TestDynamoDBValueSensor:
 
         assert self.sensor.poke(None)
 
-    @mock_dynamodb
+    @mock_aws
     def test_sensor_with_pk_and_sk(self):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name, self.sk_name])
 
@@ -156,7 +156,7 @@ class TestDynamoDBMultipleValuesSensor:
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
 
-    @mock_dynamodb
+    @mock_aws
     def test_sensor_with_pk(self):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name])
 
@@ -174,7 +174,7 @@ class TestDynamoDBMultipleValuesSensor:
 
         assert self.sensor.poke(None)
 
-    @mock_dynamodb
+    @mock_aws
     def test_sensor_with_pk_and_sk(self):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name, self.sk_name])
 

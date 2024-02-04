@@ -19,22 +19,19 @@
 # build dependencies should be fixed - including all transitive dependencies. This way we can ensure
 # reproducibility of the build and make sure that any future releases of any dependencies will not
 # break the build of released airflow sources in the future.
-# We should periodically refresh these build dependencies by following this procecedure:
-# 1. Create a new virtual environment
-# 2. Run `pip install hatchling gitpython
-# 3. Run `pip freeze`
-# 4. Copy versions you see here (note that tomli needs to have python_version < '3.11').
+# The dependencies can be automatically upgraded by running:
+# pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
+    "GitPython==3.1.41",
     "editables==0.5",
     "gitdb==4.0.11",
-    "gitpython==3.1.40",
-    "hatchling==1.21.0",
+    "hatchling==1.21.1",
     "packaging==23.2",
     "pathspec==0.12.1",
-    "pluggy==1.3.0",
+    "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2023.11.29",
+    "trove-classifiers==2024.1.31",
 ]
 build-backend = "hatchling.build"
 
@@ -342,7 +339,9 @@ devel-tests = [
     "pytest-rerunfailures>=13.0",
     "pytest-timeouts>=1.2.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=7.4.4",
+    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
+    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
+    "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
 ]
@@ -524,7 +523,6 @@ winrm = [
 # If you want to modify these - modify the corresponding provider.yaml instead.
 #############################################################################################################
 # START OF GENERATED DEPENDENCIES
-# Hash of dependencies: 6e486f782b4745afd1f0f19dabe1253c
 airbyte = [ # source: airflow/providers/airbyte/provider.yaml
   "apache-airflow[http]",
 ]
@@ -548,7 +546,7 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   # Devel dependencies for the amazon provider
   "aiobotocore>=2.7.0",
   "aws_xray_sdk>=2.12.0",
-  "moto[cloudformation,glue]>=4.2.12,<5.0.0",
+  "moto[cloudformation,glue]>=5.0.0",
   "mypy-boto3-appflow>=1.33.0",
   "mypy-boto3-rds>=1.33.0",
   "mypy-boto3-redshift-data>=1.33.0",
@@ -595,12 +593,11 @@ apache-kylin = [ # source: airflow/providers/apache/kylin/provider.yaml
   "kylinpy>=2.6",
 ]
 apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "apache-airflow[http]",
   "asgiref",
 ]
-apache-pig = [ # source: airflow/providers/apache/pig/provider.yaml
-]
+apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
   "pinotdb>0.4.7",
@@ -635,19 +632,18 @@ cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
   "asgiref>=3.5.2",
   "cryptography>=2.0.0",
   "google-re2>=1.0",
-  "kubernetes>=21.7.0,<24",
-  "kubernetes_asyncio>=18.20.1,<25",
+  "kubernetes>=28.1.0,<=29.0.0",
+  "kubernetes_asyncio>=28.1.0,<=29.0.0",
 ]
 cohere = [ # source: airflow/providers/cohere/provider.yaml
   "cohere>=4.37",
 ]
-common-io = [ # source: airflow/providers/common/io/provider.yaml
-]
+common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.6.3, <4",
+  "aiohttp>=3.9.2, <4",
   "apache-airflow[common_sql]",
   "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
   "requests>=2.27,<3",
@@ -658,7 +654,7 @@ datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
 ]
 dbt-cloud = [ # source: airflow/providers/dbt/cloud/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "apache-airflow[http]",
   "asgiref",
 ]
@@ -690,8 +686,7 @@ fab = [ # source: airflow/providers/fab/provider.yaml
 facebook = [ # source: airflow/providers/facebook/provider.yaml
   "facebook-business>=6.0.2",
 ]
-ftp = [ # source: airflow/providers/ftp/provider.yaml
-]
+ftp = [] # source: airflow/providers/ftp/provider.yaml
 github = [ # source: airflow/providers/github/provider.yaml
   "PyGithub!=1.58",
 ]
@@ -705,7 +700,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "gcsfs>=2023.10.0",
   "google-ads>=22.1.0",
   "google-analytics-admin",
-  "google-api-core>=2.11.0",
+  "google-api-core>=2.11.0,!=2.16.0",
   "google-api-python-client>=1.6.0",
   "google-auth-httplib2>=0.0.1",
   "google-auth>=1.0.0",
@@ -764,13 +759,12 @@ hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
   "hvac>=1.1.0",
 ]
 http = [ # source: airflow/providers/http/provider.yaml
-  "aiohttp",
+  "aiohttp>=3.9.2",
   "asgiref",
   "requests>=2.26.0",
   "requests_toolbelt",
 ]
-imap = [ # source: airflow/providers/imap/provider.yaml
-]
+imap = [] # source: airflow/providers/imap/provider.yaml
 influxdb = [ # source: airflow/providers/influxdb/provider.yaml
   "influxdb-client>=1.19.0",
   "requests>=2.26.0",
@@ -838,8 +832,7 @@ odbc = [ # source: airflow/providers/odbc/provider.yaml
 openai = [ # source: airflow/providers/openai/provider.yaml
   "openai[datalib]>=1.0",
 ]
-openfaas = [ # source: airflow/providers/openfaas/provider.yaml
-]
+openfaas = [] # source: airflow/providers/openfaas/provider.yaml
 openlineage = [ # source: airflow/providers/openlineage/provider.yaml
   "apache-airflow[common_sql]",
   "attrs>=22.2",
@@ -898,6 +891,7 @@ sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
 ]
 sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
+  "asyncssh>=2.12.0",
   "paramiko>=2.8.0",
 ]
 singularity = [ # source: airflow/providers/singularity/provider.yaml
@@ -907,8 +901,7 @@ slack = [ # source: airflow/providers/slack/provider.yaml
   "apache-airflow[common_sql]",
   "slack_sdk>=3.19.0",
 ]
-smtp = [ # source: airflow/providers/smtp/provider.yaml
-]
+smtp = [] # source: airflow/providers/smtp/provider.yaml
 snowflake = [ # source: airflow/providers/snowflake/provider.yaml
   "apache-airflow[common_sql]",
   "snowflake-connector-python>=2.7.8",
@@ -1382,6 +1375,8 @@ combine-as-imports = true
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+# Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
+"pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
 [tool.ruff.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

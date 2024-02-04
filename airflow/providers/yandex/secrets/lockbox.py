@@ -103,7 +103,8 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
     :param sep: Specifies the separator used to concatenate secret_prefix and secret_id.
         Default: "/"
     :param endpoint: Specifies an API endpoint.
-        Leave blank to use default.
+        If set to None (null in JSON), requests will use the connection endpoint, if specified,
+        or the default endpoint.
     """
 
     def __init__(
@@ -191,6 +192,7 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
             self.yc_sa_key_json = self._get_field("service_account_json")
             self.yc_sa_key_json_path = self._get_field("service_account_json_path")
             self.folder_id = self.folder_id or self._get_field("folder_id")
+            self.endpoint = self.endpoint or self._get_field("endpoint")
 
         credentials = get_credentials(
             oauth_token=self.yc_oauth_token,
@@ -251,6 +253,9 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         return sorted(entries.values())[0]
 
     def _get_secrets(self) -> list[secret_pb.Secret]:
+        # generate client if not exists, to load folder_id from connections
+        _ = self._client
+
         response = self._list_secrets(folder_id=self.folder_id)
 
         secrets: list[secret_pb.Secret] = response.secrets[:]
