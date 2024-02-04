@@ -251,6 +251,12 @@ When the DAG is being serialized, ``serialize`` is called to obtain a
 JSON-serializable value. That value is passed to ``deserialize`` when the
 serialized DAG is accessed by the scheduler to reconstruct the timetable.
 
+Note: If you are using a python version older than 3.9 you will need to add this 
+to your timetable file to be able to use dict instead of Dict:
+
+.. code-block:: python
+    from __future__ import annotations
+
 
 Timetable Display in UI
 -----------------------
