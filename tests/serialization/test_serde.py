@@ -187,7 +187,7 @@ class TestSerDe:
             serialize(i)
 
     def test_ser_namedtuple(self):
-        CustomTuple = namedtuple("CustomTuple", ['id', 'value'])
+        CustomTuple = namedtuple("CustomTuple", ["id", "value"])
         data = CustomTuple(id=1, value="something")
 
         i = deserialize(serialize(data))

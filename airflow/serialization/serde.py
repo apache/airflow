@@ -346,11 +346,7 @@ def _is_pydantic(cls: Any) -> bool:
 
 def _is_namedtuple(cls: Any) -> bool:
     """Return True if the class is a namedtuple."""
-    return (
-        isinstance(cls, tuple) and
-        hasattr(cls, '_asdict') and
-        hasattr(cls, '_fields')
-    )
+    return isinstance(cls, tuple) and hasattr(cls, "_asdict") and hasattr(cls, "_fields")
 
 
 def _register():
