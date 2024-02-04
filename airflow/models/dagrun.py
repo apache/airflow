@@ -565,20 +565,20 @@ class DagRun(Base, LoggingMixin):
     def _check_last_n_dagruns_failed(
         self,
         dag_id: str,
-        number_of_dag_runs: int,
+        max_consecutive_failed_dag_runs: int,
         session: Session
     ):
         """Check if last N dags failed."""
         dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag_id) \
             .order_by(DagRun.execution_date.desc()) \
-            .limit(number_of_dag_runs).all()
+            .limit(max_consecutive_failed_dag_runs).all()
 
         """ Marking dag as paused, if needed"""
         to_be_paused = all(dag_run.state == DagRunState.FAILED for dag_run in dag_runs)
         if to_be_paused:
             from airflow.models.dag import DagModel
             self.log.warning("Pausing DAG %s because last %s DAG runs failed.", self.dag_id,
-                             number_of_dag_runs)
+                             max_consecutive_failed_dag_runs)
             filter_query = [
                 DagModel.dag_id == self.dag_id,
                 DagModel.root_dag_id == self.dag_id  # for sub-dags

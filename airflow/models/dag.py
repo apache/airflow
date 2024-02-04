@@ -629,8 +629,8 @@ class DAG(LoggingMixin):
                 )
         if self.max_consecutive_failed_dag_runs is not None and self.max_consecutive_failed_dag_runs < 0:
             raise AirflowException(
-                f"Invalid max_consecutive_failed_dag_runs: {str(self.max_consecutive_failed_dag_runs)}"
-                f"requires max_consecutive_failed_dag_runs >= 0"
+                f"Invalid max_consecutive_failed_dag_runs: {str(self.max_consecutive_failed_dag_runs)}."
+                f"Requires max_consecutive_failed_dag_runs >= 0"
             )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback

@@ -118,8 +118,8 @@ core:
       default: "16"
     max_consecutive_failed_dag_runs_per_dag:
       description: |
-        The maximum number of consecutive DAG failures before DAG is turned off. The scheduler will disable the DAG
-        if it reaches the limit. This is configurable at the DAG level with ``max_consecutive_failed_dag_runs``,
+        The maximum number of consecutive DAG failures before DAG is automatically paused.
+        This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
         which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
       version_added: ~
       type: string
