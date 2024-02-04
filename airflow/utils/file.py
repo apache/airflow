@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import logging
 import os
 import zipfile
@@ -32,6 +33,8 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
+
+MODIFIED_DAG_MODULE_NAME = "unusual_prefix_{path_hash}_{module_name}"
 
 
 class _IgnoreRule(Protocol):
@@ -379,3 +382,9 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
     for m in _find_imported_modules(parsed):
         if m.startswith("airflow."):
             yield m
+
+
+def get_unique_dag_module_name(file_path):
+    path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
+    org_mod_name = Path(file_path).stem
+    return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
