@@ -114,6 +114,10 @@ VALID_TRANSFER_JOB_BASE: dict = {
     SCHEDULE: SCHEDULE_DICT,
     TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME, PATH: DESTINATION_PATH}},
 }
+VALID_TRANSFER_JOB_JINJA = deepcopy(VALID_TRANSFER_JOB_BASE)
+VALID_TRANSFER_JOB_JINJA[NAME] = "{{ dag.dag_id }}"
+VALID_TRANSFER_JOB_JINJA_RENDERED = deepcopy(VALID_TRANSFER_JOB_JINJA)
+VALID_TRANSFER_JOB_JINJA_RENDERED[NAME] = "TestGcpStorageTransferJobCreateOperator"
 VALID_TRANSFER_JOB_GCS = deepcopy(VALID_TRANSFER_JOB_BASE)
 VALID_TRANSFER_JOB_GCS[TRANSFER_SPEC].update(deepcopy(SOURCE_GCS))
 VALID_TRANSFER_JOB_AWS = deepcopy(VALID_TRANSFER_JOB_BASE)
@@ -326,21 +330,13 @@ class TestGcpStorageTransferJobCreateOperator:
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "body, excepted",
-        [
-            (
-                {"description": "{{ dag.dag_id }}"},
-                {
-                    "description": "TestGcpStorageTransferJobCreateOperator_test_templates",
-                },
-            ),
-            ("{{ dag.dag_id }}", "TestGcpStorageTransferJobCreateOperator_test_templates"),
-        ],
+        [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
     )
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_templates(self, _, create_task_instance_of_operator, body, excepted):
-        dag_id = "TestGcpStorageTransferJobCreateOperator_test_templates"
+        dag_id = "TestGcpStorageTransferJobCreateOperator"
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCreateJobOperator,
             dag_id=dag_id,
