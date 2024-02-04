@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Remove the ability of specify a proxy user as an ``owner`` or ``login`` or ``as_param`` in the connection. Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_user`` to HiveHook will do the job.
+
+
 6.4.2
 .....
 
