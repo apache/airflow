@@ -147,6 +147,13 @@ def serialize(o: object, depth: int = 0) -> U | None:
         if is_serialized:
             return encode(classname, version, serialize(data, depth + 1))
 
+    # serialize namedtuple like tuples
+    if _is_namedtuple(o):
+        qn = "builtins.tuple"
+        data, _, version, is_serialized = _serializers[qn].serialize(o)
+        if is_serialized:
+            return encode(qn, version, serialize(data, depth + 1))
+
     # object / class brings their own
     if hasattr(o, "serialize"):
         data = getattr(o, "serialize")()
@@ -335,6 +342,15 @@ def _is_pydantic(cls: Any) -> bool:
     using isinstance.
     """
     return hasattr(cls, "model_config") and hasattr(cls, "model_fields") and hasattr(cls, "model_fields_set")
+
+
+def _is_namedtuple(cls: Any) -> bool:
+    """Return True if the class is a namedtuple."""
+    return (
+        isinstance(cls, tuple) and
+        hasattr(cls, '_asdict') and
+        hasattr(cls, '_fields')
+    )
 
 
 def _register():

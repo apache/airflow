@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
 from typing import ClassVar
@@ -184,6 +185,14 @@ class TestSerDe:
         with pytest.raises(AttributeError, match="^reserved"):
             i = {SCHEMA_ID: "cannot"}
             serialize(i)
+
+    def test_ser_namedtuple(self):
+        CustomTuple = namedtuple("CustomTuple", ['id', 'value'])
+        data = CustomTuple(id=1, value="something")
+
+        i = deserialize(serialize(data))
+        e = (1, "something")
+        assert i == e
 
     def test_no_serializer(self):
         with pytest.raises(TypeError, match="^cannot serialize"):
