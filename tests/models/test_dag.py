@@ -1422,21 +1422,27 @@ class TestDag:
     def test_tree_view(self):
         """Verify correctness of dag.tree_view()."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
+            op1_a = EmptyOperator(task_id="t1_a")
+            op1_b = EmptyOperator(task_id="t1_b")
             op2 = EmptyOperator(task_id="t2")
             op3 = EmptyOperator(task_id="t3")
-            op1 >> op2 >> op3
+            op1_b >> op2
+            op1_a >> op2 >> op3
 
             with redirect_stdout(StringIO()) as stdout:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 
             stdout_lines = stdout.splitlines()
-            assert "t1" in stdout_lines[0]
+            assert "t1_a" in stdout_lines[0]
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]
+            assert "t1_b" in stdout_lines[3]
             assert dag.get_tree_view() == (
-                "<Task(EmptyOperator): t1>\n"
+                "<Task(EmptyOperator): t1_a>\n"
+                "    <Task(EmptyOperator): t2>\n"
+                "        <Task(EmptyOperator): t3>\n"
+                "<Task(EmptyOperator): t1_b>\n"
                 "    <Task(EmptyOperator): t2>\n"
                 "        <Task(EmptyOperator): t3>\n"
             )
