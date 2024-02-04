@@ -440,23 +440,12 @@ class KubernetesExecutor(BaseExecutor):
                 except ApiException as e:
                     body = json.loads(e.body)
                     retries = self.task_publish_retries[key]
-                    # Fail the task in the following scenarios.
-                    # 1. kube api status code in (400, 404, 422)
-                    # 2. kube api status code is  403 and not related to exceeded quota
-                    # 3. task publish retries exhausted
+                    # In case of exceeded quota errors, requeue the task as per the task_publish_max_retries
                     if (
-                        e.status in (400, 404, 422)
-                        or (e.status == 403 and "exceeded quota" not in body["message"])
-                        or not (
-                            self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
-                        )
+                        e.status == 403
+                        and "exceeded quota" in body["message"]
+                        and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries)
                     ):
-                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
-                        key, _, _, _ = task
-                        self.fail(key, e)
-                        self.task_publish_retries.pop(key, None)
-                    # Otherwise, requeue the task
-                    else:
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
@@ -467,6 +456,11 @@ class KubernetesExecutor(BaseExecutor):
                         )
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
+                    else:
+                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
+                        key, _, _, _ = task
+                        self.fail(key, e)
+                        self.task_publish_retries.pop(key, None)
                 except PodMutationHookException as e:
                     key, _, _, _ = task
                     self.log.error(

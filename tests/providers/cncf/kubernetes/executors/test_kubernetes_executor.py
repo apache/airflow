@@ -381,14 +381,14 @@ class TestKubernetesExecutor:
             pytest.param(
                 HTTPResponse(body='{"message": "any message"}', status=12345),
                 1,
-                True,
-                State.SUCCESS,
+                False,
+                State.FAILED,
                 id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry succeeded)",
             ),
             pytest.param(
                 HTTPResponse(body='{"message": "any message"}', status=12345),
                 1,
-                True,
+                False,
                 State.FAILED,
                 id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry failed)",
             ),
