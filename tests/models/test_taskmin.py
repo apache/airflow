@@ -34,7 +34,6 @@ class TestTaskmin:
 
             [op_d, op_c << op_b] << op_a
 
-        dag_maker.create_dagrun()
         assert [op_a] == op_b.upstream_list
         assert [op_a] == op_d.upstream_list
         assert [op_b] == op_c.upstream_list
@@ -48,7 +47,6 @@ class TestTaskmin:
 
             op_a >> [op_b >> op_c, op_d]
 
-        dag_maker.create_dagrun()
-        assert op_a in op_c.upstream_list
-        assert [op_a] == op_d.upstream_list
         assert [] == op_b.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert {op_a, op_b} == set(op_c.upstream_list)
