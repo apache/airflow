@@ -287,7 +287,7 @@ config:
           new task instance is assigned. This effectively overrides the visibility timeout.
           See also:
           https://docs.celeryq.dev/en/stable/reference/celery.app.task.html#celery.app.task.Task.acks_late
-        version_added: ~
+        version_added: 2.9.0
         type: boolean
         example: "True"
         default: "True"
