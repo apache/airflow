@@ -821,7 +821,7 @@ class DagRun(Base, LoggingMixin):
                     msg="task_failure",
                 )
 
-            # Check if the max_consecutive_failed_dag_runs has been provided
+            # Check if the max_consecutive_failed_dag_runs has been provided and not 0
             # and last consecutive failures are more
             if bool(dag.max_consecutive_failed_dag_runs):
                 self.log.info("Checking consecutive failed DAG runs for DAG %s, limit is %s", self.dag_id,
