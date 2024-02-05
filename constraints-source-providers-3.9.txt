@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-05T13:35:57.698339
+# This constraints file was automatically generated on 2024-02-05T14:32:36.889403
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -47,7 +47,7 @@ Sphinx==5.3.0
 WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
-adlfs==2024.1.0
+adlfs==2024.2.0
 aiobotocore==2.11.2
 aiofiles==23.2.1
 aiohttp==3.9.3
@@ -427,8 +427,8 @@ pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.20.0
-pydantic==2.6.0
-pydantic_core==2.16.1
+pydantic==2.6.1
+pydantic_core==2.16.2
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.6
