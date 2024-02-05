@@ -1243,7 +1243,7 @@ def run_publish_docs_in_parallel(
         for entry in success_entries:
             get_console().print(f"[success]{entry}")
         get_console().rule()
-    get_console().print("\n[warning]Packages those were skippeds:")
+    get_console().print("\n[warning]Packages skippeds:")
     for entry in skipped_entries:
         get_console().print(f"[warning]{entry}")
 
