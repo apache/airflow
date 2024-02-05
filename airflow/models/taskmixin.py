@@ -161,11 +161,18 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def label(self) -> str | None:
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+
         tg = self.task_group
         if tg and tg.node_id and tg.prefix_group_id:
             # "task_group_id.task_id" -> "task_id"
             return self.node_id[len(tg.node_id) + 1 :]
-        return self.node_id
+
+        if isinstance(self, (BaseOperator, MappedOperator)):
+            return self.task_display_name
+        else:
+            return self.node_id
 
     start_date: pendulum.DateTime | None
     end_date: pendulum.DateTime | None

@@ -34,6 +34,7 @@ import RunTypeIcon from "src/components/RunTypeIcon";
 import BreadcrumbText from "./BreadcrumbText";
 
 const dagId = getMetaValue("dag_id");
+const dagDisplayName = getMetaValue("dag_display_name");
 
 const Header = () => {
   const {
@@ -93,7 +94,7 @@ const Header = () => {
           onClick={clearSelection}
           _hover={isDagDetails ? { cursor: "default" } : undefined}
         >
-          <BreadcrumbText label="DAG" value={dagId} />
+          <BreadcrumbText label="DAG" value={dagDisplayName} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
