@@ -1187,11 +1187,7 @@ def run_docs_publishing(
     output: Output | None,
 ) -> tuple[int, str]:
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
-    builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
-    return (
-        0,
-        f"Docs published: {package_name}",
-    )
+    return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
 
 PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
@@ -1207,6 +1203,9 @@ def run_publish_docs_in_parallel(
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
+    success_entries = []
+    skipped_entries = []
+
     with ci_group("Publishing docs for packages"):
         all_params = [f"Publishing docs {package_name}" for package_name in package_list]
         with run_with_pool(
@@ -1230,14 +1229,23 @@ def run_publish_docs_in_parallel(
                 )
                 for index, package_name in enumerate(package_list)
             ]
-    check_async_run_results(
-        results=results,
-        success="All package documentation published.",
-        outputs=outputs,
-        include_success_outputs=include_success_outputs,
-        skip_cleanup=skip_cleanup,
-        summarize_on_ci=SummarizeAfter.NO_SUMMARY,
-    )
+
+            # Iterate over the results and collect success and skipped entries
+            for index, result in enumerate(results):
+                return_code, message = result.get()
+                if return_code == 0:
+                    success_entries.append(message)
+                else:
+                    skipped_entries.append(message)
+
+    if include_success_outputs:
+        print("Success entries:")
+        for entry in success_entries:
+            print(entry)
+        print("=================================================")
+    print("Skipped entries:")
+    for entry in skipped_entries:
+        print(entry)
 
 
 @release_management.command(
@@ -1307,10 +1315,24 @@ def publish_docs(
             override_versioned=override_versioned,
         )
     else:
+        success_entries = []
+        skipped_entries = []
         for package_name in current_packages:
-            run_docs_publishing(
+            return_code, message = run_docs_publishing(
                 package_name, airflow_site_directory, override_versioned, verbose=get_verbose(), output=None
             )
+            if return_code == 0:
+                success_entries.append(message)
+            else:
+                skipped_entries.append(message)
+        if include_success_outputs:
+            print("Success entries:")
+            for entry in success_entries:
+                print(entry)
+            print("=================================================")
+        print("Skipped entries:")
+        for entry in skipped_entries:
+            print(entry)
 
 
 @release_management.command(
