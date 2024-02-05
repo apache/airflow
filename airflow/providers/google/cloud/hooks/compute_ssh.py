@@ -320,14 +320,14 @@ class ComputeEngineSSHHook(SSHHook):
         keys = self.user + ":" + pubkey + "\n"
         metadata = instance_info["metadata"]
         items = metadata.get("items", [])
+
         for item in items:
             if item.get("key") == "ssh-keys":
                 keys += item["value"]
                 item["value"] = keys
                 break
         else:
-            new_dict = {"key": "ssh-keys", "value": keys}
-            metadata["items"] = [new_dict]
+            metadata["items"] = items + [{"key": "ssh-keys", "value": keys}]
 
         self._compute_hook.set_instance_metadata(
             zone=self.zone, resource_id=self.instance_name, metadata=metadata, project_id=self.project_id
