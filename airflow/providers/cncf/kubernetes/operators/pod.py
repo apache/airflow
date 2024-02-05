@@ -1013,7 +1013,9 @@ class KubernetesPodOperator(BaseOperator):
         one in a dry_run) and excludes all empty elements.
         """
         pod = self.build_pod_request_obj()
-        print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
+        manifest = yaml.dump(prune_dict(pod.to_dict(), mode="strict"))
+        print(manifest)
+        return manifest
 
 
 class _optionally_suppress(AbstractContextManager):
