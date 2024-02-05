@@ -80,6 +80,11 @@
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
     {% endcall %}
   {% endif %}
+  {% if unhealthy_executor is defined %}
+    {% call show_message(category='error', dismissible=false) %}
+      {{ unhealthy_executor }} is unhealthy and will not pick up tasks.  Check logs for more details.
+    {% endcall %}
+  {% endif %}
   {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
     {% call show_message(category='warning', dismissible=false) %}
       <p>The triggerer does not appear to be running.

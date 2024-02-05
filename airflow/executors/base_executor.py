@@ -28,7 +28,7 @@ import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -113,6 +113,7 @@ class BaseExecutor(LoggingMixin):
     is_local: bool = False
     is_single_threaded: bool = False
     is_production: bool = True
+    is_healthy: bool | None = None
 
     change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
@@ -133,6 +134,9 @@ class BaseExecutor(LoggingMixin):
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
+
+    def check_health(self, verbose: bool = True):
+        """Update the state of is_healthy."""
 
     def queue_command(
         self,
@@ -210,6 +214,14 @@ class BaseExecutor(LoggingMixin):
             open_slots = len(self.queued_tasks)
         else:
             open_slots = self.parallelism - len(self.running)
+
+        # Call child class health_check method.
+        try:
+            # Update the executor's health status.
+            self.check_health(verbose=True)
+        except AirflowException:
+            # Do not stop execution for an unhealthy executor as it can recover.
+            pass
 
         num_running_tasks = len(self.running)
         num_queued_tasks = len(self.queued_tasks)

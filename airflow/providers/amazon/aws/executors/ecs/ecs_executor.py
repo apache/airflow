@@ -123,7 +123,7 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
             raise
 
-    def check_health(self):
+    def check_health(self, verbose: bool = True):
         """
         Make a test API call to check the health of the ECS Executor.
 
@@ -161,14 +161,18 @@ class AwsEcsExecutor(BaseExecutor):
             # Any non-ClientError exceptions. This can include Botocore exceptions for example
             status = f"failed because: {e}. "
         finally:
+            self.log.info("DEBUG**** executor.is_healthy: %s", self.is_healthy)
             msg_prefix = "ECS Executor health check has %s"
             if status == success_status:
                 self.IS_BOTO_CONNECTION_HEALTHY = True
-                self.log.info(msg_prefix, status)
+                self.is_healthy = True
+                if verbose:
+                    self.log.info(msg_prefix, status)
             else:
                 msg_error_suffix = (
                     "The ECS executor will not be able to run Airflow tasks until the issue is addressed."
                 )
+                self.is_healthy = False
                 raise AirflowException(msg_prefix % status + msg_error_suffix)
 
     def load_ecs_connection(self, check_connection: bool = True):

@@ -693,6 +693,8 @@ class AirflowBaseView(BaseView):
         extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
+        if executor.is_healthy is False:
+            extra_args["unhealthy_executor"] = executor.__name__ or "Executor"
         extra_args["otel_on"] = conf.getboolean("metrics", "otel_on")
 
     line_chart_attr = {

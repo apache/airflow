@@ -57,6 +57,8 @@ ARN1 = "arn1"
 ARN2 = "arn2"
 ARN3 = "arn3"
 
+ENV_VAR_PREFIX = f"AIRFLOW__{CONFIG_GROUP_NAME}__"
+
 
 def mock_task(arn=ARN1, state=State.RUNNING):
     task = mock.Mock(spec=EcsExecutorTask, task_arn=arn)
@@ -103,16 +105,16 @@ def mock_config():
 
 @pytest.fixture
 def set_env_vars():
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS}".upper()] = "3"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+    os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS}".upper()] = "3"
 
 
 @pytest.fixture
@@ -823,16 +825,16 @@ class TestAwsEcsExecutor:
 class TestEcsExecutorConfig:
     @pytest.fixture()
     def assign_subnets(self):
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 
     @staticmethod
     def teardown_method() -> None:
         for env in os.environ:
-            if env.startswith(f"AIRFLOW__{CONFIG_GROUP_NAME}__".upper()):
+            if env.startswith(f"{ENV_VAR_PREFIX}".upper()):
                 os.environ.pop(env)
 
     def test_flatten_dict(self):
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
         nested_dict = {"a": "a", "b": "b", "c": {"d": "d"}}
 
         assert _recursive_flatten_dict(nested_dict) == {"a": "a", "b": "b", "d": "d"}
@@ -854,29 +856,23 @@ class TestEcsExecutorConfig:
             assert file_defaults[key] == CONFIG_DEFAULTS[key]
 
     def test_subnets_required(self):
-        assert f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper() not in os.environ
+        assert f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SUBNETS}".upper() not in os.environ
 
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
-        ] = "container-name"
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()
-        ] = "some-task-def"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
 
         with pytest.raises(ValueError) as raised:
             ecs_executor_config.build_task_kwargs()
         assert raised.match("At least one subnet is required to run a task.")
 
     def test_config_defaults_are_applied(self, assign_subnets):
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
-        ] = "container-name"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
         task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs())
@@ -908,12 +904,10 @@ class TestEcsExecutorConfig:
         first_explicit_version = "2"
         second_explicit_version = "3"
 
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
-        platform_version_env_key = (
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
-        )
+        run_task_kwargs_env_key = f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        platform_version_env_key = f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
         # Required param which doesn't have a default
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
         # Confirm the default value is applied when no value is provided.
         assert run_task_kwargs_env_key not in os.environ
@@ -955,9 +949,9 @@ class TestEcsExecutorConfig:
             "count": 2,  # The user should not be allowed to overwrite count, it must be value of 1
         }
 
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        run_task_kwargs_env_key = f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
         # Required param which doesn't have a default
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
         # Provide values via task run kwargs template and assert that they are applied,
         # which verifies that the OTHER values were changed.
@@ -977,9 +971,9 @@ class TestEcsExecutorConfig:
             "tags": templated_tags,  # The user should be allowed to pass arbitrary run task args
         }
 
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        run_task_kwargs_env_key = f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
         # Required param which doesn't have a default
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
         os.environ[run_task_kwargs_env_key] = json.dumps(provided_run_task_kwargs)
         task_kwargs = ecs_executor_config.build_task_kwargs()
@@ -1000,7 +994,7 @@ class TestEcsExecutorConfig:
             AllEcsConfigKeys.SUBNETS: "sub1,sub2",
         }
         for key, value in kwargs_to_test.items():
-            os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{key}".upper()] = value
+            os.environ[f"{ENV_VAR_PREFIX}{key}".upper()] = value
 
         run_task_kwargs = ecs_executor_config.build_task_kwargs()
         run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
@@ -1080,9 +1074,7 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
-        ] = "False"
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = "False"
 
         executor.start()
 
@@ -1090,7 +1082,7 @@ class TestEcsExecutorConfig:
 
     def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars):
         os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+            f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
         ] = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         expected_error = (
             "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
@@ -1107,9 +1099,9 @@ class TestEcsExecutorConfig:
         )
 
         os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+            f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
         ] = valid_capacity_provider
-        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+        os.environ.pop(f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
 
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
@@ -1125,7 +1117,7 @@ class TestEcsExecutorConfig:
         mock_conn.describe_clusters.return_value = {
             "clusters": [{"defaultCapacityProviderStrategy": ["some_strategy"]}]
         }
-        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+        os.environ.pop(f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
 
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
@@ -1141,9 +1133,63 @@ class TestEcsExecutorConfig:
 
         mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
 
-        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+        os.environ.pop(f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
 
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
         task_kwargs = ecs_executor_config.build_task_kwargs()
         assert task_kwargs["launchType"] == "FARGATE"
+
+    def test_unhealthy_executor_flag(self, set_env_vars):
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = "True"
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "no identity-based policy allows the ecs:StopTask action",
+            }
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+        executor.ecs = ecs_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+        assert executor.is_healthy is False
+        executor.ecs.stop_task.assert_called_once()
+
+    def test_healthy_executor_flag(self, set_env_vars):
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = "True"
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        # This is the expected "happy case" response indicating that there is a working API connection.
+        mock_resp = {
+            "Error": {
+                "Code": "InvalidParameterException",
+                "Message": "task was not found",
+            }
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+        executor.ecs = ecs_mock
+
+        executor.start()
+
+        assert executor.is_healthy is True
+        executor.ecs.stop_task.assert_called_once()
+
+    def test_unset_healthy_executor_flag(self, set_env_vars):
+        os.environ[f"{ENV_VAR_PREFIX}{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = "False"
+        executor = AwsEcsExecutor()
+        # Replace boto3 ECS client with mock.
+        executor.ecs = mock.Mock(spec=executor.ecs)
+        executor.check_health = mock.Mock(spec=executor.check_health)
+
+        executor.start()
+
+        assert executor.is_healthy is None
+        executor.check_health.assert_not_called()
