@@ -24,9 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-
 
 
 class TestTeradataHook:

@@ -926,7 +926,7 @@ teradata = [ # source: airflow/providers/teradata/provider.yaml
   "teradatasql>=17.20.0.28",
   "teradatasqlalchemy>=17.20.0.0",
 ]
-trino = [
+trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
   "trino>=0.318.0",

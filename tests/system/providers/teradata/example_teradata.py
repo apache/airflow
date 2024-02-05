@@ -35,10 +35,6 @@ except ImportError:
 # [START teradata_operator_howto_guide]
 
 
-# create_table_teradata, insert_teradata_task, create_table_teradata_from_external_file, populate_user_table
-# get_all_countries, get_all_description, get_countries_from_continent, drop_table_teradata_task, drop_users_table_teradata_task
-# are examples of tasks created by instantiating the Teradata Operator
-
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_teradata"
 
@@ -49,9 +45,9 @@ with DAG(
     catchup=False,
     default_args={"conn_id": "teradata_default"},
 ) as dag:
-    # [START teradata_operator_howto_guide_create_country_table]
-    create_country_table = TeradataOperator(
-        task_id="create_country_table",
+    # [START teradata_operator_howto_guide_create_table]
+    create_table = TeradataOperator(
+        task_id="create_table",
         sql=r"""
         CREATE TABLE Country (
             country_id INTEGER,
@@ -60,55 +56,116 @@ with DAG(
         );
         """,
     )
-    # [END teradata_operator_howto_guide_create_country_table]
-    # [START teradata_operator_howto_guide_populate_country_table]
-    populate_country_table = TeradataOperator(
-        task_id="populate_country_table",
-        sql=r"""
-                INSERT INTO Country VALUES ( 1, 'India', 'Asia');
-                INSERT INTO Country VALUES ( 2, 'Germany', 'Europe');
-                INSERT INTO Country VALUES ( 3, 'Argentina', 'South America');
-                INSERT INTO Country VALUES ( 4, 'Ghana', 'Africa');
-                """,
-    )
-    # [END teradata_operator_howto_guide_populate_country_table]
-    # [START teradata_operator_howto_guide_create_users_table_from_external_file]
-    create_users_table_from_external_file = TeradataOperator(
-        task_id="create_users_table_from_external_file",
+    # [END teradata_operator_howto_guide_create_table]
+
+    # [START teradata_operator_howto_guide_create_table_from_external_file]
+    create_table_from_external_file = TeradataOperator(
+        task_id="create_table_from_external_file",
         sql="create_table.sql",
         dag=dag,
     )
-    # [END teradata_operator_howto_guide_create_users_table_from_external_file]
+    # [END teradata_operator_howto_guide_create_table_from_external_file]
+    # [START teradata_operator_howto_guide_populate_table]
+    populate_table = TeradataOperator(
+        task_id="populate_table",
+        sql=r"""
+        INSERT INTO Users (username, description)
+            VALUES ( 'Danny', 'Musician');
+        INSERT INTO Users (username, description)
+            VALUES ( 'Simone', 'Chef');
+        INSERT INTO Users (username, description)
+            VALUES ( 'Lily', 'Florist');
+        INSERT INTO Users (username, description)
+            VALUES ( 'Tim', 'Pet shop owner');
+        """,
+    )
+    # [END teradata_operator_howto_guide_populate_table]
     # [START teradata_operator_howto_guide_get_all_countries]
     get_all_countries = TeradataOperator(
         task_id="get_all_countries",
-        sql=r"""SELECT * FROM Country;""",
+        sql=r"""
+        SELECT * FROM Country;
+        """,
     )
     # [END teradata_operator_howto_guide_get_all_countries]
     # [START teradata_operator_howto_guide_params_passing_get_query]
     get_countries_from_continent = TeradataOperator(
         task_id="get_countries_from_continent",
-        sql=r"""SELECT * FROM Country where {{ params.column }}='{{ params.value }}';""",
+        sql=r"""
+        SELECT * FROM Country WHERE {{ params.column }}='{{ params.value }}';
+        """,
         params={"column": "continent", "value": "Asia"},
     )
     # [END teradata_operator_howto_guide_params_passing_get_query]
     # [START teradata_operator_howto_guide_drop_country_table]
     drop_country_table = TeradataOperator(
-        task_id="drop_country_table", sql=r"""DROP TABLE Country;""", dag=dag
+        task_id="drop_country_table",
+        sql=r"""
+        DROP TABLE Country;
+        """,
+        dag=dag
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
-    drop_users_table = TeradataOperator(task_id="drop_users_table", sql=r"""DROP TABLE Users;""", dag=dag)
+    drop_users_table = TeradataOperator(
+        task_id="drop_users_table",
+        sql=r"""
+        DROP TABLE Users;
+        """,
+        dag=dag)
     # [END teradata_operator_howto_guide_drop_users_table]
+    # [START teradata_operator_howto_guide_create_schema]
+    create_schema = TeradataOperator(
+        task_id="create_schema",
+        sql=r"""
+        CREATE DATABASE airflow_temp AS PERM=10e6;
+        """,
+    )
+    # [END teradata_operator_howto_guide_create_schema]
+    # [START teradata_operator_howto_guide_create_table_with_schema]
+    create_table_with_schema = TeradataOperator(
+        task_id="create_table_with_schema",
+        sql=r"""
+        CREATE TABLE schema_table (
+           country_id INTEGER,
+           name CHAR(25),
+           continent CHAR(25)
+        );
+        """,
+        schema="airflow_temp",
+    )
+    # [END teradata_operator_howto_guide_create_table_with_schema]
+    # [START teradata_operator_howto_guide_drop_schema_table]
+    drop_schema_table = TeradataOperator(
+        task_id="drop_schema_table",
+        sql=r"""
+        DROP TABLE schema_table;
+        """,
+        dag=dag,
+        schema="airflow_temp",
+    )
+    # [END teradata_operator_howto_guide_drop_schema_table]
+    # [START teradata_operator_howto_guide_drop_schema]
+    drop_schema = TeradataOperator(
+        task_id="drop_schema",
+        sql=r"""
+        DROP DATABASE airflow_temp;
+        """,
+        dag=dag)
 
+    # [END teradata_operator_howto_guide_drop_schema]
     (
-        create_country_table
-        >> populate_country_table
-        >> create_users_table_from_external_file
+        create_table
+        >> create_table_from_external_file
+        >> populate_table
         >> get_all_countries
         >> get_countries_from_continent
         >> drop_country_table
         >> drop_users_table
+        >> create_schema
+        >> create_table_with_schema
+        >> drop_schema_table
+        >> drop_schema
     )
 
     # [END teradata_operator_howto_guide]

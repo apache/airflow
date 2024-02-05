@@ -18,7 +18,7 @@
 """A Airflow Hook for interacting with Teradata SQL Server."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy
 import teradatasql
@@ -26,7 +26,6 @@ from teradatasql import TeradataConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
-T = TypeVar("T")
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
@@ -39,7 +38,8 @@ class TeradataHook(DbApiHook):
     Teradata DB Server URL, username, password and database name are fetched from the predefined connection
     config connection_id. It raises an airflow error if the given connection id doesn't exist.
 
-    See :doc:` docs/apache-airflow-providers-teradata/connections/teradata.rst` for full documentation.
+    .. seealso::
+        - :ref:`Teradata API connection <howto/connection:teradata>`
 
     :param args: passed to DbApiHook
     :param database: The Teradata database to connect to.

@@ -20,15 +20,12 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.utils import timezone
-
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.operators.teradata import TeradataOperator
-
-
-from airflow.exceptions import AirflowException
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
@@ -79,10 +76,7 @@ class TestTeradataOperator:
         task_id = "test_task_id"
 
         operator = TeradataOperator(
-            sql=sql,
-            conn_id=teradata_conn_id,
-            parameters=parameters,
-            task_id=task_id,
+            sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id, dag=self.dag
         )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -107,10 +101,7 @@ class TestTeradataOperator:
         task_id = "test_task_id"
 
         operator = TeradataOperator(
-            sql=sql,
-            conn_id=teradata_conn_id,
-            parameters=parameters,
-            task_id=task_id,
+            sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id, dag=self.dag
         )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(

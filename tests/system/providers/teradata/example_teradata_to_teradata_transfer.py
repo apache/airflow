@@ -41,11 +41,6 @@ except ImportError:
 
 # [START teradata_to_teradata_transfer_operator_howto_guide]
 
-
-# create_src_table, create_dest_table, insert_data_src, read_data_src, read_data_dest, drop_src_table
-# and drop_dest_table are examples of tasks created by instantiating the Teradata Operator and transfer_data
-# is the example of task created by instantiating the TeradataToTeradata Transfer Operator.
-
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_teradata_to_teradata_transfer_operator"
 CONN_ID = "teradata_default"
