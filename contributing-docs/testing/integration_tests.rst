@@ -64,7 +64,7 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | pinot        | Integration required for Apache Pinot hooks.       |
 +--------------+----------------------------------------------------+
-| statsd       | Integration required for Satsd hooks.              |
+| statsd       | Integration required for Statsd hooks.             |
 +--------------+----------------------------------------------------+
 | trino        | Integration required for Trino hooks.              |
 +--------------+----------------------------------------------------+
