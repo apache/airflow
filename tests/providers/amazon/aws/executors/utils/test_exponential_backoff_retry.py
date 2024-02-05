@@ -21,7 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import exponential_backoff_retry
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
+    calculate_next_attempt_delay,
+    exponential_backoff_retry,
+)
 
 
 class TestExponentialBackoffRetry:
@@ -279,3 +282,18 @@ class TestExponentialBackoffRetry:
             exponent_base=3,
         )
         assert mock_callable_function.call_count == expected_calls
+
+    def test_calculate_next_attempt_delay(self):
+        exponent_base: int = 4
+        num_loops: int = 3
+        # Setting max_delay this way means there will be three loops will run to test:
+        # one will return a value under max_delay, one equal to max_delay, and one over.
+        max_delay: int = exponent_base**num_loops - 1
+
+        for attempt_number in range(1, num_loops):
+            returned_delay = calculate_next_attempt_delay(attempt_number, max_delay, exponent_base).seconds
+
+            if (expected_delay := exponent_base**attempt_number) <= max_delay:
+                assert returned_delay == expected_delay
+            else:
+                assert returned_delay == max_delay
