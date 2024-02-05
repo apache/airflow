@@ -1330,7 +1330,7 @@ def publish_docs(
             for entry in success_entries:
                 get_console().print(f"[success]{entry}")
             get_console().rule()
-        get_console().print("\n[warning]Packages those were skipped:")
+        get_console().print("\n[warning]Packages skipped:")
         for entry in skipped_entries:
             get_console().print(f"[warning]{entry}")
 
