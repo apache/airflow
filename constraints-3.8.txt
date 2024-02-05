@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-04T14:34:21.016436
+# This constraints file was automatically generated on 2024-02-05T02:49:31.381377
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -425,7 +425,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
 limits==3.7.0
-linkify-it-py==2.0.2
+linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
 looker-sdk==24.0.0
@@ -441,7 +441,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
-moto==5.0.0
+moto==5.0.1
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.26.0
@@ -467,7 +467,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.11.0
+openai==1.11.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.8.0
@@ -528,7 +528,7 @@ psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.5.0
+py-partiql-parser==0.5.1
 py4j==0.10.9.7
 pyOpenSSL==23.3.0
 pyarrow-hotfix==0.6
@@ -683,7 +683,7 @@ types-aiofiles==23.2.0.20240106
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
 types-docutils==0.20.0.20240201
-types-paramiko==3.4.0.20240120
+types-paramiko==3.4.0.20240205
 types-protobuf==4.24.0.20240129
 types-pyOpenSSL==24.0.0.20240130
 types-python-dateutil==2.8.19.20240106
