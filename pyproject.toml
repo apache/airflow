@@ -322,7 +322,7 @@ devel-sentry = [
 devel-static-checks = [
     "black>=23.12.0",
     "pre-commit>=3.5.0",
-    "ruff==0.1.11",
+    "ruff==0.2.1",
     "yamllint>=1.33.0",
 ]
 devel-tests = [
@@ -1250,7 +1250,6 @@ target-version = ['py38', 'py39', 'py310', 'py311']
 
 [tool.ruff]
 target-version = "py38"
-typing-modules = ["airflow.typing_compat"]
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -1263,6 +1262,10 @@ extend-exclude = [
     "tests/dags/test_imports.py",
 ]
 
+namespace-packages = ["airflow/providers"]
+
+[tool.ruff.lint]
+typing-modules = ["airflow.typing_compat"]
 extend-select = [
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
@@ -1294,7 +1297,6 @@ ignore = [
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
 ]
 
-namespace-packages = ["airflow/providers"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -1332,11 +1334,11 @@ testpaths = [
     "tests",
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1371,7 +1373,7 @@ combine-as-imports = true
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 
-[tool.ruff.flake8-tidy-imports.banned-api]
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
@@ -1383,7 +1385,7 @@ combine-as-imports = true
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas"]
 
-[tool.ruff.flake8-type-checking]
+[tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
 
 [tool.coverage.run]
