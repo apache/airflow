@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-05T16:30:34.715282
+# This constraints file was automatically generated on 2024-02-05T19:12:04.705915
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -381,7 +381,7 @@ ordered-set==4.1.0
 orjson==3.9.13
 oss2==2.18.4
 packaging==23.2
-pandas-gbq==0.20.0
+pandas-gbq==0.21.0
 pandas-stubs==2.0.2.230605
 pandas==2.2.0
 papermill==2.5.0
@@ -440,7 +440,7 @@ pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.6.1
 pymssql==2.2.11
-pyodbc==5.0.1
+pyodbc==5.1.0
 pyparsing==3.1.1
 pypsrp==0.8.1
 pyspark==3.5.0
