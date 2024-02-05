@@ -1239,13 +1239,13 @@ def run_publish_docs_in_parallel(
                     skipped_entries.append(message)
 
     if include_success_outputs:
-        print("Success entries:")
+        get_console().print("[success]Packages those were published:")
         for entry in success_entries:
-            print(entry)
-        print("=================================================")
-    print("Skipped entries:")
+            get_console().print(f"[success]{entry}")
+        get_console().rule()
+    get_console().print("\n[warning]Packages those were skippeds:")
     for entry in skipped_entries:
-        print(entry)
+        get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
@@ -1326,13 +1326,13 @@ def publish_docs(
             else:
                 skipped_entries.append(message)
         if include_success_outputs:
-            print("Success entries:")
+            get_console().print("[success]Packages those were published:")
             for entry in success_entries:
-                print(entry)
-            print("=================================================")
-        print("Skipped entries:")
+                get_console().print(f"[success]{entry}")
+            get_console().rule()
+        get_console().print("\n[warning]Packages those were skipped:")
         for entry in skipped_entries:
-            print(entry)
+            get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
