@@ -1326,7 +1326,7 @@ def publish_docs(
             else:
                 skipped_entries.append(message)
         if include_success_outputs:
-            get_console().print("[success]Packages those were published:")
+            get_console().print("[success]Packages published:")
             for entry in success_entries:
                 get_console().print(f"[success]{entry}")
             get_console().rule()
