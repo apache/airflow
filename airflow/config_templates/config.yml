@@ -120,7 +120,8 @@ core:
       description: |
         The maximum number of consecutive DAG failures before DAG is automatically paused.
         This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
-        which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
+        which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``. If not specified, then the value is considered as None,
+        meaning that the dags are never paused out by default.
       version_added: ~
       type: string
       example: ~
@@ -330,12 +331,12 @@ core:
     default_task_execution_timeout:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
-        be passed into timedelta as seconds. If not specified, then the value is considered as None,
+        be passed into timedelta as seconds. If not specified, then the value is considered as 0,
         meaning that the operators are never timed out by default.
       version_added: 2.3.0
       type: integer
       example: ~
-      default: ""
+      default: "0"
     min_serialized_dag_update_interval:
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
