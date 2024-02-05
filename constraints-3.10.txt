@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-05T06:44:35.002208
+# This constraints file was automatically generated on 2024-02-05T13:41:31.144256
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ Sphinx==5.3.0
 WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
-adlfs==2024.1.0
+adlfs==2024.2.0
 aiobotocore==2.11.2
 aiofiles==23.2.1
 aiohttp==3.9.3
@@ -268,7 +268,7 @@ db-dtypes==1.2.0
 debugpy==1.8.0
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.15.1
+deltalake==0.15.2
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
