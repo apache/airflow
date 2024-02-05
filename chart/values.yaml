@@ -790,6 +790,7 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  enabled: true
   #  hostAliases for the scheduler pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1150,6 +1151,7 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  enabled: true
   # Add custom annotations to the webserver configmap
   configMapAnnotations: {}
   #  hostAliases for the webserver pod
