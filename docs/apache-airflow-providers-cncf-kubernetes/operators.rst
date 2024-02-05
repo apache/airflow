@@ -280,9 +280,9 @@ For further information, look at:
 SparkKubernetesOperator
 ==========================
 The :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` allows
-you to create and run spark job on a Kubernetes cluster. It is based on [ spark-on-k8s-operator ](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)project.
+you to create and run spark job on a Kubernetes cluster. It is based on `spark-on-k8s-operator <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator>`__ project.
 
-This operator simplify the interface and accept different parameters to configure and run spark application on Kubernetes.
+This operator simplifies the interface and accepts different parameters to configure and run spark application on Kubernetes.
 Similar to the KubernetesOperator, we have added the logic to wait for a job after submission,
 manage error handling, retrieve logs from the driver pod and the ability to delete a spark job.
 It also supports out-of-the-box Kubernetes functionalities such as handling of volumes, config maps, secrets, etc.
