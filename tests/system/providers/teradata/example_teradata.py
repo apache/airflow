@@ -103,7 +103,7 @@ with DAG(
         sql=r"""
         DROP TABLE Country;
         """,
-        dag=dag
+        dag=dag,
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
@@ -112,7 +112,8 @@ with DAG(
         sql=r"""
         DROP TABLE Users;
         """,
-        dag=dag)
+        dag=dag,
+    )
     # [END teradata_operator_howto_guide_drop_users_table]
     # [START teradata_operator_howto_guide_create_schema]
     create_schema = TeradataOperator(
@@ -151,7 +152,8 @@ with DAG(
         sql=r"""
         DROP DATABASE airflow_temp;
         """,
-        dag=dag)
+        dag=dag,
+    )
 
     # [END teradata_operator_howto_guide_drop_schema]
     (
