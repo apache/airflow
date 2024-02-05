@@ -26,6 +26,32 @@
 Changelog
 ---------
 
+2.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'analyticdb_spark.py' (#36911)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+2.7.1
+.....
+
+Misc
+~~~~
+
+* ``Clean OSS task handler code after bumping min Airflow version to 2.6.0 (#36420)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
 2.7.0
 .....
 

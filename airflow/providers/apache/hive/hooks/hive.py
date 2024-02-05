@@ -80,6 +80,7 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
+    :param proxy_user: Run HQL code as this user.
     """
 
     conn_name_attr = "hive_cli_conn_id"
@@ -90,12 +91,12 @@ class HiveCliHook(BaseHook):
     def __init__(
         self,
         hive_cli_conn_id: str = default_conn_name,
-        run_as: str | None = None,
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
@@ -103,9 +104,7 @@ class HiveCliHook(BaseHook):
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
         self.conn = conn
-        self.run_as = run_as
         self.sub_process: Any = None
-
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
@@ -116,19 +115,40 @@ class HiveCliHook(BaseHook):
         self.mapred_queue = mapred_queue or conf.get("hive", "default_hive_mapred_queue")
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.proxy_user = proxy_user
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, StringField
+
+        return {
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=False),
+            "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
+            "principal": StringField(
+                lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
 
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
-
+        if self.proxy_user is not None:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
-        if proxy_user_value == "login" and conn.login:
-            return f"hive.server2.proxy.user={conn.login}"
-        if proxy_user_value == "owner" and self.run_as:
-            return f"hive.server2.proxy.user={self.run_as}"
-        if proxy_user_value != "":  # There is a custom proxy user
+        if proxy_user_value != "":
             return f"hive.server2.proxy.user={proxy_user_value}"
-        return proxy_user_value  # The default proxy user (undefined)
+        return ""
 
     def _prepare_cli_cmd(self) -> list[Any]:
         """Create the command list from available information."""

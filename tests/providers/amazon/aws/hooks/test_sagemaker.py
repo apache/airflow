@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from botocore.exceptions import ClientError
 from dateutil.tz import tzlocal
-from moto import mock_sagemaker
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -689,14 +689,14 @@ class TestSageMakerHook:
         ret = hook.count_processing_jobs_by_name("existing_job")
         assert ret == 0
 
-    @mock_sagemaker
+    @mock_aws
     def test_delete_model(self):
         hook = SageMakerHook()
         with patch.object(hook.conn, "delete_model") as mock_delete:
             hook.delete_model(model_name="test")
         mock_delete.assert_called_once_with(ModelName="test")
 
-    @mock_sagemaker
+    @mock_aws
     def test_delete_model_when_not_exist(self):
         hook = SageMakerHook()
         with pytest.raises(ClientError) as raised_exception:
@@ -813,13 +813,15 @@ class TestSageMakerHook:
         mock_conn().stop_pipeline_execution.side_effect = [
             conflict_error,
             conflict_error,
+            conflict_error,
+            conflict_error,
             None,
         ]
 
         hook = SageMakerHook(aws_conn_id="aws_default")
         hook.stop_pipeline(pipeline_exec_arn="test")
 
-        assert mock_conn().stop_pipeline_execution.call_count == 3
+        assert mock_conn().stop_pipeline_execution.call_count == 5
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_pipeline_fails_if_all_retries_error(self, mock_conn):
@@ -833,7 +835,7 @@ class TestSageMakerHook:
         with pytest.raises(ClientError) as raised_exception:
             hook.stop_pipeline(pipeline_exec_arn="test")
 
-        assert mock_conn().stop_pipeline_execution.call_count == 3
+        assert mock_conn().stop_pipeline_execution.call_count == 5
         assert raised_exception.value == conflict_error
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)

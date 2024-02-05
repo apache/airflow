@@ -39,17 +39,18 @@ from airflow_breeze.commands.common_options import (
     option_database_isolation,
     option_db_reset,
     option_docker_host,
+    option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_not_ready_providers,
     option_include_removed_providers,
     option_installation_package_format,
     option_integration,
     option_max_time,
     option_mount_sources,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_project_name,
@@ -247,6 +248,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_db_reset
 @option_docker_host
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_dry_run
 @option_executor_shell
 @option_force_build
@@ -259,7 +261,6 @@ option_warn_image_upgrade_needed = click.option(
 @option_integration
 @option_max_time
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -293,6 +294,7 @@ def shell(
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
+    downgrade_pendulum: bool,
     docker_host: str | None,
     executor: str,
     extra_args: tuple,
@@ -305,7 +307,6 @@ def shell(
     integration: tuple[str, ...],
     max_time: int | None,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
@@ -353,6 +354,7 @@ def shell(
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        downgrade_pendulum=downgrade_pendulum,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
@@ -364,7 +366,6 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,
@@ -422,7 +423,7 @@ option_executor_start_airflow = click.option(
 
 @main.command(name="start-airflow")
 @click.option(
-    "--skip-asset-compilation",
+    "--skip-assets-compilation",
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
@@ -430,7 +431,7 @@ option_executor_start_airflow = click.option(
 @click.option(
     "--dev-mode",
     help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-asset-compilation).",
+    "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -459,7 +460,6 @@ option_executor_start_airflow = click.option(
 @option_load_default_connection
 @option_load_example_dags
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -499,7 +499,6 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
@@ -511,7 +510,7 @@ def start_airflow(
     providers_skip_constraints: bool,
     python: str,
     restart: bool,
-    skip_asset_compilation: bool,
+    skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
@@ -520,12 +519,12 @@ def start_airflow(
     Enter breeze environment and starts all Airflow components in the tmux session.
     Compile assets if contents of www directory changed.
     """
-    if dev_mode and skip_asset_compilation:
+    if dev_mode and skip_assets_compilation:
         get_console().print(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
-        skip_asset_compilation = True
-    if use_airflow_version is None and not skip_asset_compilation:
+        skip_assets_compilation = True
+    if use_airflow_version is None and not skip_assets_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
@@ -556,7 +555,6 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,
@@ -590,6 +588,7 @@ def start_airflow(
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @option_dry_run
 @option_github_repository
+@option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
     "--one-pass-only",
@@ -612,6 +611,7 @@ def build_docs(
     clean_build: bool,
     docs_only: bool,
     github_repository: str,
+    include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
@@ -640,7 +640,9 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(
-            doc_packages, include_removed=include_removed_providers
+            short_doc_packages=doc_packages,
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
         ),
     )
     cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(

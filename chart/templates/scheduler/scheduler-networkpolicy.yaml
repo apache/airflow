@@ -20,6 +20,7 @@
 ################################
 ## Airflow Scheduler NetworkPolicy
 #################################
+{{- if .Values.scheduler.enabled }}
 {{- if .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -56,4 +57,5 @@ spec:
     - protocol: TCP
       port: {{ .Values.ports.workerLogs }}
   {{- end }}
+{{- end }}
 {{- end }}

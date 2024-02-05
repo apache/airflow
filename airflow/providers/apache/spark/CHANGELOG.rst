@@ -29,6 +29,47 @@
 Changelog
 ---------
 
+4.7.1
+.....
+
+Misc
+~~~~
+
+* ``Bump min version for grpcio-status in spark provider (#36662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
+4.7.0
+.....
+
+* ``change spark connection form and add spark connections docs (#36419)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SparkSubmit: Adding propertyfiles option (#36164)``
+* ``SparkSubmit Connection Extras can be overridden (#36151)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.0
 .....
 

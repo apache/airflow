@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
+from deprecated import deprecated
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
@@ -449,7 +450,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
             # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
             # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
             records = next(job.result())  # type: ignore[arg-type]
-            self.check_value(records)
+            self.check_value(records)  # type: ignore[attr-defined]
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
@@ -1069,6 +1070,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 project_id=self.job_project_id or hook.project_id,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
+                impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
         )
@@ -1086,6 +1088,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         return event["records"]
 
 
+@deprecated(
+    reason="This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
     """Executes BigQuery SQL queries in a specific BigQuery database.
 
@@ -1210,12 +1216,6 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        warnings.warn(
-            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
@@ -1487,6 +1487,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "`exists_ok` parameter is deprecated, please use `if_exists`",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
@@ -1995,6 +1996,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "`exists_ok` parameter is deprecated, please use `if_exists`",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
@@ -2168,6 +2170,10 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason="This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     """Patch a dataset for your Project in BigQuery.
 
@@ -2212,11 +2218,6 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        warnings.warn(
-            "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -2850,6 +2851,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                                 persist_kwargs["dataset_id"] = table["datasetId"]
                                 persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
+
         self.job_id = job.job_id
 
         if self.project_id:
@@ -2859,6 +2861,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
         # Wait for the job to complete
         if not self.deferrable:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
@@ -2874,13 +2877,14 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                         job_id=self.job_id,
                         project_id=self.project_id,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
             self._handle_job_error(job)
 
-    def execute_complete(self, context: Context, event: dict[str, Any]):
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """Callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,

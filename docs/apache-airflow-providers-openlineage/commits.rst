@@ -35,14 +35,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.0
+.....
+
+Latest change: 2024-01-22
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`95a83102e8 <https://github.com/apache/airflow/commit/95a83102e8753c2f8caf5b0d5c847f4c7f254f67>`_  2024-01-09   ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
+=================================================================================================  ===========  ===================================================================================
+
+1.4.0
+.....
+
+Latest change: 2024-01-07
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`44b97e1687 <https://github.com/apache/airflow/commit/44b97e168733b08b308f16b2738b6c15e8a35862>`_  2024-01-04   ``Add OpenLineage support for Redshift SQL. (#35794)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ============================================================================
+
+1.3.1
+.....
+
+Latest change: 2023-12-23
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`fcb527ae94 <https://github.com/apache/airflow/commit/fcb527ae94f44e610af3e2e85cbf5f223aa2e61b>`_  2023-12-22   ``Fix typo. (#36362)``
+=================================================================================================  ===========  ==================================================================================
+
 1.3.0
 .....
 
-Latest change: 2023-12-06
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `fba682b1a5 <https://github.com/apache/airflow/commit/fba682b1a54a7936e955be1dbfae8e0e6f7a9443>`_  2023-12-06   ``Remove ClassVar annotations. (#36084)``
 `acd95a5ef1 <https://github.com/apache/airflow/commit/acd95a5ef19e8b98404a1eccd11a2d862f21d519>`_  2023-12-05   ``feat: Add parent_run_id for COMPLETE and FAIL events (#36067)``
 `35a1b7a63a <https://github.com/apache/airflow/commit/35a1b7a63a7e9eab299955e0b35f2fd3614b22ee>`_  2023-12-04   ``fix: Repair run_id for OpenLineage FAIL events (#36051)``

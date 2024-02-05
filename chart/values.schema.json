@@ -77,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.7.3",
+            "default": "2.8.1",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +92,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.7.3",
+            "default": "2.8.1",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -722,7 +722,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2023.02.24-1.16.1"
+                            "default": "airflow-pgbouncer-2024.01.19-1.21.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -749,7 +749,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2023.02.21-0.14.0"
+                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -776,7 +776,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.6.9"
+                            "default": "v4.1.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -1531,6 +1531,53 @@
                         }
                     }
                 },
+                "hpa": {
+                    "description": "HPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow HPA autoscaling (KEDA must be disabled).",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "metrics": {
+                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "type": "Resource",
+                                    "resource": {
+                                        "name": "cpu",
+                                        "target": {
+                                            "type": "Utilization",
+                                            "averageUtilization": 80
+                                        }
+                                    }
+                                }
+                            ],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricSpec"
+                            }
+                        },
+                        "behavior": {
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
@@ -2146,6 +2193,11 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable scheduler",
+                    "type": "boolean",
+                    "default": true
+                },
                 "hostAliases": {
                     "description": "HostAliases for the scheduler pod.",
                     "items": {
@@ -4165,6 +4217,11 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable webserver",
+                    "type": "boolean",
+                    "default": true
+                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the webserver configmap.",
                     "type": "object",
@@ -5890,7 +5947,7 @@
                 "auth_type": {
                     "description": "Method of authenticating users",
                     "type": "string",
-                    "default": "md5"
+                    "default": "scram-sha-256"
                 },
                 "auth_file": {
                     "description": "The name of the file to load user names and passwords from",
@@ -6965,18 +7022,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "images": {
-                    "description": "PostgreSQL image values.",
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "tag": {
-                            "description": "The PostgreSQL image tag.",
-                            "type": "string",
-                            "default": "11"
-                        }
-                    }
-                },
                 "auth": {
                     "description": "PostgreSQL authentication values.",
                     "type": "object",
@@ -7148,6 +7193,11 @@
                             "type": "string",
                             "default": "HEAD"
                         },
+                        "ref": {
+                            "description": "Git revision branch, tag, or hash.",
+                            "type": "string",
+                            "default": "v2-2-stable"
+                        },
                         "depth": {
                             "description": "Repository depth.",
                             "type": "integer",
@@ -7165,8 +7215,16 @@
                         },
                         "wait": {
                             "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": "integer",
-                            "default": 5
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "period": {
+                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "type": "string",
+                            "default": "5s"
                         },
                         "containerName": {
                             "description": "Git sync container name.",
@@ -7421,6 +7479,72 @@
             "type": "object",
             "additionalProperties": false
         },
+        "io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource": {
+            "description": "ContainerResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+            "properties": {
+                "container": {
+                    "description": "container is the name of the container in the pods of the scaling target",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "name is the name of the resource in question.",
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "name",
+                "target",
+                "container"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference": {
+            "description": "CrossVersionObjectReference contains enough information to let you identify the referred resource.",
+            "properties": {
+                "apiVersion": {
+                    "description": "API version of the referent",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\"",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "kind",
+                "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ExternalMetricSource": {
+            "description": "ExternalMetricSource indicates how to scale on a metric not associated with any Kubernetes object (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "metric",
+                "target"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy": {
             "description": "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
             "properties": {
@@ -7482,6 +7606,146 @@
                     "description": "scaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:\n  * increase no more than 4 pods per 60 seconds\n  * double the number of pods per 60 seconds\nNo stabilization is used."
                 }
             },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.MetricIdentifier": {
+            "description": "MetricIdentifier defines the name and optionally selector for a metric",
+            "properties": {
+                "name": {
+                    "description": "name is the name of the given metric",
+                    "type": "string"
+                },
+                "selector": {
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
+                    "description": "selector is the string-encoded form of a standard kubernetes label selector for the given metric When set, it is passed as an additional parameter to the metrics server for more specific metrics scoping. When unset, just the metricName will be used to gather metrics."
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.MetricSpec": {
+            "description": "MetricSpec specifies how to scale based on a single metric (only `type` and one other matching field should be set at once).",
+            "properties": {
+                "containerResource": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource",
+                    "description": "container resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source. This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag."
+                },
+                "external": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ExternalMetricSource",
+                    "description": "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster)."
+                },
+                "object": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ObjectMetricSource",
+                    "description": "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object)."
+                },
+                "pods": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.PodsMetricSource",
+                    "description": "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value."
+                },
+                "resource": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ResourceMetricSource",
+                    "description": "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source."
+                },
+                "type": {
+                    "description": "type is the type of metric source.  It should be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each mapping to a matching field in the object. Note: \"ContainerResource\" type is available on when the feature-gate HPAContainerMetrics is enabled",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.MetricTarget": {
+            "description": "MetricTarget defines the target value, average value, or average utilization of a specific metric",
+            "properties": {
+                "averageUtilization": {
+                    "description": "averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "averageValue": {
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+                    "description": "averageValue is the target value of the average of the metric across all relevant pods (as a quantity)"
+                },
+                "type": {
+                    "description": "type represents whether the metric type is Utilization, Value, or AverageValue",
+                    "type": "string"
+                },
+                "value": {
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+                    "description": "value is the target value of the metric (as a quantity)."
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ObjectMetricSource": {
+            "description": "ObjectMetricSource indicates how to scale on a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
+            "properties": {
+                "describedObject": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference"
+                },
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "describedObject",
+                "target",
+                "metric"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.PodsMetricSource": {
+            "description": "PodsMetricSource indicates how to scale on a metric describing each pod in the current scale target (for example, transactions-processed-per-second). The values will be averaged together before being compared to the target value.",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "description": "metric identifies the target metric by name and selector"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "metric",
+                "target"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.ResourceMetricSource": {
+            "description": "ResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+            "properties": {
+                "name": {
+                    "description": "name is the name of the resource in question.",
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "description": "target specifies the target value for the given metric"
+                }
+            },
+            "required": [
+                "name",
+                "target"
+            ],
             "type": "object",
             "additionalProperties": false
         },

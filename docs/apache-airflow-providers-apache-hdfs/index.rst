@@ -65,7 +65,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.3.0
+Release: 4.4.0
 
 Provider package
 ----------------

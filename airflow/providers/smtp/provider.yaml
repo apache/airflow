@@ -22,9 +22,10 @@ name: Simple Mail Transfer Protocol (SMTP)
 description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
-suspended: false
-source-date-epoch: 1701983419
+state: ready
+source-date-epoch: 1705912260
 versions:
+  - 1.6.0
   - 1.5.0
   - 1.4.1
   - 1.4.0

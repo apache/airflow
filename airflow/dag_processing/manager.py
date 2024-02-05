@@ -63,7 +63,7 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -681,9 +681,7 @@ class DagFileProcessorManager(LoggingMixin):
                     DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                 )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
-            query = with_row_locks(
-                query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
-            )
+            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
@@ -1177,14 +1175,17 @@ class DagFileProcessorManager(LoggingMixin):
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
         ]
 
-        for file_path, processor in self._processors.items():
-            self.log.debug(
-                "File path %s is still being processed (started: %s)",
-                processor.file_path,
-                processor.start_time.isoformat(),
-            )
+        if self.log.isEnabledFor(logging.DEBUG):
+            for file_path, processor in self._processors.items():
+                self.log.debug(
+                    "File path %s is still being processed (started: %s)",
+                    processor.file_path,
+                    processor.start_time.isoformat(),
+                )
 
-        self.log.debug("Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue))
+            self.log.debug(
+                "Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue)
+            )
 
         for file_path in files_paths_to_queue:
             self._file_stats.setdefault(file_path, DagFileProcessorManager.DEFAULT_FILE_STAT)

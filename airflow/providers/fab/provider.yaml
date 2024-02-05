@@ -24,8 +24,11 @@ name: Fab
 description: |
   `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
-suspended: false
-source-date-epoch: 1700774628
+# The provider is not yet ready to be released, we will skip it by default when preparing new release waves
+# For providers until we think it should be released.
+state: not-ready
+
+source-date-epoch: 1703288133
 
 versions:
   - 1.0.0
@@ -33,6 +36,41 @@ versions:
 dependencies:
   - apache-airflow>=2.9.0
   - flask>=2.2,<2.3
+  # We are tightly coupled with FAB version as we vendored-in part of FAB code related to security manager
+  # This is done as part of preparation to removing FAB as dependency, but we are not ready for it yet
+  # Every time we update FAB version here, please make sure that you review the classes and models in
+  # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
+  # In particular, make sure any breaking changes, for example any new methods, are accounted for.
   - flask-appbuilder==4.3.10
   - flask-login>=0.6.2
   - google-re2>=1.0
+
+config:
+  fab:
+    description: This section contains configs specific to FAB provider.
+    options:
+      auth_rate_limited:
+        description: |
+          Boolean for enabling rate limiting on authentication endpoints.
+        version_added: 1.0.0
+        type: boolean
+        example: ~
+        default: "True"
+      auth_rate_limit:
+        description: |
+          Rate limit for authentication endpoints.
+        version_added: 2.6.0
+        type: string
+        example: ~
+        default: "5 per 40 second"
+      update_fab_perms:
+        description: |
+          Update FAB permissions and sync security manager roles
+          on webserver startup
+        version_added: 1.10.7
+        type: string
+        example: ~
+        default: "True"
+
+auth-managers:
+  - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

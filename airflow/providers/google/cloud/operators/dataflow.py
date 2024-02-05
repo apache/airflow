@@ -21,11 +21,12 @@ from __future__ import annotations
 import copy
 import re
 import uuid
-import warnings
 from contextlib import ExitStack
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -167,6 +168,11 @@ class DataflowConfiguration:
         self.service_account = service_account
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     """
     Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
@@ -353,13 +359,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{self.__class__.__name__}` operator is deprecated, "
-            f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -677,6 +676,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options = self.dataflow_default_options
         options.update(self.options)
 
+        if not self.location:
+            self.location = DEFAULT_DATAFLOW_LOCATION
+
         self.job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
@@ -704,7 +706,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
+                location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
@@ -1029,6 +1031,11 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
             )
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
     Launching Cloud Dataflow jobs written in python.
@@ -1151,13 +1158,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{self.__class__.__name__}` operator is deprecated, "
-            "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
 
         self.py_file = py_file

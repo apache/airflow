@@ -27,6 +27,73 @@
 Changelog
 ---------
 
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   In this version of the provider, ``include`` and ``delimiter`` params have been removed from
+   ``WasbPrefixSensorTrigger``. These params will now need to passed through ``check_options`` param
+
+* ``Fix WasbPrefixSensor arg inconsistency between sync and async mode (#36806)``
+* ``add WasbPrefixSensorTrigger params breaking change to azure provider changelog (#36940)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix failed tasks are not detected in 'AzureBatchHook' (#36785)``
+* ``Fix assignment of template field in '__init__' in 'container_instances.py' (#36529)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Fix stacklevel in warnings.warn into the providers (#36831)``
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+
+8.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``azurefilesharehook fix with connection type azure (#36309)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.4.0
 .....
 

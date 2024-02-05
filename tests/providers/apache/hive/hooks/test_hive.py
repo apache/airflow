@@ -879,18 +879,26 @@ class TestHiveCli:
     def setup_method(self):
         self.nondefault_schema = "nondefault"
 
-    def test_get_proxy_user_value(self):
+    @pytest.mark.parametrize(
+        "extra_dejson, correct_proxy_user, proxy_user",
+        [
+            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
+        ],
+    )
+    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
-        returner.extra_dejson = {"proxy_user": "a_user_proxy"}
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
         hook.use_beeline = True
         hook.conn = returner
+        hook.proxy_user = proxy_user
 
         # Run
         result = hook._prepare_cli_cmd()
 
         # Verify
-        assert "hive.server2.proxy.user=a_user_proxy" in result[2]
+        assert correct_proxy_user in result[2]
 
     def test_get_wrong_principal(self):
         hook = MockHiveCliHook()

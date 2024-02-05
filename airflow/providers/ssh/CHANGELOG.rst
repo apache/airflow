@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add skip_on_exit_code to SSHOperator (#36303)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow SSHOperator.skip_on_exit_code to be zero (#36358)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+
+Misc
+~~~~
+
+* ``Review and mark found potential SSH security issues by bandit (#36162)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.9.0
 .....
 

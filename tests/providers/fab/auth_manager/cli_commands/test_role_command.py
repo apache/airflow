@@ -151,27 +151,61 @@ class TestCliRoles:
         role: Role = self.appbuilder.sm.find_role("FakeTeamC")
         assert len(role.permissions) == 0
 
-    def test_cli_import_roles(self, tmp_path):
-        fn = tmp_path / "import_roles.json"
-        fn.touch()
-        roles_list = ["FakeTeamA", "FakeTeamB"]
-        with open(fn, "w") as outfile:
-            json.dump(roles_list, outfile)
-        role_command.roles_import(self.parser.parse_args(["roles", "import", str(fn)]))
-        assert self.appbuilder.sm.find_role("FakeTeamA") is not None
-        assert self.appbuilder.sm.find_role("FakeTeamB") is not None
-
     def test_cli_export_roles(self, tmp_path):
         fn = tmp_path / "export_roles.json"
         fn.touch()
         args = self.parser.parse_args(["roles", "create", "FakeTeamA", "FakeTeamB"])
         role_command.roles_create(args)
-
-        assert self.appbuilder.sm.find_role("FakeTeamA") is not None
-        assert self.appbuilder.sm.find_role("FakeTeamB") is not None
-
+        role_command.roles_add_perms(
+            self.parser.parse_args(
+                [
+                    "roles",
+                    "add-perms",
+                    "FakeTeamA",
+                    "-r",
+                    permissions.RESOURCE_POOL,
+                    "-a",
+                    permissions.ACTION_CAN_EDIT,
+                    permissions.ACTION_CAN_READ,
+                ]
+            )
+        )
         role_command.roles_export(self.parser.parse_args(["roles", "export", str(fn)]))
         with open(fn) as outfile:
             roles_exported = json.load(outfile)
-        assert "FakeTeamA" in roles_exported
-        assert "FakeTeamB" in roles_exported
+        assert {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"} in roles_exported
+        assert {"name": "FakeTeamB", "resource": "", "action": ""} in roles_exported
+
+    def test_cli_import_roles(self, tmp_path):
+        fn = tmp_path / "import_roles.json"
+        fn.touch()
+        roles_list = [
+            {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"},
+            {"name": "FakeTeamA", "resource": "Admin", "action": "menu_access"},
+            {"name": "FakeTeamB", "resource": "", "action": ""},
+        ]
+        with open(fn, "w") as outfile:
+            json.dump(roles_list, outfile)
+        role_command.roles_import(self.parser.parse_args(["roles", "import", str(fn)]))
+        fakeTeamA: Role = self.appbuilder.sm.find_role("FakeTeamA")
+        fakeTeamB: Role = self.appbuilder.sm.find_role("FakeTeamB")
+
+        assert fakeTeamA is not None
+        assert fakeTeamB is not None
+        assert len(fakeTeamB.permissions) == 0
+        assert len(fakeTeamA.permissions) == 3
+        assert any(
+            permission.resource.name == permissions.RESOURCE_POOL
+            and permission.action.name == permissions.ACTION_CAN_EDIT
+            for permission in fakeTeamA.permissions
+        )
+        assert any(
+            permission.resource.name == permissions.RESOURCE_POOL
+            and permission.action.name == permissions.ACTION_CAN_READ
+            for permission in fakeTeamA.permissions
+        )
+        assert any(
+            permission.resource.name == permissions.RESOURCE_ADMIN_MENU
+            and permission.action.name == permissions.ACTION_CAN_ACCESS_MENU
+            for permission in fakeTeamA.permissions
+        )

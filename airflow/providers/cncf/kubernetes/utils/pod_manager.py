@@ -22,7 +22,6 @@ import itertools
 import json
 import math
 import time
-import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
@@ -31,15 +30,17 @@ from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
 
 import pendulum
 import tenacity
+from deprecated import deprecated
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from typing_extensions import Literal
-from urllib3.exceptions import HTTPError as BaseHTTPError
+from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
+
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
 """
@@ -287,18 +289,22 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
+        callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Create the launcher.
 
         :param kube_client: kubernetes client
+        :param callbacks:
         :param progress_callback: Callback function invoked when fetching container log.
+            This parameter is deprecated, please use ````
         """
         super().__init__()
         self._client = kube_client
         self._progress_callback = progress_callback
         self._watch = watch.Watch()
+        self._callbacks = callbacks
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -365,13 +371,14 @@ class PodManager(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(startup_check_interval)
 
+    @deprecated(
+        reason=(
+            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead "
+            "with option `follow=True`."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
-        warnings.warn(
-            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
-            "with option `follow=True`.",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(
@@ -395,7 +402,7 @@ class PodManager(LoggingMixin):
         :meta private:
         """
 
-        def consume_logs(*, since_time: DateTime | None = None) -> DateTime | None:
+        def consume_logs(*, since_time: DateTime | None = None) -> tuple[DateTime | None, Exception | None]:
             """
             Try to follow container logs until container completes.
 
@@ -404,7 +411,18 @@ class PodManager(LoggingMixin):
 
             Returns the last timestamp observed in logs.
             """
+            exception = None
             last_captured_timestamp = None
+            # We timeout connections after 30 minutes because otherwise they can get
+            # stuck forever. The 30 is somewhat arbitrary.
+            # As a consequence, a TimeoutError will be raised no more than 30 minutes
+            # after starting read.
+            connection_timeout = 60 * 30
+            # We set a shorter read timeout because that helps reduce *connection* timeouts
+            # (since the connection will be restarted periodically). And with read timeout,
+            # we don't need to worry about either duplicate messages or losing messages; we
+            # can safely resume from a few seconds later
+            read_timeout = 60 * 5
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
@@ -415,6 +433,7 @@ class PodManager(LoggingMixin):
                     ),
                     follow=follow,
                     post_termination_timeout=post_termination_timeout,
+                    _request_timeout=(connection_timeout, read_timeout),
                 )
                 message_to_log = None
                 message_timestamp = None
@@ -429,9 +448,13 @@ class PodManager(LoggingMixin):
                                 message_timestamp = line_timestamp
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                if self._progress_callback:
-                                    for line in progress_callback_lines:
+                                for line in progress_callback_lines:
+                                    if self._progress_callback:
                                         self._progress_callback(line)
+                                    if self._callbacks:
+                                        self._callbacks.progress_callback(
+                                            line=line, client=self._client, mode=ExecutionMode.SYNC
+                                        )
                                 self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
@@ -442,34 +465,46 @@ class PodManager(LoggingMixin):
                             progress_callback_lines.append(line)
                 finally:
                     # log the last line and update the last_captured_timestamp
-                    if self._progress_callback:
-                        for line in progress_callback_lines:
+                    for line in progress_callback_lines:
+                        if self._progress_callback:
                             self._progress_callback(line)
+                        if self._callbacks:
+                            self._callbacks.progress_callback(
+                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                            )
                     self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
-            except BaseHTTPError:
+            except TimeoutError as e:
+                # in case of timeout, increment return time by 2 seconds to avoid
+                # duplicate log entries
+                if val := (last_captured_timestamp or since_time):
+                    return val.add(seconds=2), e
+            except HTTPError as e:
+                exception = e
                 self.log.exception(
                     "Reading of logs interrupted for container %r; will retry.",
                     container_name,
                 )
-            return last_captured_timestamp or since_time
+            return last_captured_timestamp or since_time, exception
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
         # So the looping logic is there to let us resume following the logs.
         last_log_time = since_time
         while True:
-            last_log_time = consume_logs(since_time=last_log_time)
+            last_log_time, exc = consume_logs(since_time=last_log_time)
             if not self.container_is_running(pod, container_name=container_name):
                 return PodLoggingStatus(running=False, last_log_time=last_log_time)
             if not follow:
                 return PodLoggingStatus(running=True, last_log_time=last_log_time)
             else:
-                self.log.warning(
-                    "Pod %s log read interrupted but container %s still running",
-                    pod.metadata.name,
-                    container_name,
-                )
+                # a timeout is a normal thing and we ignore it and resume following logs
+                if not isinstance(exc, TimeoutError):
+                    self.log.warning(
+                        "Pod %s log read interrupted but container %s still running",
+                        pod.metadata.name,
+                        container_name,
+                    )
                 time.sleep(1)
 
     def _reconcile_requested_log_containers(
@@ -600,7 +635,7 @@ class PodManager(LoggingMixin):
         remote_pod = self.read_pod(pod)
         return container_is_terminated(pod=remote_pod, container_name=container_name)
 
-    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    @tenacity.retry(stop=tenacity.stop_after_attempt(6), wait=tenacity.wait_exponential(max=15), reraise=True)
     def read_pod_logs(
         self,
         pod: V1Pod,
@@ -610,6 +645,7 @@ class PodManager(LoggingMixin):
         since_seconds: int | None = None,
         follow=True,
         post_termination_timeout: int = 120,
+        **kwargs,
     ) -> PodLogsConsumer:
         """Read log from the POD."""
         additional_kwargs = {}
@@ -618,6 +654,7 @@ class PodManager(LoggingMixin):
 
         if tail_lines:
             additional_kwargs["tail_lines"] = tail_lines
+        additional_kwargs.update(**kwargs)
 
         try:
             logs = self._client.read_namespaced_pod_log(
@@ -629,7 +666,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
                 **additional_kwargs,
             )
-        except BaseHTTPError:
+        except HTTPError:
             self.log.exception("There was an error reading the kubernetes API.")
             raise
 
@@ -658,7 +695,7 @@ class PodManager(LoggingMixin):
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
-        except BaseHTTPError as e:
+        except HTTPError as e:
             raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
@@ -666,7 +703,7 @@ class PodManager(LoggingMixin):
         """Read POD information."""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
-        except BaseHTTPError as e:
+        except HTTPError as e:
             raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:

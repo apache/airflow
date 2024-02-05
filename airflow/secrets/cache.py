@@ -21,6 +21,7 @@ import datetime
 import multiprocessing
 
 from airflow.configuration import conf
+from airflow.utils import timezone
 
 
 class SecretCache:
@@ -36,10 +37,10 @@ class SecretCache:
     class _CacheValue:
         def __init__(self, value: str | None) -> None:
             self.value = value
-            self.date = datetime.datetime.utcnow()
+            self.date = timezone.utcnow()
 
         def is_expired(self, ttl: datetime.timedelta) -> bool:
-            return datetime.datetime.utcnow() - self.date > ttl
+            return timezone.utcnow() - self.date > ttl
 
     _VARIABLE_PREFIX = "__v_"
     _CONNECTION_PREFIX = "__c_"

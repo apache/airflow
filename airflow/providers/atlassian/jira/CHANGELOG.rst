@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Use lax 'atlassian-python-api' limitation (#36841)``
+* ``Limit 'atlassian-python-api' to <3.41.6 (#36815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add jira connection docs and UI form (#36458)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+
 2.4.0
 .....
 

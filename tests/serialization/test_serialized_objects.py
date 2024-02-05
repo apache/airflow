@@ -20,10 +20,10 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
-import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
+from pendulum.tz.timezone import Timezone
 
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
@@ -44,6 +44,7 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.settings import _ENABLE_AIP_44
+from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
@@ -113,14 +114,14 @@ TI_WITH_START_DAY = TaskInstance(
     run_id="fake_run",
     state=State.RUNNING,
 )
-TI_WITH_START_DAY.start_date = datetime.utcnow()
+TI_WITH_START_DAY.start_date = timezone.utcnow()
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
     run_id="test_dag_run_id",
     run_type=DagRunType.MANUAL,
-    execution_date=datetime.utcnow(),
-    start_date=datetime.utcnow(),
+    execution_date=timezone.utcnow(),
+    start_date=timezone.utcnow(),
     external_trigger=True,
     state=DagRunState.SUCCESS,
 )
@@ -140,9 +141,9 @@ def equal_time(a: datetime, b: datetime) -> bool:
     [
         ("test_str", None, equals),
         (1, None, equals),
-        (datetime.utcnow(), DAT.DATETIME, equal_time),
+        (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
-        (pendulum.tz.timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
+        (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
@@ -151,7 +152,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=datetime.utcnow()
+                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
                 )
             ),
             DAT.POD,
@@ -162,7 +163,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
                 "fake-dag",
                 schedule="*/10 * * * *",
                 default_args={"depends_on_past": True},
-                start_date=datetime.utcnow(),
+                start_date=timezone.utcnow(),
                 catchup=False,
             ),
             DAT.DAG,
@@ -241,7 +242,7 @@ def test_backcompat_deserialize_connection(conn_uri):
     "input, pydantic_class, encoded_type, cmp_func",
     [
         (
-            Job(state=State.RUNNING, latest_heartbeat=datetime.utcnow()),
+            Job(state=State.RUNNING, latest_heartbeat=timezone.utcnow()),
             JobPydantic,
             DAT.BASE_JOB,
             lambda a, b: equal_time(a.latest_heartbeat, b.latest_heartbeat),

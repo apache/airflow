@@ -28,10 +28,10 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from gcloud.aio.auth import Token
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -48,6 +48,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -98,20 +99,23 @@ class GKEHook(GoogleBaseHook):
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason=(
+            "The get_conn method has been deprecated. "
+            "You should use the get_cluster_manager_client method."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn(self) -> container_v1.ClusterManagerClient:
-        warnings.warn(
-            "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            AirflowProviderDeprecationWarning,
-        )
         return self.get_cluster_manager_client()
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason="The get_client method has been deprecated. You should use the get_conn method.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_client(self) -> ClusterManagerClient:
-        warnings.warn(
-            "The get_client method has been deprecated. You should use the get_conn method.",
-            AirflowProviderDeprecationWarning,
-        )
         return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:
@@ -350,12 +354,19 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
-        *args,
+        disable_tcp_keepalive: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
+        self.disable_tcp_keepalive = disable_tcp_keepalive
 
     @cached_property
     def api_client(self) -> client.ApiClient:
@@ -390,6 +401,10 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
+
+        if self.disable_tcp_keepalive is not True:
+            _enable_tcp_keepalive()
+
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
@@ -438,10 +453,23 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
     sync_hook_class = GKEPodHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 
-    def __init__(self, cluster_url: str, ssl_ca_cert: str, **kwargs) -> None:
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
-        super().__init__(cluster_url=cluster_url, ssl_ca_cert=ssl_ca_cert, **kwargs)
+        super().__init__(
+            cluster_url=cluster_url,
+            ssl_ca_cert=ssl_ca_cert,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     @contextlib.asynccontextmanager
     async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
@@ -480,14 +508,15 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
-                v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                )
-            return pod
+        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token:
+                async with self.get_conn(token) as connection:
+                    v1_api = async_client.CoreV1Api(connection)
+                    pod: V1Pod = await v1_api.read_namespaced_pod(
+                        name=name,
+                        namespace=namespace,
+                    )
+                return pod
 
     async def delete_pod(self, name: str, namespace: str):
         """Delete a pod.
@@ -495,18 +524,21 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token, self.get_conn(token) as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                await v1_api.delete_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                    body=client.V1DeleteOptions(),
-                )
-            except async_client.ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
+                token
+            ) as connection:
+                try:
+                    v1_api = async_client.CoreV1Api(connection)
+                    await v1_api.delete_namespaced_pod(
+                        name=name,
+                        namespace=namespace,
+                        body=client.V1DeleteOptions(),
+                    )
+                except async_client.ApiException as e:
+                    # If the pod is already deleted
+                    if e.status != 404:
+                        raise
 
     async def read_logs(self, name: str, namespace: str):
         """Read logs inside the pod while starting containers inside.
@@ -519,19 +551,22 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token, self.get_conn(token) as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                logs = await v1_api.read_namespaced_pod_log(
-                    name=name,
-                    namespace=namespace,
-                    follow=False,
-                    timestamps=True,
-                )
-                logs = logs.splitlines()
-                for line in logs:
-                    self.log.info("Container logs from %s", line)
-                return logs
-            except HTTPError:
-                self.log.exception("There was an error reading the kubernetes API.")
-                raise
+        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
+                token
+            ) as connection:
+                try:
+                    v1_api = async_client.CoreV1Api(connection)
+                    logs = await v1_api.read_namespaced_pod_log(
+                        name=name,
+                        namespace=namespace,
+                        follow=False,
+                        timestamps=True,
+                    )
+                    logs = logs.splitlines()
+                    for line in logs:
+                        self.log.info("Container logs from %s", line)
+                    return logs
+                except HTTPError:
+                    self.log.exception("There was an error reading the kubernetes API.")
+                    raise

@@ -44,42 +44,6 @@ There are two possible terminal states for the DAG Run:
 
 DAGs that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, DAGs whose latest DAG run is marked as failed can be found on the "Failed" tab.
 
-Cron Presets
-''''''''''''
-
-You may set your DAG to run on a simple schedule by setting its ``schedule`` argument to either a
-`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, a ``datetime.timedelta`` object,
-or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable <../authoring-and-scheduling/timetable>`. Note that Airflow parses cron expressions with the croniter library which supports an extended syntax for cron strings. See their documentation `in github <https://github.com/kiorky/croniter>`_. For example, you can create a DAG schedule to run at 12AM on the first Monday of the month with their extended cron syntax: ``0 0 * * MON#1``.
-
-.. tip::
-    You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
-
-+----------------+--------------------------------------------------------------------+-----------------+
-| preset         | meaning                                                            | cron            |
-+================+====================================================================+=================+
-| ``None``       | Don't schedule, use for exclusively "externally triggered" DAGs    |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@once``      | Schedule once and only once                                        |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@continuous``| Run as soon as the previous run finishes                           |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@hourly``    | Run once an hour at the end of the hour                            | ``0 * * * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@daily``     | Run once a day at midnight (24:00)                                 | ``0 0 * * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@weekly``    | Run once a week at midnight (24:00) on Sunday                      | ``0 0 * * 0``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@monthly``   | Run once a month at midnight (24:00) of the first day of the month | ``0 0 1 * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@quarterly`` | Run once a quarter at midnight (24:00) on the first day            | ``0 0 1 */3 *`` |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@yearly``    | Run once a year at midnight (24:00) of January 1                   | ``0 0 1 1 *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-
-Your DAG will be instantiated for each schedule along with a corresponding
-DAG Run entry in the database backend.
-
-
 .. _data-interval:
 
 Data Interval

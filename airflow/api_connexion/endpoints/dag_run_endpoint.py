@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection
 
 import pendulum
 from connexion import NoContent
@@ -41,6 +41,8 @@ from airflow.api_connexion.parameters import (
 )
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
+    DAGRunCollectionSchema,
+    DAGRunSchema,
     clear_dagrun_form_schema,
     dagrun_collection_schema,
     dagrun_schema,
@@ -59,6 +61,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
+from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
@@ -91,7 +94,9 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
-def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag_run(
+    *, dag_id: str, dag_run_id: str, fields: Collection[str] | None = None, session: Session = NEW_SESSION
+) -> APIResponse:
     """Get a DAG Run."""
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     if dag_run is None:
@@ -99,7 +104,13 @@ def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION)
             "DAGRun not found",
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
-    return dagrun_schema.dump(dag_run)
+    try:
+        # parse fields to Schema @post_dump
+        dagrun_schema = DAGRunSchema(context={"fields": fields}) if fields else DAGRunSchema()
+        return dagrun_schema.dump(dag_run)
+    except ValueError as e:
+        # Invalid fields
+        raise BadRequest("DAGRunSchema error", detail=str(e))
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
@@ -210,6 +221,7 @@ def get_dag_runs(
     offset: int | None = None,
     limit: int | None = None,
     order_by: str = "id",
+    fields: Collection[str] | None = None,
     session: Session = NEW_SESSION,
 ):
     """Get all DAG Runs."""
@@ -241,7 +253,13 @@ def get_dag_runs(
         order_by=order_by,
         session=session,
     )
-    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+    try:
+        dagrun_collection_schema = (
+            DAGRunCollectionSchema(context={"fields": fields}) if fields else DAGRunCollectionSchema()
+        )
+        return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+    except ValueError as e:
+        raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
@@ -319,11 +337,22 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     if not dagrun_instance:
         try:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
+
+            data_interval_start = post_body.get("data_interval_start")
+            data_interval_end = post_body.get("data_interval_end")
+            if data_interval_start and data_interval_end:
+                data_interval = DataInterval(
+                    start=pendulum.instance(data_interval_start),
+                    end=pendulum.instance(data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
                 execution_date=logical_date,
-                data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
+                data_interval=data_interval,
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,

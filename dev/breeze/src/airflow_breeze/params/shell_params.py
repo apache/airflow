@@ -29,7 +29,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
-    ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -41,7 +40,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
-    MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -60,22 +58,12 @@ from airflow_breeze.utils.path_utils import (
     GENERATED_DOCKER_COMPOSE_ENV_FILE,
     GENERATED_DOCKER_ENV_FILE,
     GENERATED_DOCKER_LOCK_FILE,
-    MSSQL_TMP_DIR_NAME,
     SCRIPTS_CI_DIR,
 )
-from airflow_breeze.utils.run_tests import file_name_from_test_type
-from airflow_breeze.utils.run_utils import commit_sha, get_filesystem_type, run_command
+from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
 
 DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
-
-
-def add_mssql_compose_file(compose_file_list: list[Path]):
-    docker_filesystem = get_filesystem_type("/var/lib/docker")
-    if docker_filesystem == "tmpfs":
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-tmpfs-volume.yml")
-    else:
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-docker-volume.yml")
 
 
 def generated_socket_compose_file(local_socket_path: str) -> str:
@@ -127,7 +115,7 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    airflow_branch: str = AIRFLOW_BRANCH
     airflow_constraints_location: str = ""
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
@@ -142,12 +130,11 @@ class ShellParams:
     collect_only: bool = False
     database_isolation: bool = False
     db_reset: bool = False
-    default_constraints_branch: str = os.environ.get(
-        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
     docker_host: str | None = os.environ.get("DOCKER_HOST")
     downgrade_sqlalchemy: bool = False
+    downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
@@ -162,14 +149,12 @@ class ShellParams:
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
-    install_providers_from_sources: bool = True
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
-    mssql_version: str = ALLOWED_MSSQL_VERSIONS[0]
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
     only_min_version_update: bool = False
@@ -279,8 +264,6 @@ class ShellParams:
             version = self.postgres_version
         if self.backend == "mysql":
             version = self.mysql_version
-        if self.backend == "mssql":
-            version = self.mssql_version
         return version
 
     @cached_property
@@ -319,15 +302,19 @@ class ShellParams:
         backend_files: list[Path] = []
         if self.backend != "all":
             backend_files = self.get_backend_compose_files(self.backend)
-            if self.backend == "mssql":
-                add_mssql_compose_file(compose_file_list)
         else:
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
-            add_mssql_compose_file(compose_file_list)
 
         if self.executor == "CeleryExecutor":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "celery" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
+                    )
+                    self.airflow_extras = ",".join(current_extras.split(",") + ["celery"])
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
@@ -390,22 +377,6 @@ class ShellParams:
         from airflow_breeze.utils.packages import get_suspended_provider_folders
 
         return " ".join(get_suspended_provider_folders()).strip()
-
-    @cached_property
-    def mssql_data_volume(self) -> str:
-        docker_filesystem = get_filesystem_type("/var/lib/docker")
-        # Make sure the test type is not too long to be used as a volume name in docker-compose
-        # The tmp directory in our self-hosted runners can be quite long, so we should limit the volume name
-        volume_name = (
-            "tmp-mssql-volume-" + file_name_from_test_type(self.test_type)[:20]
-            if self.test_type
-            else "tmp-mssql-volume"
-        )
-        if docker_filesystem == "tmpfs":
-            return os.fspath(Path.home() / MSSQL_TMP_DIR_NAME / f"{volume_name}-{self.mssql_version}")
-        else:
-            # mssql_data_volume variable is only used in case of tmpfs
-            return ""
 
     def add_docker_in_docker(self, compose_file_list: list[Path]):
         generated_compose_file = DOCKER_COMPOSE_DIR / "_generated_docker_in_docker.yml"
@@ -510,6 +481,7 @@ class ShellParams:
         _set_var(_env, "DEV_MODE", self.dev_mode)
         _set_var(_env, "DOCKER_IS_ROOTLESS", self.rootless_docker)
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
+        _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -519,14 +491,10 @@ class ShellParams:
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
         _set_var(_env, "INIT_SCRIPT_FILE", None, "init.sh")
         _set_var(_env, "INSTALL_AIRFLOW_VERSION", self.install_airflow_version)
-        _set_var(_env, "INSTALL_PROVIDERS_FROM_SOURCES", self.install_providers_from_sources)
         _set_var(_env, "INSTALL_SELECTED_PROVIDERS", self.install_selected_providers)
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
-        _set_var(_env, "MSSQL_DATA_VOLUME", self.mssql_data_volume)
-        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
-        _set_var(_env, "MSSQL_VERSION", self.mssql_version)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "NUM_RUNS", self.num_runs)

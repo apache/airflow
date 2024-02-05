@@ -20,7 +20,7 @@
 ################################
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
-
+{{- if .Values.scheduler.enabled }}
 # Are we using a local executor?
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
@@ -334,4 +334,5 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+  {{- end }}
   {{- end }}

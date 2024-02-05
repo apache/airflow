@@ -1,0 +1,27 @@
+# List of all the providers installed in regular airflow PROD image
+amazon
+celery
+cncf.kubernetes
+common.io
+common.sql
+docker
+elasticsearch
+fab
+ftp
+google
+grpc
+hashicorp
+http
+imap
+microsoft.azure
+mysql
+odbc
+openlineage
+postgres
+redis
+sendgrid
+sftp
+slack
+snowflake
+sqlite
+ssh

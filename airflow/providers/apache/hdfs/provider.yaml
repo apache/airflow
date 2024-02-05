@@ -22,9 +22,11 @@ description: |
   `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
-suspended: false
-source-date-epoch: 1701983353
+state: ready
+source-date-epoch: 1705911907
 versions:
+  - 4.3.2
+  - 4.3.1
   - 4.3.0
   - 4.2.0
   - 4.1.1

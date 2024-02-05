@@ -35,7 +35,7 @@ from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
-from airflow.utils.sqlalchemy import skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -625,7 +625,7 @@ class AbstractOperator(Templater, DAGNode):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
         to_update = session.scalars(query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED

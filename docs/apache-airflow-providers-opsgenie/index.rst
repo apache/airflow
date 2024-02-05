@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Operators <operators/index>
     Notifications <notifications/index>
 
@@ -77,7 +78,7 @@ Package apache-airflow-providers-opsgenie
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 
-Release: 5.4.0
+Release: 5.6.0
 
 Provider package
 ----------------

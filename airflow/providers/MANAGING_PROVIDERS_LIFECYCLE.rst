@@ -29,7 +29,8 @@ new provider.
 Another recommendation that will help you is to look for a provider that works similar to yours. That way it will
 help you to set up tests and other dependencies.
 
-First, you need to set up your local development environment. See `Contribution Quick Start <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`_
+First, you need to set up your local development environment. See
+`Contributors Quick Start <../../contributing-docs/03_contributors_quick_start.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
 easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
@@ -55,51 +56,51 @@ If you still have doubts about building your provider, we recommend that you rea
 open a issue on GitHub so the community can help you.
 
 The folders are optional: example_dags, hooks, links, logs, notifications, operators, secrets, sensors, transfers,
-triggers, waiters (and the list changes continuously).
+triggers (and the list changes continuously).
 
   .. code-block:: bash
 
       airflow/
-      ├── providers/<NEW_PROVIDER>/
-      │   ├── __init__.py
-      │   ├── example_dags/
-      │   │   ├── __init__.py
-      │   │   └── example_<NEW_PROVIDER>.py
-      │   ├── executors/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── hooks/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   ├── operators/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      ....
-      │   ├── transfers/
-      │   │   ├── __init__.py
-      │   │   └── <NEW_PROVIDER>.py
-      │   └── triggers/
-      │       ├── __init__.py
-      │       └── <NEW_PROVIDER>.py
-      └── tests/providers/<NEW_PROVIDER>/
-          ├── __init__.py
-          ├── executors/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── hooks/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          ├── operators/
-          │   ├── __init__.py
-          │   ├── test_<NEW_PROVIDER>.py
-          │   └── test_<NEW_PROVIDER>_system.py
-          ...
-          ├── transfers/
-          │   ├── __init__.py
-          │   └── test_<NEW_PROVIDER>.py
-          └── triggers/
-              ├── __init__.py
-              └── test_<NEW_PROVIDER>.py
+             ├── providers/<NEW_PROVIDER>/
+             │              ├── __init__.py
+             │              ├── executors/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── hooks/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── operators/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              ├── transfers/
+             │              │   ├── __init__.py
+             │              │   └── *.py
+             │              └── triggers/
+             │                  ├── __init__.py
+             │                  └── *.py
+             └── tests
+                     ├── providers/<NEW_PROVIDER>/
+                     │              ├── __init__.py
+                     │              ├── executors/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              ├── hooks/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*>.py
+                     │              ├── operators/
+                     │              │   ├── __init__.py
+                     │              │   ├── test_*.py
+                     │              ...
+                     │              ├── transfers/
+                     │              │   ├── __init__.py
+                     │              │   └── test_*.py
+                     │              └── triggers/
+                     │                  ├── __init__.py
+                     │                  └── test_*.py
+                     └── system/providers/<NEW_PROVIDER>/
+                                           ├── __init__.py
+                                           └── example_*.py
+
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -107,7 +108,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
+      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/test_*.py
 
 Adding chicken-egg providers
 ----------------------------
@@ -186,20 +187,26 @@ by ``pip``).
 Integration tests
 -----------------
 
-See `Airflow Integration Tests <https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests>`_
+See `Airflow Integration Tests <../../contributing-docs/testing/integration-tests.rst>`_
 
 
 Documentation
 -------------
 
 An important part of building a new provider is the documentation.
-Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/main/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
+Some steps for documentation occurs automatically by ``pre-commit`` see
+`Installing pre-commit guide <../../contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
+
+Those are important files in the airflow source tree that affect providers. The ``pyproject.toml`` in root
+Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
+when ``pre-commit`` is run. Files such as ``extra-packages-ref.rst`` should be manually updated because
+they are manually formatted for better layout and ``pre-commit`` will just verify if the information
+about provider is updated there. Files like ``commit.rst`` and ``CHANGELOG`` are automatically updated
+by ``breeze release-management`` command by release manager when providers are released.
 
   .. code-block:: bash
 
-     ├── INSTALL
-     ├── CONTRIBUTING.rst
-     ├── setup.py
+     ├── pyproject.toml
      ├── airflow/
      │   └── providers/
      │       └── <NEW_PROVIDER>/
@@ -207,7 +214,6 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
      │           └── CHANGELOG.rst
      │
      └── docs/
-         ├── spelling_wordlist.txt
          ├── apache-airflow/
          │   └── extra-packages-ref.rst
          ├── integration-logos/<NEW_PROVIDER>/
@@ -220,36 +226,8 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
                  └── <NEW_PROVIDER>.rst
 
 
-Files automatically updated by pre-commit:
-
-- ``INSTALL`` in provider
-
-Files automatically created when the provider is released:
-
-- ``docs/apache-airflow-providers-<NEW_PROVIDER>/commits.rst``
-- ``/airflow/providers/<NEW_PROVIDER>/CHANGELOG``
-
 There is a chance that your provider's name is not a common English word.
-In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``. This file begin with capitalized words and
-lowercase in the second block.
-
-  .. code-block:: bash
-
-    Namespace
-    Neo4j
-    Nextdoor
-    <NEW_PROVIDER> (new line)
-    Nones
-    NotFound
-    Nullable
-    ...
-    neo4j
-    neq
-    networkUri
-    <NEW_PROVIDER> (new line)
-    nginx
-    nobr
-    nodash
+In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``.
 
 Add your provider dependencies into ``provider.yaml`` under ``dependencies`` key..
 If your provider doesn't have any dependency add a empty list.
@@ -258,9 +236,9 @@ In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
 
 - add information how to configure connection for your provider.
 
-In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst``:
-
-- add information how to use the Operator. It's important to add examples and additional information if your Operator has extra-parameters.
+In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst`` add information
+how to use the Operator. It's important to add examples and additional information if your
+Operator has extra-parameters.
 
   .. code-block:: RST
 
@@ -284,7 +262,7 @@ In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.r
           :end-before: [END howto_operator_<NEW_PROVIDER>]
 
 
-Copy from another, similar provider the docs: ``docs/apache-airflow-providers-new_provider/*.rst``:
+Copy from another, similar provider the docs: ``docs/apache-airflow-providers-<NEW_PROVIDER>/*.rst``:
 
 At least those docs should be present
 
@@ -335,20 +313,6 @@ In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of you
       connection-types:
         - hook-class-name: airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
         - connection-type: provider-connection-type
-
-      hook-class-names:  # deprecated in Airflow 2.2.0
-        - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
-
-.. note:: Defining your own connection types
-
-    You only need to add ``connection-types`` in case you have some hooks that have customized UI behavior. However,
-    it is only supported for Airflow 2.2.0. If your providers are also targeting Airflow below 2.2.0 you should
-    provide the deprecated ``hook-class-names`` array. The ``connection-types`` array allows for optimization
-    of importing of individual connections and while Airflow 2.2.0 is able to handle both definition, the
-    ``connection-types`` is recommended.
-
-    For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
-
 
 After changing and creating these files you can build the documentation locally. The two commands below will
 serve to accomplish this. The first will build your provider's documentation. The second will ensure that the
@@ -460,6 +424,19 @@ the compatibility checks should be updated when min airflow version is updated.
 Details on how this should be done are described in
 `Provider policies <https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md>`_
 
+Releasing pre-installed providers for the first time
+====================================================
+
+When releasing providers for the first time, you need to release them in state ``not-ready``.
+This will make it available for release management commands, but it will not be added to airflow's
+preinstalled providers list - allowing airflow in main ``CI`` builds to be built without expecting the
+provider to be available in PyPI.
+
+You need to add ``--include-not-ready-providers`` if you want to add them to the list of providers
+considered by the release management commands.
+
+As soon as the provider is released, you should update the provider to ``state: ready``.
+
 Suspending providers
 ====================
 
@@ -467,7 +444,7 @@ As of April 2023, we have the possibility to suspend individual providers, so th
 back dependencies for Airflow and other providers. The process of suspending providers is described
 in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
 
-Technically, suspending a provider is done by setting ``suspended : true``, in the provider.yaml of the
+Technically, suspending a provider is done by setting ``state: suspended``, in the provider.yaml of the
 provider. This should be followed by committing the change and either automatically or manually running
 pre-commit checks that will either update derived configuration files or ask you to update them manually.
 Note that you might need to run pre-commit several times until all the static checks pass,
@@ -488,13 +465,12 @@ to do.
 
 * You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
 * you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -
-  ``setup.py`` to remove the provider from list of dependencies.
+  ``pyproject.toml`` to remove the provider from list of dependencies.
 
-What happens under-the-hood as a result, is that ``generated/providers.json`` file is updated with
+What happens under-the-hood as a result, is that ``pyproject.toml`` file is updated with
 the information about available providers and their dependencies and it is used by our tooling to
 exclude suspended providers from all relevant parts of the build and CI system (such as building CI image
 with dependencies, building documentation, running tests, etc.)
-
 
 Resuming providers
 ==================
@@ -503,16 +479,15 @@ Resuming providers is done by reverting the original change that suspended it. I
 needed to fix problems in the reverted provider, our CI will detect them and you will have to fix them
 as part of the PR reverting the suspension.
 
-
 Removing providers
 ==================
 
 When removing providers from Airflow code, we need to make one last release where we mark the provider as
 removed - in documentation and in description of the PyPI package. In order to that release manager has to
-add "removed: true" flag in the provider yaml file and include the provider in the next wave of the
+add "state: removed" flag in the provider yaml file and include the provider in the next wave of the
 providers (and then remove all the code and documentation related to the provider).
 
-The "removed: true" flag will cause the provider to be available for the following commands (note that such
+The "removed: removed" flag will cause the provider to be available for the following commands (note that such
 provider has to be explicitly added as selected to the package - such provider will not be included in
 the available list of providers or when documentation is built unless --include-removed-providers
 flag is used):

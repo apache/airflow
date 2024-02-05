@@ -21,9 +21,10 @@ name: Apache Kylin
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
-suspended: false
-source-date-epoch: 1701983356
+state: ready
+source-date-epoch: 1705911931
 versions:
+  - 3.5.0
   - 3.4.0
   - 3.3.0
   - 3.2.1
@@ -57,3 +58,7 @@ hooks:
   - integration-name: Apache Kylin
     python-modules:
       - airflow.providers.apache.kylin.hooks.kylin
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.kylin.hooks.kylin.KylinHook
+    connection-type: kylin

@@ -21,9 +21,11 @@ name: Elasticsearch
 description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
-suspended: false
-source-date-epoch: 1701983377
+state: ready
+source-date-epoch: 1705912070
 versions:
+  - 5.3.2
+  - 5.3.1
   - 5.3.0
   - 5.2.0
   - 5.1.1

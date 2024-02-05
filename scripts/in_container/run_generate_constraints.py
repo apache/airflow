@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -29,9 +30,13 @@ import requests
 from click import Choice
 from in_container_utils import click, console, run_command
 
-AIRFLOW_SOURCES = Path(__file__).resolve().parents[2]
+AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
+
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.8")
+GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json"
+
+ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
 
 now = datetime.now().isoformat()
 
@@ -125,7 +130,7 @@ class ConfigParams:
 
 
 def install_local_airflow_with_eager_upgrade(
-    config_params: ConfigParams, eager_upgrade_additional_requirements: str, extras: list[str]
+    config_params: ConfigParams, eager_upgrade_additional_requirements: str
 ) -> None:
     run_command(
         [
@@ -133,14 +138,15 @@ def install_local_airflow_with_eager_upgrade(
             "install",
             "--root-user-action",
             "ignore",
-            f".[{','.join(extras)}]",
+            "-e",
+            ".[all-core]",
             *eager_upgrade_additional_requirements.split(" "),
             "--upgrade",
             "--upgrade-strategy",
             "eager",
         ],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         check=True,
     )
 
@@ -235,7 +241,7 @@ def uninstall_all_packages(config_params: ConfigParams):
     result = run_command(
         ["pip", "freeze"],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         text=True,
         check=True,
         capture_output=True,
@@ -248,22 +254,18 @@ def uninstall_all_packages(config_params: ConfigParams):
     run_command(
         ["pip", "uninstall", "--root-user-action", "ignore", "-y", *all_installed_packages],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCES,
+        cwd=AIRFLOW_SOURCE_DIR,
         text=True,
         check=True,
     )
 
 
-def get_core_airflow_dependencies() -> list[str]:
-    import setup
-
-    return list(setup.CORE_EXTRAS_DEPENDENCIES.keys())
-
-
-def get_all_provider_packages() -> list[str]:
-    import setup
-
-    return setup.get_all_provider_packages().split(" ")
+def get_all_active_provider_packages() -> list[str]:
+    return [
+        f"apache-airflow-providers-{provider.replace('.','-')}"
+        for provider in ALL_PROVIDER_DEPENDENCIES.keys()
+        if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
+    ]
 
 
 def generate_constraints_source_providers(config_params: ConfigParams) -> None:
@@ -288,8 +290,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     :return:
     """
     dist_dir = Path("/dist")
-    core_dependencies = get_core_airflow_dependencies()
-    all_provider_packages = get_all_provider_packages()
+    all_provider_packages = get_all_active_provider_packages()
     chicken_egg_prefixes = []
     packages_to_install = []
     console.print("[bright_blue]Installing Airflow with PyPI providers with eager upgrade")
@@ -332,7 +333,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "install",
             "--root-user-action",
             "ignore",
-            f".[{','.join(core_dependencies)}]",
+            ".[all-core]",
             *packages_to_install,
             *config_params.eager_upgrade_additional_requirements.split(" "),
             "--upgrade",
@@ -355,15 +356,15 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     Generates constraints without any provider dependencies. This is used mostly to generate SBOM
     files - where we generate list of dependencies for Airflow without any provider installed.
     """
-    core_dependencies = get_core_airflow_dependencies()
     uninstall_all_packages(config_params)
     console.print(
-        f"[bright_blue]Installing airflow with [{core_dependencies}] extras only " f"with eager upgrade."
+        "[bright_blue]Installing airflow with [all-core] extras only with eager upgrade in "
+        "installable mode."
     )
     install_local_airflow_with_eager_upgrade(
-        config_params, config_params.eager_upgrade_additional_requirements, core_dependencies
+        config_params, config_params.eager_upgrade_additional_requirements
     )
-    console.print(f"[success]Installed airflow with [{core_dependencies}] extras only with eager upgrade.")
+    console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
         freeze_packages_to_file(config_params, constraints_file)
@@ -396,8 +397,7 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 )
 @click.option(
     "--default-constraints-branch",
-    default="constraints-main",
-    show_default=True,
+    required=True,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     help="Branch to get constraints from",
 )

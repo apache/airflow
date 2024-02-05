@@ -26,6 +26,35 @@
 Changelog
 ---------
 
+5.6.0
+.....
+
+Misc
+~~~~
+
+* ``Get rid of pyarrow-hotfix for CVE-2023-47248 (#36697)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ability to run streaming Job for BeamRunPythonPipelineOperator in non deferrable mode (#36108)``
+* ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.4.0
 .....
 

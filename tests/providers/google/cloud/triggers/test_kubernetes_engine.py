@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperati
 from airflow.triggers.base import TriggerEvent
 
 TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
-TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger"
+TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEPodAsyncHook"
 POD_NAME = "test-pod-name"
 NAMESPACE = "default"
@@ -73,6 +73,8 @@ def trigger():
         cluster_url=CLUSTER_URL,
         ssl_ca_cert=SSL_CA_CERT,
         base_container_name=BASE_CONTAINER_NAME,
+        gcp_conn_id=GCP_CONN_ID,
+        impersonation_chain=IMPERSONATION_CHAIN,
     )
 
 
@@ -101,15 +103,17 @@ class TestGKEStartPodTrigger:
             "base_container_name": BASE_CONTAINER_NAME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": SHOULD_DELETE_POD,
+            "gcp_conn_id": GCP_CONN_ID,
+            "impersonation_chain": IMPERSONATION_CHAIN,
         }
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_success_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger
     ):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
@@ -126,11 +130,11 @@ class TestGKEStartPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_failed_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger
     ):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(
+        mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
                 status=mock.MagicMock(
                     message=FAILED_RESULT_MSG,
@@ -153,11 +157,11 @@ class TestGKEStartPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_waiting_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger, caplog
     ):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.WAITING
 
         caplog.set_level(logging.INFO)
@@ -171,11 +175,11 @@ class TestGKEStartPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_running_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger, caplog
     ):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.RUNNING
 
         caplog.set_level(logging.INFO)
@@ -188,14 +192,14 @@ class TestGKEStartPodTrigger:
         assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_logging_in_trigger_when_exception_should_execute_successfully(
         self, mock_hook, trigger, caplog
     ):
         """
         Test that GKEStartPodTrigger fires the correct event in case of an error.
         """
-        mock_hook.return_value.get_pod.side_effect = Exception("Test exception")
+        mock_hook.get_pod.side_effect = Exception("Test exception")
 
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -210,14 +214,14 @@ class TestGKEStartPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_logging_in_trigger_when_fail_should_execute_successfully(
         self, mock_hook, mock_method, trigger, caplog
     ):
         """
         Test that GKEStartPodTrigger fires the correct event in case of fail.
         """
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.FAILED
         caplog.set_level(logging.INFO)
 
@@ -226,16 +230,16 @@ class TestGKEStartPodTrigger:
         assert "Container logs:"
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_GKE_PATH}._get_async_hook")
+    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_logging_in_trigger_when_cancelled_should_execute_successfully(
         self, mock_hook, trigger, caplog
     ):
         """
         Test that GKEStartPodTrigger fires the correct event in case if the task was cancelled.
         """
-        mock_hook.return_value.get_pod.side_effect = CancelledError()
-        mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
-        mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.get_pod.side_effect = CancelledError()
+        mock_hook.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 
         generator = trigger.run()
         actual = await generator.asend(None)

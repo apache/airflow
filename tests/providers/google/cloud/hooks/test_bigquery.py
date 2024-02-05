@@ -22,6 +22,7 @@ from datetime import datetime
 from unittest import mock
 from unittest.mock import AsyncMock
 
+import google.auth
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.api_core import page_iterator
@@ -2061,7 +2062,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
     def test_deprecation_warning(self, mock_bq_hook, func_name):
         args, kwargs = [1], {"param1": "val1"}
         new_path = re.escape(f"airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}")
-        message_pattern = rf"This method is deprecated\.\s+Please use `{new_path}`"
+        message_pattern = rf"Call to deprecated method {func_name}\.\s+\(Please use `{new_path}`\)"
         message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
@@ -2143,8 +2144,12 @@ class _BigQueryBaseAsyncTestClass:
 class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
-    async def test_get_job_instance(self, mock_session):
+    async def test_get_job_instance(self, mock_session, mock_auth_default):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
         hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
@@ -2315,10 +2320,13 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
     @mock.patch("aiohttp.client.ClientSession")
-    async def test_get_table_client(self, mock_session):
+    async def test_get_table_client(self, mock_session, mock_auth_default):
         """Test get_table_client async function and check whether the return value is a
         Table instance object"""
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
         hook = BigQueryTableAsyncHook()
         result = await hook.get_table_client(
             dataset=DATASET_ID, project_id=PROJECT_ID, table_id=TABLE_ID, session=mock_session

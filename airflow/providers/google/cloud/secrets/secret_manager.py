@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import logging
-import re
-import warnings
 from typing import Sequence
 
+from deprecated import deprecated
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -36,11 +35,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
-
-
-def _parse_version(val):
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
-    return tuple(int(x) for x in match.groups())
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -165,6 +159,13 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
+    @deprecated(
+        reason=(
+            "Method `CloudSecretManagerBackend.get_conn_uri` is deprecated and will be removed "
+            "in a future release.  Please use method `get_conn_value` instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
@@ -174,12 +175,6 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Please use method `get_conn_value` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:

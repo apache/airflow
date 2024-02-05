@@ -134,7 +134,7 @@ Regular users
 They can view and interact with the UI and API. They are able to view and edit DAGs,
 task instances, and DAG runs, and view task logs.
 
-For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.
+For more information on the capabilities of authenticated UI users, see :doc:`apache-airflow-providers-fab:auth-manager/access-control`.
 
 Capabilities of DAG Authors
 ---------------------------
@@ -208,6 +208,12 @@ the DAG Author to execute arbitrary code in those processes.
 The Deployment Manager might decide to introduce additional control mechanisms to prevent DAG authors from
 executing arbitrary code. This is all fully in hands of the Deployment Manager and it is discussed in the
 following chapter.
+
+Access to All DAGs
+........................................................................
+
+All DAG authors have access to all DAGs in the airflow deployment. This means that they can view, modify,
+and update any DAG without restrictions at any time.
 
 Responsibilities of Deployment Managers
 ---------------------------------------

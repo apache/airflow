@@ -152,14 +152,12 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):
-    from datetime import datetime
-
     import re2
 
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    timestamp_str = re2.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()
@@ -229,11 +227,6 @@ class CreateTableAs(Executable, ClauseElement):
 @compiles(CreateTableAs)
 def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
-
-
-@compiles(CreateTableAs, "mssql")
-def _compile_create_table_as__mssql(element, compiler, **kw):
-    return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
 def _build_query(

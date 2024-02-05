@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver PodDisruptionBudget
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if .Values.webserver.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -43,4 +44,5 @@ spec:
       component: webserver
       release: {{ .Release.Name }}
   {{- toYaml .Values.webserver.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
 {{- end }}

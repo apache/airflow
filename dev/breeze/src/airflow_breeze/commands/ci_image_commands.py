@@ -46,7 +46,6 @@ from airflow_breeze.commands.common_image_options import (
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
     option_install_mysql_client_type,
-    option_install_providers_from_sources,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
@@ -103,6 +102,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
@@ -261,10 +261,13 @@ option_upgrade_to_newer_dependencies = click.option(
 )
 
 option_upgrade_on_failure = click.option(
-    "--upgrade-on-failure",
+    "--upgrade-on-failure/--no-upgrade-on-failure",
     is_flag=True,
-    help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
+    help="When set, attempt to run upgrade to newer dependencies when regular build fails. It is set to False"
+    " by default on CI and True by default locally.",
     envvar="UPGRADE_ON_FAILURE",
+    show_default=True,
+    default=not os.environ.get("CI", "") if not generating_command_images() else True,
 )
 
 option_version_suffix_for_pypi_ci = click.option(
@@ -304,7 +307,6 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_install_mysql_client_type
 @option_image_tag_for_building
 @option_include_success_outputs
-@option_install_providers_from_sources
 @option_parallelism
 @option_platform_multiple
 @option_prepare_buildx_cache
@@ -345,7 +347,6 @@ def build(
     image_tag: str,
     include_success_outputs,
     install_mysql_client_type: str,
-    install_providers_from_sources: bool,
     parallelism: int,
     platform: str | None,
     prepare_buildx_cache: bool,
@@ -417,7 +418,6 @@ def build(
         github_token=github_token,
         image_tag=image_tag,
         install_mysql_client_type=install_mysql_client_type,
-        install_providers_from_sources=install_providers_from_sources,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
         python=python,
@@ -619,7 +619,7 @@ def verify(
     )
     if (pull or image_name) and run_in_parallel:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:
@@ -713,7 +713,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                     get_console().print(
                         f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
                         "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n"
+                        "https://github.com/apache/airflow/blob/main/contributing-docs/11_working_with_git.rst\n"
                     )
                     get_console().print("[error]Exiting the process[/]\n")
                     sys.exit(1)
@@ -802,7 +802,7 @@ def run_build_ci_image(
             if ci_image_params.upgrade_on_failure:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                    "[warning]Attempting to build with --upgrade-to-newer-dependencies on failure"
                 )
                 build_command_result = run_command(
                     prepare_docker_build_command(
@@ -855,6 +855,9 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
         upgrade_to_newer_dependencies=False,
         warn_image_upgrade_needed=command_params.warn_image_upgrade_needed,
+        # upgrade on failure is disabled on CI but enabled locally, to make sure we are not
+        # accidentally upgrading dependencies on CI
+        upgrade_on_failure=not os.environ.get("CI", ""),
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(
