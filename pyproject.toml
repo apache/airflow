@@ -339,7 +339,9 @@ devel-tests = [
     "pytest-rerunfailures>=13.0",
     "pytest-timeouts>=1.2.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=7.4.4",
+    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
+    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
+    "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
 ]
@@ -889,6 +891,7 @@ sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
 ]
 sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
+  "asyncssh>=2.12.0",
   "paramiko>=2.8.0",
 ]
 singularity = [ # source: airflow/providers/singularity/provider.yaml
@@ -1372,6 +1375,8 @@ combine-as-imports = true
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+# Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
+"pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
 [tool.ruff.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

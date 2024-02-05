@@ -25,6 +25,7 @@ import time
 from functools import partial
 from typing import Callable
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -33,7 +34,7 @@ from inflection import camelize
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
@@ -50,6 +51,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 pytestmark = pytest.mark.db_test
 
@@ -365,7 +367,8 @@ class TestAwsEcsExecutor:
         assert 1 == len(mock_executor.active_workers)
         assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
 
-    def test_success_execute_api_exception(self, mock_executor):
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_success_execute_api_exception(self, mock_backoff, mock_executor):
         """Test what happens when ECS throws an exception, but ultimately runs the task."""
         run_task_exception = Exception("Test exception")
         run_task_success = {
@@ -381,9 +384,10 @@ class TestAwsEcsExecutor:
         }
         mock_executor.ecs.run_task.side_effect = [run_task_exception, run_task_exception, run_task_success]
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        expected_retry_count = 2
 
         # Fail 2 times
-        for _ in range(2):
+        for _ in range(expected_retry_count):
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
@@ -392,6 +396,9 @@ class TestAwsEcsExecutor:
         mock_executor.attempt_task_runs()
         assert len(mock_executor.pending_tasks) == 0
         assert ARN1 in mock_executor.active_workers.get_all_arns()
+        assert mock_backoff.call_count == expected_retry_count
+        for attempt_number in range(1, expected_retry_count):
+            mock_backoff.assert_has_calls([mock.call(attempt_number)])
 
     def test_failed_execute_api_exception(self, mock_executor):
         """Test what happens when ECS refuses to execute a task and throws an exception"""
@@ -479,7 +486,8 @@ class TestAwsEcsExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync_cumulative_fail(self, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_sync_cumulative_fail(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
         """Test that failure_count/attempt_number is cumulative for pending tasks and active workers."""
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "5"
         mock_executor.ecs.run_task.return_value = {
@@ -488,6 +496,7 @@ class TestAwsEcsExecutor:
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
+        mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
         for _ in range(2):

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple
 
 import attrs
 import lazy_object_proxy
-import pendulum
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
@@ -65,7 +64,7 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
-from airflow.utils.timezone import parse_timezone
+from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -567,7 +566,7 @@ class BaseSerialization:
         elif type_ == DAT.OP:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
-            return pendulum.from_timestamp(var)
+            return from_timestamp(var)
         elif type_ == DAT.POD:
             if not _has_kubernetes():
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
@@ -611,7 +610,7 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = pendulum.from_timestamp
+    _deserialize_datetime = from_timestamp
     _deserialize_timezone = parse_timezone
 
     @classmethod

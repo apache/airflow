@@ -2193,6 +2193,11 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable scheduler",
+                    "type": "boolean",
+                    "default": true
+                },
                 "hostAliases": {
                     "description": "HostAliases for the scheduler pod.",
                     "items": {
@@ -4212,6 +4217,11 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable webserver",
+                    "type": "boolean",
+                    "default": true
+                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the webserver configmap.",
                     "type": "object",
