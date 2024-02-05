@@ -668,7 +668,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.22.8"
+                            "default": "v0.26.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -695,7 +695,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "7-bullseye"
+                            "default": "7-bookworm"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",

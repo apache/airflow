@@ -105,11 +105,11 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.22.8
+    tag: v0.26.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bullseye
+    tag: 7-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
