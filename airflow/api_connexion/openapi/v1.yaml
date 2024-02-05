@@ -986,6 +986,39 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DatasetID"
+    delete:
+      summary: Delete DatasetDagRunQueue.
+      description: |
+        Delete DatasetDagRunQueue
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dag_dataset_run_queue
+      tags: [Dataset]
+      requestBody:
+        description: Parameters of delete DatasetDagRunQueue.
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteDatasetDagRunQueue"
+
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /eventLogs:
     get:
       summary: List log entries
@@ -3014,6 +3047,15 @@ components:
           description: Custom notes left by users for this Dag Run.
           type: string
 
+    DeleteDatasetDagRunQueue:
+      type: object
+      properties:
+        cutoff_time:
+          description: The cutoff time of DatasetDagQueue.
+          format: date-time
+          type: string
+          nullable: true
+
     EventLog:
       type: object
       description: Log of user operations via CLI or Web UI.
@@ -4960,6 +5002,14 @@ components:
         format: path
       required: true
       description: The variable Key.
+
+    DatasetID:
+      in: path
+      name: dataset_id
+      schema:
+        type: integer
+      required: true
+      description: The Dataset ID.
 
     # Logs
     FullContent:

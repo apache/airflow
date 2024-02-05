@@ -22,7 +22,7 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -47,9 +47,18 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(
+        app,  # type: ignore
+        username="test_ddrq",
+        role_name="TestDDRQ",
+        permissions=[
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+        ],
+    )
 
     yield app
 
+    delete_user(app, username="test_ddrq")  # type: ignore
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
@@ -599,3 +608,56 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert len(response.json["dataset_events"]) == 150
+
+
+class TestDeleteDatasetDagRunQueue(TestDatasetEndpoint):
+    def test_delete_should_respond_204(self, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_id = self._create_dataset(session).id
+
+        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(ddrq)
+        session.commit()
+        conn = session.query(DatasetDagRunQueue).all()
+        assert len(conn) == 1
+
+        response = self.client.delete(
+            f"/api/v1/dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue",
+            json={"cutoff_time": None},
+            environ_overrides={"REMOTE_USER": "test_ddrq"},
+        )
+
+        assert response.status_code == 204
+        conn = session.query(DatasetDagRunQueue).all()
+        assert len(conn) == 0
+
+    def test_should_respond_404(self):
+        response = self.client.delete(
+            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue",
+            json={"cutoff_time": None},
+            environ_overrides={"REMOTE_USER": "test_ddrq"},
+        )
+        assert response.status_code == 404
+        assert {
+            "detail": "The DatasetDagRunQueue with dag_id: `not_exists` and dataset_id: `1` was not found",
+            "status": 404,
+            "title": "DatasetDagRunQueue not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self, session):
+        self._create_dataset(session)
+        response = self.client.delete(
+            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue", json={"cutoff_time": None}
+        )
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self, session):
+        self._create_dataset(session)
+        response = self.client.delete(
+            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue",
+            json={"cutoff_time": None},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403

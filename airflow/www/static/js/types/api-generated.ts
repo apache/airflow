@@ -231,6 +231,22 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue": {
+    /**
+     * Delete DatasetDagRunQueue
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dag_dataset_run_queue"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The Dataset ID. */
+        dataset_id: components["parameters"]["DatasetID"];
+      };
+    };
+  };
   "/eventLogs": {
     /** List log entries from event log. */
     get: operations["get_event_logs"];
@@ -1147,6 +1163,13 @@ export interface components {
     SetDagRunNote: {
       /** @description Custom notes left by users for this Dag Run. */
       note?: string;
+    };
+    DeleteDatasetDagRunQueue: {
+      /**
+       * Format: date-time
+       * @description The cutoff time of DatasetDagQueue.
+       */
+      cutoff_time?: string | null;
     };
     /** @description Log of user operations via CLI or Web UI. */
     EventLog: {
@@ -2343,6 +2366,8 @@ export interface components {
     PoolName: string;
     /** @description The variable Key. */
     VariableKey: string;
+    /** @description The Dataset ID. */
+    DatasetID: number;
     /**
      * @description A full content will be returned.
      * By default, only the first fragment will be returned.
@@ -3236,6 +3261,35 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["SetDagRunNote"];
+      };
+    };
+  };
+  /**
+   * Delete DatasetDagRunQueue
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dag_dataset_run_queue: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The Dataset ID. */
+        dataset_id: components["parameters"]["DatasetID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of delete DatasetDagRunQueue. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeleteDatasetDagRunQueue"];
       };
     };
   };
@@ -4781,6 +4835,9 @@ export type DagWarningCollection = CamelCasedPropertiesDeep<
 export type SetDagRunNote = CamelCasedPropertiesDeep<
   components["schemas"]["SetDagRunNote"]
 >;
+export type DeleteDatasetDagRunQueue = CamelCasedPropertiesDeep<
+  components["schemas"]["DeleteDatasetDagRunQueue"]
+>;
 export type EventLog = CamelCasedPropertiesDeep<
   components["schemas"]["EventLog"]
 >;
@@ -5072,6 +5129,10 @@ export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<
 export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
+>;
+export type DeleteDagDatasetRunQueueVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_run_queue"]["parameters"]["path"] &
+    operations["delete_dag_dataset_run_queue"]["requestBody"]["content"]["application/json"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]

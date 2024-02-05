@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
+from connexion import NoContent
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
     DatasetEventCollection,
@@ -31,7 +34,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_event_collection_schema,
     dataset_schema,
 )
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -124,3 +127,28 @@ def get_dataset_events(
     return dataset_event_collection_schema.dump(
         DatasetEventCollection(dataset_events=events, total_entries=total_entries)
     )
+
+
+@security.requires_access_dag("DELETE")
+@provide_session
+def delete_dag_dataset_run_queue(
+    *, dag_id: str, dataset_id: int, session: Session = NEW_SESSION
+) -> APIResponse:
+    request_dict = get_json_request_dict()
+    cutoff_time = request_dict.get("cutoff_time", None)
+
+    where_clause_conditions = [
+        DatasetDagRunQueue.target_dag_id == dag_id,
+        DatasetDagRunQueue.dataset_id == dataset_id,
+    ]
+    if cutoff_time is not None:
+        where_clause_conditions.append(DatasetDagRunQueue.created_at < format_datetime(cutoff_time))
+
+    ddrq = session.scalar(select(DatasetDagRunQueue).where(*where_clause_conditions))
+    if ddrq is None:
+        raise NotFound(
+            "DatasetDagRunQueue not found",
+            detail=f"The DatasetDagRunQueue with dag_id: `{dag_id}` and dataset_id: `{dataset_id}` was not found",
+        )
+    session.delete(ddrq)
+    return NoContent, HTTPStatus.NO_CONTENT
