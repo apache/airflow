@@ -4121,6 +4121,10 @@
         "8.5.1": {
             "associated_airflow_version": "2.8.1",
             "date_released": "2023-12-31T10:31:13Z"
+        },
+        "9.0.0": {
+            "associated_airflow_version": "2.8.1",
+            "date_released": "2024-02-04T07:47:11Z"
         }
     },
     "microsoft.mssql": {
