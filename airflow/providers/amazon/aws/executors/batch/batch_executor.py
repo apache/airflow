@@ -66,7 +66,7 @@ class AwsBatchExecutor(BaseExecutor):
     authentication and access-key management. You can store an environmental variable, setup aws config from
     console, or use IAM roles.
     .. seealso:: https://docs.aws.amazon.com/batch/latest/APIReference/API_SubmitJob.html for an
-     Airflow TaskInstance's executor_config.
+    Airflow TaskInstance's executor_config.
     """
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
