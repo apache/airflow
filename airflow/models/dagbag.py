@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -47,12 +48,7 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
-from airflow.utils.file import (
-    correct_maybe_zipped,
-    get_unique_dag_module_name,
-    list_py_file_paths,
-    might_contain_dag,
-)
+from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -330,8 +326,9 @@ class DagBag(LoggingMixin):
             return []
 
         self.log.debug("Importing %s", filepath)
-
-        mod_name = get_unique_dag_module_name(filepath)
+        path_hash = hashlib.sha1(filepath.encode("utf-8")).hexdigest()
+        org_mod_name = Path(filepath).stem
+        mod_name = f"unusual_prefix_{path_hash}_{org_mod_name}"
 
         if mod_name in sys.modules:
             del sys.modules[mod_name]

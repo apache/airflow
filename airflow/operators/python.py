@@ -52,7 +52,6 @@ from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
-from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -365,7 +364,12 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
-        self._validate_python_callable(python_callable)
+        if (
+            not isinstance(python_callable, types.FunctionType)
+            or isinstance(python_callable, types.LambdaType)
+            and python_callable.__name__ == "<lambda>"
+        ):
+            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -398,25 +402,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     def get_python_source(self):
         """Return the source of self.python_callable."""
         return textwrap.dedent(inspect.getsource(self.python_callable))
-
-    def _validate_python_callable(self, python_callable):
-        """Verifies if python_callable can be be used with the PythonVirtualenvOperator."""
-        if self.check_callable_in_dag_module(python_callable):
-            raise AirflowException(
-                "Functions defined within dag module are not supported for PythonVirtualenvOperator"
-            )
-
-        if (
-            not isinstance(python_callable, types.FunctionType)
-            or isinstance(python_callable, types.LambdaType)
-            and python_callable.__name__ == "<lambda>"
-        ):
-            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
-
-    @staticmethod
-    def check_callable_in_dag_module(python_callable):
-        if get_unique_dag_module_name(inspect.getfile(python_callable)) == python_callable.__module__:
-            return True
 
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
