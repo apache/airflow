@@ -29,9 +29,14 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.hooks.sagemaker import (
+    LogState,
+    SageMakerHook,
+    secondary_training_status_message,
+)
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
+    SageMakerTrainingPrintLogTrigger,
     SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -899,9 +904,11 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
-                timeout=datetime.timedelta(seconds=self.max_ingestion_time)
-                if self.max_ingestion_time is not None
-                else None,
+                timeout=(
+                    datetime.timedelta(seconds=self.max_ingestion_time)
+                    if self.max_ingestion_time is not None
+                    else None
+                ),
             )
             description = {}  # never executed but makes static checkers happy
         elif self.wait_for_completion:
@@ -1085,28 +1092,80 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker Training Job creation failed: {response}")
 
         if self.deferrable and self.wait_for_completion:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=SageMakerTrigger(
+            description = self.hook.describe_training_job(self.config["TrainingJobName"])
+            status = description["TrainingJobStatus"]
+
+            if self.print_log:
+                instance_count = description["ResourceConfig"]["InstanceCount"]
+                last_describe_job_call = time.monotonic()
+                job_already_completed = status not in self.hook.non_terminal_states
+                _, description, last_describe_job_call = self.hook.describe_training_job_with_log(
+                    self.config["TrainingJobName"],
+                    {},
+                    [],
+                    instance_count,
+                    LogState.COMPLETE if job_already_completed else LogState.TAILING,
+                    description,
+                    last_describe_job_call,
+                )
+                self.log.info(secondary_training_status_message(description, None))
+
+            if status in self.hook.failed_states:
+                reason = description.get("FailureReason", "(No reason provided)")
+                raise AirflowException(f"SageMaker job failed because {reason}")
+            elif status == "Completed":
+                log_message = f"{self.task_id} completed successfully."
+                if self.print_log:
+                    billable_seconds = SageMakerHook.count_billable_seconds(
+                        training_start_time=description["TrainingStartTime"],
+                        training_end_time=description["TrainingEndTime"],
+                        instance_count=instance_count,
+                    )
+                    log_message = f"Billable seconds: {billable_seconds}\n{log_message}"
+                self.log.info(log_message)
+                return {"Training": serialize(description)}
+
+            timeout = self.execution_timeout
+            if self.max_ingestion_time:
+                timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+
+            trigger: SageMakerTrainingPrintLogTrigger | SageMakerTrigger
+            if self.print_log:
+                trigger = SageMakerTrainingPrintLogTrigger(
+                    job_name=self.config["TrainingJobName"],
+                    poke_interval=self.check_interval,
+                    aws_conn_id=self.aws_conn_id,
+                )
+            else:
+                trigger = SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
                     poke_interval=self.check_interval,
                     max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                ),
+                )
+
+            self.defer(
+                timeout=timeout,
+                trigger=trigger,
                 method_name="execute_complete",
             )
 
-        self.serialized_training_data = serialize(
-            self.hook.describe_training_job(self.config["TrainingJobName"])
-        )
-        return {"Training": self.serialized_training_data}
+        return self.serialize_result()
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+        if event is None:
+            err_msg = "Trigger error: event is None"
+            self.log.error(err_msg)
+            raise AirflowException(err_msg)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info(event["message"])
+
+        self.log.info(event["message"])
+        return self.serialize_result()
+
+    def serialize_result(self) -> dict[str, dict]:
         self.serialized_training_data = serialize(
             self.hook.describe_training_job(self.config["TrainingJobName"])
         )

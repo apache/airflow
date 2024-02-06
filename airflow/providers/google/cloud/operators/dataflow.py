@@ -676,6 +676,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options = self.dataflow_default_options
         options.update(self.options)
 
+        if not self.location:
+            self.location = DEFAULT_DATAFLOW_LOCATION
+
         self.job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
@@ -703,7 +706,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
+                location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
