@@ -193,6 +193,16 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
+      - id: update-chart-dependencies
+        name: Update chart dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
     hooks:
