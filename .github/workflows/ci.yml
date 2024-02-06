@@ -621,6 +621,13 @@ jobs:
           --hook-stage manual
           update-build-dependencies
         if: always()
+      - name: "Run automated upgrade for chart dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-chart-dependencies
+        if: always()
 
   # Runs static checks for groups of files in the repository in a single process without passing .
   # List of files

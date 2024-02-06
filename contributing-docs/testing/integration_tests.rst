@@ -66,7 +66,7 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | qdrant       | Integration required for Qdrant tests.             |
 +--------------+----------------------------------------------------+
-| statsd       | Integration required for Satsd hooks.              |
+| statsd       | Integration required for Statsd hooks.             |
 +--------------+----------------------------------------------------+
 | trino        | Integration required for Trino hooks.              |
 +--------------+----------------------------------------------------+
