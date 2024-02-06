@@ -209,13 +209,6 @@ def test_additional_dag_with_no_triggers(dag_maker):
         EmptyOperator(task_id="hello2")
 
 
-@pytest.fixture(autouse=True)
-def clear_datasets():
-    from tests.test_utils.db import clear_db_datasets
-
-    clear_db_datasets()
-
-
 @pytest.fixture
 def setup_datasets_and_models(session):
     """Fixture to create datasets and corresponding models."""
