@@ -767,25 +767,25 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
