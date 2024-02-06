@@ -152,6 +152,7 @@ export const BaseNode = ({
               alignItems="center"
               width="100%"
               fontSize={isZoomedOut ? 25 : undefined}
+              fontWeight="bold"
             >
               <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
                 {taskName}
@@ -201,6 +202,7 @@ export const BaseNode = ({
               color="blue.600"
               cursor="pointer"
               width="150px"
+              fontWeight="bold"
               // Increase the target area to expand/collapse a group
               p={2}
               m={-2}
