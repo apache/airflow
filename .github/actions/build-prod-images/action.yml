@@ -62,13 +62,13 @@ runs:
       shell: bash
       run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
     - name: "Download constraints from the CI build"
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: source-constraints
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages == 'true' }}
     - name: "Download constraints from the Generate & Verify build"
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: constraints
         path: ./docker-context-files

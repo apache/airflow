@@ -31,6 +31,7 @@ ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
     # This list should only be reduced not extended with new parameters,
     # unless there is an exceptional reason.
     "AthenaHook": {"sleep_time", "log_query"},
+    "AthenaSQLHook": {"athena_conn_id"},
     "BatchClientHook": {"status_retries", "max_retries"},
     "BatchWaitersHook": {"waiter_config"},
     "DataSyncHook": {"wait_interval_seconds"},
