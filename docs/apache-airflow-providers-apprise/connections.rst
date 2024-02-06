@@ -60,6 +60,17 @@ Config (required)
         },
       ]
 
-    .. seealso::
-      - `Apprise URL Basics <https://github.com/caronc/apprise/wiki/URLBasics#apprise-url-basics>`_
-      - `Tagging <https://github.com/caronc/apprise/wiki/Development_API#tagging>`_
+
+Using Environment Variable
+''''''''''''''''''''''''''
+
+The configuration can be provided in an environment variable.
+
+.. code-block:: bash
+
+    AIRFLOW_CONN_APPRISE_DEFAULT='{"extra": {"config": {"path": "https://hooks.slack.com/services/T1JJ3T3L2/A1BRTD4JD/TIiajkdnlazkcOXrIdevi7F", "tags": "alert"}}}'
+
+
+.. seealso::
+  - `Apprise URL Basics <https://github.com/caronc/apprise/wiki/URLBasics#apprise-url-basics>`_
+  - `Tagging <https://github.com/caronc/apprise/wiki/Development_API#tagging>`_

@@ -31,26 +31,26 @@ class TestAppriseHook:
     """
 
     def test_get_config_from_conn(self):
-        config = '{"path": "http://some_path_that_dont_exist/", "tag": "alert"}'
+        extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_type="apprise", extra={"config": config}),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
-            assert hook.get_config_from_conn() == json.loads(config)
+            assert hook.get_config_from_conn() == extra['config']
 
     def test_set_config_from_conn_with_dict(self):
         """
         Test set_config_from_conn for dict config
         """
-        config = '{"path": "http://some_path_that_dont_exist/", "tag": "alert"}'
+        extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_type="apprise", extra={"config": config}),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
@@ -60,17 +60,17 @@ class TestAppriseHook:
         """
         Test set_config_from_conn for list of dict config
         """
-        config = (
-            '[{"path": "http://some_path_that_dont_exist/", "tag": "p0"},'
-            '{"path": "http://some_other_path_that_dont_exist/", "tag": "p1"}]'
-        )
+        extra = {"config": {
+            [{"path": "http://some_path_that_dont_exist/", "tag": "p0"},
+             {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"}]
+        }}
 
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_type="apprise", extra={"config": config}),
+            return_value=Connection(conn_type="apprise", extra={"config": extra}),
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
