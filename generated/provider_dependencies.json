@@ -41,7 +41,7 @@
     "devel-deps": [
       "aiobotocore>=2.7.0",
       "aws_xray_sdk>=2.12.0",
-      "moto[cloudformation,glue]>=4.2.12,<5.0.0",
+      "moto[cloudformation,glue]>=5.0.0",
       "mypy-boto3-appflow>=1.33.0",
       "mypy-boto3-rds>=1.33.0",
       "mypy-boto3-redshift-data>=1.33.0",
@@ -196,7 +196,7 @@
   },
   "apache.livy": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.6.0",
       "asgiref"
@@ -315,8 +315,8 @@
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
       "google-re2>=1.0",
-      "kubernetes>=21.7.0,<24",
-      "kubernetes_asyncio>=18.20.1,<25"
+      "kubernetes>=28.1.0,<=29.0.0",
+      "kubernetes_asyncio>=28.1.0,<=29.0.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -358,7 +358,7 @@
   },
   "databricks": {
     "deps": [
-      "aiohttp>=3.6.3, <4",
+      "aiohttp>=3.9.2, <4",
       "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.6.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
@@ -385,7 +385,7 @@
   },
   "dbt.cloud": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.6.0",
       "asgiref"
@@ -516,7 +516,7 @@
       "gcsfs>=2023.10.0",
       "google-ads>=22.1.0",
       "google-analytics-admin",
-      "google-api-core>=2.11.0",
+      "google-api-core>=2.11.0,!=2.16.0",
       "google-api-python-client>=1.6.0",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=1.0.0",
@@ -615,7 +615,7 @@
   },
   "http": {
     "deps": [
-      "aiohttp",
+      "aiohttp>=3.9.2",
       "apache-airflow>=2.6.0",
       "asgiref",
       "requests>=2.26.0",
@@ -993,7 +993,8 @@
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
       "apache-airflow>=2.6.0",
-      "paramiko>=3.3.0"
+      "paramiko>=3.3.0",
+      "asyncssh>=2.12.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [

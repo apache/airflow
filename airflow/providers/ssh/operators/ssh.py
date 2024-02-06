@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from base64 import b64encode
 from functools import cached_property
 from typing import TYPE_CHECKING, Container, Sequence
@@ -152,13 +151,14 @@ class SSHOperator(BaseOperator):
         self.log.info("Creating ssh_client")
         return self.hook.get_conn()
 
-    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> tuple[int, bytes, bytes]:
-        warnings.warn(
+    @deprecated(
+        reason=(
             "exec_ssh_client_command method on SSHOperator is deprecated, call "
-            "`ssh_hook.exec_ssh_client_command` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            "`ssh_hook.exec_ssh_client_command` instead"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> tuple[int, bytes, bytes]:
         return self.hook.exec_ssh_client_command(
             ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )

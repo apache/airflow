@@ -27,6 +27,8 @@ from pendulum.datetime import DateTime
 if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
+    from airflow.typing_compat import Literal
+
 _PENDULUM3 = pendulum.__version__.startswith("3")
 # UTC Timezone as a tzinfo instance. Actual value depends on pendulum version:
 # - Timezone("UTC") in pendulum 3
@@ -60,13 +62,7 @@ def is_naive(value):
 
 def utcnow() -> dt.datetime:
     """Get the current date and time in UTC."""
-    # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not picklable and also creates issues
-    # when using replace()
-    result = dt.datetime.utcnow()
-    result = result.replace(tzinfo=utc)
-
-    return result
+    return dt.datetime.now(tz=utc)
 
 
 def utc_epoch() -> dt.datetime:
@@ -305,3 +301,23 @@ def local_timezone() -> FixedTimezone | Timezone:
     :meta private:
     """
     return pendulum.tz.local_timezone()
+
+
+def from_timestamp(
+    timestamp: int | float, tz: str | FixedTimezone | Timezone | Literal["local"] = utc
+) -> DateTime:
+    """
+    Parse timestamp and return DateTime in a given time zone.
+
+    :param timestamp: epoch time in seconds.
+    :param tz: In which timezone should return a resulting object.
+        Could be either one of pendulum timezone, IANA timezone or `local` literal.
+
+    :meta private:
+    """
+    result = coerce_datetime(dt.datetime.fromtimestamp(timestamp, tz=utc))
+    if tz != utc or tz != "UTC":
+        if isinstance(tz, str) and tz.lower() == "local":
+            tz = local_timezone()
+        result = result.in_timezone(tz)
+    return result

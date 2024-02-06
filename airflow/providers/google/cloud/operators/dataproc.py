@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -360,10 +361,10 @@ class ClusterGenerator:
         if self.subnetwork_uri:
             cluster_data[config]["subnetwork_uri"] = self.subnetwork_uri
 
-        if self.internal_ip_only:
-            if not self.subnetwork_uri:
+        if self.internal_ip_only is not None:
+            if not self.subnetwork_uri and self.internal_ip_only:
                 raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
-            cluster_data[config]["internal_ip_only"] = True
+            cluster_data[config]["internal_ip_only"] = self.internal_ip_only
 
         if self.tags:
             cluster_data[config]["tags"] = self.tags
@@ -872,6 +873,11 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return event["cluster"]
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `DataprocUpdateClusterOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
     """Scale, up or down, a cluster on Google Cloud Dataproc.
 
@@ -939,14 +945,6 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         self.graceful_decommission_timeout = graceful_decommission_timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, "
-            "please use `DataprocUpdateClusterOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def _build_scale_cluster_data(self) -> dict:
         scale_data = {
@@ -1491,6 +1489,15 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """Start a Pig query Job on a Cloud DataProc cluster.
 
@@ -1565,15 +1572,6 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1617,6 +1615,15 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """Start a Hive query Job on a Cloud DataProc cluster.
 
@@ -1657,15 +1664,6 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1709,6 +1707,15 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """Start a Spark SQL query Job on a Cloud DataProc cluster.
 
@@ -1750,15 +1757,6 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1800,6 +1798,15 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """Start a Spark Job on a Cloud DataProc cluster.
 
@@ -1845,15 +1852,6 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1891,6 +1889,15 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """Start a Hadoop Job on a Cloud DataProc cluster.
 
@@ -1936,15 +1943,6 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1981,6 +1979,15 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """Start a PySpark Job on a Cloud DataProc cluster.
 
@@ -2050,15 +2057,6 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,

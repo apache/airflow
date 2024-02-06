@@ -236,7 +236,9 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.body = deepcopy(body)
+        self.body = body
+        if isinstance(self.body, dict):
+            self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version

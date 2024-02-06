@@ -119,9 +119,10 @@ config:
         default: "16"
       worker_autoscale:
         description: |
-          The maximum and minimum concurrency that will be used when starting workers with the
-          ``airflow celery worker`` command (always keep minimum processes, but grow
-          to maximum if necessary). Note the value should be max_concurrency,min_concurrency
+          The maximum and minimum number of pool processes that will be used to dynamically resize
+          the pool based on load.Enable autoscaling by providing max_concurrency,min_concurrency
+          with the ``airflow celery worker`` command (always keep minimum processes,
+          but grow to maximum if necessary).
           Pick these numbers based on resources on worker box and the nature of the task.
           If autoscale option is available, worker_concurrency will be ignored.
           https://docs.celeryq.dev/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale
@@ -275,6 +276,21 @@ config:
         type: float
         example: ~
         default: "1.0"
+      task_acks_late:
+        description: |
+          If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the
+          task to a Celery worker, even if the original task is still running successfully. The new task
+          instance then runs concurrently with the original task and the Airflow UI and logs only show an
+          error message:
+          'Task Instance Not Running' FAILED: Task is in the running state'
+          Setting task_acks_late to True will force Celery to wait until a task is finished before a
+          new task instance is assigned. This effectively overrides the visibility timeout.
+          See also:
+          https://docs.celeryq.dev/en/stable/reference/celery.app.task.html#celery.app.task.Task.acks_late
+        version_added: 3.6.0
+        type: boolean
+        example: "True"
+        default: "True"
       task_track_started:
         description: |
           Celery task will report its status as 'started' when the task is executed by a worker.

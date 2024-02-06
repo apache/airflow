@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple
 
 import attrs
 import lazy_object_proxy
-import pendulum
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
@@ -65,7 +64,7 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
-from airflow.utils.timezone import parse_timezone
+from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -197,12 +196,14 @@ class _TimetableNotRegistered(ValueError):
         )
 
 
-def _encode_timetable(var: Timetable) -> dict[str, Any]:
+def encode_timetable(var: Timetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
+
+    :meta private:
     """
     timetable_class = type(var)
     importable_string = qualname(timetable_class)
@@ -211,12 +212,14 @@ def _encode_timetable(var: Timetable) -> dict[str, Any]:
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def _decode_timetable(var: dict[str, Any]) -> Timetable:
+def decode_timetable(var: dict[str, Any]) -> Timetable:
     """
     Decode a previously serialized timetable.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
+
+    :meta private:
     """
     importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
@@ -401,7 +404,7 @@ class BaseSerialization:
             elif key in decorated_fields:
                 serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
-                serialized_object[key] = _encode_timetable(value)
+                serialized_object[key] = encode_timetable(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -563,7 +566,7 @@ class BaseSerialization:
         elif type_ == DAT.OP:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
-            return pendulum.from_timestamp(var)
+            return from_timestamp(var)
         elif type_ == DAT.POD:
             if not _has_kubernetes():
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
@@ -607,7 +610,7 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = pendulum.from_timestamp
+    _deserialize_datetime = from_timestamp
     _deserialize_timezone = parse_timezone
 
     @classmethod
@@ -1368,7 +1371,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = _decode_timetable(v)
+                v = decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":

@@ -26,7 +26,7 @@ import sys
 import tempfile
 import warnings
 from collections import namedtuple
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
@@ -801,7 +801,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(_):
             return None
 
-        self.run_as_task(f, op_args=[datetime.utcnow()])
+        self.run_as_task(f, op_args=[datetime.now(tz=_timezone.utc)])
 
     def test_context(self):
         def f(templates_dict):

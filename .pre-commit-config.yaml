@@ -176,11 +176,21 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: update-black-version
-        name: Update black versions everywhere
+        name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$
         additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: update-build-dependencies
+        name: Update build-dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
@@ -308,12 +318,10 @@ repos:
               ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
               ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
-              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$

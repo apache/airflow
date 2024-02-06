@@ -114,6 +114,10 @@ VALID_TRANSFER_JOB_BASE: dict = {
     SCHEDULE: SCHEDULE_DICT,
     TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME, PATH: DESTINATION_PATH}},
 }
+VALID_TRANSFER_JOB_JINJA = deepcopy(VALID_TRANSFER_JOB_BASE)
+VALID_TRANSFER_JOB_JINJA[NAME] = "{{ dag.dag_id }}"
+VALID_TRANSFER_JOB_JINJA_RENDERED = deepcopy(VALID_TRANSFER_JOB_JINJA)
+VALID_TRANSFER_JOB_JINJA_RENDERED[NAME] = "TestGcpStorageTransferJobCreateOperator"
 VALID_TRANSFER_JOB_GCS = deepcopy(VALID_TRANSFER_JOB_BASE)
 VALID_TRANSFER_JOB_GCS[TRANSFER_SPEC].update(deepcopy(SOURCE_GCS))
 VALID_TRANSFER_JOB_AWS = deepcopy(VALID_TRANSFER_JOB_BASE)
@@ -324,21 +328,25 @@ class TestGcpStorageTransferJobCreateOperator:
     # (could be anything else) just to test if the templating works for all
     # fields
     @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "body, excepted",
+        [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
+    )
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
-    def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = "TestGcpStorageTransferJobCreateOperator_test_templates"
+    def test_templates(self, _, create_task_instance_of_operator, body, excepted):
+        dag_id = "TestGcpStorageTransferJobCreateOperator"
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCreateJobOperator,
             dag_id=dag_id,
-            body={"description": "{{ dag.dag_id }}"},
+            body=body,
             gcp_conn_id="{{ dag.dag_id }}",
             aws_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
         ti.render_templates()
-        assert dag_id == getattr(ti.task, "body")[DESCRIPTION]
+        assert excepted == getattr(ti.task, "body")
         assert dag_id == getattr(ti.task, "gcp_conn_id")
         assert dag_id == getattr(ti.task, "aws_conn_id")
 
