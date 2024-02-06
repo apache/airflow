@@ -320,7 +320,6 @@ class ComputeEngineSSHHook(SSHHook):
         keys = self.user + ":" + pubkey + "\n"
         metadata = instance_info["metadata"]
         items = metadata.get("items", [])
-
         for item in items:
             if item.get("key") == "ssh-keys":
                 keys += item["value"]
