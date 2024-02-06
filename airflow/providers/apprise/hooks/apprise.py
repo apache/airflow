@@ -49,7 +49,7 @@ class AppriseHook(BaseHook):
     def get_config_from_conn(self):
         conn = self.get_connection(self.apprise_conn_id)
         config = conn.extra_dejson["config"]
-        return config if isinstance(config, dict) else json.loads(config)
+        return json.loads(config) if isinstance(config, str) else config
 
     def set_config_from_conn(self, apprise_obj: apprise.Apprise):
         """Set config from connection to apprise object."""

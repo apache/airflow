@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, call, patch
 
 import apprise
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.apprise.hooks.apprise import AppriseHook
@@ -29,15 +31,22 @@ class TestAppriseHook:
     Test for AppriseHook
     """
 
-    def test_get_config_from_conn(self):
-        extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
+    @pytest.mark.parametrize(
+        "config",
+        [
+            {"path": "http://some_path_that_dont_exist/", "tag": "alert"},
+            '{"path": "http://some_path_that_dont_exist/", "tag": "alert"}',
+        ],
+    )
+    def test_get_config_from_conn(self, config):
+        extra = {"config": config}
         with patch.object(
             AppriseHook,
             "get_connection",
             return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
-            assert hook.get_config_from_conn() == extra['config']
+            assert hook.get_config_from_conn() == (json.loads(config) if isinstance(config, str) else config)
 
     def test_set_config_from_conn_with_dict(self):
         """
@@ -59,10 +68,12 @@ class TestAppriseHook:
         """
         Test set_config_from_conn for list of dict config
         """
-        extra = {"config": {
-            [{"path": "http://some_path_that_dont_exist/", "tag": "p0"},
-             {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"}]
-        }}
+        extra = {
+            "config": [
+                {"path": "http://some_path_that_dont_exist/", "tag": "p0"},
+                {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"},
+            ]
+        }
 
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
