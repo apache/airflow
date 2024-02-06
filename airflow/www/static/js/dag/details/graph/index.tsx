@@ -26,6 +26,8 @@ import ReactFlow, {
   MiniMap,
   useReactFlow,
   Panel,
+  useOnViewportChange,
+  Viewport,
 } from "reactflow";
 
 import { useGraphData, useGridData } from "src/api";
@@ -51,6 +53,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -71,6 +74,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
 
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => {
+      if (viewport.zoom < 0.5 && !isZoomedOut) setIsZoomedOut(true);
+      if (viewport.zoom >= 0.5 && isZoomedOut) setIsZoomedOut(false);
+    },
+  });
+
   const { nodes, edges: nodeEdges } = useMemo(
     () =>
       flattenNodes({
@@ -81,6 +91,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         latestDagRunId,
         groups,
         hoveredTaskState,
+        isZoomedOut,
       }),
     [
       graphData?.children,
@@ -90,6 +101,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       latestDagRunId,
       groups,
       hoveredTaskState,
+      isZoomedOut,
     ]
   );
 
@@ -97,6 +109,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   useEffect(() => {
     if (hasRendered) {
       const zoom = getZoom();
+      if (zoom < 0.5) setIsZoomedOut(true);
       fitView({
         duration: 750,
         nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
@@ -116,6 +129,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     edges: flatEdges,
     nodes,
     selectedTaskId: selected.taskId,
+    isZoomedOut,
   });
 
   return (
