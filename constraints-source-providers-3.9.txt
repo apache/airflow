@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-05T19:12:04.705915
+# This constraints file was automatically generated on 2024-02-06T13:27:40.975846
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -286,7 +286,7 @@ inflection==0.5.1
 influxdb-client==1.40.0
 iniconfig==2.0.0
 ipdb==0.13.13
-ipykernel==6.29.0
+ipykernel==6.29.1
 ipython==8.18.1
 isodate==0.6.1
 itsdangerous==2.1.2
@@ -492,7 +492,7 @@ rich-click==1.7.3
 rich==13.7.0
 rpds-py==0.17.1
 rsa==4.9
-ruff==0.1.11
+ruff==0.2.1
 s3fs==2023.12.2
 s3transfer==0.8.2
 sarif-om==1.0.4
@@ -501,7 +501,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==1.40.0
+sentry-sdk==1.40.1
 setproctitle==1.3.3
 shapely==2.0.2
 shellingham==1.5.4
@@ -605,8 +605,8 @@ websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
-yamllint==1.33.0
-yandexcloud==0.256.0
+yamllint==1.34.0
+yandexcloud==0.257.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.46
