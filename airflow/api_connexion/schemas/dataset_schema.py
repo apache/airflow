@@ -25,6 +25,7 @@ from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
+    DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
@@ -148,3 +149,34 @@ class DatasetEventCollectionSchema(Schema):
 
 dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()
+
+
+class DatasetDagRunQueueSchema(SQLAlchemySchema):
+    """DatasetDagRunQueue DB schema."""
+
+    class Meta:
+        """Meta."""
+
+        model = DatasetDagRunQueue
+
+    dataset_id = auto_field()
+    target_dag_id = auto_field()
+    created_at = auto_field()
+
+
+class DatasetDagRunQueueCollection(NamedTuple):
+    """List of DatasetDagRunQueue with meta."""
+
+    dataset_dag_run_queues: list[DatasetDagRunQueue]
+    total_entries: int
+
+
+class DatasetDagRunQueueCollectionSchema(Schema):
+    """DatasetDagRunQueue Collection Schema."""
+
+    dataset_dag_run_queues = fields.List(fields.Nested(DatasetDagRunQueueSchema))
+    total_entries = fields.Int()
+
+
+dataset_dag_run_queue_schema = DatasetDagRunQueueSchema()
+dataset_dag_run_queue_collection_schema = DatasetDagRunQueueCollectionSchema()

@@ -986,27 +986,151 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue:
+  /dags/{dag_id}/datasets/{uri}/pendingEvents:
     parameters:
       - $ref: "#/components/parameters/DAGID"
-      - $ref: "#/components/parameters/DatasetID"
-    delete:
-      summary: Delete DatasetDagRunQueue.
+      - $ref: "#/components/parameters/DatasetURI"
+
+    get:
+      summary: Get a Dag Dataset pending event.
       description: |
-        Delete DatasetDagRunQueue
+        Get a Dag Dataset pending event.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_run_queue
+      operationId: get_dag_dataset_pending_event
+      parameters:
+        - $ref: "#/components/parameters/Before"
       tags: [Dataset]
-      requestBody:
-        description: Parameters of delete DatasetDagRunQueue.
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeleteDatasetDagRunQueue"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetDagRunQueue"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
+    delete:
+      summary: Delete a Dag Dataset pending event.
+      description: |
+        Delete a Dag Dataset pending event.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dag_dataset_pending_event
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/datasets/pendingEvents:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+
+    get:
+      summary: Get Dag Dataset pending events.
+      description: |
+        Get Dag Dataset pending events.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dag_dataset_pending_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetDagRunQueueCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete Dag Dataset pending events.
+      description: |
+        Delete Dag Dataset pending events.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dag_dataset_pending_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /datasets/{uri}/pendingEvents:
+    parameters:
+      - $ref: "#/components/parameters/DatasetURI"
+
+    get:
+      summary: Get Dataset pending events.
+      description: |
+        Get Dataset pending events.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset_pending_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetDagRunQueueCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete Dataset pending events.
+      description: |
+        Delete Dataset pending events.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dataset_pending_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
       responses:
         "204":
           description: Success.
@@ -4143,6 +4267,35 @@ components:
           description: The dataset event creation time
           nullable: false
 
+    DatasetDagRunQueue:
+      type: object
+      properties:
+        dataset_id:
+          type: integer
+          description: The dataset id
+        target_dag_id:
+          type: string
+          description: The DAG ID.
+        created_at:
+          type: string
+          format: date-time
+          description: The creation time of DatasetDagRunQueue
+
+    DatasetDagRunQueueCollection:
+      description: |
+        A collection of Dataset Dag Run Queues.
+
+        *New in version 2.9.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: "#/components/schemas/DatasetDagRunQueue"
+        - $ref: "#/components/schemas/CollectionInfo"
+
     BasicDAGRun:
       type: object
       properties:
@@ -5002,14 +5155,6 @@ components:
         format: path
       required: true
       description: The variable Key.
-
-    DatasetID:
-      in: path
-      name: dataset_id
-      schema:
-        type: integer
-      required: true
-      description: The Dataset ID.
 
     # Logs
     FullContent:

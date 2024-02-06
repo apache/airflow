@@ -231,19 +231,65 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue": {
+  "/dags/{dag_id}/datasets/{uri}/pendingEvents": {
     /**
-     * Delete DatasetDagRunQueue
+     * Get a Dag Dataset pending event.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_run_queue"];
+    get: operations["get_dag_dataset_pending_event"];
+    /**
+     * Delete a Dag Dataset pending event.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dag_dataset_pending_event"];
     parameters: {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The Dataset ID. */
-        dataset_id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+    };
+  };
+  "/dags/{dag_id}/datasets/pendingEvents": {
+    /**
+     * Get Dag Dataset pending events.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_dag_dataset_pending_events"];
+    /**
+     * Delete Dag Dataset pending events.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dag_dataset_pending_events"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+    };
+  };
+  "/datasets/{uri}/pendingEvents": {
+    /**
+     * Get Dataset pending events.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_dataset_pending_events"];
+    /**
+     * Delete Dataset pending events.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dataset_pending_events"];
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
   };
@@ -1780,6 +1826,25 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
+    DatasetDagRunQueue: {
+      /** @description The dataset id */
+      dataset_id?: number;
+      /** @description The DAG ID. */
+      target_dag_id?: string;
+      /**
+       * Format: date-time
+       * @description The creation time of DatasetDagRunQueue
+       */
+      created_at?: string;
+    };
+    /**
+     * @description A collection of Dataset Dag Run Queues.
+     *
+     * *New in version 2.9.0*
+     */
+    DatasetDagRunQueueCollection: {
+      datasets?: components["schemas"]["DatasetDagRunQueue"][];
+    } & components["schemas"]["CollectionInfo"];
     BasicDAGRun: {
       /** @description Run ID. */
       run_id?: string;
@@ -2366,8 +2431,6 @@ export interface components {
     PoolName: string;
     /** @description The variable Key. */
     VariableKey: string;
-    /** @description The Dataset ID. */
-    DatasetID: number;
     /**
      * @description A full content will be returned.
      * By default, only the first fragment will be returned.
@@ -3265,17 +3328,51 @@ export interface operations {
     };
   };
   /**
-   * Delete DatasetDagRunQueue
+   * Get a Dag Dataset pending event.
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_run_queue: {
+  get_dag_dataset_pending_event: {
     parameters: {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The Dataset ID. */
-        dataset_id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetDagRunQueue"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete a Dag Dataset pending event.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dag_dataset_pending_event: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
       };
     };
     responses: {
@@ -3286,11 +3383,111 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
     };
-    /** Parameters of delete DatasetDagRunQueue. */
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DeleteDatasetDagRunQueue"];
+  };
+  /**
+   * Get Dag Dataset pending events.
+   *
+   * *New in version 2.9.0*
+   */
+  get_dag_dataset_pending_events: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
       };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetDagRunQueueCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete Dag Dataset pending events.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dag_dataset_pending_events: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get Dataset pending events.
+   *
+   * *New in version 2.9.0*
+   */
+  get_dataset_pending_events: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetDagRunQueueCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete Dataset pending events.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dataset_pending_events: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /** List log entries from event log. */
@@ -4958,6 +5155,12 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
+export type DatasetDagRunQueue = CamelCasedPropertiesDeep<
+  components["schemas"]["DatasetDagRunQueue"]
+>;
+export type DatasetDagRunQueueCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["DatasetDagRunQueueCollection"]
+>;
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]
 >;
@@ -5130,9 +5333,29 @@ export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
 >;
-export type DeleteDagDatasetRunQueueVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_run_queue"]["parameters"]["path"] &
-    operations["delete_dag_dataset_run_queue"]["requestBody"]["content"]["application/json"]
+export type GetDagDatasetPendingEventVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_pending_event"]["parameters"]["path"] &
+    operations["get_dag_dataset_pending_event"]["parameters"]["query"]
+>;
+export type DeleteDagDatasetPendingEventVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_pending_event"]["parameters"]["path"] &
+    operations["delete_dag_dataset_pending_event"]["parameters"]["query"]
+>;
+export type GetDagDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_pending_events"]["parameters"]["path"] &
+    operations["get_dag_dataset_pending_events"]["parameters"]["query"]
+>;
+export type DeleteDagDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_pending_events"]["parameters"]["path"] &
+    operations["delete_dag_dataset_pending_events"]["parameters"]["query"]
+>;
+export type GetDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dataset_pending_events"]["parameters"]["path"] &
+    operations["get_dataset_pending_events"]["parameters"]["query"]
+>;
+export type DeleteDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dataset_pending_events"]["parameters"]["path"] &
+    operations["delete_dataset_pending_events"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]
