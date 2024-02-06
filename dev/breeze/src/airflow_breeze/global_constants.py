@@ -74,7 +74,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0", "v1.29.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.16", "v1.26.13", "v1.27.10", "v1.28.6", "v1.29.1"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -402,7 +402,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.20.0"
+KIND_VERSION = "v0.21.0"
 HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
