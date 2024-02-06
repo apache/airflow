@@ -38,7 +38,7 @@ An example usage of the TeradataOperator is as follows:
     :start-after: [START teradata_operator_howto_guide_create_table]
     :end-before: [END teradata_operator_howto_guide_create_table]
 
-You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
+You can also use an external file to execute the SQL commands. External file must be at the same level as DAG.py file.
 This way you can easily maintain the SQL queries separated from the code.
 
 .. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py

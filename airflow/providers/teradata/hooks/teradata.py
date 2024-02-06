@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""A Airflow Hook for interacting with Teradata SQL Server."""
+"""An Airflow Hook for interacting with Teradata SQL Server."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -38,21 +38,15 @@ class TeradataHook(DbApiHook):
     Teradata DB Server URL, username, password and database name are fetched from the predefined connection
     config connection_id. It raises an airflow error if the given connection id doesn't exist.
 
+    You can also specify ssl parameters in the extra field of your connection
+    as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
+
     .. seealso::
         - :ref:`Teradata API connection <howto/connection:teradata>`
 
     :param args: passed to DbApiHook
     :param database: The Teradata database to connect to.
     :param kwargs: passed to DbApiHook
-
-
-    Usage Help:
-
-    >>> tdh = TeradataHook()
-    >>> sql = "SELECT top 1 _airbyte_ab_id from airbyte_td._airbyte_raw_Sales;"
-    >>> tdh.get_records(sql)
-    [[61ad1d63-3efd-4da4-9904-a4489cc3a520]]
-
     """
 
     # Override to provide the connection name.
@@ -89,11 +83,7 @@ class TeradataHook(DbApiHook):
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
-        .. note:: By default it connects to the database via the teradatasql library.
-            But you can also choose the mysql-connector-python library which lets you connect through ssl
-            without any further ssl parameters required.
-
-        :return: a mysql connection object
+        :return: a Teradata connection object
         """
         teradata_conn_config: dict = self._get_conn_config_teradatasql()
         teradata_conn = teradatasql.connect(**teradata_conn_config)

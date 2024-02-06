@@ -21,22 +21,12 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.operators.teradata import TeradataOperator
-from airflow.utils import timezone
-
-DEFAULT_DATE = timezone.datetime(2015, 1, 1)
-TEST_DAG_ID = "unit_test_dag"
 
 
 class TestTeradataOperator:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
-        self.dag = dag
-
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_get_hook_from_conn(self, mock_get_db_hook):
         """
@@ -75,9 +65,7 @@ class TestTeradataOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = TeradataOperator(
-            sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id, dag=self.dag
-        )
+        operator = TeradataOperator(sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id)
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
@@ -100,9 +88,7 @@ class TestTeradataOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = TeradataOperator(
-            sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id, dag=self.dag
-        )
+        operator = TeradataOperator(sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id)
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
