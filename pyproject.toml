@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.8",
+    "trove-classifiers==2024.1.31",
 ]
 build-backend = "hatchling.build"
 
@@ -322,7 +322,7 @@ devel-sentry = [
 devel-static-checks = [
     "black>=23.12.0",
     "pre-commit>=3.5.0",
-    "ruff==0.1.11",
+    "ruff==0.2.1",
     "yamllint>=1.33.0",
 ]
 devel-tests = [
@@ -339,7 +339,9 @@ devel-tests = [
     "pytest-rerunfailures>=13.0",
     "pytest-timeouts>=1.2.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=7.4.4",
+    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
+    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
+    "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
 ]
@@ -889,6 +891,7 @@ sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
 ]
 sftp = [ # source: airflow/providers/sftp/provider.yaml
   "apache-airflow[ssh]",
+  "asyncssh>=2.12.0",
   "paramiko>=2.8.0",
 ]
 singularity = [ # source: airflow/providers/singularity/provider.yaml
@@ -1247,7 +1250,6 @@ target-version = ['py38', 'py39', 'py310', 'py311']
 
 [tool.ruff]
 target-version = "py38"
-typing-modules = ["airflow.typing_compat"]
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -1260,6 +1262,10 @@ extend-exclude = [
     "tests/dags/test_imports.py",
 ]
 
+namespace-packages = ["airflow/providers"]
+
+[tool.ruff.lint]
+typing-modules = ["airflow.typing_compat"]
 extend-select = [
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
@@ -1291,7 +1297,6 @@ ignore = [
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
 ]
 
-namespace-packages = ["airflow/providers"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -1329,11 +1334,11 @@ testpaths = [
     "tests",
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1368,17 +1373,19 @@ combine-as-imports = true
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 
-[tool.ruff.flake8-tidy-imports.banned-api]
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+# Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
+"pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
 [tool.ruff.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas"]
 
-[tool.ruff.flake8-type-checking]
+[tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
 
 [tool.coverage.run]
