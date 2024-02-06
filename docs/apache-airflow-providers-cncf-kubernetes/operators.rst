@@ -618,4 +618,13 @@ to ``~/.kube/config``. It also allows users to supply a template YAML file using
     :start-after: [START howto_operator_k8s_job]
     :end-before: [END howto_operator_k8s_job]
 
+Difference between ``KubernetesPodOperator`` and ``KubernetesJobOperator``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` is operator for creating Job.
+A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate.
+As Pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the Job is complete.
+Users can limit how many times a Job retries execution using configuration parameters like ``activeDeadlineSeconds`` and ``backoffLimit``.
+Instead of ``template`` parameter for Pod creating this operator uses :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`.
+It means that user can use all parameters from :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` in :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`.
+
 More information about the Jobs here: `Kubernetes Job Documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__
