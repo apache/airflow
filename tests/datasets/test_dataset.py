@@ -24,7 +24,6 @@ import pytest
 from sqlalchemy.sql import select
 
 from airflow.datasets import Dataset
-from airflow.models import DagModel
 from airflow.models.dataset import DatasetAll, DatasetAny, DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -62,105 +61,152 @@ def test_fspath():
     assert os.fspath(dataset) == uri
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
-    "input",
+    "inputs, scenario, expected",
     [
-        (True, True, True),
-        (True, True, False),
-        (True, False, True),
-        (True, False, False),
-        (False, False, True),
-        (False, False, False),
-        (False, True, True),
-        (False, True, False),
+        # Scenarios for DatasetAny
+        ((True, True, True), "any", True),
+        ((True, True, False), "any", True),
+        ((True, False, True), "any", True),
+        ((True, False, False), "any", True),
+        ((False, False, True), "any", True),
+        ((False, True, False), "any", True),
+        ((False, True, True), "any", True),
+        ((False, False, False), "any", False),
+        # Scenarios for DatasetAll
+        ((True, True, True), "all", True),
+        ((True, True, False), "all", False),
+        ((True, False, True), "all", False),
+        ((True, False, False), "all", False),
+        ((False, False, True), "all", False),
+        ((False, True, False), "all", False),
+        ((False, True, True), "all", False),
+        ((False, False, False), "all", False),
     ],
 )
-@pytest.mark.parametrize("scenario", ["any", "all"])
-def test_dataset_cond(input, scenario):
-    if scenario == "any":
-        expected = any(input)
-        class_ = DatasetAny
-    else:
-        expected = all(input)
-        class_ = DatasetAll
+def test_dataset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
+    class_ = DatasetAny if scenario == "any" else DatasetAll
+    datasets = [Dataset(uri=f"s3://abc/{i}") for i in range(123, 126)]
+    condition = class_(*datasets)
+
+    statuses = {dataset.uri: status for dataset, status in zip(datasets, inputs)}
+    assert (
+        condition.evaluate(statuses) == expected
+    ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
+
+    # Serialize and deserialize the condition to test persistence
+    serialized = BaseSerialization.serialize(condition)
+    deserialized = BaseSerialization.deserialize(serialized)
+    assert deserialized.evaluate(statuses) == expected, "Serialization round-trip failed"
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "status_values, expected_evaluation",
+    [
+        ((False, True, True), False),  # DatasetAll requires all conditions to be True, but d1 is False
+        ((True, True, True), True),  # All conditions are True
+        ((True, False, True), True),  # d1 is True, and DatasetAny condition (d2 or d3 being True) is met
+        ((True, False, False), False),  # d1 is True, but neither d2 nor d3 meet the DatasetAny condition
+    ],
+)
+def test_nested_dataset_conditions_with_serialization(status_values, expected_evaluation):
+    # Define datasets
     d1 = Dataset(uri="s3://abc/123")
     d2 = Dataset(uri="s3://abc/124")
     d3 = Dataset(uri="s3://abc/125")
-    d_cond = class_(d1, d2, d3)
-    ser_d_cond = BaseSerialization.serialize(d_cond)
-    deser_d_cond = BaseSerialization.deserialize(ser_d_cond)
-    statuses = {d1.uri: input[0], d2.uri: input[1], d3.uri: input[2]}
-    assert d_cond.evaluate(statuses) == expected
-    assert deser_d_cond.evaluate(statuses) == expected
+
+    # Create a nested condition: DatasetAll with d1 and DatasetAny with d2 and d3
+    nested_condition = DatasetAll(d1, DatasetAny(d2, d3))
+
+    statuses = {
+        d1.uri: status_values[0],
+        d2.uri: status_values[1],
+        d3.uri: status_values[2],
+    }
+
+    assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
+
+    serialized_condition = BaseSerialization.serialize(nested_condition)
+    deserialized_condition = BaseSerialization.deserialize(serialized_condition)
+
+    assert (
+        deserialized_condition.evaluate(statuses) == expected_evaluation
+    ), "Post-serialization evaluation mismatch"
 
 
-@pytest.mark.parametrize(
-    "input, expected",
-    [
-        ((False, True, True), False),
-        ((True, True, True), True),
-        ((True, False, True), True),
-        ((True, False, False), False),
-    ],
-)
-def test_dataset_cond_nested(input, expected):
-    d1 = Dataset(uri="s3://abc/123")
-    d2 = Dataset(uri="s3://abc/124")
-    d3 = Dataset(uri="s3://abc/125")
-    sub_cond = DatasetAny(d2, d3)
-    d_cond = DatasetAll(d1, sub_cond)
-    statuses = {d1.uri: input[0], d2.uri: input[1], d3.uri: input[2]}
-    ser_d_cond = BaseSerialization.serialize(d_cond)
-    deser_d_cond = BaseSerialization.deserialize(ser_d_cond)
-    assert d_cond.evaluate(statuses) == expected
-    assert deser_d_cond.evaluate(statuses) == expected
-
-
-def test_this(session, dag_maker):
-    d1 = Dataset(uri="hello1")
-    d1.uri
-    dm1 = DatasetModel(uri=d1.uri)
-    d2 = Dataset(uri="hello2")
-    dm2 = DatasetModel(uri=d2.uri)
-    session.add(dm1)
-    session.add(dm2)
+@pytest.fixture
+def create_test_datasets(session):
+    """Fixture to create test datasets and corresponding models."""
+    datasets = [Dataset(uri=f"hello{i}") for i in range(1, 3)]
+    for dataset in datasets:
+        session.add(DatasetModel(uri=dataset.uri))
     session.commit()
-    session.query(DagModel).all()
-    d1.uri
-    with dag_maker(schedule=DatasetAny(d1, d2)) as dag:
+    return datasets
+
+
+@pytest.mark.db_test
+def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test_datasets):
+    datasets = create_test_datasets
+
+    # Create DAG with dataset triggers
+    with dag_maker(schedule=DatasetAny(*datasets)) as dag:
         EmptyOperator(task_id="hello")
-    dag.dataset_triggers
-    dm1.id
-    ddrq = DatasetDagRunQueue(dataset_id=dm1.id, target_dag_id=dag.dag_id)
-    session.add(ddrq)
-    assert isinstance(dag.dataset_triggers, DatasetAny)
-    SerializedDAG.serialize_to_json(dag, SerializedDAG._decorated_fields)
-    SerializedDAG.serialize(dag.dataset_triggers).values()
-    dtr = SerializedDAG.to_dict(dag)["dag"]["dataset_triggers"]
-    assert isinstance(dtr, dict)
-    deser_dtr = SerializedDAG.deserialize(dtr)
-    assert isinstance(deser_dtr, DatasetAny)
-    assert deser_dtr.objects == dag.dataset_triggers.objects
-    SerializedDagModel.write_dag(dag)
+
+    # Verify dataset triggers are set up correctly
+    assert isinstance(
+        dag.dataset_triggers, DatasetAny
+    ), "DAG dataset triggers should be an instance of DatasetAny"
+
+    # Serialize and deserialize DAG dataset triggers
+    serialized_trigger = SerializedDAG.serialize(dag.dataset_triggers)
+    deserialized_trigger = SerializedDAG.deserialize(serialized_trigger)
+
+    # Verify serialization and deserialization integrity
+    assert isinstance(
+        deserialized_trigger, DatasetAny
+    ), "Deserialized trigger should maintain type DatasetAny"
+    assert (
+        deserialized_trigger.objects == dag.dataset_triggers.objects
+    ), "Deserialized trigger objects should match original"
+
+
+@pytest.mark.db_test
+def test_dataset_dag_run_queue_processing(session, dag_maker, create_test_datasets):
+    datasets = create_test_datasets
+    dataset_models = session.query(DatasetModel).all()
+
+    with dag_maker(schedule=DatasetAny(*datasets)) as dag:
+        EmptyOperator(task_id="hello")
+
+    # Add DatasetDagRunQueue entries to simulate dataset event processing
+    for dm in dataset_models:
+        session.add(DatasetDagRunQueue(dataset_id=dm.id, target_dag_id=dag.dag_id))
     session.commit()
+
+    # Fetch and evaluate dataset triggers for all DAGs affected by dataset events
+    records = session.scalars(select(DatasetDagRunQueue)).all()
+    dag_statuses = defaultdict(lambda: defaultdict(bool))
+    for record in records:
+        dag_statuses[record.target_dag_id][record.dataset.uri] = True
+
+    serialized_dags = session.execute(
+        select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
+    ).fetchall()
+
+    for (serialized_dag,) in serialized_dags:
+        dag = SerializedDAG.deserialize(serialized_dag.data)
+        for dataset_uri, status in dag_statuses[dag.dag_id].items():
+            assert dag.dataset_triggers.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("create_test_datasets")
+def test_additional_dag_with_no_triggers(dag_maker):
+    # Create an additional DAG to ensure it's not affected by dataset triggers
     with dag_maker(dag_id="dag2"):
         EmptyOperator(task_id="hello2")
-
-    # here we start the scheduling logic
-    records = session.scalars(select(DatasetDagRunQueue)).all()
-    dag_statuses = defaultdict(dict)
-    ddrq_times = defaultdict(list)
-    for ddrq in records:
-        dag_statuses[ddrq.target_dag_id][ddrq.dataset.uri] = True
-        ddrq_times[ddrq.target_dag_id].append(ddrq.created_at)
-    # dataset_triggered_dag_info = {dag_id: (min(times), max(times)) for dag_id, times in ddrq_times.items()}
-    ser_dags = session.execute(
-        select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
-    ).all()
-    for (ser_dag,) in ser_dags:
-        print(ser_dag)
-        statuses = dag_statuses[ser_dag.dag_id]
-        ser_dag.dag.dataset_triggers.evaluate(statuses)
 
 
 @pytest.fixture(autouse=True)
@@ -170,20 +216,50 @@ def clear_datasets():
     clear_db_datasets()
 
 
-def test_this2(session, dag_maker):
+@pytest.fixture
+def setup_datasets_and_models(session):
+    """Fixture to create datasets and corresponding models."""
+    # Create Dataset instances
     d1 = Dataset(uri="hello1")
-    d1.uri
-    dm1 = DatasetModel(uri=d1.uri)
     d2 = Dataset(uri="hello2")
+
+    # Create and add DatasetModel instances to the session
+    dm1 = DatasetModel(uri=d1.uri)
     dm2 = DatasetModel(uri=d2.uri)
-    session.add(dm1)
-    session.add(dm2)
+    session.add_all([dm1, dm2])
     session.commit()
-    session.query(DagModel).all()
-    d1.uri
+
+    return d1, d2
+
+
+@pytest.mark.db_test
+def test_dag_with_complex_dataset_triggers(session, dag_maker, setup_datasets_and_models):
+    d1, d2 = setup_datasets_and_models
+
+    # Setup a DAG with complex dataset triggers (DatasetAny with DatasetAll)
     with dag_maker(schedule=DatasetAny(d1, DatasetAll(d2, d1))) as dag:
         EmptyOperator(task_id="hello")
-    dag.dataset_triggers
-    SerializedDAG.serialize_to_json(dag, SerializedDAG._decorated_fields)
-    SerializedDAG.serialize(dag.dataset_triggers).values()
-    SerializedDAG.to_dict(dag)["dag"]["dataset_triggers"]
+
+    assert isinstance(
+        dag.dataset_triggers, DatasetAny
+    ), "DAG's dataset trigger should be an instance of DatasetAny"
+    assert any(
+        isinstance(trigger, DatasetAll) for trigger in dag.dataset_triggers.objects
+    ), "DAG's dataset trigger should include DatasetAll"
+
+    serialized_triggers = SerializedDAG.serialize(dag.dataset_triggers)
+
+    deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
+
+    assert isinstance(
+        deserialized_triggers, DatasetAny
+    ), "Deserialized triggers should be an instance of DatasetAny"
+    assert any(
+        isinstance(trigger, DatasetAll) for trigger in deserialized_triggers.objects
+    ), "Deserialized triggers should include DatasetAll"
+
+    serialized_dag_dict = SerializedDAG.to_dict(dag)["dag"]
+    assert "dataset_triggers" in serialized_dag_dict, "Serialized DAG should contain 'dataset_triggers'"
+    assert isinstance(
+        serialized_dag_dict["dataset_triggers"], dict
+    ), "Serialized 'dataset_triggers' should be a dict"
