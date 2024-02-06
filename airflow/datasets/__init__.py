@@ -55,3 +55,13 @@ class Dataset(os.PathLike):
 
     def __hash__(self):
         return hash(self.uri)
+
+    def __or__(self, other):
+        from airflow.models.dataset import DatasetAny
+
+        return DatasetAny(self, other)
+
+    def __and__(self, other):
+        from airflow.models.dataset import DatasetAll
+
+        return DatasetAll(self, other)

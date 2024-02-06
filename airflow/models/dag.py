@@ -104,6 +104,8 @@ from airflow.models.dataset import (
     DatasetBooleanCondition,
     DatasetDagRunQueue,
     DatasetModel,
+    DatasetsExpression,
+    extract_datasets,
 )
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
@@ -174,7 +176,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"], DatasetsExpression]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -587,7 +589,9 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: DatasetBooleanCondition | None = None
-        if isinstance(schedule, (DatasetAll, DatasetAny)):
+        if isinstance(schedule, DatasetsExpression):
+            self.dataset_triggers = extract_datasets(dataset_expression=schedule)
+        elif isinstance(schedule, (DatasetAll, DatasetAny)):
             self.dataset_triggers = schedule
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
@@ -597,7 +601,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not NOTSET:
+        elif schedule is not NOTSET and not isinstance(schedule, DatasetsExpression):
             schedule_interval = schedule
 
         if isinstance(schedule, DatasetOrTimeSchedule):
