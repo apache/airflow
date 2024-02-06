@@ -23,6 +23,94 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.12.0 (2024-02-09)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The helm chart is now using a newer version of ``bitnami/postgresql`` dependency (#34817)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The version of ``bitnami/postgresql`` subchart upgraded from ``12.10.0`` to ``13.2.24``.
+The version of ``PostgreSQL`` binaries upgraded from ``11`` to ``16.1.0``.
+
+The change requires existing ``bitnami/postgresql`` subchart users to perform manual major version upgrade using ``pg_dumpall`` or ``pg_upgrade``.
+
+As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
+
+Default Airflow image is updated to ``2.8.1`` (#36907)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.8.1``, previously it was ``2.7.1``.
+
+Default PgBouncer and PgBouncer Exporter images have been updated (#36898)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The PgBouncer and PgBouncer Exporter images are based on newer software/os.
+
+  * ``pgbouncer``: 1.21.0 based on alpine 3.14 (``airflow-pgbouncer-2024.01.19-1.21.0``)
+  * ``pgbouncer-exporter``: 0.16.0 based on alpine 3.19 (``apache/airflow:airflow-pgbouncer-exporter-2024.01.19-0.16.0``)
+
+Default StatsD image is updated to ``v0.26.0`` (#37187)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default StatsD image that is used with the Chart is now ``v0.26.0``, previously it was ``v0.22.8``.
+
+Default Redis image is updated to ``7-bookworm`` (#37187)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Redis image that is used with the Chart is now ``7-bookworm``, previously it was ``7-bullseye``.
+
+New Features
+^^^^^^^^^^^^
+
+- Enable native HPA for Airflow Workers (#36174)
+- Add init container + sidecar support for Airflow Kerberos (#35548)
+- Support MySQL backend as KEDA trigger (#36167)
+
+Improvements
+^^^^^^^^^^^^
+
+- Improve PriorityClass to improve debuggability (#36365)
+- Add ``securityContexts`` in dag processors log groomer sidecar (#34499)
+- Add support for ``securityContexts`` in dag processors wait-for-migrations container (#35593)
+- Add templating for PVC ``storageClassName`` (#35581)
+- Add ``volumeClaimTemplate`` for worker (#34986)
+- Add support for ``priorityClassName`` on Redis pods (#34879)
+- Configurable mount path for DAGs volume (#35083)
+- Add support for custom ``emptyDir`` config (#34837)
+- Added ability to enable/disable scheduler and webserver  (#36991)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix StatsD host in Airflow config (#35679)
+- Set ``AIRFLOW_HOME`` env var with ``airflowHome`` value (#34839)
+- Safer worker pod annotations (#35309)
+- Set worker ``safeToEvict`` properly (#35130)
+- Fix Redis broker URL with ``useStandardNaming`` (#34825)
+- Fix metadata DB & port in KEDA connection when ``usePgbouncer`` is false (#34741)
+- Fix PgBouncer connection with ``useStandardNaming`` (#34787)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Add docs about extending the Airflow Helm chart (#36331)
+- Add comment for Elasticsearch connection scheme (#35588)
+- Add notes about Virtualenvs preventing the need for custom images (#35306)
+
+Misc
+^^^^
+
+- Default Airflow version to 2.8.1 (#36907)
+- Support git-sync v4 (#34731)
+- Upgrade ``bitnami/postgresql`` subchart to ``13.2.24`` (#36156)
+- Change git sync container indent to 4 (#35824)
+- Remove K8S 1.24 support (#35214)
+- Rebuild ``pgbouncer`` and ``pgbouncer-exporter`` images with newer versions (#36898)
+- Update ``statsd`` and ``redis`` chart images (#37187)
+
 Airflow Helm Chart 1.11.0 (2023-10-02)
 --------------------------------------
 
