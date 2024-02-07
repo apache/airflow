@@ -81,7 +81,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json()["job"]["status"]
+        status = job.json()["status"]
 
         if status == hook.FAILED:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
@@ -111,7 +111,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         else:
             hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
             job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-            state = job.json()["job"]["status"]
+            state = job.json()["status"]
             end_time = time.time() + self.timeout
 
             self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)

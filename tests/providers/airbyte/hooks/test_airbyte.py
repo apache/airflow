@@ -37,14 +37,14 @@ class TestAirbyteHook:
     airbyte_conn_id = "airbyte_conn_id_test"
     connection_id = "conn_test_sync"
     job_id = 1
-    sync_connection_endpoint = "http://test-airbyte:8001/api/v1/connections/sync"
-    get_job_endpoint = "http://test-airbyte:8001/api/v1/jobs/get"
-    cancel_job_endpoint = "http://test-airbyte:8001/api/v1/jobs/cancel"
+    sync_connection_endpoint = "http://test-airbyte:8001/v1/jobs"
+    get_job_endpoint = f"http://test-airbyte:8001/v1/jobs/{job_id}"
+    cancel_job_endpoint = f"http://test-airbyte:8001/v1/jobs/{job_id}"
 
-    health_endpoint = "http://test-airbyte:8001/api/v1/health"
-    _mock_sync_conn_success_response_body = {"job": {"id": 1}}
-    _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
-    _mock_job_cancel_status = "cancelled"
+    health_endpoint = "http://test-airbyte:8001/v1/health"
+    _mock_sync_conn_success_response_body = {"jobId": 1, "status":"pending"}
+    _mock_job_status_success_response_body = {"status": "succeeded"}
+    _mock_job_cancel_status = {"status":"cancelled"}
 
     def setup_method(self):
         db.merge_conn(
@@ -68,7 +68,7 @@ class TestAirbyteHook:
         assert resp.json() == self._mock_sync_conn_success_response_body
 
     def test_get_job_status(self, requests_mock):
-        requests_mock.post(
+        requests_mock.get(
             self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body
         )
         resp = self.hook.get_job(job_id=self.job_id)
@@ -76,7 +76,7 @@ class TestAirbyteHook:
         assert resp.json() == self._mock_job_status_success_response_body
 
     def test_cancel_job(self, requests_mock):
-        requests_mock.post(
+        requests_mock.delete(
             self.cancel_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body
         )
         resp = self.hook.cancel_job(job_id=self.job_id)

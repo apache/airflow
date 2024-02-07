@@ -79,8 +79,8 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         """Create Airbyte Job and wait to finish."""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        self.job_id = job_object.json()["job"]["id"]
-        state = job_object.json()["job"]["status"]
+        self.job_id = job_object.json()["jobId"]
+        state = job_object.json()["status"]
         end_time = time.time() + self.timeout
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)

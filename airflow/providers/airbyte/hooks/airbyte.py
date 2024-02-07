@@ -84,10 +84,10 @@ class AirbyteHook(HttpHook):
         :param job_id: The ID of an Airbyte Sync Job.
         """
         headers, base_url = await self.get_headers_tenants_from_connection()
-        url = f"{base_url}/api/{self.api_version}/jobs/get"
+        url = f"{base_url}/{self.api_version}/jobs/{job_id}"
         self.log.info("URL for api request: %s", url)
         async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(url=url, data=json.dumps({"id": job_id})) as response:
+            async with session.get(url=url) as response:
                 try:
                     response.raise_for_status()
                     return await response.json()
@@ -147,8 +147,8 @@ class AirbyteHook(HttpHook):
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         """
         return self.run(
-            endpoint=f"api/{self.api_version}/connections/sync",
-            json={"connectionId": connection_id},
+            endpoint=f"{self.api_version}/jobs",
+            json={"connectionId": connection_id, "jobType": "sync"},
             headers={"accept": "application/json"},
         )
 
@@ -158,8 +158,9 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
+        self.method = "GET"
         return self.run(
-            endpoint=f"api/{self.api_version}/jobs/get",
+            endpoint=f"{self.api_version}/jobs/{job_id}",
             json={"id": job_id},
             headers={"accept": "application/json"},
         )
@@ -170,9 +171,9 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
+        self.method = "DELETE"
         return self.run(
-            endpoint=f"api/{self.api_version}/jobs/cancel",
-            json={"id": job_id},
+            endpoint=f"{self.api_version}/jobs/{job_id}",
             headers={"accept": "application/json"},
         )
 
@@ -181,7 +182,7 @@ class AirbyteHook(HttpHook):
         self.method = "GET"
         try:
             res = self.run(
-                endpoint=f"api/{self.api_version}/health",
+                endpoint=f"{self.api_version}/health",
                 headers={"accept": "application/json"},
                 extra_options={"check_response": False},
             )
