@@ -146,6 +146,8 @@ const Row = (props: RowProps) => {
         bg={isSelected ? "blue.100" : "inherit"}
         borderBottomWidth={1}
         borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
+        borderRightWidth="16px"
+        borderRightColor={isSelected ? "blue.100" : "transparent"}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"

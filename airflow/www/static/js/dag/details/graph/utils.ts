@@ -36,6 +36,7 @@ interface FlattenNodesProps {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isZoomedOut: boolean;
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -48,6 +49,7 @@ export const flattenNodes = ({
   openGroupIds,
   parent,
   hoveredTaskState,
+  isZoomedOut,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
   let edges: ElkExtendedEdge[] = [];
@@ -76,6 +78,7 @@ export const flattenNodes = ({
         isSelected,
         latestDagRunId,
         isActive,
+        isZoomedOut,
         onToggleCollapse: () => {
           let newGroupIds = [];
           if (!node.value.isOpen) {
@@ -115,6 +118,7 @@ export const flattenNodes = ({
         openGroupIds,
         parent: newNode,
         hoveredTaskState,
+        isZoomedOut,
       });
       nodes = [...nodes, ...childNodes];
       edges = [...edges, ...childEdges];
@@ -153,6 +157,7 @@ interface BuildEdgesProps {
   edges?: Edge[];
   nodes: ReactFlowNode<CustomNodeProps>[];
   selectedTaskId?: string | null;
+  isZoomedOut?: boolean;
 }
 
 // Format edge data to what react-flow needs to render successfully
@@ -160,6 +165,7 @@ export const buildEdges = ({
   edges = [],
   nodes,
   selectedTaskId,
+  isZoomedOut,
 }: BuildEdgesProps) =>
   edges
     .map((edge) => ({
@@ -184,6 +190,7 @@ export const buildEdges = ({
           ...e,
           data: {
             rest: {
+              isZoomedOut,
               ...e.data.rest,
               labels: e.data.rest.labels?.map((l) =>
                 l.x && l.y ? { ...l, x: l.x + parentX, y: l.y + parentY } : l
@@ -215,6 +222,7 @@ export const buildEdges = ({
           rest: {
             ...e.data.rest,
             isSelected,
+            isZoomedOut,
           },
         },
       };
