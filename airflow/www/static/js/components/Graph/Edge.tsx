@@ -32,6 +32,10 @@ const CustomEdge = ({ data }: EdgeProps) => {
   const { colors } = useTheme();
   if (!data) return null;
   const { rest } = data;
+  let strokeWidth = 2;
+  if (rest.isSelected) strokeWidth = 3;
+  if (rest.isZoomedOut) strokeWidth = 5;
+  if (rest.isZoomedOut && rest.isSelected) strokeWidth = 7;
   return (
     <>
       {rest?.labels?.map(({ id, x, y, text, width, height }) => {
@@ -48,7 +52,7 @@ const CustomEdge = ({ data }: EdgeProps) => {
         <LinePath
           key={s.id}
           stroke={rest.isSelected ? colors.blue[400] : colors.gray[400]}
-          strokeWidth={rest.isSelected ? 3 : 2}
+          strokeWidth={strokeWidth}
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}

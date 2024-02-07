@@ -52,6 +52,7 @@ const mockNode: NodeProps<CustomNodeProps> = {
     latestDagRunId: "run_id",
     onToggleCollapse: () => {},
     isActive: true,
+    isZoomedOut: false,
   },
   selected: false,
   zIndex: 0,
