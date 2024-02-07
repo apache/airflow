@@ -634,7 +634,7 @@ def test_expand_mapped_task_instance_with_named_index(dag_maker, session):
 
     indices = (
         session.query(TaskInstance.rendered_map_index)
-        .filter(
+        .where(
             TaskInstance.dag_id == task1.dag_id,
             TaskInstance.task_id == task1.task_id,
             TaskInstance.run_id == dr.run_id,

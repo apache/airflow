@@ -2540,17 +2540,17 @@ class TaskInstance(Base, LoggingMixin):
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
 
-                # DAG authors define map_index_template at the task level
-                if "map_index_template" in context and context["map_index_template"] is not None:
-                    if jinja_env is not None:
-                        self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
-                            context
-                        )
-                        self.log.info("Map index rendered as %s", self.rendered_map_index)
-
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+
+            # DAG authors define map_index_template at the task level
+            if "map_index_template" in context and context["map_index_template"] is not None:
+                if jinja_env is not None:
+                    self.rendered_map_index = jinja_env.from_string(context["map_index_template"]).render(
+                        context
+                    )
+                    self.log.info("Map index rendered as %s", self.rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
