@@ -552,6 +552,7 @@ class TestStringifiedDAGs:
             "_task_group",
             "params",
             "_processor_dags_folder",
+            "dataset_triggers",
         }
         compare_serialization_list = {
             "dataset_triggers",
