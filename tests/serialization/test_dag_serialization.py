@@ -549,6 +549,7 @@ class TestStringifiedDAGs:
             "_task_group",
             "params",
             "_processor_dags_folder",
+            "dataset_triggers",
         }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:

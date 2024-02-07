@@ -30,6 +30,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ["uri"],
     [
@@ -45,16 +46,19 @@ def test_invalid_uris(uri):
         Dataset(uri=uri)
 
 
+@pytest.mark.db_test
 def test_uri_with_scheme():
     dataset = Dataset(uri="s3://example_dataset")
     EmptyOperator(task_id="task1", outlets=[dataset])
 
 
+@pytest.mark.db_test
 def test_uri_without_scheme():
     dataset = Dataset(uri="example_dataset")
     EmptyOperator(task_id="task1", outlets=[dataset])
 
 
+@pytest.mark.db_test
 def test_fspath():
     uri = "s3://example_dataset"
     dataset = Dataset(uri=uri)
@@ -256,3 +260,10 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker, setup_datasets_an
     assert isinstance(
         serialized_dag_dict["dataset_triggers"], dict
     ), "Serialized 'dataset_triggers' should be a dict"
+
+
+@pytest.fixture(autouse=True)
+def clear_datasets():
+    from tests.test_utils.db import clear_db_datasets
+
+    clear_db_datasets()
