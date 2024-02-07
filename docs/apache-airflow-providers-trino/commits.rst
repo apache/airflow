@@ -35,14 +35,56 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.1
+.....
+
+Latest change: 2024-01-22
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`ecb2c9f24d <https://github.com/apache/airflow/commit/ecb2c9f24d1364642604c14f0deb681ab4894135>`_  2024-01-09   ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+`f7b663d9af <https://github.com/apache/airflow/commit/f7b663d9aff472d0a419e16c262fbae2a8a69ce1>`_  2024-01-07   ``Run mypy checks for full packages in CI (#36638)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  =============================================================================
+
+5.6.0
+.....
+
+Latest change: 2023-12-23
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`f84eb2ab6f <https://github.com/apache/airflow/commit/f84eb2ab6fe777938f85a5fbb2a0b8a6dc07b9bc>`_  2023-12-21   ``Make "placeholder" of ODBC configurable in UI (#36000)``
+=================================================================================================  ===========  ==================================================================================
+
+5.5.0
+.....
+
+Latest change: 2023-12-08
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+`d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+`1c6bbe2841 <https://github.com/apache/airflow/commit/1c6bbe2841fe846957f7a1ce68eb978c30669896>`_  2023-12-01   ``Feature/trino provider timezone (#35963)``
+=================================================================================================  ===========  =======================================================================
+
 5.4.1
 .....
 
-Latest change: 2023-11-21
+Latest change: 2023-11-24
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `2a469b3713 <https://github.com/apache/airflow/commit/2a469b3713d95ab15df8e9090abdb9d15e50cbb9>`_  2023-11-21   ``Remove backcompat inheritance for DbApiHook (#35754)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``

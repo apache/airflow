@@ -30,7 +30,7 @@ class TestEmrClusterLink(BaseAwsLinksTestCase):
     def test_extra_link(self):
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/emr/home" "?region=us-west-1#/clusterDetails/j-TEST-FLOW-ID"
+                "https://console.aws.amazon.com/emr/home?region=us-west-1#/clusterDetails/j-TEST-FLOW-ID"
             ),
             region_name="us-west-1",
             aws_partition="aws",
@@ -57,7 +57,7 @@ class TestEmrLogsLink(BaseAwsLinksTestCase):
     def test_extra_link(self):
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/s3/buckets/myLogUri/" "?region=eu-west-2&prefix=j-8989898989/"
+                "https://console.aws.amazon.com/s3/buckets/myLogUri/?region=eu-west-2&prefix=j-8989898989/"
             ),
             region_name="eu-west-2",
             aws_partition="aws",

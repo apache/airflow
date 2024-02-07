@@ -821,12 +821,13 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+
+            blob_names = [blob.name for blob in blobs]
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(blob.name for blob in blobs)
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -933,16 +934,17 @@ class GCSHook(GoogleBaseHook):
                     delimiter=delimiter,
                     versions=versions,
                 )
-                list(blobs)
+
+            blob_names = [
+                blob.name
+                for blob in blobs
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+            ]
 
             if blobs.prefixes:
                 ids.extend(blobs.prefixes)
             else:
-                ids.extend(
-                    blob.name
-                    for blob in blobs
-                    if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
-                )
+                ids.extend(blob_names)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -1334,7 +1336,11 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
-def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+def parse_json_from_gcs(
+    gcp_conn_id: str,
+    file_uri: str,
+    impersonation_chain: str | Sequence[str] | None = None,
+) -> Any:
     """
     Downloads and parses json file from Google cloud Storage.
 
@@ -1342,7 +1348,10 @@ def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
     :param file_uri: full path to json file
         example: ``gs://test-bucket/dir1/dir2/file``
     """
-    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    gcs_hook = GCSHook(
+        gcp_conn_id=gcp_conn_id,
+        impersonation_chain=impersonation_chain,
+    )
     bucket, blob = _parse_gcs_url(file_uri)
     with NamedTemporaryFile(mode="w+b") as file:
         try:
@@ -1383,11 +1392,14 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
 
 
 class GCSAsyncHook(GoogleBaseAsyncHook):
-    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync."""
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseAsyncHook."""
 
     sync_hook_class = GCSHook
 
     async def get_storage_client(self, session: ClientSession) -> Storage:
         """Returns a Google Cloud Storage service object."""
-        with await self.service_file_as_context() as file:
-            return Storage(service_file=file, session=cast(Session, session))
+        token = await self.get_token(session=session)
+        return Storage(
+            token=token,
+            session=cast(Session, session),
+        )

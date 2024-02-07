@@ -564,21 +564,28 @@ class TestWorker:
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_init_containers",
+        "airflow_version, init_container_enabled, expected_init_containers",
         [
-            ("1.9.0", 2),
-            ("1.10.14", 2),
-            ("2.0.2", 2),
-            ("2.1.0", 2),
-            ("2.8.0", 3),
+            ("1.9.0", True, 2),
+            ("1.9.0", False, 2),
+            ("1.10.14", True, 2),
+            ("1.10.14", False, 2),
+            ("2.0.2", True, 2),
+            ("2.0.2", False, 2),
+            ("2.1.0", True, 2),
+            ("2.1.0", False, 2),
+            ("2.8.0", True, 3),
+            ("2.8.0", False, 2),
         ],
     )
-    def test_airflow_kerberos_init_container(self, airflow_version, expected_init_containers):
+    def test_airflow_kerberos_init_container(
+        self, airflow_version, init_container_enabled, expected_init_containers
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
                 "workers": {
-                    "kerberosInitContainer": {"enabled": True},
+                    "kerberosInitContainer": {"enabled": init_container_enabled},
                     "persistence": {"fixPermissions": True},
                 },
             },
@@ -975,6 +982,102 @@ class TestWorkerKedaAutoScaler:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+
+class TestWorkerHPAAutoScaler:
+    """Tests worker HPA auto scaler."""
+
+    def test_should_be_disabled_on_keda_enabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"enabled": True},
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=[
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/workers/worker-hpa.yaml",
+            ],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert len(docs) == 1
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "metrics, executor, expected_metrics",
+        [
+            # default metrics
+            (
+                None,
+                "CeleryExecutor",
+                {
+                    "type": "Resource",
+                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                },
+            ),
+            # custom metric
+            (
+                [
+                    {
+                        "type": "Pods",
+                        "pods": {
+                            "metric": {"name": "custom"},
+                            "target": {"type": "Utilization", "averageUtilization": 80},
+                        },
+                    }
+                ],
+                "CeleryKubernetesExecutor",
+                {
+                    "type": "Pods",
+                    "pods": {
+                        "metric": {"name": "custom"},
+                        "target": {"type": "Utilization", "averageUtilization": 80},
+                    },
+                },
+            ),
+        ],
+    )
+    def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
 
 
 class TestWorkerNetworkPolicy:

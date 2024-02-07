@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import settings
+from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -102,9 +103,7 @@ class FileProcessorHandler(logging.Handler):
         return self.filename_template.format(filename=ctx["filename"])
 
     def _get_log_directory(self):
-        now = datetime.utcnow()
-
-        return os.path.join(self.base_log_folder, now.strftime("%Y-%m-%d"))
+        return os.path.join(self.base_log_folder, timezone.utcnow().strftime("%Y-%m-%d"))
 
     def _symlink_latest_log_directory(self):
         """
@@ -117,18 +116,19 @@ class FileProcessorHandler(logging.Handler):
         log_directory = self._get_log_directory()
         latest_log_directory_path = os.path.join(self.base_log_folder, "latest")
         if os.path.isdir(log_directory):
+            rel_link_target = Path(log_directory).relative_to(Path(latest_log_directory_path).parent)
             try:
                 # if symlink exists but is stale, update it
                 if os.path.islink(latest_log_directory_path):
-                    if os.readlink(latest_log_directory_path) != log_directory:
+                    if os.path.realpath(latest_log_directory_path) != log_directory:
                         os.unlink(latest_log_directory_path)
-                        os.symlink(log_directory, latest_log_directory_path)
+                        os.symlink(rel_link_target, latest_log_directory_path)
                 elif os.path.isdir(latest_log_directory_path) or os.path.isfile(latest_log_directory_path):
                     logging.warning(
                         "%s already exists as a dir/file. Skip creating symlink.", latest_log_directory_path
                     )
                 else:
-                    os.symlink(log_directory, latest_log_directory_path)
+                    os.symlink(rel_link_target, latest_log_directory_path)
             except OSError:
                 logging.warning("OSError while attempting to symlink the latest log directory")
 

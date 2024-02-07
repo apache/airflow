@@ -121,7 +121,7 @@
   {% endif %}
   {% if otel_on | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
+      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
         <b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
@@ -377,6 +377,7 @@
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
                           <input type="hidden" name="unpause" value="True">
+                          <input type="hidden" name="conf" value="{}">
                           <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                         </form>
                       </li>
@@ -385,7 +386,7 @@
                   </div>
                 {% else %}
                   <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
-                    title="Trigger&nbsp;DAG"
+                  onclick="return triggerDag(this, '{{ dag.dag_id }}')" title="Trigger&nbsp;DAG"
                     aria-label="Trigger DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
@@ -481,6 +482,11 @@
         This cannot be undone.`)) {
         postAsForm(link.href, {});
       }
+      return false;
+    }
+
+    function triggerDag(link, dagId) {
+      postAsForm(link.href, {});
       return false;
     }
   </script>

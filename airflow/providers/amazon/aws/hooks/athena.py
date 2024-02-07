@@ -25,7 +25,7 @@ This module contains AWS Athena hook.
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Collection
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -33,6 +33,19 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from botocore.paginate import PageIterator
+
+MULTI_LINE_QUERY_LOG_PREFIX = "\n\t\t"
+
+
+def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
+    result = ""
+    for key, value in params.items():
+        if key == "QueryString":
+            value = (
+                MULTI_LINE_QUERY_LOG_PREFIX + str(value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
+            )
+        result += f"\t{key}: {value}\n"
+    return result.rstrip()
 
 
 class AthenaHook(AwsBaseHook):
@@ -115,7 +128,7 @@ class AthenaHook(AwsBaseHook):
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:
-            self.log.info("Running Query with params: %s", params)
+            self.log.info("Running Query with params:\n%s", query_params_to_string(params))
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)
@@ -292,24 +305,17 @@ class AthenaHook(AwsBaseHook):
 
         :param query_execution_id: Id of submitted athena query
         """
-        output_location = None
-        if query_execution_id:
-            response = self.get_query_info(query_execution_id=query_execution_id, use_cache=True)
+        if not query_execution_id:
+            raise ValueError(f"Invalid Query execution id. Query execution id: {query_execution_id}")
 
-            if response:
-                try:
-                    output_location = response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
-                except KeyError:
-                    self.log.error(
-                        "Error retrieving OutputLocation. Query execution id: %s", query_execution_id
-                    )
-                    raise
-            else:
-                raise
-        else:
-            raise ValueError("Invalid Query execution id. Query execution id: %s", query_execution_id)
+        if not (response := self.get_query_info(query_execution_id=query_execution_id, use_cache=True)):
+            raise ValueError(f"Unable to get query information for execution id: {query_execution_id}")
 
-        return output_location
+        try:
+            return response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
+        except KeyError:
+            self.log.error("Error retrieving OutputLocation. Query execution id: %s", query_execution_id)
+            raise
 
     def stop_query(self, query_execution_id: str) -> dict:
         """Cancel the submitted query.

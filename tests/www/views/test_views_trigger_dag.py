@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from urllib.parse import quote
 
 import pytest
 
@@ -57,7 +58,7 @@ def test_trigger_dag_button_normal_exist(admin_client):
 )
 def test_trigger_dag_button(admin_client, req, expected_run_id):
     test_dag_id = "example_bash_operator"
-    admin_client.post(f"dags/{test_dag_id}/trigger?{req}")
+    admin_client.post(f"dags/{test_dag_id}/trigger?{req}", data={"conf": "{}"})
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
@@ -68,8 +69,12 @@ def test_trigger_dag_button(admin_client, req, expected_run_id):
 def test_duplicate_run_id(admin_client):
     test_dag_id = "example_bash_operator"
     run_id = "test_run"
-    admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
-    response = admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
+    admin_client.post(
+        f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"}, follow_redirects=True
+    )
+    response = admin_client.post(
+        f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"}, follow_redirects=True
+    )
     check_content_in_response(f"The run ID {run_id} already exists", response)
 
 
@@ -112,7 +117,9 @@ def test_trigger_dag_conf_not_dict(admin_client):
 def test_trigger_dag_wrong_execution_date(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": "not_a_date"})
+    response = admin_client.post(
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": "not_a_date"}
+    )
     check_content_in_response("Invalid execution date", response)
 
     with create_session() as session:
@@ -124,7 +131,9 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
-    admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": exec_date.isoformat()})
+    admin_client.post(
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": exec_date.isoformat()}
+    )
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -361,7 +370,8 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
 def test_dag_run_id_pattern(session, admin_client, pattern, run_id, result):
     with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
         test_dag_id = "example_bash_operator"
-        admin_client.post(f"dags/{test_dag_id}/trigger?&run_id={run_id}")
+        run_id = quote(run_id)
+        admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"})
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         if result:
             assert run is not None

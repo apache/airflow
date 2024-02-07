@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import os
 import textwrap
-import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from deprecated import deprecated
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
@@ -50,6 +50,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     :param bucket: The Google Cloud Storage bucket where the object is.
     :param object: The name of the object to check in the Google cloud
         storage bucket.
+    :param use_glob: When set to True the object parameter is interpreted as glob
     :param google_cloud_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -75,6 +76,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         *,
         bucket: str,
         object: str,
+        use_glob: bool = False,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
@@ -84,7 +86,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object
+        self.use_glob = use_glob
         self.google_cloud_conn_id = google_cloud_conn_id
+        self._matches: list[str] = []
         self.impersonation_chain = impersonation_chain
         self.retry = retry
 
@@ -96,7 +100,11 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             gcp_conn_id=self.google_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(self.bucket, self.object, self.retry)
+        if self.use_glob:
+            self._matches = hook.list(self.bucket, match_glob=self.object)
+            return bool(self._matches)
+        else:
+            return hook.exists(self.bucket, self.object, self.retry)
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -109,6 +117,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                     trigger=GCSBlobTrigger(
                         bucket=self.bucket,
                         object_name=self.object,
+                        use_glob=self.use_glob,
                         poke_interval=self.poke_interval,
                         google_cloud_conn_id=self.google_cloud_conn_id,
                         hook_params={
@@ -133,6 +142,13 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         return event["message"]
 
 
+@deprecated(
+    reason=(
+        "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
+        "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
     Checks for the existence of a file in Google Cloud Storage.
@@ -156,11 +172,6 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
-            "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-        )
         super().__init__(deferrable=True, **kwargs)
 
 

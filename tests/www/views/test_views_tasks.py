@@ -797,6 +797,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     Example usage::
 
         from airflow.www.views import TaskInstanceModelView
+
         ti = session.Query(TaskInstance).filter(...).one()
         pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
         client.post("...", data={"action": "...", "rowid": pk})
@@ -942,13 +943,12 @@ def test_task_instance_clear_failure(admin_client):
 @pytest.mark.parametrize(
     "action, expected_state",
     [
-        ("set_running", State.RUNNING),
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
         ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry", "skipped"],
+    ids=["failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -971,7 +971,6 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
 @pytest.mark.parametrize(
     "action",
     [
-        "set_running",
         "set_failed",
         "set_success",
         "set_retry",

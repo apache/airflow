@@ -31,19 +31,18 @@ from click import Context
 from rich.console import Console
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.main_command import main
-from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_python,
     option_verbose,
 )
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console, get_stderr_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
@@ -191,7 +190,6 @@ def version():
 @option_backend
 @option_postgres_version
 @option_mysql_version
-@option_mssql_version
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
@@ -204,7 +202,6 @@ def change_config(
     backend: str,
     postgres_version: str,
     mysql_version: str,
-    mssql_version: str,
     cheatsheet: bool,
     asciiart: bool,
     colour: bool,
@@ -249,7 +246,6 @@ def change_config(
     get_console().print()
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
-    get_console().print(f"[info]* MsSQL version: {mssql_version}[/]")
     get_console().print()
     get_console().print(f"[info]* ASCIIART: {get_status(asciiart_file)}[/]")
     get_console().print(f"[info]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
@@ -422,8 +418,9 @@ def backup(script_path_file: Path):
     shutil.copy(str(script_path_file), str(script_path_file) + ".bak")
 
 
-BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_ROOT / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+BREEZE_DOC_DIR = BREEZE_INSTALL_DIR / "doc"
+BREEZE_IMAGES_DIR = BREEZE_DOC_DIR / "images"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 
 

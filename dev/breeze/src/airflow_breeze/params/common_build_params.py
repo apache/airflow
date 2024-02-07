@@ -25,8 +25,10 @@ from typing import Any
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
+    ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
+    get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
@@ -44,10 +46,8 @@ class CommonBuildParams:
     additional_dev_apt_env: str | None = None
     additional_python_deps: str | None = None
     additional_pip_install_flags: str | None = None
-    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
-    default_constraints_branch: str = os.environ.get(
-        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
+    airflow_branch: str = AIRFLOW_BRANCH
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_location: str | None = None
     builder: str = "autodetect"
     build_progress: str = ALLOWED_BUILD_PROGRESS[0]
@@ -56,11 +56,12 @@ class CommonBuildParams:
     dev_apt_command: str | None = None
     dev_apt_deps: str | None = None
     docker_cache: str = "registry"
+    docker_host: str | None = os.environ.get("DOCKER_HOST")
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     image_tag: str | None = None
-    install_providers_from_sources: bool = False
+    install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: str | None = None
@@ -193,3 +194,16 @@ class CommonBuildParams:
         for arg in self.build_arg_values:
             build_args.extend(["--build-arg", arg])
         return build_args
+
+    def _get_version_with_suffix(self) -> str:
+        from packaging.version import Version
+
+        airflow_version = get_airflow_version()
+        try:
+            if self.version_suffix_for_pypi and self.version_suffix_for_pypi not in airflow_version:
+                version = Version(airflow_version)
+                return version.base_version + f".{self.version_suffix_for_pypi}"
+        except Exception:
+            # in case of any failure just fall back to the original version set
+            pass
+        return airflow_version

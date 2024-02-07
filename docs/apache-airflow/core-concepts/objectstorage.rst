@@ -33,7 +33,7 @@ of object-name => data. To enable remote access, operations on objects are usual
 
 Airflow provides a generic abstraction on top of object stores, like s3, gcs, and azure blob storage.
 This abstraction allows you to use a variety of object storage systems in your DAGs without having to
-change you code to deal with every different object storage system. In addition, it allows you to use
+change your code to deal with every different object storage system. In addition, it allows you to use
 most of the standard Python modules, like ``shutil``, that can work with file-like objects.
 
 Support for a particular object storage system depends on the providers you have installed. For
@@ -74,20 +74,23 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
     from airflow.io.path import ObjectStoragePath
 
-    base = ObjectStoragePath("s3://my-bucket/", conn_id="aws_default")  # conn_id is optional
+    base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
+The username part of the URI represents the Airflow connection id and is optional. It can alternatively be passed
+in as a separate keyword argument:
+
+.. code-block:: python
+
+    # Equivalent to the previous example.
+    base = ObjectStoragePath("s3://my-bucket/", conn_id="aws_default")
 
 Listing file-objects:
 
 .. code-block:: python
 
     @task
-    def list_files() -> list(ObjectStoragePath):
-        files = []
-        for f in base.iterdir():
-            if f.is_file():
-                files.append(f)
-
+    def list_files() -> list[ObjectStoragePath]:
+        files = [f for f in base.iterdir() if f.is_file()]
         return files
 
 
@@ -240,6 +243,11 @@ key
 
 Returns the object key.
 
+namespace
+^^^^^^^^^
+
+Returns the namespace of the object. Typically this is the protocol, like ``s3://`` with the
+bucket name.
 
 path
 ^^^^
@@ -319,4 +327,4 @@ are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath
     path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
     conn = duckdb.connect(database=":memory:")
     conn.register_filesystem(path.fs)
-    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}")
+    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}');")

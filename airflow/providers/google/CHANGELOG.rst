@@ -27,6 +27,135 @@
 Changelog
 ---------
 
+10.14.0
+.......
+
+.. note::
+  The default value of ``parquet_row_group_size`` in ``BaseSQLToGCSOperator`` has changed from 1 to
+  100000, in order to have a default that provides better compression efficiency and performance of
+  reading the data in the output Parquet files. In many cases, the previous value of 1 resulted in
+  very large files, long task durations and out of memory issues. A default value of 100000 may require
+  more memory to execute the operator, in which case users can override the ``parquet_row_group_size``
+  parameter in the operator. All operators that are derived from ``BaseSQLToGCSOperator`` are affected
+  when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
+  ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``. Due to the above we treat this change as bug fix.
+
+
+Features
+~~~~~~~~
+
+* ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
+* ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
+* ``Implement Google Analytics Admin (GA4) operators (#36276)``
+* ``Add operator to diagnose cluster (#36899)``
+* ``Add scopes into a GCP token (#36974)``
+* ``feat: full support for google credentials in gcloud-aio clients (#36849)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix templating field to super constructor (#36934)``
+* ``fix: respect connection ID and impersonation in GKEStartPodOperator (#36861)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Fix deprecations into the GCP Dataproc links (#36834)``
+* ``fix assignment of templated field in constructor (#36603)``
+* ``Check cluster state before defer Dataproc operators to trigger (#36892)``
+* ``prevent templated field logic checks in operators __init__ (#36489)``
+* ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
+* ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+* ``Fix google operators handling of impersonation chain (#36903)``
+
+Misc
+~~~~
+
+* ``style(providers/google): improve BigQueryInsertJobOperator type hinting (#36894)``
+* ``Deprecate AutoMLTrainModelOperator for Vision and Video (#36473)``
+* ``Remove backward compatibility check for KubernetesPodOperator module (#36724)``
+* ``Remove backward compatibility check for KubernetesPodTrigger module (#36721)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``remove unnecessary templated field (#36491)``
+* ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+10.13.1
+.......
+
+Misc
+~~~~
+
+* ``Remove backcompat code for stackdriver (#36442)``
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443) (#36457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)" (#36453)``
+   * ``Remove remaining Airflow 2.5 backcompat code from GCS Task Handler (#36443)``
+   * ``Revert "Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)" (#36440)``
+
+10.13.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``GCP Secrets Backend Impersonation (#36072)``
+* ``Add OpenLineage support to GcsOperators - Delete, Transform and TimeSpanTransform (#35838)``
+* ``Add support for service account impersonation with computeEngineSSHHook (google provider) and IAP tunnel (#35136)``
+* ``Add Datascan Profiling (#35696)``
+* ``Add overrides to template fields of Google Cloud Run Jobs Execute Operator (#36133)``
+* ``Implement deferrable mode for BeamRunJavaPipelineOperator (#36122)``
+* ``Add ability to run streaming Job for BeamRunPythonPipelineOperator in non deferrable mode (#36108)``
+* ``Add use_glob to GCSObjectExistenceSensor (#34137)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DataprocSubmitJobOperator to retrieve failed job error message (#36053)``
+* ``Fix CloudRunExecuteJobOperator not able to retrieve the Cloud Run job status in deferrable mode (#36012)``
+* ``Fix gcs listing - ensure blobs are loaded (#34919)``
+* ``allow multiple elements in impersonation chain (#35694)``
+* ``Change retry type for Google Dataflow Client to async one (#36141)``
+* ``Minor fix to DataprocCreateClusterOperator operator docs. (#36322)``
+* ``fix(bigquery.py): pass correct project_id to triggerer (#35200)``
+* ``iterate through blobs before checking prefixes (#36202)``
+* ``Fix incompatibility with google-cloud-monitoring 2.18.0 (#36200)``
+   * ``Update 'retry' param typing in PubSubAsyncHook (#36198)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Deprecate 'CloudComposerEnvironmentSensor' in favor of 'CloudComposerCreateEnvironmentOperator' with defer mode (#35775)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``Allow storage options to be passed (#35820)``
+* ``Add feature to build "chicken-egg" packages from sources (#35890)``
+* ``Remove remaining Airflow 2.5 backcompat code from Google Provider (#36366)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade to latest pre-commit plugins (#36163)``
+   * ``Review and mark found potential SSH security issues by bandit (#36162)``
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+   * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
+
 10.12.0
 .......
 

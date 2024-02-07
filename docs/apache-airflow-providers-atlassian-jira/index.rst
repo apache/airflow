@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     Notifications <notifications/index>
 
 .. toctree::
@@ -65,10 +66,10 @@
 Package apache-airflow-providers-atlassian-jira
 ------------------------------------------------------
 
-`Atlassian Jira <https://www.atlassian.com/>`__
+`Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 
-Release: 2.3.0
+Release: 2.5.1
 
 Provider package
 ----------------
@@ -86,11 +87,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
-========================  ==================
+========================  =====================
 PIP package               Version required
-========================  ==================
-``apache-airflow``        ``>=2.5.0``
-``atlassian-python-api``  ``>=1.14.2``
-========================  ==================
+========================  =====================
+``apache-airflow``        ``>=2.6.0``
+``atlassian-python-api``  ``>=1.14.2,!=3.41.6``
+``beautifulsoup4``
+========================  =====================

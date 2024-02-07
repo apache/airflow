@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import sys
 import threading
@@ -29,87 +30,90 @@ import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.common_options import (
+    argument_doc_packages,
+    option_airflow_extras,
+    option_answer,
+    option_backend,
+    option_builder,
+    option_database_isolation,
+    option_db_reset,
+    option_docker_host,
+    option_downgrade_pendulum,
+    option_downgrade_sqlalchemy,
+    option_dry_run,
+    option_forward_credentials,
+    option_github_repository,
+    option_image_tag_for_running,
+    option_include_not_ready_providers,
+    option_include_removed_providers,
+    option_installation_package_format,
+    option_integration,
+    option_max_time,
+    option_mount_sources,
+    option_mysql_version,
+    option_postgres_version,
+    option_project_name,
+    option_python,
+    option_run_db_tests_only,
+    option_skip_db_tests,
+    option_standalone_dag_processor,
+    option_upgrade_boto,
+    option_use_airflow_version,
+    option_verbose,
+)
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_ci,
+    option_airflow_constraints_reference,
+    option_airflow_skip_constraints,
+    option_install_selected_providers,
+    option_providers_constraints_location,
+    option_providers_constraints_mode_ci,
+    option_providers_constraints_reference,
+    option_providers_skip_constraints,
+    option_use_packages_from_dist,
+)
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
+    ALLOWED_EXECUTORS,
     ALLOWED_TTY,
+    DEFAULT_ALLOWED_EXECUTOR,
+    DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
-    MOUNT_SELECTED,
+    SINGLE_PLATFORMS,
+    START_AIRFLOW_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
-from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
-from airflow_breeze.utils.common_options import (
-    argument_doc_packages,
-    option_airflow_constraints_reference,
-    option_airflow_extras,
-    option_answer,
-    option_backend,
-    option_builder,
-    option_celery_broker,
-    option_celery_flower,
-    option_database_isolation,
-    option_db_reset,
-    option_downgrade_sqlalchemy,
-    option_dry_run,
-    option_executor_shell,
-    option_executor_start_airflow,
-    option_force_build,
-    option_forward_credentials,
-    option_github_repository,
-    option_image_tag_for_running,
-    option_include_mypy_volume,
-    option_install_selected_providers,
-    option_installation_package_format,
-    option_integration,
-    option_load_default_connection,
-    option_load_example_dags,
-    option_max_time,
-    option_mount_sources,
-    option_mssql_version,
-    option_mysql_version,
-    option_platform_single,
-    option_postgres_version,
-    option_project_name,
-    option_python,
-    option_restart,
-    option_run_db_tests_only,
-    option_skip_db_tests,
-    option_skip_environment_initialization,
-    option_skip_image_upgrade_check,
-    option_standalone_dag_processor,
-    option_upgrade_boto,
-    option_use_airflow_version,
-    option_use_packages_from_dist,
-    option_verbose,
-    option_warn_image_upgrade_needed,
-)
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    bring_compose_project_down,
     check_docker_resources,
+    enter_shell,
+    execute_command_in_shell,
     fix_ownership_using_docker,
-    get_extra_docker_flags,
     perform_environment_checks,
 )
 from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
-    create_mypy_volume_if_needed,
 )
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import (
-    RunCommandResult,
     assert_pre_commit_installed,
-    filter_out_none,
     run_command,
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
-from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -126,10 +130,12 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
     if (
         use_airflow_version
         and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z\.]*|main|v[0-9]_.*", use_airflow_version)
+        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", use_airflow_version)
     ):
-        get_console().print(f"[info]Using constraints {use_airflow_version} - matching airflow version used.")
-        return use_airflow_version
+        get_console().print(
+            f"[info]Using constraints for {use_airflow_version} - matching airflow version used."
+        )
+        return f"constraints-{use_airflow_version}"
     return airflow_constraints_reference
 
 
@@ -152,6 +158,63 @@ class TimerThread(threading.Thread):
 # Args it should have the same parameters.
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+option_celery_broker = click.option(
+    "--celery-broker",
+    type=click.Choice(ALLOWED_CELERY_BROKERS, case_sensitive=False),
+    help="Specify the celery message broker",
+    default=DEFAULT_CELERY_BROKER,
+    show_default=True,
+)
+option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_executor_shell = click.option(
+    "--executor",
+    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with shell command.",
+    default=DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
+option_force_build = click.option(
+    "--force-build", help="Force image build no matter if it is determined as needed.", is_flag=True
+)
+option_include_mypy_volume = click.option(
+    "--include-mypy-volume",
+    help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
+    is_flag=True,
+    envvar="INCLUDE_MYPY_VOLUME",
+)
+option_platform_single = click.option(
+    "--platform",
+    help="Platform for Airflow image.",
+    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
+    envvar="PLATFORM",
+    type=BetterChoice(SINGLE_PLATFORMS),
+)
+option_restart = click.option(
+    "--restart",
+    "--remove-orphans",
+    help="Restart all containers before entering shell (also removes orphan containers).",
+    is_flag=True,
+    envvar="RESTART",
+)
+option_skip_environment_initialization = click.option(
+    "--skip-environment-initialization",
+    help="Skip running breeze entrypoint initialization - no user output, no db checks.",
+    is_flag=True,
+    envvar="SKIP_ENVIRONMENT_INITIALIZATION",
+)
+option_skip_image_upgrade_check = click.option(
+    "--skip-image-upgrade-check",
+    help="Skip checking if the CI image is up to date.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_UPGRADE_CHECK",
+)
+option_warn_image_upgrade_needed = click.option(
+    "--warn-image-upgrade-needed",
+    help="Warn when image upgrade is needed even if --skip-upgrade-check is used.",
+    is_flag=True,
+    envvar="WARN_IMAGE_UPGRADE_NEEDED",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -171,8 +234,11 @@ class TimerThread(threading.Thread):
     is_flag=True,
     envvar="VERBOSE_COMMANDS",
 )
+@option_airflow_constraints_location
+@option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -180,7 +246,9 @@ class TimerThread(threading.Thread):
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_dry_run
 @option_executor_shell
 @option_force_build
@@ -193,11 +261,14 @@ class TimerThread(threading.Thread):
 @option_integration
 @option_max_time
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
 @option_project_name
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_python
 @option_restart
 @option_run_db_tests_only
@@ -211,8 +282,11 @@ class TimerThread(threading.Thread):
 @option_use_packages_from_dist
 @option_verbose
 def shell(
+    airflow_constraints_location: str,
+    airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -220,6 +294,8 @@ def shell(
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
+    downgrade_pendulum: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -231,12 +307,15 @@ def shell(
     integration: tuple[str, ...],
     max_time: int | None,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
     quiet: bool,
     restart: bool,
@@ -262,9 +341,12 @@ def shell(
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
-    result = enter_shell(
+    shell_params = ShellParams(
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -272,6 +354,8 @@ def shell(
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        downgrade_pendulum=downgrade_pendulum,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
@@ -282,12 +366,15 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         quiet=quiet,
         run_db_tests_only=run_db_tests_only,
@@ -303,13 +390,40 @@ def shell(
         restart=restart,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
+option_load_example_dags = click.option(
+    "-e",
+    "--load-example-dags",
+    help="Enable configuration to load example DAGs when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_EXAMPLES",
+)
+
+option_load_default_connection = click.option(
+    "-c",
+    "--load-default-connections",
+    help="Enable configuration to load default connections when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_DEFAULT_CONNECTIONS",
+)
+
+option_executor_start_airflow = click.option(
+    "--executor",
+    type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with start-airflow command.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    show_default=True,
+)
+
+
 @main.command(name="start-airflow")
 @click.option(
-    "--skip-asset-compilation",
+    "--skip-assets-compilation",
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
@@ -317,12 +431,15 @@ def shell(
 @click.option(
     "--dev-mode",
     help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-asset-compilation).",
+    "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
+@option_airflow_constraints_location
+@option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
+@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -330,6 +447,7 @@ def shell(
 @option_celery_flower
 @option_database_isolation
 @option_db_reset
+@option_docker_host
 @option_dry_run
 @option_executor_start_airflow
 @option_force_build
@@ -337,15 +455,19 @@ def shell(
 @option_github_repository
 @option_image_tag_for_running
 @option_installation_package_format
+@option_install_selected_providers
 @option_integration
 @option_load_default_connection
 @option_load_example_dags
 @option_mount_sources
-@option_mssql_version
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
 @option_project_name
+@option_providers_constraints_location
+@option_providers_constraints_mode_ci
+@option_providers_constraints_reference
+@option_providers_skip_constraints
 @option_python
 @option_restart
 @option_standalone_dag_processor
@@ -353,8 +475,11 @@ def shell(
 @option_use_packages_from_dist
 @option_verbose
 def start_airflow(
+    airflow_constraints_mode: str,
+    airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -362,6 +487,7 @@ def start_airflow(
     database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
+    docker_host: str | None,
     executor: str,
     extra_args: tuple,
     force_build: bool,
@@ -369,18 +495,22 @@ def start_airflow(
     github_repository: str,
     image_tag: str | None,
     integration: tuple[str, ...],
+    install_selected_providers: str,
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
-    mssql_version: str,
     mysql_version: str,
     package_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
+    providers_constraints_location: str,
+    providers_constraints_mode: str,
+    providers_constraints_reference: str,
+    providers_skip_constraints: bool,
     python: str,
     restart: bool,
-    skip_asset_compilation: bool,
+    skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
@@ -389,20 +519,23 @@ def start_airflow(
     Enter breeze environment and starts all Airflow components in the tmux session.
     Compile assets if contents of www directory changed.
     """
-    if dev_mode and skip_asset_compilation:
+    if dev_mode and skip_assets_compilation:
         get_console().print(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
-        skip_asset_compilation = True
-    if use_airflow_version is None and not skip_asset_compilation:
+        skip_assets_compilation = True
+    if use_airflow_version is None and not skip_assets_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
 
-    result = enter_shell(
+    shell_params = ShellParams(
+        airflow_constraints_location=airflow_constraints_location,
+        airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
+        airflow_skip_constraints=airflow_skip_constraints,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -410,6 +543,7 @@ def start_airflow(
         database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
         force_build=force_build,
@@ -417,15 +551,19 @@ def start_airflow(
         github_repository=github_repository,
         image_tag=image_tag,
         integration=integration,
+        install_selected_providers=install_selected_providers,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
-        mssql_version=mssql_version,
         mysql_version=mysql_version,
         package_format=package_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
+        providers_constraints_location=providers_constraints_location,
+        providers_constraints_mode=providers_constraints_mode,
+        providers_constraints_reference=providers_constraints_reference,
+        providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
         standalone_dag_processor=standalone_dag_processor,
@@ -433,14 +571,30 @@ def start_airflow(
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
 @main.command(name="build-docs")
-@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
-@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_builder
+@click.option(
+    "--clean-build",
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@option_dry_run
+@option_github_repository
+@option_include_not_ready_providers
+@option_include_removed_providers
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @click.option(
     "--package-filter",
     help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
@@ -449,30 +603,20 @@ def start_airflow(
     type=str,
     multiple=True,
 )
-@click.option(
-    "--clean-build",
-    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
-    "before the build - useful for a clean build.",
-    is_flag=True,
-)
-@click.option(
-    "--one-pass-only",
-    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
-    is_flag=True,
-)
-@argument_doc_packages
-@option_github_repository
+@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
-@option_dry_run
+@argument_doc_packages
 def build_docs(
-    doc_packages: tuple[str, ...],
-    docs_only: bool,
-    spellcheck_only: bool,
     builder: str,
     clean_build: bool,
+    docs_only: bool,
+    github_repository: str,
+    include_not_ready_providers: bool,
+    include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
-    github_repository: str,
+    spellcheck_only: bool,
+    doc_packages: tuple[str, ...],
 ):
     """
     Build documents.
@@ -490,40 +634,31 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
-    ci_image_name = build_params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
-        short_doc_packages=expand_all_provider_packages(doc_packages),
+        short_doc_packages=expand_all_provider_packages(
+            short_doc_packages=doc_packages,
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
+        ),
+    )
+    cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(
+        [shlex.quote(arg) for arg in doc_builder.args_doc_builder]
     )
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        quiet=True,
-        skip_environment_initialization=True,
-        skip_image_upgrade_check=True,
     )
-    extra_docker_flags = get_extra_docker_flags(mount_sources=MOUNT_SELECTED)
-    cmd = [
-        "docker",
-        "run",
-        "-t",
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        ci_image_name,
-        "/opt/airflow/scripts/in_container/run_docs_build.sh",
-        *doc_builder.args_doc_builder,
-    ]
-    process = run_command(cmd, text=True, check=False, env=shell_params.env_variables_for_docker_commands)
+    result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()
-    if process.returncode == 0:
+    if result.returncode == 0:
         get_console().print(
             "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
         )
-    sys.exit(process.returncode)
+    sys.exit(result.returncode)
 
 
 @main.command(
@@ -765,13 +900,10 @@ def compile_www_assets(dev: bool, force_clean: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
     perform_environment_checks()
-    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
-    if not preserve_volumes:
-        command_to_execute.append("--volumes")
     shell_params = ShellParams(
         backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
     )
-    run_command(command_to_execute, env=shell_params.env_variables_for_docker_commands)
+    bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
@@ -805,114 +937,6 @@ def exec(exec_args: tuple):
         sys.exit(process.returncode)
 
 
-def enter_shell(**kwargs) -> RunCommandResult:
-    """
-    Executes entering shell using the parameters passed as kwargs:
-
-    * checks if docker version is good
-    * checks if docker-compose version is good
-    * updates kwargs with cached parameters
-    * displays ASCIIART and CHEATSHEET unless disabled
-    * build ShellParams from the updated kwargs
-    * shuts down existing project
-    * executes the command to drop the user to Breeze shell
-
-    """
-    quiet: bool = kwargs.get("quiet") or False
-    perform_environment_checks(quiet=quiet)
-    fix_ownership_using_docker(quiet=quiet)
-    cleanup_python_generated_files()
-    if read_from_cache_file("suppress_asciiart") is None and not quiet:
-        get_console().print(ASCIIART, style=ASCIIART_STYLE)
-    if read_from_cache_file("suppress_cheatsheet") is None and not quiet:
-        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
-    shell_params = ShellParams(**filter_out_none(**kwargs))
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-
-    if shell_params.backend == "sqlite":
-        get_console().print(
-            f"\n[warning]backend: sqlite is not "
-            f"compatible with executor: {shell_params.executor}. "
-            f"Changing the executor to SequentialExecutor.\n"
-        )
-        shell_params.executor = "SequentialExecutor"
-
-    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
-        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
-            get_console().print(
-                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
-            )
-            shell_params.airflow_extras += ",celery"
-        elif not shell_params.airflow_extras:
-            get_console().print(
-                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
-                "Setting airflow extras to 'celery'.\n"
-            )
-            shell_params.airflow_extras = "celery"
-    if shell_params.restart:
-        bring_compose_project_down(shell_params)
-    if shell_params.include_mypy_volume:
-        create_mypy_volume_if_needed()
-    shell_params.print_badge_info()
-    cmd = ["docker", "compose"]
-    if shell_params.quiet:
-        cmd.extend(["--progress", "quiet"])
-    if shell_params.project_name:
-        cmd.extend(["--project-name", shell_params.project_name])
-    cmd.extend(["run", "--service-ports", "--rm"])
-    if shell_params.tty == "disabled":
-        cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
-    cmd.append("airflow")
-    cmd_added = shell_params.command_passed
-    if cmd_added is not None:
-        cmd.extend(["-c", cmd_added])
-    if "arm64" in DOCKER_DEFAULT_PLATFORM:
-        if shell_params.backend == "mysql":
-            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-        elif shell_params.backend == "mssql":
-            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            sys.exit(1)
-
-    if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
-            get_console().print(
-                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
-                "as a backend with OpenLineage integration via Breeze[/]\n"
-            )
-            sys.exit(1)
-
-    command_result = run_command(
-        cmd,
-        text=True,
-        check=False,
-        env=shell_params.env_variables_for_docker_commands,
-        output_outside_the_group=True,
-    )
-    if command_result.returncode == 0:
-        return command_result
-    else:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        return command_result
-
-
-def bring_compose_project_down(shell_params):
-    down_command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
-    if shell_params.project_name:
-        down_command_to_execute.extend(["--project-name", shell_params.project_name])
-    run_command(
-        down_command_to_execute,
-        text=True,
-        check=False,
-        capture_output=shell_params.quiet,
-        env=shell_params.env_variables_for_docker_commands,
-    )
-
-
 def stop_exec_on_error(returncode: int):
     get_console().print("\n[error]ERROR in finding the airflow docker-compose process id[/]\n")
     sys.exit(returncode)
@@ -922,7 +946,17 @@ def find_airflow_container() -> str | None:
     shell_params = ShellParams()
     check_docker_resources(shell_params.airflow_image_name)
     shell_params.print_badge_info()
-    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = [
+        "docker",
+        "compose",
+        "--project-name",
+        shell_params.project_name,
+        "ps",
+        "--all",
+        "--filter",
+        "status=running",
+        "airflow",
+    ]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, check=False, env=shell_params.env_variables_for_docker_commands
     )

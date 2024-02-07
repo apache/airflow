@@ -23,9 +23,7 @@ runs:
   steps:
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
-    - name: "Regenerate dependencies"
-      # This is done in case some someone updated provider dependencies and did not generate
-      # dependencies - in which case build image might fail because of lack of new dependencies
+    - name: "Check if dependencies are properly regenerated"
       shell: bash
       run: |
         pip install rich>=12.4.4 pyyaml
@@ -40,8 +38,9 @@ runs:
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
     - name: "Upload constraint artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: source-constraints
         path: ./files/constraints-*/constraints-*.txt
         retention-days: 7
+        if-no-files-found: error

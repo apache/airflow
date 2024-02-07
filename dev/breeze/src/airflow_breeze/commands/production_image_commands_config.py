@@ -36,6 +36,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--docker-cache",
                 "--version-suffix-for-pypi",
                 "--build-progress",
+                "--docker-host",
             ],
         },
         {
@@ -56,7 +57,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--python-image",
                 "--commit-sha",
                 "--additional-pip-install-flags",
-                "--install-providers-from-sources",
             ],
         },
         {
@@ -91,6 +91,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--installation-method",
                 "--install-airflow-reference",
                 "--install-packages-from-context",
+                "--install-mysql-client-type",
                 "--cleanup-context",
                 "--use-constraints-for-context-packages",
                 "--disable-airflow-repo-cache",

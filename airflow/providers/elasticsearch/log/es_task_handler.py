@@ -71,14 +71,17 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # For elasticsearch>8 retry_timeout have changed for elasticsearch to retry_on_timeout
-    # in Elasticsearch() compared to previous versions.
-    # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
     if (
         elastic_search_config
         and "retry_timeout" in elastic_search_config
         and not kwargs_dict.get("retry_on_timeout")
     ):
+        warnings.warn(
+            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         retry_timeout = elastic_search_config.get("retry_timeout")
         if retry_timeout is not None:
             kwargs_dict["retry_on_timeout"] = retry_timeout
@@ -168,6 +171,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
         self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
@@ -459,8 +463,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+        if not self.mark_end_on_close:
             # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return

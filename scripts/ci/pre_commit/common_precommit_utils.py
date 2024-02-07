@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import ast
+import difflib
 import os
 import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 from rich.console import Console
@@ -43,12 +45,32 @@ def read_airflow_version() -> str:
     raise RuntimeError("Couldn't find __version__ in AST")
 
 
-def filter_out_providers_on_non_main_branch(files: list[str]) -> list[str]:
-    """When running build on non-main branch do not take providers into account"""
+def pre_process_files(files: list[str]) -> list[str]:
+    """Pre-process files passed to mypy.
+
+    * When running build on non-main branch do not take providers into account.
+    * When running "airflow/providers" package, then we need to add --namespace-packages flag.
+    * When running "airflow" package, then we need to exclude providers.
+    """
     default_branch = os.environ.get("DEFAULT_BRANCH")
     if not default_branch or default_branch == "main":
         return files
-    return [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
+    result = [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
+    if "airflow/providers" in files:
+        if len(files) > 1:
+            raise RuntimeError(
+                "When running `airflow/providers` package, you cannot run any other packages because only "
+                "airflow/providers package requires --namespace-packages flag to be set"
+            )
+        result.append("--namespace-packages")
+    if "airflow" in files:
+        if len(files) > 1:
+            raise RuntimeError(
+                "When running `airflow` package, you cannot run any other packages because only "
+                "airflow/providers package requires --exclude airflow/providers/.* flag to be set"
+            )
+        result.extend(["--exclude", "airflow/providers/.*"])
+    return result
 
 
 def insert_documentation(file_path: Path, content: list[str], header: str, footer: str):
@@ -77,7 +99,7 @@ def initialize_breeze_precommit(name: str, file: str):
 
     if os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
         console.print("[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set")
-        sys.exit(1)
+        sys.exit(0)
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
@@ -148,3 +170,29 @@ def run_command_via_breeze_shell(
     down_command.extend(["down", "--remove-orphans"])
     subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result
+
+
+class ConsoleDiff(difflib.Differ):
+    def _dump(self, tag, x, lo, hi):
+        """Generate comparison results for a same-tagged range."""
+        for i in range(lo, hi):
+            if tag == "+":
+                yield f"[green]{tag} {x[i]}[/]"
+            elif tag == "-":
+                yield f"[red]{tag} {x[i]}[/]"
+            else:
+                yield f"{tag} {x[i]}"
+
+
+def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> bool:
+    sorted_list = sorted(set(the_list))
+    if the_list == sorted_list:
+        console.print(f"{message} is [green]ok[/]")
+        console.print(the_list)
+        console.print()
+        return True
+    console.print(f"{message} [red]NOK[/]")
+    console.print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
+    console.print()
+    errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
+    return False

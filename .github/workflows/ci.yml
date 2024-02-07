@@ -49,7 +49,9 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  INCLUDE_NOT_READY_PROVIDERS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
+  MOUNT_SOURCES: "skip"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -84,17 +86,14 @@ jobs:
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      mssql-versions: ${{ steps.selective-checks.outputs.mssql-versions }}
       default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
-      mssql-parallelism: ${{ steps.selective-checks.outputs.mssql-parallelism }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
-      mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
@@ -105,6 +104,8 @@ jobs:
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
+      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
+      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
@@ -112,6 +113,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on: ${{steps.selective-checks.outputs.runs-on}}
@@ -121,6 +123,7 @@ jobs:
       is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
       is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
       is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
+      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -143,34 +146,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Retrieve defaults from branch_defaults.py"
-        id: defaults
-        # We could retrieve it differently here - by just importing the variables and
-        # printing them from python code, however we want to have the same code as used in
-        # the build-images.yml (there we cannot import python code coming from the PR - we need to
-        # treat the python code as text and extract the variables from there.
-        run: |
-          python - <<EOF >> ${GITHUB_ENV}
-          from pathlib import Path
-          import re
-          import sys
-
-          DEFAULTS_CONTENT = Path('dev/breeze/src/airflow_breeze/branch_defaults.py').read_text()
-          BRANCH_PATTERN = r'^AIRFLOW_BRANCH = "(.*)"$'
-          CONSTRAINTS_BRANCH_PATTERN = r'^DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "(.*)"$'
-
-          branch = re.search(BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-          constraints_branch = re.search(CONSTRAINTS_BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-
-          output = f"""
-          DEFAULT_BRANCH={branch}
-          DEFAULT_CONSTRAINTS_BRANCH={constraints_branch}
-          """.strip()
-
-          print(output)
-          # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
-          print(output, file=sys.stderr)
-          EOF
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
@@ -189,7 +164,7 @@ jobs:
 
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
-  # cache using the current constraints. This will speed up cache refresh in cases when setup.py
+  # cache using the current constraints. This will speed up cache refresh in cases when pyproject.toml
   # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
@@ -338,7 +313,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -361,11 +336,11 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 21
       - name: "Cache eslint"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: 'airflow/www/node_modules'
           key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
@@ -375,9 +350,9 @@ jobs:
           FORCE_COLOR: 2
 
 
-  test-openapi-client-generation:
+  test-openapi-client:
     timeout-minutes: 10
-    name: "Test OpenAPI client generation"
+    name: "Test OpenAPI client"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
@@ -389,34 +364,68 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Generate client codegen diff"
-        run: ./scripts/ci/openapi/client_codegen_diff.sh
-
-  test-examples-of-prod-image-building:
-    timeout-minutes: 60
-    name: "Test examples of production image building"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info]
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          repository: "apache/airflow-client-python"
+          fetch-depth: 1
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: "${{needs.build-info.outputs.default-python-version}}"
-          cache: 'pip'
-          cache-dependency-path: ./dev/requirements.txt
-      - name: "Test examples of PROD image building"
+          path: ./airflow-client-python
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Generate client with breeze"
         run: >
-          cd ./docker_tests &&
-          python -m pip install -r requirements.txt &&
-          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes
+          breeze release-management prepare-python-client --package-format both
+          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+      - name: "Show diff"
+        run: git diff --color HEAD
+        working-directory: ./airflow-client-python
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pipx
+          pipx ensurepath
+          pipx install hatch --force
+      - name: Run tests
+        run: hatch run run-coverage
+        env:
+          HATCH_ENV: "test"
+        working-directory: ./clients/python
+      - name: "Install Airflow in editable mode with fab for webserver tests"
+        run: pip install -e ".[fab]"
+      - name: "Install Python client"
+        run: pip install ./dist/apache_airflow_client-*.whl
+      - name: "Initialize Airflow DB and start webserver"
+        run: |
+          airflow db init
+          # Let scheduler runs a few loops and get all DAG files from example DAGs serialized to DB
+          airflow scheduler --num-runs 100
+          airflow users create --username admin --password admin --firstname Admin --lastname Admin \
+             --role Admin --email admin@example.org
+          killall python || true  # just in case there is a webserver running in the background
+          nohup airflow webserver --port 8080 &
+          echo "Started webserver"
+        env:
+          AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+          AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+          AIRFLOW__CORE__LOAD_EXAMPLES: "True"
+      - name: "Waiting for the webserver to be available"
+        run: |
+          timeout 30 bash -c 'until nc -z $0 $1; do echo "sleeping"; sleep 1; done' localhost 8080
+          sleep 5
+      - name: "Run test python client"
+        run: python ./clients/python/test_python_client.py
+        env:
+          FORCE_COLOR: "standard"
+      - name: "Stop running webserver"
+        run: killall python || true  # just in case there is a webserver running in the background
+        if: always()
+      - name: "Upload python client packages"
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-client-packages
+          path: ./dist/apache_airflow_client-*
+          retention-days: 7
+          if-no-files-found: error
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -474,6 +483,7 @@ jobs:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: needs.build-info.outputs.ci-image-build == 'true'
     steps:
       - name: Cleanup repo
@@ -502,12 +512,23 @@ jobs:
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints-no-providers
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --package-format wheel --version-suffix-for-pypi dev0
+          ${{ needs.build-info.outputs.chicken-egg-providers }}
+        if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints
+          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
       - name: "Dependency upgrade summary"
         shell: bash
         run: |
@@ -516,12 +537,12 @@ jobs:
             cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
           done
       - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: constraints
           path: ./files/constraints-*/constraints-*.txt
           retention-days: 7
-
+          if-no-files-found: error
 
   static-checks:
     timeout-minutes: 45
@@ -545,7 +566,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -561,6 +582,103 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
+
+  upgrade-check:
+    timeout-minutes: 45
+    name: "Upgrade checks"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: needs.build-info.outputs.canary-run == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Install python from scratch. No cache used. We always want to have fresh version of everything
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{needs.build-info.outputs.default-python-version}}"
+      - name: "Install latest pre-commit"
+        run: pip install pre-commit
+      - name: "Autoupdate all pre-commits"
+        run: pre-commit autoupdate
+      - name: "Run automated upgrade for black"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-black-version
+        if: always()
+      - name: "Run automated upgrade for build dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-build-dependencies
+        if: always()
+      - name: "Run automated upgrade for chart dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-chart-dependencies
+        if: always()
+
+  # Runs static checks for groups of files in the repository in a single process without passing .
+  # List of files
+  mypy:
+    timeout-minutes: 45
+    name: "MyPy checks"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        mypy-folder: ${{fromJson(needs.build-info.outputs.mypy-folders)}}
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+        id: breeze
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: Cache pre-commit envs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: |
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-
+        if: needs.build-info.outputs.needs-mypy == 'true'
+      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
+        run: |
+          pip install pre-commit
+          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
+        env:
+          VERBOSE: "false"
+          COLUMNS: "250"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+          RUFF_FORMAT: "github"
+
+        if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -581,7 +699,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -590,7 +708,7 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -634,13 +752,13 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
         run: >
@@ -649,25 +767,25 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -680,7 +798,7 @@ jobs:
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   spellcheck-docs:
-    timeout-minutes: 60
+    timeout-minutes: 120
     name: "Spellcheck docs"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -698,13 +816,13 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
           restore-keys: |
-            docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
             docs-inventory-
       - name: "Spellcheck docs"
         run: >
@@ -733,12 +851,12 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
         run: >
-          breeze release-management prepare-provider-documentation --non-interactive
-          ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          breeze release-management prepare-provider-documentation --include-not-ready-providers
+          --non-interactive
       - name: "Prepare provider packages: wheel"
         run: >
-          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --version-suffix-for-pypi dev0 --package-format wheel
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
@@ -747,89 +865,25 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: "Generate source constraints from CI image"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
       - name: "Install and verify all provider packages and airflow via wheel files"
         run: >
-          breeze release-management verify-provider-packages --use-packages-from-dist
-          --package-format wheel --use-airflow-version wheel
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
+          breeze release-management verify-provider-packages
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
         env:
-          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Install affected provider packages and airflow via wheel files"
-        run: >
-          breeze release-management install-provider-packages
-          --package-format wheel --use-airflow-version wheel --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
-        env:
-          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+          AIRFLOW_SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
         run: >
-          breeze release-management prepare-provider-packages --skip-tag-check
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-
-  provider-airflow-compatibility-check:
-    timeout-minutes: 80
-    name: "Providers Airflow 2.5 compatibility check"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    if: needs.build-info.outputs.skip-provider-tests != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: wheel"
-        run: >
-          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
-          --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Fix incompatible 2.5 provider packages"
-        run: |
-          # This step should remove the provider packages that are not compatible with 2.5
-          # or replace them with 2.5 compatible versions. Sometimes we have good reasons to bump
-          # the min airflow versions for some providers and then we need to add exclusions here.
-          #
-          # The Removal can be done with:
-          #
-          # rm -vf dist/apache_airflow_providers_<PROVIDER>*.whl
-          #
-          # Then it can be followed by downloading a compatible version from PyPI in case other
-          # providers depend on it and fail with import errors (you need to download compatible version):
-          #
-          # pip download --no-deps --dest dist apache-airflow-providers-<PROVIDER>==3.1.0
-          #
-          rm -vf dist/apache_airflow_providers_openlineage*.whl
-          rm -rf dist/apache_airflow_providers_common_io*.whl
-      - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
-        # Extras might be different on S3 so rather than relying on "all" we should get the list of
-        # packages to be installed from the current provider_dependencies.json file
-        run: |
-          python -c 'from pathlib import Path; import json
-          providers = json.loads(Path("generated/provider_dependencies.json").read_text())
-          provider_keys = ",".join(providers.keys())
-          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-      - name: "Install and verify all provider packages and airflow on Airflow 2.5 files"
-        run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.5.0
-          --use-packages-from-dist --airflow-constraints-reference constraints-2.5.0
-        if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow on Airflow 2.5 files"
-        run: >
-          breeze release-management install-provider-packages --use-airflow-version 2.5.0
-          --airflow-constraints-reference constraints-2.5.0 --run-in-parallel
-        # Make sure to skip the run if the only provider to be installed has been removed
-        # in the previous step
-        if: >
-          needs.build-info.outputs.affected-providers-list-as-string != '' &&
-          needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
+          breeze release-management prepare-provider-packages --skip-tag-check --package-format wheel
 
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
@@ -839,7 +893,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      USE_AIRFLOW_VERSION: "sdist"
     if: >
       needs.build-info.outputs.canary-run == 'true' &&
       needs.build-info.outputs.skip-provider-tests != 'true'
@@ -857,7 +910,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: sdist"
         run: >
-          breeze release-management prepare-provider-packages
+          breeze release-management prepare-provider-packages --include-not-ready-providers
           --version-suffix-for-pypi dev0 --package-format sdist
           ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       - name: "Prepare airflow package: sdist"
@@ -866,17 +919,86 @@ jobs:
           --version-suffix-for-pypi dev0 --package-format sdist
       - name: "Verify sdist packages with twine"
         run: pipx install twine --force && twine check dist/*.tar.gz
+      - name: "Generate source constraints from CI image"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
       - name: "Install all provider packages and airflow via sdist files"
         run: >
           breeze release-management install-provider-packages
-          --package-format sdist --use-airflow-version sdist --run-in-parallel
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
       - name: "Install affected provider packages and airflow via sdist files"
         run: >
           breeze release-management install-provider-packages
-          --package-format sdist --use-airflow-version sdist --run-in-parallel
+          --use-packages-from-dist
+          --package-format sdist
+          --use-airflow-version sdist
+          --airflow-constraints-reference default
+          --providers-constraints-location
+          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          --run-in-parallel
         if: needs.build-info.outputs.affected-providers-list-as-string != ''
 
+  providers-compatibility-checks:
+    timeout-minutes: 80
+    name: >
+      Compat ${{matrix.airflow-version}}:P${{matrix.python-version}} provider check
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{fromJson(needs.build-info.outputs.providers-compatibility-checks)}}
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+    if: needs.build-info.outputs.skip-provider-tests != 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: contains(fromJson(needs.build-info.outputs.python-versions),matrix.python-version)
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --package-format wheel
+      - name: >
+          Remove incompatible Airflow
+          ${{matrix.airflow-version}}:Python ${{matrix.python-version}} provider packages
+        run: |
+          rm -vf ${{ matrix.remove-providers }}
+        working-directory: ./dist
+        if: matrix.remove-providers != ''
+      - name: "Download airflow package: wheel"
+        run: |
+          pip download "apache-airflow==${{matrix.airflow-version}}" -d dist --no-deps
+      - name: >
+          Install and verify all provider packages and airflow on
+          Airflow ${{matrix.airflow-version}}:Python ${{matrix.python-version}}
+        run: >
+          breeze release-management verify-provider-packages
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --providers-skip-constraints
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -943,6 +1065,58 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
+
+  tests-helm-release:
+    timeout-minutes: 80
+    name: "Release Helm"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.needs-helm-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Setup git for tagging
+        run: |
+          git config --global user.email "name@example.com"
+          git config --global user.name "Your Name"
+      - name: "Remove old artifacts"
+        run: rm -rf dist/*
+      - name: "Setup k8s/helm environment"
+        run: breeze k8s setup-env
+      - name: "Install helm gpg plugin"
+        run: >
+          breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
+          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b" || true
+      - name: "Helm release tarball"
+        run: >
+          breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
+          --skip-tag-signing --version 0.0.0 --version-suffix dev0
+      - name: Generate GPG key for signing
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+      - name: "Helm release package"
+        run: >
+          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Sign artifacts for ASF distribution"
+        run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
+        env:
+          SIGN_WITH: dev@airflow.apache.org
+      - name: "Upload Helm artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: Helm artifacts
+          path: ./dist/airflow-*
+          retention-days: 7
+          if-no-files-found: error
 
   tests-postgres:
     timeout-minutes: 130
@@ -1093,11 +1267,61 @@ jobs:
           breeze testing db-tests
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
-          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:MinSQLAlchemy"
         uses: ./.github/actions/post_tests_success
         if: success()
       - name: >
-          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:MinSQLAlchemy"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-postgres-pendulum-2:
+    timeout-minutes: 130
+    name: >
+      DB:Postgres${{needs.build-info.outputs.default-postgres-version}},
+      Pendulum2,Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      DOWNGRADE_PENDULUM: "true"
+      JOB_ID: >
+        postgres-pendulum-2-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: >
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Pendulum2"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Pendulum2"
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
@@ -1206,69 +1430,6 @@ jobs:
         if: failure()
 
 
-  tests-mssql:
-    timeout-minutes: 130
-    name: >
-      DB:MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
-      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    strategy:
-      matrix:
-        python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
-        mssql-version: "${{fromJson(needs.build-info.outputs.mssql-versions)}}"
-        exclude: "${{fromJson(needs.build-info.outputs.mssql-exclude)}}"
-      fail-fast: false
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
-      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "mssql"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
-      MSSQL_VERSION: "${{matrix.mssql-version}}"
-      BACKEND_VERSION: "${{matrix.mssql-version}}"
-      JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
-      # The below (and corresponding selective checks code) can be removed once
-      # https://github.com/apache/airflow/issues/31575 is fixed.
-      # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
-      PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
-    if: >
-      needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.is-self-hosted-runner == 'true' &&
-       needs.build-info.outputs.is-airflow-runner == 'true' ||
-      needs.build-info.outputs.full-tests-needed == 'true' ||
-      needs.build-info.outputs.has-migrations == 'true')
-    steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: >
-          Migration Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/migration_tests
-      - name: >
-          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: >
-          breeze testing db-tests
-          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      - name: >
-          Post Tests success: MsSQL"
-        uses: ./.github/actions/post_tests_success
-        if: success()
-      - name: >
-          Post Tests failure: MsSQL"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
-
   tests-sqlite:
     timeout-minutes: 130
     name: >
@@ -1336,7 +1497,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-postgres"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1408,7 +1569,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-mysql"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1468,8 +1629,8 @@ jobs:
         run: breeze testing tests || true
         env:
           BACKEND: "postgres"
-          BACKEND_VERSION: "11"
-          POSTGRES_VERSION: "11"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
+          POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
       - name: >
           Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
@@ -1478,19 +1639,11 @@ jobs:
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
           MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       - name: >
-          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze testing tests || true
-        env:
-          BACKEND: "mssql"
-          BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
-          MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
-      - name: >
           Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "sqlite"
           BACKEND_VERSION: ""
-          MSSQL_VERSION: ""
       - name: >
           Post Tests success: Quarantined"
         uses: ./.github/actions/post_tests_success
@@ -1513,9 +1666,9 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "no-db-${{matrix.python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1537,6 +1690,44 @@ jobs:
         uses: ./.github/actions/post_tests_success
         if: success()
       - name: "Post Tests failure: Non-DB"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-no-db-pendulum-2:
+    timeout-minutes: 60
+    name: >
+      Non-DB: Pendulum2, Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "no-db-pendulum-2-${{needs.build-info.outputs.default-python-version}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      DOWNGRADE_PENDULUM: "true"
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Tests: ${{matrix.python-version}}:Non-DB-Pendulum2"
+        run: >
+          breeze testing non-db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: "Post Tests success: Non-DB-Pendulum2"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: "Post Tests failure: Non-DB-Pendulum2"
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
@@ -1563,7 +1754,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
       - name: "Summarize all warnings"
@@ -1576,7 +1767,7 @@ jobs:
   build-prod-images:
     timeout-minutes: 80
     name: >
-      ${{needs.build-info.outputs.build-job-description}} PROD images
+      ${{needs.build-info.outputs.build-job-description}} PROD images (main)
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
@@ -1592,22 +1783,31 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -1617,7 +1817,7 @@ jobs:
   build-prod-images-bullseye:
     timeout-minutes: 80
     name: >
-      Build Bullseye PROD images
+      Build Bullseye PROD images (main)
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
@@ -1634,19 +1834,32 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: >
           Build Bullseye PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -1657,11 +1870,230 @@ jobs:
           # TODO: improve caching for that build
           IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
 
+  build-prod-images-mysql-client:
+    timeout-minutes: 80
+    name: >
+      Build MySQL Client PROD images (main)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
+      - name: >
+          Build MySQL Client PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          INSTALL_MYSQL_CLIENT_TYPE: "mysql"
+          # Do not override the "mariadb" (original) image - just push a new mysql image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
+
+
+  build-prod-images-release-branch:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.build-job-description}} PROD images (v2_*_test)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, generate-constraints]
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: >
+          Build PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+
+  build-prod-images-bullseye-release-branch:
+    timeout-minutes: 80
+    name: >
+      Build Bullseye PROD images (v2_*_test)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, generate-constraints]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: >
+          Build Bullseye PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          DEBIAN_VERSION: "bullseye"
+          # Do not override the "bookworm" image - just push a new bullseye image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
+
+  build-prod-images-mysql-release-branch:
+    timeout-minutes: 80
+    name: >
+      Build MySQL PROD images (v2_*_test)
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, generate-constraints]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+      - name: >
+          Build Bullseye PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch != 'main'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          INSTALL_MYSQL_CLIENT_TYPE: "mysql"
+          # Do not override the "mariadb" image - just push a new mysql image
+          # TODO: improve caching for that build
+          IMAGE_TAG: "mysql-${{ github.event.pull_request.head.sha || github.sha }}"
+
   wait-for-prod-images:
     timeout-minutes: 80
     name: "Wait for PROD images"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images, build-prod-images]
+    needs: [build-info, wait-for-ci-images, build-prod-images, build-prod-images-release-branch]
     if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1683,7 +2115,7 @@ jobs:
         if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-images above.
+        # or from build-prod-images (or build-prod-images-release-branch) above.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available.
         run: breeze prod-image pull --wait-for-image --run-in-parallel
@@ -1691,6 +2123,43 @@ jobs:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
         if: needs.build-info.outputs.in-workflow-build == 'false'
+
+  test-examples-of-prod-image-building:
+    timeout-minutes: 60
+    name: "Test examples of production image building"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-prod-images]
+    if: needs.build-info.outputs.prod-image-build == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Pull PROD image "${{needs.build-info.outputs.default-python-version}}":${{ env.IMAGE_TAG }}
+        run: breeze prod-image pull --tag-as-latest
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{needs.build-info.outputs.default-python-version}}
+          cache: 'pip'
+          cache-dependency-path: ./dev/requirements.txt
+      - name: "Test examples of PROD image building"
+        # yamllint disable-line rule:line-length
+        run: >
+          cd ./docker_tests &&
+          python -m pip install -r requirements.txt &&
+          TEST_IMAGE="ghcr.io/${{env.GITHUB_REPOSITORY}}/${{needs.build-info.outputs.default-branch}}/prod/python${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
+          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
@@ -1759,13 +2228,12 @@ jobs:
           # Force more parallelism for pull even on public images
           PARALLELISM: 6
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ".build/.k8s-env"
           key: "\
             k8s-env-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
-            'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','pyproject.toml') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
         env:
@@ -1775,7 +2243,7 @@ jobs:
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
           VERBOSE: "false"
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -1783,7 +2251,7 @@ jobs:
           retention-days: 7
       - name: >
           Upload test resource logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: k8s-test-resources-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -1807,6 +2275,7 @@ jobs:
       - wait-for-ci-images
       - wait-for-prod-images
       - static-checks
+      - mypy
       - tests-sqlite
       - tests-mysql
       - tests-postgres
@@ -1837,8 +2306,8 @@ jobs:
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: true
           fetch-depth: 0
-      - name: "Download constraints from the constraints preview"
-        uses: actions/download-artifact@v3
+      - name: "Download constraints from the constraints generated by build CI image"
+        uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./files
@@ -1859,7 +2328,7 @@ jobs:
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
   push-buildx-cache-to-github-registry:
-    timeout-minutes: 50
+    timeout-minutes: 120
     name: "Push Image Cache"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
@@ -1895,7 +2364,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./airflow/providers/installed_providers.txt
+          --package-list-file ./dev/prod_image_installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -1961,6 +2430,7 @@ jobs:
       - build-docs
       - spellcheck-docs
       - static-checks
+      - mypy
       - tests-sqlite
       - tests-mysql
       - tests-postgres

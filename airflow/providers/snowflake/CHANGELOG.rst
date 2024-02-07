@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add openlineage support for CopyFromExternalStageToSnowflakeOperator (#36535)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+Misc
+~~~~
+
+* ``Optimize 'SnowflakeSqlApiOperator' execution in deferrable mode (#36850)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return common data structure in DBApi derived classes``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
 5.1.2
 .....
 

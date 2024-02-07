@@ -25,6 +25,7 @@ import time
 from functools import partial
 from typing import Callable
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -33,7 +34,7 @@ from inflection import camelize
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
@@ -47,8 +48,10 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     _recursive_flatten_dict,
     parse_assign_public_ip,
 )
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 pytestmark = pytest.mark.db_test
 
@@ -118,6 +121,7 @@ def set_env_vars():
 def mock_executor(set_env_vars) -> AwsEcsExecutor:
     """Mock ECS to a repeatable starting state.."""
     executor = AwsEcsExecutor()
+    executor.IS_BOTO_CONNECTION_HEALTHY = True
 
     # Replace boto3 ECS client with mock.
     ecs_mock = mock.Mock(spec=executor.ecs)
@@ -363,7 +367,8 @@ class TestAwsEcsExecutor:
         assert 1 == len(mock_executor.active_workers)
         assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
 
-    def test_success_execute_api_exception(self, mock_executor):
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_success_execute_api_exception(self, mock_backoff, mock_executor):
         """Test what happens when ECS throws an exception, but ultimately runs the task."""
         run_task_exception = Exception("Test exception")
         run_task_success = {
@@ -379,9 +384,10 @@ class TestAwsEcsExecutor:
         }
         mock_executor.ecs.run_task.side_effect = [run_task_exception, run_task_exception, run_task_success]
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        expected_retry_count = 2
 
         # Fail 2 times
-        for _ in range(2):
+        for _ in range(expected_retry_count):
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
@@ -390,6 +396,9 @@ class TestAwsEcsExecutor:
         mock_executor.attempt_task_runs()
         assert len(mock_executor.pending_tasks) == 0
         assert ARN1 in mock_executor.active_workers.get_all_arns()
+        assert mock_backoff.call_count == expected_retry_count
+        for attempt_number in range(1, expected_retry_count):
+            mock_backoff.assert_has_calls([mock.call(attempt_number)])
 
     def test_failed_execute_api_exception(self, mock_executor):
         """Test what happens when ECS refuses to execute a task and throws an exception"""
@@ -477,7 +486,8 @@ class TestAwsEcsExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync_cumulative_fail(self, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_sync_cumulative_fail(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
         """Test that failure_count/attempt_number is cumulative for pending tasks and active workers."""
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "5"
         mock_executor.ecs.run_task.return_value = {
@@ -486,6 +496,7 @@ class TestAwsEcsExecutor:
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
+        mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
         for _ in range(2):
@@ -942,9 +953,9 @@ class TestEcsExecutorConfig:
 
         assert task_kwargs["platformVersion"] == templated_version
 
-    def test_count_can_not_be_modified_by_the_user(self, assign_subnets):
+    @mock.patch.object(EcsHook, "conn")
+    def test_count_can_not_be_modified_by_the_user(self, _, assign_subnets):
         """The ``count`` parameter must always be 1; verify that the user can not override this value."""
-
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
         provided_run_task_kwargs = {
@@ -1085,3 +1096,63 @@ class TestEcsExecutorConfig:
         executor.start()
 
         ecs_mock.stop_task.assert_not_called()
+
+    def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars):
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        expected_error = (
+            "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
+        )
+
+        with pytest.raises(ValueError, match=expected_error):
+            AwsEcsExecutor()
+
+    def test_providing_capacity_provider(self, set_env_vars):
+        # If a capacity provider strategy is supplied without a launch type, use the strategy.
+
+        valid_capacity_provider = (
+            "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        )
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
+        ] = valid_capacity_provider
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert "launchType" not in task_kwargs
+        assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_with_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, but the
+        # cluster has a default capacity provider strategy, use the cluster's default.
+        mock_conn.describe_clusters.return_value = {
+            "clusters": [{"defaultCapacityProviderStrategy": ["some_strategy"]}]
+        }
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert "launchType" not in task_kwargs
+        assert "capacityProviderStrategy" not in task_kwargs
+        assert mock_conn.describe_clusters.called_once()
+
+    @mock.patch.object(EcsHook, "conn")
+    def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(self, mock_conn, set_env_vars):
+        # If no capacity provider strategy is supplied and no launch type, and the cluster
+        # does not have a default capacity provider strategy, use the FARGATE launch type.
+
+        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
+
+        os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert task_kwargs["launchType"] == "FARGATE"

@@ -28,6 +28,52 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update information about links into the provider.yaml files (#35837)``
+
 3.4.1
 .....
 

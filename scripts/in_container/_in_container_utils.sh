@@ -44,7 +44,7 @@ function assert_in_container() {
         echo
         echo "You should only run this script in the Airflow docker container as it may override your files."
         echo "Learn more about how we develop and test airflow in:"
-        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
+        echo "https://github.com/apache/airflow/blob/main/contribuging-docs/README.rst"
         echo
         exit 1
     fi
@@ -60,7 +60,7 @@ function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
-function in_container_basic_sanity_check() {
+function in_container_basic_check() {
     assert_in_container
     in_container_go_to_airflow_sources
 }
@@ -78,205 +78,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-function install_airflow_from_wheel() {
-    local extras
-    extras="${1:-}"
-    if [[ ${extras} != "" ]]; then
-        extras="[${extras}]"
-    fi
-    local constraints_reference
-    constraints_reference="${2:-}"
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    local airflow_package
-    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
-    echo
-    echo "Found package: ${airflow_package}. Installing with extras: ${extras}, constraints reference: ${constraints_reference}."
-    echo
-    if [[ -z "${airflow_package}" ]]; then
-        >&2 echo
-        >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
-        >&2 echo
-        exit 4
-    fi
-    if [[ ${constraints_reference} == "none" ]]; then
-        set +e
-        pip install "${airflow_package}${extras}"
-        res=$?
-        set -e
-        if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "WARNING! Could not install airflow without constraints, trying to install it without dependencies in case some of the required providers are not yet released"
-            >&2 echo
-            pip install "${airflow_package}${extras}" --no-deps
-        fi
-    else
-        set +e
-        pip install "${airflow_package}${extras}" --constraint \
-            "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-        res=$?
-        set -e
-        if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
-            >&2 echo
-            pip install "${airflow_package}${extras}" --no-deps
-        fi
-    fi
-}
-
-function install_airflow_from_sdist() {
-    local extras
-    extras="${1:-}"
-    if [[ ${extras} != "" ]]; then
-        extras="[${extras}]"
-    fi
-    local constraints_reference
-    constraints_reference="${2:-}"
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    local airflow_package
-    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache-airflow-[0-9]*.tar.gz')
-    echo
-    echo "Found package: ${airflow_package}. Installing with extras: ${extras}, constraints reference: ${constraints_reference}."
-    echo
-    if [[ -z "${airflow_package}" ]]; then
-        >&2 echo
-        >&2 echo "ERROR! Could not find airflow sdist package to install in dist"
-        >&2 echo
-        exit 4
-    fi
-    if [[ ${constraints_reference} == "none" ]]; then
-        pip install "${airflow_package}${extras}"
-    else
-        set +e
-        pip install "${airflow_package}${extras}" --constraint \
-            "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-        res=$?
-        set -e
-        if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
-            >&2 echo
-            pip install "${airflow_package}${extras}" --no-deps
-        fi
-    fi
-}
-
-function uninstall_airflow() {
-    pip uninstall -y apache-airflow || true
-    find /root/airflow/ -type f -print0 | xargs -0 rm -f --
-}
-
-function uninstall_all_pip_packages() {
-    pip uninstall -y -r <(pip freeze)
-}
-
-function uninstall_providers() {
-    local provider_packages_to_uninstall
-    provider_packages_to_uninstall=$(pip freeze | grep apache-airflow-providers || true)
-    if [[ -n ${provider_packages_to_uninstall} ]]; then
-        echo "${provider_packages_to_uninstall}" | xargs pip uninstall -y || true 2>/dev/null
-    fi
-}
-
-function uninstall_airflow_and_providers() {
-    uninstall_providers
-    uninstall_airflow
-}
-
-function install_released_airflow_version() {
-    local version="${1}"
-    local constraints_reference
-    constraints_reference="${2:-}"
-    rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
-        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
-    else
-        BRACKETED_AIRFLOW_EXTRAS=""
-    fi
-    if [[ ${constraints_reference} == "none" ]]; then
-        pip install "${airflow_package}${extras}"
-    else
-        local dependency_fix=""
-        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
-        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
-        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
-        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
-        # version has it pinned to the right version, but since it is not directly required, it is not
-        # downgraded when installing airflow and it is already installed in a newer version
-        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
-            dependency_fix="pyopenssl"
-        fi
-
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
-            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-    fi
-}
-
-function install_local_airflow_with_eager_upgrade() {
-    local extras
-    extras="${1}"
-    # we add eager requirements to make sure to take into account limitations that will allow us to
-    # install all providers
-    # shellcheck disable=SC2086
-    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
-        --upgrade --upgrade-strategy eager
-}
-
-
-function install_all_providers_from_pypi_with_eager_upgrade() {
-    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_DEPENDENCIES))')
-    ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
-    local packages_to_install=()
-    local provider_package
-    local res
-    for provider_package in ${ALL_PROVIDERS_PACKAGES}
-    do
-        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
-        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
-        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
-        # the provider from PyPI
-        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
-            continue
-        fi
-        echo -n "Checking if ${provider_package} is available in PyPI: "
-        res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
-        if [[ ${res} == "200" ]]; then
-            packages_to_install+=( "${provider_package}" )
-            echo "${COLOR_GREEN}OK${COLOR_RESET}"
-        else
-            echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
-        fi
-    done
-
-
-    echo "Installing provider packages: ${packages_to_install[*]}"
-
-
-    # we add eager requirements to make sure to take into account limitations that will allow us to
-    # install all providers. We install only those packages that are available in PyPI - we might
-    # Have some new providers in the works and they might not yet be simply available in PyPI
-    # Installing it with Airflow makes sure that the version of package that matches current
-    # Airflow requirements will be used.
-    # shellcheck disable=SC2086
-    set -x
-    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
-        --upgrade --upgrade-strategy eager
-    set +x
-}
-
-function install_supported_pip_version() {
-    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
-    else
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
-    fi
-
-}
-
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -288,26 +89,6 @@ function in_container_set_colors() {
     export COLOR_RED
     export COLOR_RESET
     export COLOR_YELLOW
-}
-
-
-# Starts group for GitHub Actions - makes logs much more readable
-function group_start {
-    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
-        echo "::group::${1}"
-    else
-        echo
-        echo "${1}"
-        echo
-    fi
-}
-
-# Ends group for GitHub Actions
-function group_end {
-    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
-        echo -e "\033[0m"  # Disable any colors set in the group
-        echo "::endgroup::"
-    fi
 }
 
 export CI=${CI:="false"}

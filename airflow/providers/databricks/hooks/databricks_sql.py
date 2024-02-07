@@ -16,18 +16,32 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from databricks import sql  # type: ignore[attr-defined]
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
+    from databricks.sql.types import Row
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
@@ -51,6 +65,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param return_tuple: Return a ``namedtuple`` object instead of a ``databricks.sql.Row`` object. Default
+        to False. In a future release of the provider, this will become True by default. This parameter
+        ensures backward-compatibility during the transition phase to common tuple objects for all hooks based
+        on DbApiHook. This flag will also be removed in a future release.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -67,6 +85,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         catalog: str | None = None,
         schema: str | None = None,
         caller: str = "DatabricksSqlHook",
+        return_tuple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id, caller=caller)
@@ -79,7 +98,17 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.return_tuple = return_tuple
         self.additional_params = kwargs
+
+        if not self.return_tuple:
+            warnings.warn(
+                """Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
+                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
+                enable this behavior.""",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
@@ -145,7 +174,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -166,7 +195,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -177,7 +206,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
 
@@ -220,9 +249,14 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     if handler is not None:
-                        result = self._make_serializable(handler(cur))
+                        raw_result = handler(cur)
+                        if self.return_tuple:
+                            result = self._make_common_data_structure(raw_result)
+                        else:
+                            # Returning raw result is deprecated, and do not comply with current common.sql interface
+                            result = raw_result  # type: ignore[assignment]
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
@@ -240,12 +274,22 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    @staticmethod
-    def _make_serializable(result):
-        """Transform the databricks Row objects into a JSON-serializable list of rows."""
-        if result is not None:
-            return [list(row) for row in result]
-        return result
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+        """Transform the databricks Row objects into namedtuple."""
+        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
+        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        if isinstance(result, list):
+            rows: list[Row] = result
+            if not rows:
+                return []
+            rows_fields = tuple(rows[0].__fields__)
+            rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
+            return cast(List[tuple], [rows_object(*row) for row in rows])
+        else:
+            row: Row = result
+            row_fields = tuple(row.__fields__)
+            row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore
+            return cast(tuple, row_object(*row))
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask
+from flask_appbuilder.menu import Menu
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
@@ -55,9 +56,6 @@ class EmptyAuthManager(BaseAuthManager):
         details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        raise NotImplementedError()
-
-    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
     def is_authorized_connection(
@@ -299,3 +297,22 @@ class TestBaseAuthManager:
         session.execute.return_value = dags
         result = auth_manager.get_permitted_dag_ids(user=user, session=session)
         assert result == expected
+
+    @patch.object(EmptyAuthManager, "security_manager")
+    def test_get_permitted_menu_items(self, mock_security_manager, auth_manager):
+        mock_security_manager.has_access.side_effect = [True, False, True, True, False]
+
+        menu = Menu()
+        menu.add_link("item1")
+        menu.add_link("item2")
+        menu.add_link("item3")
+        menu.add_link("item3.1", category="item3")
+        menu.add_link("item3.2", category="item3")
+
+        result = auth_manager.get_permitted_menu_items(menu.get_list())
+
+        assert len(result) == 2
+        assert result[0].name == "item1"
+        assert result[1].name == "item3"
+        assert len(result[1].childs) == 1
+        assert result[1].childs[0].name == "item3.1"

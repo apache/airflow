@@ -21,9 +21,10 @@ name: Facebook
 description: |
     `Facebook Ads <https://www.facebook.com/about/ads>`__
 
-suspended: false
-source-date-epoch: 1700827462
+state: ready
+source-date-epoch: 1705912091
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.2
   - 3.2.1
@@ -43,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - facebook-business>=6.0.2
 
 integrations:

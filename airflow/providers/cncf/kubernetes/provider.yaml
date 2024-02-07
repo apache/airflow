@@ -21,9 +21,13 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
-suspended: false
-source-date-epoch: 1700827450
+state: ready
+source-date-epoch: 1705911981
 versions:
+  - 7.14.0
+  - 7.13.0
+  - 7.12.0
+  - 7.11.0
   - 7.10.0
   - 7.9.0
   - 7.8.0
@@ -74,7 +78,7 @@ versions:
 
 dependencies:
   - aiofiles>=23.2.0
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -85,13 +89,13 @@ dependencies:
   # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
   # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
   # core is not hard-limited via install-requirements, only by extra).
-  - kubernetes>=21.7.0,<24
+  - kubernetes>=28.1.0,<=29.0.0
   # The Kubernetes_asyncio package is used for providing Asynchronous (AsyncIO) client library for
   # standard Kubernetes API. The version is limited by minimum 18.20.1 because of introducing the ability to
   # load kubernetes config file from dictionary in that release and is limited to the next MAJOR version
   # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
   #  major changes in the package.
-  - kubernetes_asyncio>=18.20.1,<25
+  - kubernetes_asyncio>=28.1.0,<=29.0.0
   - google-re2>=1.0
 
 integrations:
@@ -109,6 +113,7 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
+      - airflow.providers.cncf.kubernetes.operators.custom_object_launcher
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource

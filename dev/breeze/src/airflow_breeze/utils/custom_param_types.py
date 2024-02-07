@@ -215,6 +215,9 @@ class MySQLBackendVersionType(CacheableChoice):
         return super().convert(value, param, ctx)
 
 
+ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+
+
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 
@@ -224,5 +227,7 @@ class UseAirflowVersionType(BetterChoice):
 
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
+            return value
+        if value.startswith(ALLOWED_VCS_PROTOCOLS):
             return value
         return super().convert(value, param, ctx)

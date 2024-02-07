@@ -21,9 +21,10 @@ name: Common IO
 description: |
   ``Common IO Provider``
 
-suspended: false
-source-date-epoch: 1700827452
+state: ready
+source-date-epoch: 1704610529
 versions:
+  - 1.2.0
   - 1.1.0
   - 1.0.1
   - 1.0.0
@@ -42,3 +43,37 @@ operators:
   - integration-name: Common IO
     python-modules:
       - airflow.providers.common.io.operators.file_transfer
+
+xcom:
+  - airflow.providers.common.io.xcom.backend
+
+config:
+  common.io:
+    description: Common IO configuration section
+    options:
+      xcom_objectstorage_path:
+        description: |
+          Path to a location on object storage where XComs can be stored in url format.
+        version_added: 1.3.0
+        type: string
+        example: "s3://conn_id@bucket/path"
+        default: ""
+      xcom_objectstorage_threshold:
+        description: |
+          Threshold in bytes for storing XComs in object storage. -1 means always store in the
+          database. 0 means always store in object storage. Any positive number means
+          it will be stored in object storage if the size of the value is greater than the threshold.
+        version_added: 1.3.0
+        type: integer
+        example: "1000000"
+        default: "-1"
+      xcom_objectstorage_compression:
+        description: |
+          Compression algorithm to use when storing XComs in object storage. Supported algorithms
+          are a.o.: snappy, zip, gzip, bz2, and lzma. If not specified, no compression will be used.
+          Note that the compression algorithm must be available in the Python installation (e.g.
+          python-snappy for snappy). Zip, gz, bz2 are available by default.
+        version_added: 1.3.0
+        type: string
+        example: "gz"
+        default: ""

@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import time
-import warnings
 from typing import Sequence
 
 import google.api_core.path_template
+from deprecated import deprecated
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -32,6 +32,15 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
+@deprecated(
+    reason=(
+        "This hook is deprecated. Consider using "
+        "Google Cloud Batch Operators' hook instead. "
+        "The Life Sciences API (beta) will be discontinued "
+        "on July 8, 2025 in favor of Google Cloud Batch."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class LifeSciencesHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Life Sciences APIs.
@@ -75,14 +84,6 @@ class LifeSciencesHook(GoogleBaseHook):
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
-
-        warnings.warn(
-            """This hook is deprecated. Consider using Google Cloud Batch Operators' hook instead.
-            The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
-            of Google Cloud Batch.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
 
     def get_conn(self) -> build:
         """

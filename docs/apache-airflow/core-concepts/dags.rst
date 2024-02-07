@@ -165,8 +165,8 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
 You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
-In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by Airflow. You can plug your callable by setting ``might_contain_dag_callable`` in the config file.
-Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) in the file.
+In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by airflow, you can plug your callable by setting ``might_contain_dag_callable`` in the config file.
+Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) are present in the python file.
 
 .. code-block::
 
@@ -190,18 +190,20 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
     with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+There are various valid values for the ``schedule`` argument::
 
     with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
+    with DAG("my_one_time_dag", schedule="@once"):
+        ...
+
+    with DAG("my_continuous_dag", schedule="@continuous"):
+        ...
+
 .. tip::
 
-    For more information on ``schedule`` values, see :doc:`DAG Run <dag-run>`.
-
-    If ``schedule`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
-    For more information on ``logical date``, see :ref:`data-interval` and
-    :ref:`faq:what-does-execution-date-mean`.
+    For more information different types of scheduling, see :doc:`/authoring-and-scheduling/index`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run <dag-run>`. DAG Runs can run in parallel for the
@@ -236,6 +238,11 @@ to DAG run's start date. However, when the DAG is being automatically scheduled,
 schedule interval put in place, the logical date is going to indicate the time
 at which it marks the start of the data interval, where the DAG run's start
 date would then be the logical date + scheduled interval.
+
+.. tip::
+
+    For more information on ``logical date``, see :ref:`data-interval` and
+    :ref:`faq:what-does-execution-date-mean`.
 
 DAG Assignment
 --------------
@@ -800,7 +807,7 @@ For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
 specifies a regular expression pattern, and directories or files whose names (not DAG id)
 match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
-on a line following a ``#`` will be ignored.
+on lines starting with ``#`` will be ignored.
 
 As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
 doesn't support many advanced features, please check its
@@ -875,7 +882,10 @@ Dag can be paused via UI when it is present in the ``DAGS_FOLDER``, and schedule
 the database, but the user chose to disable it via the UI. The "pause" and "unpause" actions are available
 via UI and API. Paused DAG is not scheduled by the Scheduler, but you can trigger them via UI for
 manual runs. In the UI, you can see Paused DAGs (in ``Paused`` tab). The DAGs that are un-paused
-can be found in the ``Active`` tab.
+can be found in the ``Active`` tab. When a DAG is paused, any running tasks are allowed to complete and all
+downstream tasks are put in to a state of "Scheduled". When the DAG is unpaused, any "scheduled" tasks will
+begin running according to the DAG logic. DAGs with no "scheduled" tasks will begin running according to
+their schedule.
 
 Dag can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the DAG that it had seen

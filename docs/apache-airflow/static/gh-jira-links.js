@@ -27,8 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
     );
     // (#...)
     el.innerHTML = el.innerHTML.replace(
-      /\(#([\d]+)\)/g,
-      `<a href="https://github.com/apache/airflow/pull/$1">(#$1)</a>`
+      /#([\d]+)/g,
+      (match, group1) => {
+        return `<a href="https://github.com/apache/airflow/pull/${group1}">#${group1}</a>`
+      }
     );
   };
 })

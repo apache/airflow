@@ -55,7 +55,7 @@ INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
 LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
+LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
@@ -322,8 +322,8 @@ class DatabricksHook(BaseDatabricksHook):
             payload["filter"] = filter
 
         while has_more:
-            if next_token:
-                payload["page_token"] = next_token
+            if next_token is not None:
+                payload = {**payload, "page_token": next_token}
             response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
             pipelines = response.get("statuses", [])
             all_pipelines += pipelines
@@ -345,11 +345,11 @@ class DatabricksHook(BaseDatabricksHook):
 
         if len(matching_pipelines) > 1:
             raise AirflowException(
-                f"There are more than one job with name {pipeline_name}. "
+                f"There are more than one pipelines with name {pipeline_name}. "
                 "Please delete duplicated pipelines first"
             )
 
-        if not pipeline_name:
+        if not pipeline_name or len(matching_pipelines) == 0:
             return None
         else:
             return matching_pipelines[0]["pipeline_id"]
@@ -519,13 +519,24 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"run_id": run_id}
         self._do_api_call(DELETE_RUN_ENDPOINT, json)
 
-    def repair_run(self, json: dict) -> None:
+    def repair_run(self, json: dict) -> int:
         """
         Re-run one or more tasks.
 
         :param json: repair a job run.
         """
-        self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        response = self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        return response["repair_id"]
+
+    def get_latest_repair_id(self, run_id: int) -> int | None:
+        """Get latest repair id if any exist for run_id else None."""
+        json = {"run_id": run_id, "include_history": True}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        repair_history = response["repair_history"]
+        if len(repair_history) == 1:
+            return None
+        else:
+            return repair_history[-1]["id"]
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """

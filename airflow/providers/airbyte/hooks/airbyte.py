@@ -17,11 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import json
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeVar
+
+import aiohttp
+from aiohttp import ClientResponseError
+from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
+
+T = TypeVar("T", bound=Any)
 
 
 class AirbyteHook(HttpHook):
@@ -50,6 +61,51 @@ class AirbyteHook(HttpHook):
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
+    async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
+        """Get Headers, tenants from the connection details."""
+        connection: Connection = await sync_to_async(self.get_connection)(self.http_conn_id)
+        base_url = connection.host
+
+        credentials = f"{connection.login}:{connection.password}"
+        credentials_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+
+        authorized_headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": f"Basic {credentials_base64}",
+        }
+
+        return authorized_headers, base_url
+
+    async def get_job_details(self, job_id: int) -> Any:
+        """
+        Uses Http async call to retrieve metadata for a specific job of an Airbyte Sync.
+
+        :param job_id: The ID of an Airbyte Sync Job.
+        """
+        headers, base_url = await self.get_headers_tenants_from_connection()
+        url = f"{base_url}/api/{self.api_version}/jobs/get"
+        self.log.info("URL for api request: %s", url)
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.post(url=url, data=json.dumps({"id": job_id})) as response:
+                try:
+                    response.raise_for_status()
+                    return await response.json()
+                except ClientResponseError as e:
+                    msg = f"{e.status}: {e.message} - {e.request_info}"
+                    raise AirflowException(msg)
+
+    async def get_job_status(self, job_id: int) -> str:
+        """
+        Retrieves the status for a specific job of an Airbyte Sync.
+
+        :param job_id: The ID of an Airbyte Sync Job.
+        """
+        self.log.info("Getting the status of job run %s.", job_id)
+        response = await self.get_job_details(job_id=job_id)
+        job_run_status: str = response["job"]["status"]
+        return job_run_status
+
     def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
         """
         Poll a job to check if it finishes.
@@ -63,6 +119,7 @@ class AirbyteHook(HttpHook):
         start = time.monotonic()
         while True:
             if timeout and start + timeout < time.monotonic():
+                self.cancel_job(job_id=(int(job_id)))
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
             try:

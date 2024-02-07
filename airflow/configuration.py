@@ -1191,7 +1191,7 @@ class AirflowConfigParser(ConfigParser):
         try:
             return import_string(full_qualified_path)
         except ImportError as e:
-            log.error(e)
+            log.warning(e)
             raise AirflowConfigException(
                 f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{full_qualified_path}".'
@@ -1985,6 +1985,8 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
+        pathlib.Path(airflow_config.__fspath__()).touch()
+        make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
             conf.write(
                 file,
@@ -1994,7 +1996,6 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(airflow_config.__fspath__())
     return conf
 
 

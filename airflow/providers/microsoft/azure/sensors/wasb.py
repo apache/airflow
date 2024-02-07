@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
@@ -111,6 +112,15 @@ class WasbBlobSensor(BaseSensorOperator):
             raise AirflowException("Did not receive valid event from the triggerer")
 
 
+@deprecated(
+    reason=(
+        "Class `WasbBlobAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `WasbBlobSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class WasbBlobAsyncSensor(WasbBlobSensor):
     """
     Polls asynchronously for the existence of a blob in a WASB container.
@@ -129,14 +139,6 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `WasbBlobAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `WasbBlobSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs, deferrable=True)
 
 
@@ -149,6 +151,8 @@ class WasbPrefixSensor(BaseSensorOperator):
     :param wasb_conn_id: Reference to the wasb connection.
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_prefix()` takes.
+    :param public_read: whether an anonymous public read access should be used. Default is False
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("container_name", "prefix")
@@ -160,21 +164,23 @@ class WasbPrefixSensor(BaseSensorOperator):
         prefix: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
+        public_read: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
-        self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.prefix = prefix
+        self.wasb_conn_id = wasb_conn_id
         self.check_options = check_options
+        self.public_read = public_read
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking for prefix: %s in wasb://%s", self.prefix, self.container_name)
-        hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
+        hook = WasbHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
         return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)
 
     def execute(self, context: Context) -> None:
@@ -193,6 +199,8 @@ class WasbPrefixSensor(BaseSensorOperator):
                         container_name=self.container_name,
                         prefix=self.prefix,
                         wasb_conn_id=self.wasb_conn_id,
+                        check_options=self.check_options,
+                        public_read=self.public_read,
                         poke_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",

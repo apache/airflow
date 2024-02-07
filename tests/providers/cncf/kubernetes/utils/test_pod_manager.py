@@ -20,7 +20,7 @@ import logging
 from datetime import datetime
 from json.decoder import JSONDecodeError
 from types import SimpleNamespace
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -28,8 +28,6 @@ import pendulum
 import pytest
 import time_machine
 from kubernetes.client.rest import ApiException
-from pendulum import DateTime
-from pendulum.tz.timezone import Timezone
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
@@ -43,13 +41,20 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 )
 from airflow.utils.timezone import utc
 
+from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+
 
 class TestPodManager:
     def setup_method(self):
         self.mock_progress_callback = mock.Mock()
         self.mock_kube_client = mock.Mock()
         self.pod_manager = PodManager(
-            kube_client=self.mock_kube_client, progress_callback=self.mock_progress_callback
+            kube_client=self.mock_kube_client,
+            callbacks=MockKubernetesPodOperatorCallback,
+            progress_callback=self.mock_progress_callback,
         )
 
     def test_read_pod_logs_successfully_returns_logs(self):
@@ -92,6 +97,9 @@ class TestPodManager:
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
@@ -269,11 +277,11 @@ class TestPodManager:
 
         status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
 
-        assert status.last_log_time == cast(DateTime, pendulum.parse(timestamp_string))
+        assert status.last_log_time == cast("DateTime", pendulum.parse(timestamp_string))
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
-    def test_fetch_container_logs_invoke_progress_callback(
+    def test_fetch_container_logs_invoke_deprecated_progress_callback(
         self, mock_read_pod_logs, mock_container_is_running
     ):
         message = "2020-10-08T14:16:17.793417674Z message"
@@ -285,7 +293,29 @@ class TestPodManager:
         self.mock_progress_callback.assert_has_calls([mock.call(message), mock.call(no_ts_message)])
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_container_logs_invoke_progress_callback(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        message = "2020-10-08T14:16:17.793417674Z message"
+        no_ts_message = "notimestamp"
+        mock_read_pod_logs.return_value = [bytes(message, "utf-8"), bytes(no_ts_message, "utf-8")]
+        mock_container_is_running.return_value = False
+
+        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        mock_callbacks.progress_callback.assert_has_calls(
+            [
+                mock.call(line=message, client=self.pod_manager._client, mode="sync"),
+                mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
+            ]
+        )
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_fetch_container_logs_failures(self, mock_container_is_running):
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
         last_timestamp_string = "2020-10-08T14:18:17.793417674Z"
         messages = [
             bytes("2020-10-08T14:16:17.793417674Z message", "utf-8"),
@@ -306,8 +336,9 @@ class TestPodManager:
             mock_consumer_iter.side_effect = consumer_iter
             mock_container_is_running.side_effect = [True, True, False]
             status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-        assert status.last_log_time == cast(DateTime, pendulum.parse(last_timestamp_string))
+        assert status.last_log_time == cast("DateTime", pendulum.parse(last_timestamp_string))
         assert self.mock_progress_callback.call_count == expected_call_count
+        assert mock_callbacks.progress_callback.call_count == expected_call_count
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
@@ -461,13 +492,13 @@ class TestPodManager:
     def test_fetch_container_since_time(self, logs_available, container_running, mock_now):
         """If given since_time, should be used."""
         mock_pod = MagicMock()
-        mock_now.return_value = DateTime(2020, 1, 1, 0, 0, 5, tzinfo=Timezone("UTC"))
+        mock_now.return_value = pendulum.datetime(2020, 1, 1, 0, 0, 5, tz="UTC")
         logs_available.return_value = True
         container_running.return_value = False
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
             stream=mock.MagicMock(return_value=[b"2021-01-01 hi"])
         )
-        since_time = DateTime(2020, 1, 1, tzinfo=Timezone("UTC"))
+        since_time = pendulum.datetime(2020, 1, 1, tz="UTC")
         self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", since_time=since_time)
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs["since_seconds"] == 5
@@ -488,7 +519,7 @@ class TestPodManager:
         )
         ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", follow=follow)
         assert len(container_running_mock.call_args_list) == is_running_calls
-        assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone("UTC"))
+        assert ret.last_log_time == pendulum.datetime(2021, 1, 1, tz="UTC")
         assert ret.running is exp_running
 
     @pytest.mark.parametrize(

@@ -15,7 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base operator for all operators."""
+"""
+Base operator for all operators.
+
+:sphinx-autoapi-skip:
+"""
 from __future__ import annotations
 
 import abc
@@ -120,7 +124,7 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or isinstance(retries, int):
+    if retries is None or type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -247,6 +251,7 @@ def partial(
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     run_as_user: str | None | ArgNotSet = NOTSET,
     executor_config: dict | None | ArgNotSet = NOTSET,
     inlets: Any | None | ArgNotSet = NOTSET,
@@ -310,6 +315,7 @@ def partial(
         "on_failure_callback": on_failure_callback,
         "on_retry_callback": on_retry_callback,
         "on_success_callback": on_success_callback,
+        "on_skipped_callback": on_skipped_callback,
         "run_as_user": run_as_user,
         "executor_config": executor_config,
         "inlets": inlets,
@@ -597,6 +603,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that it is executed when retries occur.
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
+    :param on_skipped_callback: much like the ``on_failure_callback`` except
+        that it is executed when skipped occur; this callback will be called only if AirflowSkipException get raised.
+        Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
+        decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+        is never scheduled.
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
@@ -628,12 +639,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
 
-            MyOperator(...,
-                executor_config={
-                    "KubernetesExecutor":
-                        {"image": "myCustomDockerImage"}
-                }
-            )
+            MyOperator(..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
@@ -705,6 +711,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_failure_callback",
         "on_success_callback",
         "on_retry_callback",
+        "on_skipped_callback",
         "do_xcom_push",
     }
 
@@ -764,6 +771,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
@@ -830,6 +838,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.on_skipped_callback = on_skipped_callback
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
@@ -1152,9 +1161,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(
-                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
-                )
+                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
                 generate_content >> send_email
 
         """
@@ -1866,12 +1873,7 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     Then you can accomplish like so::
 
-        chain_linear(
-            op1,
-            [op2, op3],
-            [op4, op5, op6],
-            op7
-        )
+        chain_linear(op1, [op2, op3], [op4, op5, op6], op7)
 
     :param elements: a list of operators / lists of operators
     """
