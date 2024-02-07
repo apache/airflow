@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -42,9 +42,10 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "gcs_sensor"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+SOURCE_BUCKET_NAME = "airflow-system-tests-resources"
+DESTINATION_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "example_upload.txt"
-UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+UPLOAD_FILE_PATH = str(Path("gcs") / FILE_NAME)
 
 
 def workaround_in_debug_executor(cls):
@@ -75,14 +76,14 @@ with DAG(
     tags=["gcs", "example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+        task_id="create_bucket", bucket_name=DESTINATION_BUCKET_NAME, project_id=PROJECT_ID
     )
 
     workaround_in_debug_executor(GCSUploadSessionCompleteSensor)
 
     # [START howto_sensor_gcs_upload_session_complete_task]
     gcs_upload_session_complete = GCSUploadSessionCompleteSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         prefix=FILE_NAME,
         inactivity_period=15,
         min_objects=1,
@@ -94,7 +95,7 @@ with DAG(
 
     # [START howto_sensor_gcs_upload_session_async_task]
     gcs_upload_session_async_complete = GCSUploadSessionCompleteSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         prefix=FILE_NAME,
         inactivity_period=15,
         min_objects=1,
@@ -107,7 +108,7 @@ with DAG(
 
     # [START howto_sensor_object_update_exists_task]
     gcs_update_object_exists = GCSObjectUpdateSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         object=FILE_NAME,
         task_id="gcs_object_update_sensor_task",
     )
@@ -115,20 +116,25 @@ with DAG(
 
     # [START howto_sensor_object_update_exists_task_async]
     gcs_update_object_exists_async = GCSObjectUpdateSensor(
-        bucket=BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_update_sensor_task_async", deferrable=True
+        bucket=DESTINATION_BUCKET_NAME,
+        object=FILE_NAME,
+        task_id="gcs_object_update_sensor_task_async",
+        deferrable=True,
     )
     # [END howto_sensor_object_update_exists_task_async]
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=UPLOAD_FILE_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
+    copy_file = GCSToGCSOperator(
+        task_id="copy_example_gcs_file",
+        source_bucket=SOURCE_BUCKET_NAME,
+        source_object=UPLOAD_FILE_PATH,
+        destination_bucket=DESTINATION_BUCKET_NAME,
+        destination_object=FILE_NAME,
+        exact_match=True,
     )
 
     # [START howto_sensor_object_exists_task]
     gcs_object_exists = GCSObjectExistenceSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         object=FILE_NAME,
         task_id="gcs_object_exists_task",
     )
@@ -136,7 +142,7 @@ with DAG(
 
     # [START howto_sensor_object_exists_task_async]
     gcs_object_exists_async = GCSObjectExistenceAsyncSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         object=FILE_NAME,
         task_id="gcs_object_exists_task_async",
     )
@@ -144,13 +150,13 @@ with DAG(
 
     # [START howto_sensor_object_exists_task_defered]
     gcs_object_exists_defered = GCSObjectExistenceSensor(
-        bucket=BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_exists_defered", deferrable=True
+        bucket=DESTINATION_BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_exists_defered", deferrable=True
     )
     # [END howto_sensor_object_exists_task_defered]
 
     # [START howto_sensor_object_with_prefix_exists_task]
     gcs_object_with_prefix_exists = GCSObjectsWithPrefixExistenceSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         prefix=FILE_NAME[:5],
         task_id="gcs_object_with_prefix_exists_task",
     )
@@ -158,7 +164,7 @@ with DAG(
 
     # [START howto_sensor_object_with_prefix_exists_task_async]
     gcs_object_with_prefix_exists_async = GCSObjectsWithPrefixExistenceSensor(
-        bucket=BUCKET_NAME,
+        bucket=DESTINATION_BUCKET_NAME,
         prefix=FILE_NAME[:5],
         task_id="gcs_object_with_prefix_exists_task_async",
         deferrable=True,
@@ -166,13 +172,13 @@ with DAG(
     # [END howto_sensor_object_with_prefix_exists_task_async]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket", bucket_name=DESTINATION_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
     chain(
         # TEST SETUP
         create_bucket,
-        upload_file,
+        copy_file,
         # TEST BODY
         [
             gcs_object_exists,
