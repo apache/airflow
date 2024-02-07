@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 from cryptography.fernet import Fernet
+from sqlalchemy import select
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import rotate_fernet_key_command
@@ -73,7 +74,7 @@ class TestRotateFernetKeyCommand:
         with conf_vars({("core", "fernet_key"): fernet_key2.decode()}), mock.patch(
             "airflow.models.crypto._fernet", None
         ):
-            var1 = session.query(Variable).filter(Variable.key == var1_key).first()
+            var1 = session.scalar(select(Variable).where(Variable.key == var1_key).limit(1))
             # Unencrypted variable should be unchanged
             assert Variable.get(key=var1_key) == "value"
             assert var1._val == "value"

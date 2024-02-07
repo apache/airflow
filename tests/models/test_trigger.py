@@ -22,6 +22,7 @@ from typing import Any, AsyncIterator
 import pytest
 import pytz
 from cryptography.fernet import Fernet
+from sqlalchemy import func, select
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner
@@ -29,30 +30,24 @@ from airflow.models import TaskInstance, Trigger
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_runs
+
+TRIGGER_COUNT_STMT = select(func.count()).select_from(Trigger)
 
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture
-def session():
-    """Fixture that provides a SQLAlchemy session"""
-    with create_session() as session:
-        yield session
+def _trigger_id_stmt(trigger_id: int):
+    return select(Trigger.triggerer_id).where(Trigger.id == trigger_id)
 
 
 @pytest.fixture(autouse=True)
 def clear_db(session):
-    session.query(TaskInstance).delete()
-    session.query(Trigger).delete()
-    session.query(Job).delete()
+    clear_db_runs()
     yield session
-    session.query(TaskInstance).delete()
-    session.query(Trigger).delete()
-    session.query(Job).delete()
-    session.commit()
+    clear_db_runs()
 
 
 def test_clean_unused(session, create_task_instance):
@@ -71,7 +66,7 @@ def test_clean_unused(session, create_task_instance):
     session.add(trigger2)
     session.add(trigger3)
     session.commit()
-    assert session.query(Trigger).count() == 3
+    assert session.scalar(TRIGGER_COUNT_STMT) == 3
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
     task_instance = create_task_instance(
         session=session, task_id="fake", state=State.DEFERRED, execution_date=timezone.utcnow()
@@ -87,7 +82,7 @@ def test_clean_unused(session, create_task_instance):
     # Run clear operation
     Trigger.clean_unused()
     # Verify that one trigger is gone, and the right one is left
-    assert session.query(Trigger).one().id == trigger1.id
+    assert session.scalar(select(Trigger.id).limit(1)) == trigger1.id
 
 
 def test_submit_event(session, create_task_instance):
@@ -113,7 +108,7 @@ def test_submit_event(session, create_task_instance):
     session.flush()
     session.expunge_all()
     # Check that the task instance is now scheduled
-    updated_task_instance = session.query(TaskInstance).one()
+    updated_task_instance = session.scalar(select(TaskInstance).limit(1))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
 
@@ -137,7 +132,7 @@ def test_submit_failure(session, create_task_instance):
     # Call submit_event
     Trigger.submit_failure(trigger.id, session=session)
     # Check that the task instance is now scheduled to fail
-    updated_task_instance = session.query(TaskInstance).one()
+    updated_task_instance = session.scalar(select(TaskInstance).limit(1))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
 
@@ -218,28 +213,16 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(ti_trigger_unassigned_to_triggerer)
     assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.commit()
-    assert session.query(Trigger).count() == 4
+    assert session.scalar(TRIGGER_COUNT_STMT) == 4
     Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
     session.expire_all()
     # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
-    assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_killed_triggerer.id).one().triggerer_id
-        == new_triggerer.id
-    )
-    assert (
-        session.query(Trigger).filter(Trigger.id == trigger_unassigned_to_triggerer.id).one().triggerer_id
-        == new_triggerer.id
-    )
+    assert session.scalar(_trigger_id_stmt(trigger_on_killed_triggerer.id)) == new_triggerer.id
+    assert session.scalar(_trigger_id_stmt(trigger_unassigned_to_triggerer.id)) == new_triggerer.id
     # Check that trigger on healthy triggerer still assigned to existing triggerer
-    assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
-        == healthy_triggerer.id
-    )
+    assert session.scalar(_trigger_id_stmt(trigger_on_healthy_triggerer.id)) == healthy_triggerer.id
     # Check that trigger on unhealthy triggerer is assigned to new triggerer
-    assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_unhealthy_triggerer.id).one().triggerer_id
-        == new_triggerer.id
-    )
+    assert session.scalar(_trigger_id_stmt(trigger_on_unhealthy_triggerer.id)) == new_triggerer.id
 
 
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
@@ -285,7 +268,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     session.add(TI_new)
 
     session.commit()
-    assert session.query(Trigger).count() == 2
+    assert session.scalar(TRIGGER_COUNT_STMT) == 2
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
@@ -335,7 +318,7 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.add(TI_new)
 
     session.commit()
-    assert session.query(Trigger).count() == 2
+    assert session.scalar(TRIGGER_COUNT_STMT) == 2
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 

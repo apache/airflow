@@ -27,6 +27,7 @@ from getpass import getuser
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import func, select, update
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -49,7 +50,7 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
+from tests.test_utils.db import clear_db_runs, clear_db_tags, clear_db_xcom
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
@@ -588,14 +589,13 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
 def new_id_example_bash_operator():
     dag_id = "example_bash_operator"
     test_dag_id = "non_existent_dag"
+
+    clear_db_tags()
     with create_session() as session:
-        dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
-        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
-    with create_session() as session:
-        dag_query.update({"dag_id": test_dag_id})
-    yield test_dag_id
-    with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(dag_id=test_dag_id))
+        session.commit()
+        yield test_dag_id
+        session.execute(update(DagModel).where(DagModel.dag_id == test_dag_id).values(dag_id=dag_id))
 
 
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
@@ -767,12 +767,16 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 
         from airflow.www.views import TaskInstanceModelView
 
-        ti = session.Query(TaskInstance).filter(...).one()
+        ti = session.execute(select(TaskInstance).where(...).limit(1))
         pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
         client.post("...", data={"action": "...", "rowid": pk})
     """
     pk_value = model_view_cls.datamodel.get_pk_value(instance)
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
+
+
+def _ti_count_stmt(task_id: str):
+    return select([func.count()]).where(TaskInstance.task_id == task_id)
 
 
 def test_task_instance_delete(session, admin_client, create_task_instance):
@@ -784,9 +788,9 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    assert session.scalar(_ti_count_stmt(task_id)) == 1
     admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
+    assert session.scalar(_ti_count_stmt(task_id)) == 0
 
 
 def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
@@ -800,10 +804,10 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    assert session.scalar(_ti_count_stmt(task_id)) == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
     check_content_in_response("Access is Denied", resp)
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    assert session.scalar(_ti_count_stmt(task_id)) == 1
 
 
 @pytest.mark.parametrize(
@@ -821,12 +825,12 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
     initial_state = State.SUCCESS
 
     # Set the state to success for clearing.
-    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
-    ti_q.update({"state": initial_state})
+    ti = session.scalar(select(TaskInstance).where(TaskInstance.task_id == task_id).limit(1))
+    session.execute(update(TaskInstance).where(TaskInstance.task_id == task_id).values(state=initial_state))
     session.commit()
 
     # Send a request to clear.
-    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
     resp = client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
@@ -837,7 +841,7 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
         check_content_in_response("Access is Denied", resp)
 
     # Now the state should be None.
-    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    state = session.scalar(select(TaskInstance.state).where(TaskInstance.task_id == task_id).limit(1))
     assert state == (State.NONE if should_succeed else initial_state)
 
 
@@ -921,10 +925,11 @@ def test_task_instance_clear_failure(admin_client):
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
+    ti_stmt = select(TaskInstance).where(TaskInstance.task_id == task_id).limit(1)
 
     # Send a request to clear.
-    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
-    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    ti = session.scalar(ti_stmt)
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": action, "rowid": rowid},
@@ -933,7 +938,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
     assert resp.status_code == 200
 
     # Now the state should be modified.
-    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    state = session.scalar(ti_stmt).state
     assert state == expected_state
 
 
@@ -971,9 +976,11 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     for task_search_tuple in task_search_tuples:
         dag_id, task_id = task_search_tuple
         tasks_to_delete.append(
-            session.query(TaskInstance)
-            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
-            .one()
+            session.scalar(
+                select(TaskInstance)
+                .where(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+                .limit(1)
+            )
         )
 
     # add task reschedules for those tasks to make sure that the delete cascades to the required tables
@@ -1006,12 +1013,14 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     for task_search_tuple in task_search_tuples:
         dag_id, task_id = task_search_tuple
         assert (
-            session.query(TaskInstance)
-            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
-            .count()
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+            )
             == 0
         )
-    assert session.query(TaskReschedule).count() == 0
+    assert session.scalar(select(func.count()).select_from(TaskReschedule)) == 0
 
 
 def test_task_fail_duration(app, admin_client, dag_maker, session):
@@ -1024,26 +1033,18 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
         op1.run()
     op2.run()
 
-    op1_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "fail",
-            TaskFail.dag_id == dag.dag_id,
+    assert (
+        session.scalar(  # op1 failures
+            select(func.count()).where(TaskFail.task_id == "fail", TaskFail.dag_id == dag.dag_id)
         )
-        .all()
+        == 1
     )
-
-    op2_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "success",
-            TaskFail.dag_id == dag.dag_id,
+    assert (
+        session.scalar(  # op2 failures
+            select(func.count()).where(TaskFail.task_id == "success", TaskFail.dag_id == dag.dag_id)
         )
-        .all()
+        == 0
     )
-
-    assert len(op1_fails) == 1
-    assert len(op2_fails) == 0
 
     with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag

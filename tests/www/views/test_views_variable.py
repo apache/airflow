@@ -21,11 +21,12 @@ from io import BytesIO
 from unittest import mock
 
 import pytest
+from sqlalchemy import func, select, update
 
 from airflow.models import Variable
 from airflow.security import permissions
-from airflow.utils.session import create_session
 from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.db import clear_db_variables
 from tests.test_utils.www import (
     _check_last_log,
     check_content_in_response,
@@ -40,12 +41,14 @@ VARIABLE = {
     "description": "test_description",
     "is_encrypted": True,
 }
+VARIABLES_COUNT_STMT = select(func.count()).select_from(Variable)
 
 
 @pytest.fixture(autouse=True)
 def clear_variables():
-    with create_session() as session:
-        session.query(Variable).delete()
+    clear_db_variables()
+    yield
+    clear_db_variables()
 
 
 @pytest.fixture(scope="module")
@@ -77,9 +80,11 @@ def test_can_handle_error_on_decrypt(session, admin_client):
     admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
 
     # update the variable with a wrong value, given that is encrypted
-    session.query(Variable).filter(Variable.key == VARIABLE["key"]).update(
-        {"val": "failed_value_not_encrypted"},
-        synchronize_session=False,
+    session.execute(
+        update(Variable)
+        .where(Variable.key == VARIABLE["key"])
+        .values(val="failed_value_not_encrypted")
+        .execution_options(synchronize_session=False)
     )
     session.commit()
 
@@ -108,7 +113,7 @@ def test_import_variables_failed(session, admin_client):
 
     with mock.patch("airflow.models.Variable.set") as set_mock:
         set_mock.side_effect = UnicodeEncodeError
-        assert session.query(Variable).count() == 0
+        assert session.scalar(VARIABLES_COUNT_STMT) == 0
 
         bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
@@ -119,7 +124,7 @@ def test_import_variables_failed(session, admin_client):
 
 
 def test_import_variables_success(session, admin_client):
-    assert session.query(Variable).count() == 0
+    assert session.scalar(VARIABLES_COUNT_STMT) == 0
 
     content = '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
@@ -132,7 +137,7 @@ def test_import_variables_success(session, admin_client):
 
 
 def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
-    assert session.query(Variable).count() == 0
+    assert session.scalar(VARIABLES_COUNT_STMT) == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
@@ -147,7 +152,7 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
 
 
 def test_import_variables_skips_update_if_set(session, admin_client, caplog):
-    assert session.query(Variable).count() == 0
+    assert session.scalar(VARIABLES_COUNT_STMT) == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
@@ -167,7 +172,7 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
 
 
 def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_client, caplog):
-    assert session.query(Variable).count() == 0
+    assert session.scalar(VARIABLES_COUNT_STMT) == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
@@ -181,7 +186,7 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
 
 
 def test_import_variables_anon(session, app):
-    assert session.query(Variable).count() == 0
+    assert session.scalar(VARIABLES_COUNT_STMT) == 0
 
     content = '{"str_key": "str_value}'
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
@@ -217,7 +222,7 @@ def test_description_retrieval(session, admin_client):
     # create valid variable
     admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
 
-    row = session.query(Variable.key, Variable.description).first()
+    row = session.scalar(select(Variable).limit(1))
     assert row.key == "test_key" and row.description == "test_description"
 
 
@@ -230,9 +235,7 @@ def variable(session):
     )
     session.add(variable)
     session.commit()
-    yield variable
-    session.query(Variable).filter(Variable.key == VARIABLE["key"]).delete()
-    session.commit()
+    return variable
 
 
 def test_action_export(admin_client, variable):
@@ -254,7 +257,7 @@ def test_action_muldelete(session, admin_client, variable):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert session.query(Variable).filter(Variable.id == var_id).count() == 0
+    assert session.scalar(select(func.count()).where(Variable.id == var_id)) == 0
 
 
 def test_action_muldelete_access_denied(session, client_variable_reader, variable):

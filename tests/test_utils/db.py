@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import delete, select
+
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -49,32 +51,74 @@ from airflow.models.dataset import (
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
+from airflow.typing_compat import Literal
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
 
+SyncSessionTypeDef = Literal["auto", "fetch", "evaluate", False]
 
-def clear_db_runs():
+DELETE_CONNECTION_STMT = delete(Connection)
+DELETE_DAG_CODE_STMT = delete(DagCode)
+DELETE_DAG_MODEL_STMT = delete(DagModel)
+DELETE_DAG_OWNER_ATTRIBUTES_STMT = delete(DagOwnerAttributes)
+DELETE_DAG_RUN_STMT = delete(DagRun)
+DELETE_DAG_SCHEDULE_DATASET_REFERENCE_STMT = delete(DagScheduleDatasetReference)
+DELETE_DAG_TAG_STMT = delete(DagTag)
+DELETE_DAG_WARNING_STMT = delete(DagWarning)
+DELETE_DATASET_DAG_RUN_QUEUE_STMT = delete(DatasetDagRunQueue)
+DELETE_DATASET_EVENT_STMT = delete(DatasetEvent)
+DELETE_DATASET_MODEL_STMT = delete(DatasetModel)
+DELETE_DB_CALLBACK_REQUEST_STMT = delete(DbCallbackRequest)
+DELETE_IMPORT_ERROR_STMT = delete(errors.ImportError)
+DELETE_JOB_STMT = delete(Job)
+DELETE_LOG_STMT = delete(Log)
+DELETE_POOL_STMT = delete(Pool)
+DELETE_RENDERED_TI_FIELDS_STMT = delete(RenderedTaskInstanceFields)
+DELETE_SERIALIZED_DAG_MODEL_STMT = delete(SerializedDagModel)
+DELETE_SLA_MISS_STMT = delete(SlaMiss)
+DELETE_TASK_FAIL_STMT = delete(TaskFail)
+DELETE_TASK_OUTLET_DATASET_REFERENCE_STMT = delete(TaskOutletDatasetReference)
+DELETE_TASK_RESCHEDULE_STMT = delete(TaskReschedule)
+DELETE_TI_STMT = delete(TaskInstance)
+DELETE_TRIGGER_STMT = delete(Trigger)
+DELETE_VARIABLE_STMT = delete(Variable)
+DELETE_XCOM_STMT = delete(XCom)
+
+
+def _run_statements(*statements, synchronize_session: SyncSessionTypeDef):
     with create_session() as session:
-        session.query(Job).delete()
-        session.query(Trigger).delete()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
+        for stmt in statements:
+            session.execute(stmt.execution_options(synchronize_session=synchronize_session))
 
 
-def clear_db_datasets():
-    with create_session() as session:
-        session.query(DatasetEvent).delete()
-        session.query(DatasetModel).delete()
-        session.query(DatasetDagRunQueue).delete()
-        session.query(DagScheduleDatasetReference).delete()
-        session.query(TaskOutletDatasetReference).delete()
+def clear_db_runs(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(
+        DELETE_JOB_STMT,
+        DELETE_TRIGGER_STMT,
+        DELETE_DAG_RUN_STMT,
+        DELETE_TI_STMT,
+        synchronize_session=synchronize_session,
+    )
 
 
-def clear_db_dags():
-    with create_session() as session:
-        session.query(DagTag).delete()
-        session.query(DagOwnerAttributes).delete()
-        session.query(DagModel).delete()
+def clear_db_datasets(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(
+        DELETE_DATASET_EVENT_STMT,
+        DELETE_DATASET_MODEL_STMT,
+        DELETE_DATASET_DAG_RUN_QUEUE_STMT,
+        DELETE_DAG_SCHEDULE_DATASET_REFERENCE_STMT,
+        DELETE_TASK_OUTLET_DATASET_REFERENCE_STMT,
+        synchronize_session=synchronize_session,
+    )
+
+
+def clear_db_dags(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(
+        DELETE_DAG_TAG_STMT,
+        DELETE_DAG_OWNER_ATTRIBUTES_STMT,
+        DELETE_DAG_MODEL_STMT,
+        synchronize_session=synchronize_session,
+    )
 
 
 def drop_tables_with_prefix(prefix):
@@ -85,42 +129,38 @@ def drop_tables_with_prefix(prefix):
                 table.drop(session.bind)
 
 
-def clear_db_serialized_dags():
+def clear_db_serialized_dags(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_SERIALIZED_DAG_MODEL_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_sla_miss(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_SLA_MISS_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_pools(*, add_default_poll=True, synchronize_session: SyncSessionTypeDef = False):
     with create_session() as session:
-        session.query(SerializedDagModel).delete()
+        session.execute(DELETE_POOL_STMT.execution_options(synchronize_session=synchronize_session))
+        if add_default_poll:
+            add_default_pool_if_not_exists(session)
 
 
-def clear_db_sla_miss():
+def clear_db_connections(add_default_connections_back=True, synchronize_session: SyncSessionTypeDef = False):
     with create_session() as session:
-        session.query(SlaMiss).delete()
-
-
-def clear_db_pools():
-    with create_session() as session:
-        session.query(Pool).delete()
-        add_default_pool_if_not_exists(session)
-
-
-def clear_db_connections(add_default_connections_back=True):
-    with create_session() as session:
-        session.query(Connection).delete()
+        session.execute(DELETE_CONNECTION_STMT.execution_options(synchronize_session=synchronize_session))
         if add_default_connections_back:
             create_default_connections(session)
 
 
-def clear_db_variables():
-    with create_session() as session:
-        session.query(Variable).delete()
+def clear_db_variables(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_VARIABLE_STMT, synchronize_session=synchronize_session)
 
 
-def clear_db_dag_code():
-    with create_session() as session:
-        session.query(DagCode).delete()
+def clear_db_dag_code(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_DAG_CODE_STMT, synchronize_session=synchronize_session)
 
 
-def clear_db_callbacks():
-    with create_session() as session:
-        session.query(DbCallbackRequest).delete()
+def clear_db_callbacks(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_DB_CALLBACK_REQUEST_STMT, synchronize_session=synchronize_session)
 
 
 def set_default_pool_slots(slots):
@@ -129,61 +169,62 @@ def set_default_pool_slots(slots):
         default_pool.slots = slots
 
 
-def clear_rendered_ti_fields():
+def clear_rendered_ti_fields(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_RENDERED_TI_FIELDS_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_import_errors(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_IMPORT_ERROR_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_dag_warnings(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_DAG_WARNING_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_xcom(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_XCOM_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_logs(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_LOG_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_jobs(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_JOB_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_task_fail(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_TASK_FAIL_STMT, synchronize_session=synchronize_session)
+
+
+def clear_db_task_reschedule(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_TASK_RESCHEDULE_STMT, synchronize_session=synchronize_session)
+
+
+def clear_dag_specific_permissions(*, synchronize_session: SyncSessionTypeDef = False):
     with create_session() as session:
-        session.query(RenderedTaskInstanceFields).delete()
-
-
-def clear_db_import_errors():
-    with create_session() as session:
-        session.query(errors.ImportError).delete()
-
-
-def clear_db_dag_warnings():
-    with create_session() as session:
-        session.query(DagWarning).delete()
-
-
-def clear_db_xcom():
-    with create_session() as session:
-        session.query(XCom).delete()
-
-
-def clear_db_logs():
-    with create_session() as session:
-        session.query(Log).delete()
-
-
-def clear_db_jobs():
-    with create_session() as session:
-        session.query(Job).delete()
-
-
-def clear_db_task_fail():
-    with create_session() as session:
-        session.query(TaskFail).delete()
-
-
-def clear_db_task_reschedule():
-    with create_session() as session:
-        session.query(TaskReschedule).delete()
-
-
-def clear_dag_specific_permissions():
-    with create_session() as session:
-        dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
-        dag_resource_ids = [d.id for d in dag_resources]
-
-        dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
-        dag_permission_ids = [d.id for d in dag_permissions]
-
-        session.query(assoc_permission_role).filter(
-            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
-        ).delete(synchronize_session=False)
-        session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
-            synchronize_session=False
+        dag_resource_ids = tuple(
+            session.scalars(select(Resource.id).where(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")))
         )
-        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+        if not dag_resource_ids:
+            return
+
+        dag_permission_ids = tuple(
+            session.scalars(select(Permission.id).where(Permission.resource_id.in_(dag_resource_ids)))
+        )
+
+        delete_assoc_perm_role_stmt = delete(assoc_permission_role).where(
+            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
+        )
+        delete_permissions_stmt = delete(Permission).where(Permission.resource_id.in_(dag_resource_ids))
+        delete_resource_stmt = delete(Resource).where(Resource.id.in_(dag_resource_ids))
+
+        for stmt in (delete_assoc_perm_role_stmt, delete_permissions_stmt, delete_resource_stmt):
+            session.execute(stmt.execution_options(synchronize_session=synchronize_session))
+
+
+def clear_db_tags(*, synchronize_session: SyncSessionTypeDef = False):
+    _run_statements(DELETE_DAG_TAG_STMT, synchronize_session=synchronize_session)
 
 
 def clear_all():

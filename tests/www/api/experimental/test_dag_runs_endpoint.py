@@ -22,9 +22,9 @@ import json
 import pytest
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagRun
+from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.settings import Session
+from tests.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -32,10 +32,7 @@ pytestmark = pytest.mark.db_test
 class TestDagRunsEndpoint:
     @pytest.fixture(scope="class", autouse=True)
     def _setup_session(self):
-        session = Session()
-        session.query(DagRun).delete()
-        session.commit()
-        session.close()
+        clear_db_runs()
         dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -45,10 +42,7 @@ class TestDagRunsEndpoint:
     def _reset_test_session(self, experiemental_api_app):
         self.app = experiemental_api_app.test_client()
         yield
-        session = Session()
-        session.query(DagRun).delete()
-        session.commit()
-        session.close()
+        clear_db_runs()
 
     def test_get_dag_runs_success(self):
         url_template = "/api/experimental/dags/{}/dag_runs"

@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
+from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 
@@ -84,28 +85,20 @@ def client_dr_without_dag_run_create(app):
     delete_roles(app)
 
 
-@pytest.fixture(scope="module", autouse=True)
-def init_blank_dagrun():
-    """Make sure there are no runs before we test anything.
-
-    This really shouldn't be needed, but tests elsewhere leave the db dirty.
-    """
-    with create_session() as session:
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-
-
 @pytest.fixture(autouse=True)
 def reset_dagrun():
+    clear_db_runs()
     yield
-    with create_session() as session:
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
+    clear_db_runs()
+
+
+def _dag_run_count_stmt(dag_id: str):
+    return select(func.count()).where(DagRun.dag_id == dag_id)
 
 
 def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, client_dr_without_dag_edit):
     """Test that a user without dag_edit but with dag_read permission can view the records"""
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert session.scalar(_dag_run_count_stmt(running_dag_run.dag_id)) == 1
     resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
     check_content_in_response(running_dag_run.dag_id, resp)
 
@@ -171,18 +164,18 @@ def completed_dag_run_with_missing_task(session):
 
 def test_delete_dagrun(session, admin_client, running_dag_run):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert session.scalar(_dag_run_count_stmt(running_dag_run.dag_id)) == 1
     admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 0
+    assert session.scalar(_dag_run_count_stmt(running_dag_run.dag_id)) == 0
 
 
 def test_delete_dagrun_permission_denied(session, running_dag_run, client_dr_without_dag_edit):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
 
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert session.scalar(_dag_run_count_stmt(running_dag_run.dag_id)) == 1
     resp = client_dr_without_dag_edit.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
     check_content_in_response("Access is Denied", resp)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert session.scalar(_dag_run_count_stmt(running_dag_run.dag_id)) == 1
 
 
 @pytest.mark.parametrize(
@@ -230,7 +223,7 @@ def test_set_dag_runs_action(
         follow_redirects=True,
     )
     check_content_in_response(expected_message, resp)
-    assert {ti.state for ti in session.query(TaskInstance).all()} == expected_ti_states
+    assert {ti.state for ti in session.scalars(select(TaskInstance))} == expected_ti_states
 
 
 @pytest.mark.parametrize(
@@ -261,8 +254,8 @@ def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert session.query(TaskInstance).count() == 0  # associated TIs are deleted
-    assert session.query(DagRun).filter(DagRun.id == dag_run_id).count() == 0
+    assert session.scalar(select(func.count()).select_from(TaskInstance)) == 0  # associated TIs are deleted
+    assert session.scalar(_dag_run_count_stmt(dag_run_id)) == 0
 
 
 @pytest.mark.parametrize(

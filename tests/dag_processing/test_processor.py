@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow import PY311, settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
@@ -241,13 +242,8 @@ class TestDagFileProcessor:
         mock_get_dagbag.return_value = mock_dagbag
 
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
-        sla_miss_count = (
-            session.query(SlaMiss)
-            .filter(
-                SlaMiss.dag_id == dag.dag_id,
-                SlaMiss.task_id == task.task_id,
-            )
-            .count()
+        sla_miss_count = session.scalar(
+            select(func.count()).where(SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id == task.task_id)
         )
         assert sla_miss_count == 1
         mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
@@ -291,13 +287,8 @@ class TestDagFileProcessor:
         mock_get_dagbag.return_value = mock_dagbag
 
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
-        sla_miss_count = (
-            session.query(SlaMiss)
-            .filter(
-                SlaMiss.dag_id == dag.dag_id,
-                SlaMiss.task_id == task.task_id,
-            )
-            .count()
+        sla_miss_count = session.scalar(
+            select(func.count()).where(SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id == task.task_id)
         )
         assert sla_miss_count == 2
         mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
@@ -471,7 +462,6 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
         )
         with create_session() as session:
-            session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
@@ -504,7 +494,6 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
         )
         with create_session() as session:
-            session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
@@ -558,8 +547,7 @@ class TestDagFileProcessor:
         dag_file_processor.execute_callbacks(dagbag, requests)
 
         with create_session() as session:
-            tis = session.query(TaskInstance)
-            assert tis[0].hostname == "test_hostname"
+            assert session.scalar(select(TaskInstance.hostname)) == "test_hostname"
 
     def test_process_file_should_failure_callback(self, monkeypatch, tmp_path, get_test_dag):
         callback_file = tmp_path.joinpath("callback.txt")
@@ -602,7 +590,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -619,7 +607,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -637,21 +625,19 @@ class TestDagFileProcessor:
         # first we parse the dag
         self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
         # assert DagModel.has_import_errors is false
-        dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
-        assert not dm.has_import_errors
+        assert not session.scalar(select(DagModel).where(DagModel.fileloc == temp_dagfile)).has_import_errors
         # corrupt the file
         with open(temp_dagfile, "a") as file:
             file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.scalars(select(errors.ImportError)).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
         assert import_error.filename == temp_dagfile
         assert import_error.stacktrace
-        dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
-        assert dm.has_import_errors
+        assert session.scalar(select(DagModel).where(DagModel.fileloc == temp_dagfile)).has_import_errors
 
     def test_no_import_errors_with_parseable_dag(self, tmpdir):
         parseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
@@ -661,10 +647,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(parseable_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
-
-            assert len(import_errors) == 0
-
+            assert session.scalar(select(func.count()).select_from(errors.ImportError)) == 0
             session.rollback()
 
     def test_no_import_errors_with_parseable_dag_in_zip(self, tmpdir):
@@ -674,10 +657,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
-
-            assert len(import_errors) == 0
-
+            assert session.scalar(select(func.count()).select_from(errors.ImportError)) == 0
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
@@ -697,7 +677,7 @@ class TestDagFileProcessor:
             )
         self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.scalars(select(errors.ImportError)).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
@@ -719,17 +699,17 @@ class TestDagFileProcessor:
         session = settings.Session()
         self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
-        import_error_1 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
-        )
+        import_error_1 = session.execute(
+            select(errors.ImportError).where(errors.ImportError.filename == filename_to_parse)
+        ).scalar_one()
 
         # process the file multiple times
         for _ in range(10):
             self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
-        import_error_2 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
-        )
+        import_error_2 = session.execute(
+            select(errors.ImportError).where(errors.ImportError.filename == filename_to_parse)
+        ).scalar_one()
 
         # assert that the ID of the import error did not change
         assert import_error_1.id == import_error_2.id
@@ -747,11 +727,7 @@ class TestDagFileProcessor:
         with open(filename_to_parse, "w") as file_to_parse:
             file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
-
-        import_errors = session.query(errors.ImportError).all()
-
-        assert len(import_errors) == 0
-
+        assert session.scalar(select(func.count()).select_from(errors.ImportError)) == 0
         session.rollback()
 
     def test_remove_error_clears_import_error_zip(self, tmpdir):
@@ -763,17 +739,14 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(zip_filename, dag_directory=tmpdir, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
-        assert len(import_errors) == 1
+        assert session.scalar(select(func.count()).select_from(errors.ImportError)) == 1
 
         # Remove the import error from the file
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, "import os # airflow DAG")
         self._process_file(zip_filename, dag_directory=tmpdir, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
-        assert len(import_errors) == 0
-
+        assert session.scalar(select(func.count()).select_from(errors.ImportError)) == 0
         session.rollback()
 
     def test_import_error_tracebacks(self, tmpdir):
@@ -783,7 +756,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -820,7 +793,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -852,7 +825,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -890,7 +863,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.scalars(select(errors.ImportError)).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]

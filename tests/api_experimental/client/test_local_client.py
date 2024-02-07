@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import func, select
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
@@ -51,11 +52,12 @@ class TestLocalClient:
     def setup_class(cls):
         DagBag(example_bash_operator.__file__, include_examples=False).sync_to_db()
 
+    @pytest.fixture(autouse=True)
     def setup_method(self):
         clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
-
-    def teardown_method(self):
+        self.pools_count_stmt = select([func.count()]).select_from(Pool)
+        yield
         clear_db_pools()
 
     @patch.object(DAG, "create_dagrun")
@@ -174,16 +176,17 @@ class TestLocalClient:
 
     def test_delete_dag(self):
         key = "my_dag_id"
+        dm_count_stmt = select([func.count()]).where(DagModel.dag_id == key)
 
         with create_session() as session:
-            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 0
+            assert session.scalar(dm_count_stmt) == 0
             session.add(DagModel(dag_id=key))
 
         with create_session() as session:
-            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 1
+            assert session.scalar(dm_count_stmt) == 1
 
             self.client.delete_dag(dag_id=key)
-            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 0
+            assert session.scalar(dm_count_stmt) == 0
 
     def test_get_pool(self):
         self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
@@ -208,7 +211,7 @@ class TestLocalClient:
         pool = self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
         assert pool == ("foo", 1, "")
         with create_session() as session:
-            assert session.query(Pool).count() == 2
+            assert session.scalar(self.pools_count_stmt) == 2
 
     def test_create_pool_bad_slots(self):
         with pytest.raises(AirflowBadRequest, match="^Bad value for `slots`: foo$"):
@@ -235,10 +238,10 @@ class TestLocalClient:
     def test_delete_pool(self):
         self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
         with create_session() as session:
-            assert session.query(Pool).count() == 2
+            assert session.scalar(self.pools_count_stmt) == 2
         self.client.delete_pool(name="foo")
         with create_session() as session:
-            assert session.query(Pool).count() == 1
+            assert session.scalar(self.pools_count_stmt) == 1
         for name in ("", "    "):
             with pytest.raises(PoolNotFound, match=f"^Pool {name!r} doesn't exist$"):
                 Pool.delete_pool(name=name)

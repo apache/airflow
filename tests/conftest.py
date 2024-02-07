@@ -33,6 +33,7 @@ import time_machine
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 from itsdangerous import URLSafeSerializer
+from sqlalchemy import delete
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
@@ -797,35 +798,26 @@ def dag_maker(request):
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
+            dag_ids = list(self.dagbag.dag_ids)
+            if not dag_ids:
+                return
+
+            statements = [
+                delete(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_ids)),
+                delete(DagRun).where(DagRun.dag_id.in_(dag_ids)),
+                delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)),
+                delete(XCom).where(XCom.dag_id.in_(dag_ids)),
+                delete(DagModel).where(DagModel.dag_id.in_(dag_ids)),
+                delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)),
+                delete(DatasetEvent).where(DatasetEvent.source_dag_id.in_(dag_ids)),
+            ]
+
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
-                    dag_ids = list(self.dagbag.dag_ids)
-                    if not dag_ids:
-                        return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
-
-                    self.session.query(SerializedDagModel).filter(
-                        SerializedDagModel.dag_id.in_(dag_ids)
-                    ).delete(synchronize_session=False)
-                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(DatasetEvent).filter(DatasetEvent.source_dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
+                    for stmt in statements:
+                        self.session.execute(stmt, execution_options={"synchronize_session": False})
                     self.session.commit()
                     if self._own_session:
                         self.session.expunge_all()

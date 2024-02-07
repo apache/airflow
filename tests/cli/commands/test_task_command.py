@@ -36,6 +36,7 @@ from unittest.mock import sentinel
 import pendulum
 import pytest
 import sqlalchemy.exc
+from sqlalchemy import select
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
@@ -60,14 +61,6 @@ if TYPE_CHECKING:
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = Path(__file__).parents[3].resolve()
-
-
-def reset(dag_id):
-    with create_session() as session:
-        tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
-        tis.delete()
-        runs = session.query(DagRun).filter_by(dag_id=dag_id)
-        runs.delete()
 
 
 @contextmanager
@@ -210,10 +203,8 @@ class TestCliTasks:
         with move_back(orig_file_path, new_file_path), conf_vars(
             {("core", "dags_folder"): new_dags_folder.as_posix()}
         ):
-            ser_dag = (
-                session.query(SerializedDagModel)
-                .filter(SerializedDagModel.dag_id == "test_dags_folder")
-                .one()
+            ser_dag = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == "test_dags_folder").limit(1)
             )
             # confirm that the serialized dag location has not been updated
             assert ser_dag.fileloc == orig_file_path.as_posix()
@@ -236,15 +227,15 @@ class TestCliTasks:
                     ]
                 )
             )
-        ti = (
-            session.query(TaskInstance)
-            .filter(
+        ti = session.scalar(
+            select(TaskInstance)
+            .where(
                 TaskInstance.task_id == "task",
                 TaskInstance.dag_id == "test_dags_folder",
                 TaskInstance.run_id == "abc123",
                 TaskInstance.map_index == -1,
             )
-            .one()
+            .limit(1)
         )
         assert ti.state == "success"
         # verify that the file was in different location when run
@@ -631,11 +622,11 @@ class TestCliTasks:
 
 class TestLogsfromTaskRunCommand:
     def setup_method(self) -> None:
+        clear_db_runs()
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
         self.run_id = "test_run"
         self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
-        reset(self.dag_id)
         self.execution_date = timezone.datetime(2017, 1, 1)
         self.execution_date_str = self.execution_date.isoformat()
         self.task_args = ["tasks", "run", self.dag_id, self.task_id, "--local", self.execution_date_str]
@@ -669,7 +660,7 @@ class TestLogsfromTaskRunCommand:
         root.handlers[:] = self.root_handlers
         root.filters[:] = self.root_filters
 
-        reset(self.dag_id)
+        clear_db_runs()
         with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
 
@@ -821,10 +812,10 @@ class TestLogsfromTaskRunCommand:
             pool = Pool(pool=pool_name, slots=1, include_deferred=False)
             session.add(pool)
             session.commit()
-
-            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
+            ti_stmt = select(TaskInstance).where(TaskInstance.pool == pool_name).limit(1)
+            assert session.scalar(ti_stmt) is None
             task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
-            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
+            assert session.scalar(ti_stmt) is not None
 
             session.delete(pool)
             session.commit()
@@ -858,7 +849,7 @@ class TestLogsfromTaskRunCommand:
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             # increment the try_number of the task to be run
             with create_session() as session:
-                ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
+                ti = session.scalar(select(TaskInstance).where(TaskInstance.run_id == self.run_id).limit(1))
                 ti.try_number = 1
 
             log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
@@ -928,11 +919,11 @@ class TestLogsfromTaskRunCommand:
 
 
 def test_context_with_run():
+    clear_db_runs()
     dag_id = "test_parsing_context"
     task_id = "task1"
     run_id = "test_run"
     dag_path = os.path.join(ROOT_FOLDER, "dags", "test_parsing_context.py")
-    reset(dag_id)
     execution_date = timezone.datetime(2017, 1, 1)
     execution_date_str = execution_date.isoformat()
     task_args = ["tasks", "run", dag_id, task_id, "--local", execution_date_str]

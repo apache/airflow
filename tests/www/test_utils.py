@@ -27,6 +27,7 @@ import pendulum
 import pytest
 from bs4 import BeautifulSoup
 from markupsafe import Markup
+from sqlalchemy import select
 
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
@@ -443,7 +444,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
             dag.create_dagrun(execution_date=date, state="running", run_type="scheduled")
-    dag_runs = session.query(DagRun).all()
+    dag_runs = tuple(session.scalars(select(DagRun)))
     assert len(dag_runs) == 9
     assert len(set(x.run_id for x in dag_runs)) == 3
     run_id_for_single_delete = "scheduled__2023-01-01T00:00:00+00:00"
@@ -455,7 +456,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     one_run = next(x for x in dag_runs if x.run_id == run_id_for_single_delete)
     assert interface.delete(item=one_run) is True
     session.commit()
-    dag_runs = session.query(DagRun).all()
+    dag_runs = tuple(session.scalars(select(DagRun)))
     # we should have one fewer dag run now
     assert len(dag_runs) == 8
 
@@ -471,7 +472,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     # now try multi delete
     assert interface.delete_all(items=to_delete) is True
     session.commit()
-    dag_runs = session.query(DagRun).all()
+    dag_runs = tuple(session.scalars(select(DagRun)))
     assert len(dag_runs) == 6
     assert len(set(x.dag_id for x in dag_runs)) == 3
     assert len(set(x.run_id for x in dag_runs)) == 3
