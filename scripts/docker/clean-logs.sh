@@ -30,14 +30,10 @@ echo "Cleaning logs every $EVERY seconds"
 
 while true; do
   echo "Trimming airflow logs to ${RETENTION} days."
-
-  files=$(find "${DIRECTORY}"/logs \
+  find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${RETENTION}" -name '*.log' || true)
-
-  for file in ${files}; do
-    rm -f ${file} || true
-  done
+    -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
+    xargs -0 rm -f || true
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
