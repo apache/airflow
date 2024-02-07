@@ -76,10 +76,8 @@ Execute a PowerShell Cmdlet
 Any native (or custom) PowerShell cmdlet can be executed by the user, for example:
 .. exampleinclude:: /../../tests/system/providers/microsoft/psrp/example_psrp.py
     :language: python
-    :dedent: 0
     :start-after: [START run_operator]
     :end-before: [END run_operator]
-
 
 
 Output
