@@ -241,7 +241,7 @@ def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: st
 def get_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get queued Dataset events for a Dataset"""
+    """Get queued Dataset events for a Dataset."""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
     ddrqs = None
     if where_clauses:
@@ -263,7 +263,7 @@ def get_dataset_queue_events(
 def delete_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete queued Dataset events for a Dataset"""
+    """Delete queued Dataset events for a Dataset."""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
     if where_clauses:
         delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)

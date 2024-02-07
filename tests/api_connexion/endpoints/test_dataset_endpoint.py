@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import urllib
+from typing import Generator
 
 import pytest
+import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dagrun import DagRun
@@ -611,7 +613,44 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         assert len(response.json["dataset_events"]) == 150
 
 
-class TestGetDagDatasetQueueEvent(TestDatasetEndpoint):
+class TestQueueEventEndpoint(TestDatasetEndpoint):
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
+
+    def _create_dataset_dag_run_queues(self, dag_id, dataset_id, session):
+        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(ddrq)
+        session.commit()
+        return ddrq
+
+
+class TestGetDagDatasetQueueEvent(TestQueueEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_id = self._create_dataset(session).id
+        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
+        dataset_uri = "s3://bucket/key"
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            "created_at": self.default_time,
+            "dataset_id": 1,
+            "target_dag_id": "dag",
+        }
+
     def test_should_respond_404(self):
         dag_id = "not_exists"
         dataset_uri = "not_exists"
@@ -704,7 +743,31 @@ class TestDeleteDagDatasetQueueEvent(TestDatasetEndpoint):
         assert response.status_code == 403
 
 
-class TestGetDagDatasetQueueEvents(TestDatasetEndpoint):
+class TestGetDagDatasetQueueEvents(TestQueueEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, session, create_dummy_dag, time_freezer):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_id = self._create_dataset(session).id
+        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            "dataset_dag_run_queues": [
+                {
+                    "created_at": self.default_time,
+                    "dataset_id": 1,
+                    "target_dag_id": "dag",
+                }
+            ],
+            "total_entries": 1,
+        }
+
     def test_should_respond_404(self):
         dag_id = "not_exists"
 
@@ -774,7 +837,32 @@ class TestDeleteDagDatasetQueueEvents(TestDatasetEndpoint):
         assert response.status_code == 403
 
 
-class TestGetDatasetQueueEvents(TestDatasetEndpoint):
+class TestGetDatasetQueueEvents(TestQueueEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_id = self._create_dataset(session).id
+        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
+        dataset_uri = "s3://bucket/key"
+
+        response = self.client.get(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            "dataset_dag_run_queues": [
+                {
+                    "created_at": self.default_time,
+                    "dataset_id": 1,
+                    "target_dag_id": "dag",
+                }
+            ],
+            "total_entries": 1,
+        }
+
     def test_should_respond_404(self):
         dataset_uri = "not_exists"
 
@@ -809,7 +897,23 @@ class TestGetDatasetQueueEvents(TestDatasetEndpoint):
         assert response.status_code == 403
 
 
-class TestDeleteDatasetQueueEvents(TestDatasetEndpoint):
+class TestDeleteDatasetQueueEvents(TestQueueEventEndpoint):
+    def test_delete_should_respond_204(self, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_id = self._create_dataset(session).id
+        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
+        dataset_uri = "s3://bucket/key"
+
+        response = self.client.delete(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 204
+        conn = session.query(DatasetDagRunQueue).all()
+        assert len(conn) == 0
+
     def test_should_respond_404(self):
         dataset_uri = "not_exists"
 
