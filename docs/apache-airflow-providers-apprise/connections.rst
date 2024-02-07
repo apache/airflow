@@ -68,7 +68,7 @@ The configuration can be provided in an environment variable.
 
 .. code-block:: bash
 
-    AIRFLOW_CONN_APPRISE_DEFAULT='{"extra": {"config": {"path": "https://hooks.slack.com/services/T1JJ3T3L2/A1BRTD4JD/TIiajkdnlazkcOXrIdevi7F", "tags": "alert"}}}'
+    AIRFLOW_CONN_APPRISE_DEFAULT='{"extra": {"config": {"path": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX", "tags": "alert"}}}'
 
 
 .. seealso::
