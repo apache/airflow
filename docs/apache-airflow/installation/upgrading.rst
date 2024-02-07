@@ -68,7 +68,7 @@ to get the SQL statements that would be executed. You may also specify the start
 from Airflow 2.0.0 onward.
 
 Sample usage for Airflow version 2.7.0 or greater:
-   ``airflow db migrate -s --from-version "2.4.3" --to-version "2.7.3"``
+   ``airflow db migrate -s --from-version "2.4.3" -n "2.7.3"``
    ``airflow db migrate --show-sql-only --from-version "2.4.3" --to-version "2.7.3"``
 
 .. note::
