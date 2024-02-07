@@ -134,6 +134,8 @@ def get_dataset_events(
 def _get_ddrq(dag_id: str, uri: str, session: Session, before: str | None = None) -> DatasetDagRunQueue:
     """Get DatasetDagRunQueue."""
     dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri))
+    if not dataset:
+        return None
     dataset_id = dataset.id
 
     where_clause_conditions = [
@@ -147,7 +149,6 @@ def _get_ddrq(dag_id: str, uri: str, session: Session, before: str | None = None
 
 
 @security.requires_access_dataset("GET")
-@security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -156,14 +157,13 @@ def get_dag_dataset_queue_event(
     ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
     if ddrq is None:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dag_id: `{dag_id}` and daatset uri: `{uri}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
         )
     return dataset_dag_run_queue_schema.dump(ddrq)
 
 
 @security.requires_access_dataset("DELETE")
-@security.requires_access_dag("DELETE")
 @provide_session
 def delete_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -172,8 +172,8 @@ def delete_dag_dataset_queue_event(
     ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
     if ddrq is None:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dag_id: `{dag_id}` and daatset uri: `{uri}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
         )
     session.delete(ddrq)
     return NoContent, HTTPStatus.NO_CONTENT
@@ -187,7 +187,6 @@ def _build_get_ddrqs_where_clause(dag_id: str, before: str | None = None):
 
 
 @security.requires_access_dataset("GET")
-@security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -199,8 +198,8 @@ def get_dag_dataset_queue_events(
     ddrqs = session.scalars(query).all()
     if not ddrqs:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dag_id: `{dag_id}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dag_id: `{dag_id}` was not found",
         )
     return dataset_dag_run_queue_collection_schema.dump(
         DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
@@ -208,7 +207,6 @@ def get_dag_dataset_queue_events(
 
 
 @security.requires_access_dataset("DELETE")
-@security.requires_access_dag("DELETE")
 @provide_session
 def delete_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -219,8 +217,8 @@ def delete_dag_dataset_queue_events(
     ddrqs = session.scalars(query).all()
     if not ddrqs:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dag_id: `{dag_id}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dag_id: `{dag_id}` was not found",
         )
     delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
     session.execute(delete_stmt)
@@ -229,6 +227,8 @@ def delete_dag_dataset_queue_events(
 
 def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: str | None = None):
     dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri))
+    if not dataset:
+        return None
     dataset_id = dataset.id
 
     where_clauses = [DatasetDagRunQueue.dataset_id == dataset_id]
@@ -238,20 +238,21 @@ def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: st
 
 
 @security.requires_access_dataset("GET")
-@security.requires_access_dag("GET")
 @provide_session
 def get_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued Dataset events for a Dataset"""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
-    query = select(DatasetDagRunQueue).where(*where_clauses)
-    total_entries = get_query_count(query, session=session)
-    ddrqs = session.scalars(query).all()
-    if not ddrqs:
+    ddrqs = None
+    if where_clauses:
+        query = select(DatasetDagRunQueue).where(*where_clauses)
+        total_entries = get_query_count(query, session=session)
+        ddrqs = session.scalars(query).all()
+    if not where_clauses or not ddrqs:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dataset uri: `{uri}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dataset uri: `{uri}` was not found",
         )
     return dataset_dag_run_queue_collection_schema.dump(
         DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
@@ -259,19 +260,20 @@ def get_dataset_queue_events(
 
 
 @security.requires_access_dataset("DELETE")
-@security.requires_access_dag("DELETE")
 @provide_session
 def delete_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued Dataset events for a Dataset"""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
-    query = select(DatasetDagRunQueue).where(*where_clauses)
-    ddrqs = session.scalars(query).all()
-    if not ddrqs:
+    ddrqs = None
+    if where_clauses:
+        query = select(DatasetDagRunQueue).where(*where_clauses)
+        ddrqs = session.scalars(query).all()
+    if not where_clauses or not ddrqs:
         raise NotFound(
-            "Pending event not found",
-            detail=f"Pending event with dataset uri: `{uri}` was not found",
+            "Queue event not found",
+            detail=f"Queue event with dataset uri: `{uri}` was not found",
         )
     delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
     session.execute(delete_stmt)

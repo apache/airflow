@@ -231,19 +231,19 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/{uri}/pendingEvents": {
+  "/dags/{dag_id}/datasets/eventQueue/{uri}": {
     /**
-     * Get a Dag Dataset pending event.
+     * Get a queued Dataset event for a DAG.
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dag_dataset_pending_event"];
+    get: operations["get_dag_dataset_queue_event"];
     /**
-     * Delete a Dag Dataset pending event.
+     * Delete a queued Dataset event for a DAG.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_pending_event"];
+    delete: operations["delete_dag_dataset_queue_event"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -253,19 +253,19 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/pendingEvents": {
+  "/dags/{dag_id}/datasets/eventQueue": {
     /**
-     * Get Dag Dataset pending events.
+     * Get queued Dataset events for a DAG.
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dag_dataset_pending_events"];
+    get: operations["get_dag_dataset_queue_events"];
     /**
-     * Delete Dag Dataset pending events.
+     * Delete queued Dataset events for a DAG.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_pending_events"];
+    delete: operations["delete_dag_dataset_queue_events"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -273,19 +273,19 @@ export interface paths {
       };
     };
   };
-  "/datasets/{uri}/pendingEvents": {
+  "/datasets/eventQueue/{uri}": {
     /**
-     * Get Dataset pending events.
+     * Get queued Dataset events for a Dataset
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dataset_pending_events"];
+    get: operations["get_dataset_queue_events"];
     /**
-     * Delete Dataset pending events.
+     * Delete queued Dataset events for a Dataset.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dataset_pending_events"];
+    delete: operations["delete_dataset_queue_events"];
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -3328,11 +3328,11 @@ export interface operations {
     };
   };
   /**
-   * Get a Dag Dataset pending event.
+   * Get a queued Dataset event for a DAG.
    *
    * *New in version 2.9.0*
    */
-  get_dag_dataset_pending_event: {
+  get_dag_dataset_queue_event: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3358,11 +3358,11 @@ export interface operations {
     };
   };
   /**
-   * Delete a Dag Dataset pending event.
+   * Delete a queued Dataset event for a DAG.
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_pending_event: {
+  delete_dag_dataset_queue_event: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3385,11 +3385,11 @@ export interface operations {
     };
   };
   /**
-   * Get Dag Dataset pending events.
+   * Get queued Dataset events for a DAG.
    *
    * *New in version 2.9.0*
    */
-  get_dag_dataset_pending_events: {
+  get_dag_dataset_queue_events: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3413,11 +3413,11 @@ export interface operations {
     };
   };
   /**
-   * Delete Dag Dataset pending events.
+   * Delete queued Dataset events for a DAG.
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_pending_events: {
+  delete_dag_dataset_queue_events: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3438,11 +3438,11 @@ export interface operations {
     };
   };
   /**
-   * Get Dataset pending events.
+   * Get queued Dataset events for a Dataset
    *
    * *New in version 2.9.0*
    */
-  get_dataset_pending_events: {
+  get_dataset_queue_events: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -3466,11 +3466,11 @@ export interface operations {
     };
   };
   /**
-   * Delete Dataset pending events.
+   * Delete queued Dataset events for a Dataset.
    *
    * *New in version 2.9.0*
    */
-  delete_dataset_pending_events: {
+  delete_dataset_queue_events: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -5333,29 +5333,29 @@ export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
 >;
-export type GetDagDatasetPendingEventVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_dataset_pending_event"]["parameters"]["path"] &
-    operations["get_dag_dataset_pending_event"]["parameters"]["query"]
+export type GetDagDatasetQueueEventVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queue_event"]["parameters"]["path"] &
+    operations["get_dag_dataset_queue_event"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetPendingEventVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_pending_event"]["parameters"]["path"] &
-    operations["delete_dag_dataset_pending_event"]["parameters"]["query"]
+export type DeleteDagDatasetQueueEventVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queue_event"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queue_event"]["parameters"]["query"]
 >;
-export type GetDagDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_dataset_pending_events"]["parameters"]["path"] &
-    operations["get_dag_dataset_pending_events"]["parameters"]["query"]
+export type GetDagDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queue_events"]["parameters"]["path"] &
+    operations["get_dag_dataset_queue_events"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_pending_events"]["parameters"]["path"] &
-    operations["delete_dag_dataset_pending_events"]["parameters"]["query"]
+export type DeleteDagDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queue_events"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queue_events"]["parameters"]["query"]
 >;
-export type GetDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_dataset_pending_events"]["parameters"]["path"] &
-    operations["get_dataset_pending_events"]["parameters"]["query"]
+export type GetDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dataset_queue_events"]["parameters"]["path"] &
+    operations["get_dataset_queue_events"]["parameters"]["query"]
 >;
-export type DeleteDatasetPendingEventsVariables = CamelCasedPropertiesDeep<
-  operations["delete_dataset_pending_events"]["parameters"]["path"] &
-    operations["delete_dataset_pending_events"]["parameters"]["query"]
+export type DeleteDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dataset_queue_events"]["parameters"]["path"] &
+    operations["delete_dataset_queue_events"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]

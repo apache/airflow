@@ -1091,7 +1091,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/{uri}/eventQueue:
+  /datasets/eventQueue/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
 

@@ -49,16 +49,17 @@ def configured_app(minimal_app_for_api):
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(
         app,  # type: ignore
-        username="test_ddrq",
-        role_name="TestDDRQ",
+        username="test_queue_event",
+        role_name="TestQueueEvent",
         permissions=[
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
         ],
     )
 
     yield app
 
-    delete_user(app, username="test_ddrq")  # type: ignore
+    delete_user(app, username="test_queue_event")  # type: ignore
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
@@ -610,10 +611,49 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         assert len(response.json["dataset_events"]) == 150
 
 
-class TestDeleteDatasetDagRunQueue(TestDatasetEndpoint):
+class TestGetDagDatasetQueueEvent(TestDatasetEndpoint):
+    def test_should_respond_404(self):
+        dag_id = "not_exists"
+        dataset_uri = "not_exists"
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 404
+        assert {
+            "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
+            "status": 404,
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self, session):
+        dag_id = "dummy"
+        dataset_uri = "dummy"
+
+        response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self, session):
+        dag_id = "dummy"
+        dataset_uri = "dummy"
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+
+class TestDeleteDagDatasetQueueEvent(TestDatasetEndpoint):
     def test_delete_should_respond_204(self, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
+        dataset_uri = "s3://bucket/key"
         dataset_id = self._create_dataset(session).id
 
         ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
@@ -623,9 +663,8 @@ class TestDeleteDatasetDagRunQueue(TestDatasetEndpoint):
         assert len(conn) == 1
 
         response = self.client.delete(
-            f"/api/v1/dags/{dag_id}/datasets/{dataset_id}/datasetDagRunQueue",
-            json={"cutoff_time": None},
-            environ_overrides={"REMOTE_USER": "test_ddrq"},
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
         )
 
         assert response.status_code == 204
@@ -633,31 +672,173 @@ class TestDeleteDatasetDagRunQueue(TestDatasetEndpoint):
         assert len(conn) == 0
 
     def test_should_respond_404(self):
+        dag_id = "not_exists"
+        dataset_uri = "not_exists"
+
         response = self.client.delete(
-            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue",
-            json={"cutoff_time": None},
-            environ_overrides={"REMOTE_USER": "test_ddrq"},
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
         )
+
         assert response.status_code == 404
         assert {
-            "detail": "The DatasetDagRunQueue with dag_id: `not_exists` and dataset_id: `1` was not found",
+            "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "DatasetDagRunQueue not found",
+            "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):
-        self._create_dataset(session)
-        response = self.client.delete(
-            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue", json={"cutoff_time": None}
-        )
+        dag_id = "dummy"
+        dataset_uri = "dummy"
+        response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self, session):
-        self._create_dataset(session)
+        dag_id = "dummy"
+        dataset_uri = "dummy"
         response = self.client.delete(
-            "/api/v1/dags/not_exists/datasets/1/datasetDagRunQueue",
-            json={"cutoff_time": None},
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue/{dataset_uri}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
+        assert response.status_code == 403
+
+
+class TestGetDagDatasetQueueEvents(TestDatasetEndpoint):
+    def test_should_respond_404(self):
+        dag_id = "not_exists"
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 404
+        assert {
+            "detail": "Queue event with dag_id: `not_exists` was not found",
+            "status": 404,
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self):
+        dag_id = "dummy"
+
+        response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/eventQueue")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        dag_id = "dummy"
+
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+
+class TestDeleteDagDatasetQueueEvents(TestDatasetEndpoint):
+    def test_should_respond_404(self):
+        dag_id = "not_exists"
+
+        response = self.client.delete(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 404
+        assert {
+            "detail": "Queue event with dag_id: `not_exists` was not found",
+            "status": 404,
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self):
+        dag_id = "dummy"
+
+        response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/eventQueue")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        dag_id = "dummy"
+
+        response = self.client.delete(
+            f"/api/v1/dags/{dag_id}/datasets/eventQueue",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+
+class TestGetDatasetQueueEvents(TestDatasetEndpoint):
+    def test_should_respond_404(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.get(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 404
+        assert {
+            "detail": "Queue event with dataset uri: `not_exists` was not found",
+            "status": 404,
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.get(f"/api/v1/datasets/eventQueue/{dataset_uri}")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.get(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+
+class TestDeleteDatasetQueueEvents(TestDatasetEndpoint):
+    def test_should_respond_404(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.delete(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_queue_event"},
+        )
+
+        assert response.status_code == 404
+        assert {
+            "detail": "Queue event with datast_uri: `not_exists` was not found",
+            "status": 404,
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
+
+    def test_should_raises_401_unauthenticated(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.delete(f"/api/v1/datasets/eventQueue/{dataset_uri}")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        dataset_uri = "not_exists"
+
+        response = self.client.delete(
+            f"/api/v1/datasets/eventQueue/{dataset_uri}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
         assert response.status_code == 403
