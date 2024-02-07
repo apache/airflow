@@ -243,15 +243,6 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
-  "apache.sqoop": {
-    "deps": [
-      "apache-airflow>=2.6.0"
-    ],
-    "devel-deps": [],
-    "cross-providers-deps": [],
-    "excluded-python-versions": [],
-    "state": "suspended"
-  },
   "apprise": {
     "deps": [
       "apache-airflow>=2.6.0",
