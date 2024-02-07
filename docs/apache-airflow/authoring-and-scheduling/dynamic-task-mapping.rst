@@ -171,6 +171,23 @@ As well as a single parameter it is possible to pass multiple parameters to expa
 
 This would result in the add task being called 6 times. Please note, however, that the order of expansion is not guaranteed.
 
+Named mapping
+-------------
+
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input.
+Consider the following example:
+
+.. code-block:: python
+
+    @task(map_index_template="{{ my_template }}")
+    def my_task(my_template, **kwargs):
+        context = get_current_context()
+        context.update({"my_template": my_template})
+
+    my_task.expand(my_template=["abc", "def"])
+
+In this example, the the tasks will be named "abc" and "def" in the Airflow UI instead of 0 and 1, respectively.
+
 Mapping with non-TaskFlow operators
 ===================================
 
