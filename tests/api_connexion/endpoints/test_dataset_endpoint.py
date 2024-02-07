@@ -820,7 +820,7 @@ class TestDeleteDatasetQueueEvents(TestDatasetEndpoint):
 
         assert response.status_code == 404
         assert {
-            "detail": "Queue event with datast_uri: `not_exists` was not found",
+            "detail": "Queue event with dataset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],

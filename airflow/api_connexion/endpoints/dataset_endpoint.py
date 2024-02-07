@@ -213,16 +213,15 @@ def delete_dag_dataset_queue_events(
 ) -> APIResponse:
     """Delete queued Dataset events for a DAG."""
     where_clauses = _build_get_ddrqs_where_clause(dag_id=dag_id, before=before)
-    query = select(DatasetDagRunQueue).where(*where_clauses)
-    ddrqs = session.scalars(query).all()
-    if not ddrqs:
-        raise NotFound(
-            "Queue event not found",
-            detail=f"Queue event with dag_id: `{dag_id}` was not found",
-        )
-    delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
-    session.execute(delete_stmt)
-    return NoContent, HTTPStatus.NO_CONTENT
+    if where_clauses:
+        delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
+        s = session.execute(delete_stmt)
+        if s.rowcount:
+            return NoContent, HTTPStatus.NO_CONTENT
+    raise NotFound(
+        "Queue event not found",
+        detail=f"Queue event with dag_id: `{dag_id}` was not found",
+    )
 
 
 def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: str | None = None):
@@ -266,15 +265,12 @@ def delete_dataset_queue_events(
 ) -> APIResponse:
     """Delete queued Dataset events for a Dataset"""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
-    ddrqs = None
     if where_clauses:
-        query = select(DatasetDagRunQueue).where(*where_clauses)
-        ddrqs = session.scalars(query).all()
-    if not where_clauses or not ddrqs:
-        raise NotFound(
-            "Queue event not found",
-            detail=f"Queue event with dataset uri: `{uri}` was not found",
-        )
-    delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
-    session.execute(delete_stmt)
-    return NoContent, HTTPStatus.NO_CONTENT
+        delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
+        s = session.execute(delete_stmt)
+        if s.rowcount:
+            return NoContent, HTTPStatus.NO_CONTENT
+    raise NotFound(
+        "Queue event not found",
+        detail=f"Queue event with dataset uri: `{uri}` was not found",
+    )
