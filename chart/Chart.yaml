@@ -65,198 +65,151 @@ annotations:
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/2.8.1/_images/code.png
   artifacthub.io/changes: |
-    - description: Add support for scheduler name to PODs templates
+    - description: Enable native HPA for Airflow Workers
       kind: added
       links:
-      - name: '#33843'
-        url: https://github.com/apache/airflow/pull/33843
-    - description: Support KEDA scaling for triggerer
+      - name: '#36174'
+        url: https://github.com/apache/airflow/pull/36174
+    - description: Add init container + sidecar support for Airflow Kerberos
       kind: added
       links:
-      - name: '#32302'
-        url: https://github.com/apache/airflow/pull/32302
-    - description: Add support for container lifecycle hooks
+      - name: '#35548'
+        url: https://github.com/apache/airflow/pull/35548
+    - description: Support MySQL backend as KEDA trigger
       kind: added
       links:
-      - name: '#32349'
-        url: https://github.com/apache/airflow/pull/32349
-    - description: Support naming customization on helm chart resources
-      kind: added
-      links:
-      - name: '#31066'
-        url: https://github.com/apache/airflow/pull/31066
-    - description: Adding ``startupProbe`` to scheduler and webserver
-      kind: added
-      links:
-      - name: '#33107'
-        url: https://github.com/apache/airflow/pull/33107
-    - description: Allow disabling token mounts using ``automountServiceAccountToken``
-      kind: added
-      links:
-      - name: '#32808'
-        url: https://github.com/apache/airflow/pull/32808
-    - description: Add support for defining custom priority classes
-      kind: added
-      links:
-      - name: '#31615'
-        url: https://github.com/apache/airflow/pull/31615
-    - description: Add support for ``runtimeClassName``
-      kind: added
-      links:
-      - name: '#31868'
-        url: https://github.com/apache/airflow/pull/31868
-    - description: Add support for custom query in workers KEDA trigger
-      kind: added
-      links:
-      - name: '#32308'
-        url: https://github.com/apache/airflow/pull/32308
-    - description: Add ``containerSecurityContext`` for cleanup job
+      - name: '#36167'
+        url: https://github.com/apache/airflow/pull/36167
+    - description: Improve PriorityClass to improve debuggability
       kind: changed
       links:
-      - name: '#34351'
-        url: https://github.com/apache/airflow/pull/34351
-    - description: Add existing secret support for PGBouncer metrics exporter
+      - name: '#36365'
+        url: https://github.com/apache/airflow/pull/36365
+    - description: Add ``securityContexts`` in dag processors log groomer sidecar
       kind: changed
       links:
-      - name: '#32724'
-        url: https://github.com/apache/airflow/pull/32724
-    - description: Allow templating in webserver ingress hostnames
+      - name: '#34499'
+        url: https://github.com/apache/airflow/pull/34499
+    - description: Add support for ``securityContexts`` in dag processors wait-for-migrations
+        container
       kind: changed
       links:
-      - name: '#33142'
-        url: https://github.com/apache/airflow/pull/33142
-    - description: Allow templating in flower ingress hostnames
+      - name: '#35593'
+        url: https://github.com/apache/airflow/pull/35593
+    - description: Add templating for PVC ``storageClassName``
       kind: changed
       links:
-      - name: '#33363'
-        url: https://github.com/apache/airflow/pull/33363
-    - description: Add configmap annotations to StatsD and webserver
+      - name: '#35581'
+        url: https://github.com/apache/airflow/pull/35581
+    - description: Add ``volumeClaimTemplate`` for worker
       kind: changed
       links:
-      - name: '#33340'
-        url: https://github.com/apache/airflow/pull/33340
-    - description: Add pod security context to PgBouncer
+      - name: '#34986'
+        url: https://github.com/apache/airflow/pull/34986
+    - description: Add support for ``priorityClassName`` on Redis pods
       kind: changed
       links:
-      - name: '#32662'
-        url: https://github.com/apache/airflow/pull/32662
-    - description: Add an option to use a direct DB connection in KEDA when PgBouncer
-        is enabled
+      - name: '#34879'
+        url: https://github.com/apache/airflow/pull/34879
+    - description: Configurable mount path for DAGs volume
       kind: changed
       links:
-      - name: '#32608'
-        url: https://github.com/apache/airflow/pull/32608
-    - description: Allow templating in cleanup.schedule
+      - name: '#35083'
+        url: https://github.com/apache/airflow/pull/35083
+    - description: Add support for custom ``emptyDir`` config
       kind: changed
       links:
-      - name: '#32570'
-        url: https://github.com/apache/airflow/pull/32570
-    - description: Template dag processor ``waitformigration`` containers ``extraVolumeMounts``
+      - name: '#34837'
+        url: https://github.com/apache/airflow/pull/34837
+    - description: Added ability to enable/disable scheduler and webserver
       kind: changed
       links:
-      - name: '#32100'
-        url: https://github.com/apache/airflow/pull/32100
-    - description: Ability to inject extra containers into PgBouncer
-      kind: changed
-      links:
-      - name: '#33686'
-        url: https://github.com/apache/airflow/pull/33686
-    - description: Allowing ability to add custom env into PgBouncer container
-      kind: changed
-      links:
-      - name: '#33438'
-        url: https://github.com/apache/airflow/pull/33438
-    - description: Add support for env variables in the StatsD container
-      kind: changed
-      links:
-      - name: '#33175'
-        url: https://github.com/apache/airflow/pull/33175
-    - description: Add ``airflow db migrate`` command to database migration job
+      - name: '#36991'
+        url: https://github.com/apache/airflow/pull/36991
+    - description: Fix StatsD host in Airflow config
       kind: fixed
       links:
-      - name: '#34178'
-        url: https://github.com/apache/airflow/pull/34178
-    - description: Pass ``workers.terminationGracePeriodSeconds`` into KubeExecutor pod
-        template
+      - name: '#35679'
+        url: https://github.com/apache/airflow/pull/35679
+    - description: Set ``AIRFLOW_HOME`` env var with ``airflowHome`` value
       kind: fixed
       links:
-      - name: '#33514'
-        url: https://github.com/apache/airflow/pull/33514
-    - description: CeleryExecutor namespace depends on Airflow version
+      - name: '#34839'
+        url: https://github.com/apache/airflow/pull/34839
+    - description: Safer worker pod annotations
       kind: fixed
       links:
-      - name: '#32753'
-        url: https://github.com/apache/airflow/pull/32753
-    - description: Fix dag processor not including webserver config volume
+      - name: '#35309'
+        url: https://github.com/apache/airflow/pull/35309
+    - description: Set worker ``safeToEvict`` properly
       kind: fixed
       links:
-      - name: '#32644'
-        url: https://github.com/apache/airflow/pull/32644
-    - description: Dag processor liveness probe include ``--local`` and ``--job-type``
-        args
+      - name: '#35130'
+        url: https://github.com/apache/airflow/pull/35130
+    - description: Fix Redis broker URL with ``useStandardNaming``
       kind: fixed
       links:
-      - name: '#32426'
-        url: https://github.com/apache/airflow/pull/32426
-    - description: Revising flower_url_prefix considering default value
+      - name: '#34825'
+        url: https://github.com/apache/airflow/pull/34825
+    - description: Fix metadata DB & port in KEDA connection when ``usePgbouncer`` is
+        false
       kind: fixed
       links:
-      - name: '#33134'
-        url: https://github.com/apache/airflow/pull/33134
-    - description: 'Docs: Add more explicit "embedded postgres" exclusion for production'
+      - name: '#34741'
+        url: https://github.com/apache/airflow/pull/34741
+    - description: Fix PgBouncer connection with ``useStandardNaming``
+      kind: fixed
+      links:
+      - name: '#34787'
+        url: https://github.com/apache/airflow/pull/34787
+    - description: 'Docs: Add docs about extending the Airflow Helm chart'
       kind: changed
       links:
-      - name: '#33034'
-        url: https://github.com/apache/airflow/pull/33034
-    - description: 'Docs: Update git-sync description'
+      - name: '#36331'
+        url: https://github.com/apache/airflow/pull/36331
+    - description: 'Docs: Add comment for Elasticsearch connection scheme'
       kind: changed
       links:
-      - name: '#32181'
-        url: https://github.com/apache/airflow/pull/32181
-    - description: 'Misc: Default Airflow version to 2.7.1'
+      - name: '#35588'
+        url: https://github.com/apache/airflow/pull/35588
+    - description: 'Docs: Add notes about Virtualenvs preventing the need for custom images'
       kind: changed
       links:
-      - name: '#34186'
-        url: https://github.com/apache/airflow/pull/34186
-    - description: 'Misc: Update PostgreSQL subchart to 12.10.0'
+      - name: '#35306'
+        url: https://github.com/apache/airflow/pull/35306
+    - description: 'Misc: Default Airflow version to 2.8.1'
       kind: changed
       links:
-      - name: '#33747'
-        url: https://github.com/apache/airflow/pull/33747
-    - description: 'Misc: Update git-sync to 3.6.9'
+      - name: '#36907'
+        url: https://github.com/apache/airflow/pull/36907
+    - description: 'Misc: Support git-sync v4'
       kind: changed
       links:
-      - name: '#33748'
-        url: https://github.com/apache/airflow/pull/33748
-    - description: 'Misc: Remove unnecessary loops to load env from helm values'
+      - name: '#34731'
+        url: https://github.com/apache/airflow/pull/34731
+    - description: 'Misc: Upgrade ``bitnami/postgresql`` subchart to ``13.2.24``'
       kind: changed
       links:
-      - name: '#33506'
-        url: https://github.com/apache/airflow/pull/33506
-    - description: 'Misc: Replace ``common.tplvalues.render`` with ``tpl`` in ingress
-        template files'
+      - name: '#36156'
+        url: https://github.com/apache/airflow/pull/36156
+    - description: 'Misc: Change git sync container indent to 4'
       kind: changed
       links:
-      - name: '#33384'
-        url: https://github.com/apache/airflow/pull/33384
-    - description: 'Misc: Remove K8S 1.23 support'
+      - name: '#35824'
+        url: https://github.com/apache/airflow/pull/35824
+    - description: 'Misc: Remove K8S 1.24 support'
       kind: changed
       links:
-      - name: '#32899'
-        url: https://github.com/apache/airflow/pull/32899
-    - description: 'Misc: Fix chart named template comments'
+      - name: '#35214'
+        url: https://github.com/apache/airflow/pull/35214
+    - description: 'Misc: Rebuild ``pgbouncer`` and ``pgbouncer-exporter`` images with
+        newer versions'
       kind: changed
       links:
-      - name: '#32681'
-        url: https://github.com/apache/airflow/pull/32681
-    - description: 'Misc: Remove outdated comment from chart values in the workers KEDA
-        conf section'
+      - name: '#36898'
+        url: https://github.com/apache/airflow/pull/36898
+    - description: 'Misc: Update ``statsd`` and ``redis`` chart images'
       kind: changed
       links:
-      - name: '#32300'
-        url: https://github.com/apache/airflow/pull/32300
-    - description: 'Misc: Remove unnecessary ``or`` function in template files'
-      kind: changed
-      links:
-      - name: '#34415'
-        url: https://github.com/apache/airflow/pull/34415
+      - name: '#37187'
+        url: https://github.com/apache/airflow/pull/37187
