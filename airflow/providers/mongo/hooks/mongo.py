@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import warnings
-from ssl import CERT_NONE
+from ssl import CERT_NONE, CERT_REQUIRED
 from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
@@ -107,7 +107,7 @@ class MongoHook(BaseHook):
                 options["tlsAllowInvalidCertificates"] = allow_insecure
             else:
                 # For older pymongo versions, use 'ssl_cert_reqs'
-                options["ssl_cert_reqs"] = None if allow_insecure else CERT_NONE
+                options["ssl_cert_reqs"] = CERT_NONE if allow_insecure else CERT_REQUIRED
 
         self.client = MongoClient(self.uri, **options)
         return self.client
